@@ -1,17 +1,14 @@
-# spaceship management sim
+# spaceship-management-sim
 
-A management sim about mining ships on routes between connected star systems. Send
-a ship to mine and it hops out to an asteroid, fills its hold on a timer, flies
-back and unloads. One ship earns almost nothing. The game is many of them running
-at once while you set standing orders and watch.
+A management sim, built from pixel sprites and small movement animations and timers. A ship sent to mine travels to the nearest asteroid, a timer runs while cargo fills, then a return timer while it flies back and unloads. Systems connect to each other the way X4's sectors do, so a ship's route is a hop between connected systems rather than free movement on an open map.
 
-Pixel sprites, small movement animations, and an empire that grows slowly while you
-watch it.
+One ship on one route barely produces or sells anything. The game is meant to work at scale: many ships on many routes running in parallel, each a small state machine (idle, travelling out, working, travelling back, unloading) ticking against its own timer.
 
-Status: no game yet. `docs/premise.md` is the brief, and the repo is being built one
-playable slice at a time.
+The end goal is a type of 4X style game where you can take over the galaxy if you wanted to. Bannerlord but with individual standing orders for fleets and ships. After a while and some setup, should run like X4 where you can sit and watch most of your empire grow slowly.
 
-Working name. It has no title yet.
+This will also need to simulate an active economy, with each ship being owned by AI (not the generative kind) making actions and building their presence or economy just like the player would.
+
+No game yet. Working name, no title picked.
 
 ## Running it
 
@@ -22,16 +19,4 @@ npm install
 npm run dev      # then open the printed URL
 ```
 
-`npm run build` writes `dist/index.html`, one self-contained file that opens from
-the filesystem with no server.
-
-## Repo layout
-
-```
-sim/     the simulation. No UI, no dependencies, tested headlessly.
-app/     canvas renderer. Reads sim state, never writes it.
-tools/   the build.
-docs/    the brief, and nothing else yet.
-```
-
-`CLAUDE.md` holds the conventions, for agents and people alike.
+`npm run build` writes `dist/index.html`, one self-contained file that opens from the filesystem with no server.
