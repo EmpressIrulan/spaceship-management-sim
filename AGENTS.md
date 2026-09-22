@@ -1,7 +1,5 @@
 # Agent instructions
 
-`CLAUDE.md` in this directory holds them. It covers the workflow lane, where the
-design lives, the code invariants and the build commands.
+`CLAUDE.md` in this directory holds them. It covers the workflow lane, the repo layout, the code invariants and the build commands.
 
-Nothing is duplicated here on purpose. Two files describing one repo drift, and
-then no reader can tell which one is current.
+Nothing is duplicated here on purpose. Two files describing one repo drift, and then no reader can tell which one is current.
