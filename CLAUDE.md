@@ -46,8 +46,9 @@ rewrite.
 - `sim/` also exposes `makeState(config)`. Fabricating an arbitrary mid-run fleet
   is a testing requirement, not a convenience. Without it, every balance
   observation costs a full playthrough.
-- Never `Math.random`. The project owns a seeded PRNG in `sim/`, so a run can be
-  reproduced from its seed.
+- Never `Math.random`. The project owns a seeded PRNG in `sim/`, so a test can
+  replay a run exactly. This is a determinism rule and nothing more. Whether the
+  galaxy is generated or handcrafted is an open question (`docs/DESIGN.md` §8).
 - A ship's behaviour is an explicit state machine (`idle`, `outbound`, `working`,
   `inbound`, `unloading`) with one timer per ship, advanced only by `tick`.
   Rendering reads state and never writes it.

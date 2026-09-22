@@ -23,8 +23,8 @@ of them being clever. That is §3 of `../DESIGN.md`.
 
 ## What does not
 
-- Colonists become ships. Per-agent needs go away, and a ship's only internal
-  state is its task and its timer.
+- Colonists become ships, and per-agent needs go away. What a ship carries beyond
+  its task and its timer is open (`../DESIGN.md` §8.2).
 - The tile grid becomes a system graph (§2). Free movement across tiles is
   replaced by hops along edges, which removes pathfinding as a problem.
 - The C++ and the tile printing are gone. This project is TypeScript with a canvas

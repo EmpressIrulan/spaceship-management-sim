@@ -2,11 +2,11 @@
 
 A management sim about mining ships on routes between connected star systems. Send
 a ship to mine and it hops out to an asteroid, fills its hold on a timer, flies
-back and unloads. One ship earns almost nothing. The game is a few hundred of them
-running at once while you set standing orders and watch.
+back and unloads. One ship earns almost nothing. The game is many of them running
+at once while you set standing orders and watch.
 
-Pixel sprites, small movement animations, and a simulation that keeps running while
-you are not looking at it.
+Pixel sprites, small movement animations, and an empire that grows slowly while you
+watch it.
 
 Status: no game yet. `docs/DESIGN.md` is the premise, and the repo is being built
 one playable slice at a time.
