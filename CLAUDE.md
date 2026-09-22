@@ -11,28 +11,23 @@ management sim" until one is picked.
 Workflow: story lane (see workflow/WORKFLOW.md in the memory store).
 Stories come from /plan-story and are built with /xp-story. Chores go through /next-task.
 
-## Where the design lives
+## Where the brief lives
 
-`docs/DESIGN.md` is the premise, and it is short enough to read whole. Read it
-before any story work.
+`docs/premise.md` is the client's brief, copied from the vault and not added to.
+It is the only statement of what this game is, and it is short. Read it before any
+story work.
 
-`docs/reference/` holds material copied out of the vault. It is background the
-design draws on, not rules this game has adopted:
+There is no design document and no design conversation in this repo. Anything the
+brief does not say is undecided, and it gets decided with the client in
+/plan-story, one story at a time, from watching the game run. Do not write the
+answers into docs, into comments, or into the code.
 
-- `x4-ship-classes.md`, the ship-role catalogue from X4: Foundations, which is
-  where the system-graph and ship-subclass ideas come from.
-- `prior-art-colony-sim.md`, the deleted C++ colony sim this project reuses one
-  idea from.
+A question that blocks a story is a planning failure. Stop the story and go back
+to /plan-story with the client.
 
-`docs/accepted-tradeoffs.md` is the ledger for review findings accepted as gaps.
-
-## Status
-
-The design is a premise and nothing more. Resources, the economy, combat, fleet
-orders and the UI are all undecided, and the code so far decides none of them.
-
-A question that blocks a story is a planning failure, not something to answer in
-the code. Stop the story and go back to /plan-story with the client.
+Review findings accepted as gaps rather than fixed go in
+`docs/accepted-tradeoffs.md`, created by the first PR that has one. Never file a
+review-findings issue.
 
 ## Code invariants
 
@@ -47,8 +42,8 @@ rewrite.
   is a testing requirement, not a convenience. Without it, every balance
   observation costs a full playthrough.
 - Never `Math.random`. The project owns a seeded PRNG in `sim/`, so a test can
-  replay a run exactly. This is a determinism rule and nothing more. Whether the
-  galaxy is generated or handcrafted is an open question (`docs/DESIGN.md` §8).
+  replay a run exactly. This is a determinism rule and says nothing about how a
+  galaxy comes to exist.
 - A ship's behaviour is an explicit state machine (`idle`, `outbound`, `working`,
   `inbound`, `unloading`) with one timer per ship, advanced only by `tick`.
   Rendering reads state and never writes it.

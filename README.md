@@ -8,8 +8,8 @@ at once while you set standing orders and watch.
 Pixel sprites, small movement animations, and an empire that grows slowly while you
 watch it.
 
-Status: no game yet. `docs/DESIGN.md` is the premise, and the repo is being built
-one playable slice at a time.
+Status: no game yet. `docs/premise.md` is the brief, and the repo is being built one
+playable slice at a time.
 
 Working name. It has no title yet.
 
@@ -31,7 +31,7 @@ the filesystem with no server.
 sim/     the simulation. No UI, no dependencies, tested headlessly.
 app/     canvas renderer. Reads sim state, never writes it.
 tools/   the build.
-docs/    the design premise and the reference material behind it.
+docs/    the brief, and nothing else yet.
 ```
 
 `CLAUDE.md` holds the conventions, for agents and people alike.
