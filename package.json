@@ -1,0 +1,16 @@
+{
+  "name": "spaceship-management-sim",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": ["sim", "app"],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "dev": "node tools/build.mjs --dev",
+    "build": "node tools/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "typescript": "^5.6.3"
+  }
+}

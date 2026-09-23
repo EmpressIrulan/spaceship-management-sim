@@ -1,0 +1,15 @@
+{
+  "name": "app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "sim": "*"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.0"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "sim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "UI-free, dependency-free simulation core. See CLAUDE.md code invariants.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.0",
+    "vitest": "^5.0.0"
+  }
+}
