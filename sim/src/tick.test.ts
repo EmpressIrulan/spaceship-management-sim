@@ -12,6 +12,7 @@ import {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  miningSite,
   type Asteroid,
   type SimState,
   type Vec,
@@ -315,15 +316,16 @@ describe("asteroid field", () => {
 });
 
 describe("ore is conserved", () => {
-  // A ship already at the asteroid and starting to mine it, built by hand
-  // because the game itself only has one ship so far.
+  // A ship already at its mining site and starting to work the rock, built
+  // by hand because the game itself only has one ship so far.
   function workingOn(state: SimState, asteroid: Asteroid) {
+    const site = miningSite(state.station.position, asteroid);
     return {
       state: "working" as const,
-      position: { ...asteroid.position },
+      position: site,
       timer: WORKING_SECONDS,
       cargo: 0,
-      target: { asteroidId: asteroid.id, site: { ...asteroid.position } },
+      target: { asteroidId: asteroid.id, site },
     };
   }
 
