@@ -167,6 +167,42 @@ describe("the laser", () => {
     const idle = { ...ship(state), state: "idle" as const, target: null };
     expect(laserBeam({ ...state, ships: [idle] }, idle)).toBeNull();
   });
+
+  it("switches off and sends the ship home when another ship empties their shared rock", () => {
+    // Two ships mining the same asteroid: one is about to take the last of
+    // its ore this tick, the other is mid-cycle with a partial load. Only
+    // reachable with more than one ship on the same rock.
+    const base = createInitialState(7);
+    const workSite = site(base);
+    const shared: Asteroid = { ...targetOf(base), ore: 5 };
+
+    const drainer = {
+      ...ship(base),
+      state: "working" as const,
+      position: workSite,
+      timer: 0.001,
+      cargo: 0,
+      target: { asteroidId: shared.id, site: workSite },
+    };
+    const other = {
+      ...ship(base),
+      state: "working" as const,
+      position: workSite,
+      timer: WORKING_SECONDS - 1,
+      cargo: 2,
+      target: { asteroidId: shared.id, site: workSite },
+    };
+
+    const state: SimState = { ...base, asteroids: [shared], respawns: [], ships: [drainer, other] };
+    const next = tick(state, 0.01);
+    const survivor = next.ships[1]!;
+
+    expect(next.asteroids.some((a) => a.id === shared.id)).toBe(false);
+    expect(survivor.state).toBe("homebound");
+    expect(laserBeam(next, survivor)).toBeNull();
+    // Heads home with only the partial load it had aboard, nothing extra.
+    expect(survivor.cargo).toBe(2);
+  });
 });
 
 describe("cargo while mining from a distance", () => {
