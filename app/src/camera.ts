@@ -1,7 +1,7 @@
 import type { SimState, Size, Vec } from "sim";
 
 // Placeholder limits. Revisit when sectors get bigger than one station and
-// one asteroid and the client wants to see more of them at once.
+// a handful of asteroids and the client wants to see more of them at once.
 export const MIN_ZOOM = 0.2;
 export const MAX_ZOOM = 8;
 const WHEEL_ZOOM_STEP = 1.1;
@@ -83,6 +83,12 @@ export function panBy(camera: Camera, dxScreen: number, dyScreen: number): Camer
   };
 }
 
+// Asteroids are only a few pixels across when zoomed out, so their hover
+// area never shrinks below this many screen pixels.
+const MIN_HOVER_PX = 16;
+
+export type Hovered = { kind: "station" } | { kind: "asteroid"; id: number };
+
 function insideRect(point: Vec, center: Vec, size: Size): boolean {
   return (
     Math.abs(point.x - center.x) <= size.width / 2 &&
@@ -90,22 +96,36 @@ function insideRect(point: Vec, center: Vec, size: Size): boolean {
   );
 }
 
-export function hitsStation(
-  state: SimState,
-  camera: Camera,
-  viewport: Viewport,
-  screenPoint: Vec,
-): boolean {
-  const world = screenToWorld(camera, viewport, screenPoint);
-  return insideRect(world, state.station.position, state.station.size);
-}
-
-// `pointer` is null once the mouse has left the canvas.
-export function hoveringStation(
+// What the pointer is over. `pointer` is null once the mouse has left the canvas.
+export function hoveredBody(
   state: SimState,
   camera: Camera,
   viewport: Viewport,
   pointer: Vec | null,
-): boolean {
-  return pointer !== null && hitsStation(state, camera, viewport, pointer);
+): Hovered | null {
+  if (pointer === null) return null;
+  const world = screenToWorld(camera, viewport, pointer);
+  if (insideRect(world, state.station.position, state.station.size)) {
+    return { kind: "station" };
+  }
+  const floor = MIN_HOVER_PX / camera.zoom;
+  for (const asteroid of state.asteroids) {
+    const area = {
+      width: Math.max(asteroid.size.width, floor),
+      height: Math.max(asteroid.size.height, floor),
+    };
+    if (insideRect(world, asteroid.position, area)) {
+      return { kind: "asteroid", id: asteroid.id };
+    }
+  }
+  return null;
+}
+
+// The station or asteroid a hover refers to, or null if that asteroid has gone.
+export function bodyOf(
+  state: SimState,
+  hovered: Hovered,
+): { position: Vec; size: Size } | null {
+  if (hovered.kind === "station") return state.station;
+  return state.asteroids.find((a) => a.id === hovered.id) ?? null;
 }

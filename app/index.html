@@ -15,7 +15,7 @@
         height: 100%;
         cursor: grab;
       }
-      #inventory {
+      #info {
         position: absolute;
         min-width: 140px;
         padding: 8px 12px;
@@ -25,10 +25,10 @@
         font: 14px monospace;
         pointer-events: none;
       }
-      #inventory[hidden] {
+      #info[hidden] {
         display: none;
       }
-      #inventory h2 {
+      #info h2 {
         margin: 0 0 6px;
         font-size: 14px;
       }
@@ -36,9 +36,9 @@
   </head>
   <body>
     <canvas id="screen" width="800" height="600"></canvas>
-    <div id="inventory" hidden>
-      <h2>Station inventory</h2>
-      <div>Stored: <span id="inventory-stored">0</span></div>
+    <div id="info" hidden>
+      <h2 id="info-title"></h2>
+      <div id="info-line"></div>
     </div>
     <script type="module" src="./main.js"></script>
   </body>

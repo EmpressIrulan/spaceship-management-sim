@@ -1,4 +1,5 @@
-import { CARGO_PER_TRIP, UNLOADING_SECONDS, WORKING_SECONDS, type Ship } from "sim";
+import { CARGO_PER_TRIP, UNLOADING_SECONDS, WORKING_SECONDS, type Ship, type SimState } from "sim";
+import type { Hovered } from "./camera";
 
 export interface Gauge {
   // 0 to 1. Follows the timer so the bar moves smoothly between whole units.
@@ -6,10 +7,12 @@ export interface Gauge {
   text: string;
 }
 
-// An empty ship heading out has nothing worth reading, so it gets no gauge.
+// An empty ship heading out or waiting at the station has nothing worth
+// reading, so it gets no gauge.
 export function cargoGauge(ship: Ship): Gauge | null {
   const text = `${ship.cargo}/${CARGO_PER_TRIP}`;
   switch (ship.state) {
+    case "idle":
     case "outbound":
       return null;
     case "working":
@@ -19,4 +22,19 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "unloading":
       return { fill: ship.timer / UNLOADING_SECONDS, text };
   }
+}
+
+export interface InfoBox {
+  title: string;
+  line: string;
+}
+
+// Null closes the box, including when the hovered asteroid has just gone.
+export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | null {
+  if (!hovered) return null;
+  if (hovered.kind === "station") {
+    return { title: "Station inventory", line: `Stored: ${state.station.inventory}` };
+  }
+  const asteroid = state.asteroids.find((a) => a.id === hovered.id);
+  return asteroid ? { title: "Asteroid", line: `Ore: ${asteroid.ore}` } : null;
 }
