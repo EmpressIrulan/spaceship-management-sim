@@ -22,6 +22,9 @@ export const STATION_SIZE = { width: 60, height: 60 };
 // The mining ship is meant to be the smallest ship class.
 export const SHIP_SIZE = { width: 10, height: 7 };
 export const ASTEROID_SIZE = { width: 13, height: 10 };
+// How far off the asteroid's edge a ship stops to mine: three ship lengths.
+// Placeholder, to tune at the demo.
+export const MINING_GAP = 3 * SHIP_SIZE.width;
 
 export interface Vec {
   x: number;
@@ -110,6 +113,30 @@ export function placeAsteroid(
   return { position, rng };
 }
 
+// Where the straight line from `from` to the asteroid's centre crosses its
+// outline.
+function edgeToward(asteroid: Asteroid, from: Vec): Vec {
+  const dx = from.x - asteroid.position.x;
+  const dy = from.y - asteroid.position.y;
+  const scale = Math.min(
+    asteroid.size.width / 2 / Math.abs(dx),
+    asteroid.size.height / 2 / Math.abs(dy),
+  );
+  return { x: asteroid.position.x + dx * scale, y: asteroid.position.y + dy * scale };
+}
+
+// The point on the station side of the asteroid where a ship stops to mine
+// it, with MINING_GAP between the ship's nose and the asteroid's edge.
+export function miningSite(station: Vec, asteroid: Asteroid): Vec {
+  const edge = edgeToward(asteroid, station);
+  const d = distance(station, asteroid.position);
+  const ux = (station.x - asteroid.position.x) / d;
+  const uy = (station.y - asteroid.position.y) / d;
+  // Centre to outline of the ship along the line it flies in on.
+  const nose = Math.min(SHIP_SIZE.width / 2 / Math.abs(ux), SHIP_SIZE.height / 2 / Math.abs(uy));
+  return { x: edge.x + ux * (MINING_GAP + nose), y: edge.y + uy * (MINING_GAP + nose) };
+}
+
 // The asteroid with ore left that is closest to the station, or null.
 export function nearestWithOre(station: Vec, asteroids: Asteroid[]): Asteroid | null {
   let best: Asteroid | null = null;
@@ -129,7 +156,7 @@ export function depart(ship: Ship, station: Vec, asteroids: Asteroid[]): Ship {
   if (!asteroid) {
     return { ...ship, state: "idle", position: { ...station }, timer: 0, cargo: 0, target: null };
   }
-  const site = { ...asteroid.position };
+  const site = miningSite(station, asteroid);
   return {
     ...ship,
     state: "outbound",
@@ -170,4 +197,19 @@ export function createInitialState(seed: number): SimState {
     respawns: [],
     ships: [depart(idle, stationPosition, asteroids)],
   };
+}
+
+export interface Beam {
+  from: Vec;
+  to: Vec;
+}
+
+// A mining ship's laser, from the ship to the near edge of the rock it is
+// mining. Null whenever the ship is not mining.
+export function laserBeam(state: SimState, ship: Ship): Beam | null {
+  if (ship.state !== "working" || !ship.target) return null;
+  const id = ship.target.asteroidId;
+  const asteroid = state.asteroids.find((a) => a.id === id);
+  if (!asteroid) return null;
+  return { from: { ...ship.position }, to: edgeToward(asteroid, ship.position) };
 }

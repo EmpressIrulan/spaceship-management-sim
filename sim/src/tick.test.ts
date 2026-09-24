@@ -12,6 +12,7 @@ import {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  miningSite,
   type Asteroid,
   type SimState,
   type Vec,
@@ -44,7 +45,7 @@ function nearestWithOre(state: SimState): Asteroid {
 }
 
 function legSeconds(state: SimState): number {
-  return travelSeconds(distance(state.station.position, target(state).position));
+  return travelSeconds(distance(state.station.position, ship(state).target!.site));
 }
 
 function cycleSeconds(state: SimState): number {
@@ -121,7 +122,7 @@ describe("mining cycle", () => {
     const start = createInitialState(7);
     const nearlyDone = run(start, legSeconds(start) + 11.5);
     expect(ship(nearlyDone).state).toBe("working");
-    expect(ship(nearlyDone).position).toEqual(target(start).position);
+    expect(ship(nearlyDone).position).toEqual(ship(start).target!.site);
 
     const leaving = run(nearlyDone, 1);
     expect(ship(leaving).state).toBe("homebound");
@@ -315,15 +316,16 @@ describe("asteroid field", () => {
 });
 
 describe("ore is conserved", () => {
-  // A ship already at the asteroid and starting to mine it, built by hand
-  // because the game itself only has one ship so far.
+  // A ship already at its mining site and starting to work the rock, built
+  // by hand because the game itself only has one ship so far.
   function workingOn(state: SimState, asteroid: Asteroid) {
+    const site = miningSite(state.station.position, asteroid);
     return {
       state: "working" as const,
-      position: { ...asteroid.position },
+      position: site,
       timer: WORKING_SECONDS,
       cargo: 0,
-      target: { asteroidId: asteroid.id, site: { ...asteroid.position } },
+      target: { asteroidId: asteroid.id, site },
     };
   }
 
