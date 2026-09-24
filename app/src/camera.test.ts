@@ -4,8 +4,7 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   fitCamera,
-  hitsStation,
-  hoveringStation,
+  hoveredBody,
   panBy,
   screenToWorld,
   worldToScreen,
@@ -63,12 +62,13 @@ describe("camera", () => {
 });
 
 describe("starting view", () => {
-  it("shows the station and asteroid on screen for any seed, even on a short window", () => {
+  it("shows the station and every asteroid on screen for any seed, even on a short window", () => {
     const short = { width: 900, height: 500 };
     for (let seed = 0; seed < 200; seed += 1) {
       const state = createInitialState(seed);
-      const camera = fitCamera(short, [state.station, state.asteroid]);
-      for (const body of [state.station, state.asteroid]) {
+      const bodies = [state.station, ...state.asteroids];
+      const camera = fitCamera(short, bodies);
+      for (const body of bodies) {
         const topLeft = worldToScreen(camera, short, {
           x: body.position.x - body.size.width / 2,
           y: body.position.y - body.size.height / 2,
@@ -87,7 +87,7 @@ describe("starting view", () => {
 
   it("does not zoom in past 1:1 when everything already fits", () => {
     const state = createInitialState(7);
-    expect(fitCamera({ width: 4000, height: 3000 }, [state.station, state.asteroid]).zoom).toBe(1);
+    expect(fitCamera({ width: 4000, height: 3000 }, [state.station, ...state.asteroids]).zoom).toBe(1);
   });
 });
 
@@ -102,24 +102,11 @@ describe("scroll wheel", () => {
   });
 });
 
-describe("hovering the station", () => {
+describe("hovering", () => {
   const state = createInitialState(7);
+  const asteroid = state.asteroids[2]!;
 
-  it("shows the menu while the pointer is over the station", () => {
-    const onScreen = worldToScreen(home, viewport, state.station.position);
-    expect(hoveringStation(state, home, viewport, onScreen)).toBe(true);
-  });
-
-  it("hides it when the pointer is elsewhere or has left the canvas", () => {
-    expect(hoveringStation(state, home, viewport, { x: 5, y: 5 })).toBe(false);
-    expect(hoveringStation(state, home, viewport, null)).toBe(false);
-  });
-});
-
-describe("pointing at the station", () => {
-  const state = createInitialState(7);
-
-  it("hits the station wherever the camera has moved it", () => {
+  it("points at the station wherever the camera has moved it", () => {
     const cameras: Camera[] = [
       home,
       { center: { x: 200, y: -150 }, zoom: 0.5 },
@@ -127,13 +114,30 @@ describe("pointing at the station", () => {
     ];
     for (const camera of cameras) {
       const onScreen = worldToScreen(camera, viewport, state.station.position);
-      expect(hitsStation(state, camera, viewport, onScreen)).toBe(true);
+      expect(hoveredBody(state, camera, viewport, onScreen)).toEqual({ kind: "station" });
     }
   });
 
-  it("misses when clicking empty space or the asteroid", () => {
-    expect(hitsStation(state, home, viewport, { x: 5, y: 5 })).toBe(false);
-    const asteroid = worldToScreen(home, viewport, state.asteroid.position);
-    expect(hitsStation(state, home, viewport, asteroid)).toBe(false);
+  it("points at an asteroid by its id", () => {
+    const onScreen = worldToScreen(home, viewport, asteroid.position);
+    expect(hoveredBody(state, home, viewport, onScreen)).toEqual({
+      kind: "asteroid",
+      id: asteroid.id,
+    });
+  });
+
+  it("still catches a small asteroid when zoomed out", () => {
+    const zoomedOut: Camera = { center: { x: 0, y: 0 }, zoom: 0.5 };
+    const onScreen = worldToScreen(zoomedOut, viewport, asteroid.position);
+    const nearby = { x: onScreen.x + 6, y: onScreen.y - 6 };
+    expect(hoveredBody(state, zoomedOut, viewport, nearby)).toEqual({
+      kind: "asteroid",
+      id: asteroid.id,
+    });
+  });
+
+  it("points at nothing over empty space or once the pointer has left the canvas", () => {
+    expect(hoveredBody(state, home, viewport, { x: 5, y: 5 })).toBeNull();
+    expect(hoveredBody(state, home, viewport, null)).toBeNull();
   });
 });

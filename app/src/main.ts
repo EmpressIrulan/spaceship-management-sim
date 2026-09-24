@@ -1,7 +1,8 @@
 import { SHIP_SIZE, createInitialState, tick, type Size, type Vec } from "sim";
 import {
+  bodyOf,
   fitCamera,
-  hoveringStation,
+  hoveredBody,
   panBy,
   wheelZoomFactor,
   worldToScreen,
@@ -9,18 +10,19 @@ import {
   type Camera,
   type Viewport,
 } from "./camera";
-import { cargoGauge, type Gauge } from "./labels";
-
+import { cargoGauge, infoBox, type Gauge } from "./labels";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
-const menuEl = document.querySelector<HTMLElement>("#inventory");
-const storedEl = document.querySelector<HTMLElement>("#inventory-stored");
-if (!canvasEl || !menuEl || !storedEl) {
-  throw new Error("missing #screen canvas or #inventory menu");
+const boxEl = document.querySelector<HTMLElement>("#info");
+const titleEl = document.querySelector<HTMLElement>("#info-title");
+const lineEl = document.querySelector<HTMLElement>("#info-line");
+if (!canvasEl || !boxEl || !titleEl || !lineEl) {
+  throw new Error("missing #screen canvas or #info box");
 }
 const canvas: HTMLCanvasElement = canvasEl;
-const menu: HTMLElement = menuEl;
-const stored: HTMLElement = storedEl;
+const box: HTMLElement = boxEl;
+const boxTitle: HTMLElement = titleEl;
+const boxLine: HTMLElement = lineEl;
 
 const context = canvas.getContext("2d");
 if (!context) {
@@ -48,7 +50,9 @@ function resize(): void {
 window.addEventListener("resize", resize);
 resize();
 
-let camera: Camera = fitCamera(viewport, [state.station, state.asteroid]);
+// Fits the starting field only. Respawns can land off screen; the camera does
+// not follow them.
+let camera: Camera = fitCamera(viewport, [state.station, ...state.asteroids]);
 
 function mousePoint(event: MouseEvent): Vec {
   const bounds = canvas.getBoundingClientRect();
@@ -127,7 +131,9 @@ function drawGauge(shipPosition: Vec, gauge: Gauge): void {
 function draw(): void {
   ctx.clearRect(0, 0, viewport.width, viewport.height);
 
-  fillWorldRect(state.asteroid.position, state.asteroid.size, "#a16207");
+  for (const asteroid of state.asteroids) {
+    fillWorldRect(asteroid.position, asteroid.size, "#a16207");
+  }
   fillWorldRect(state.station.position, state.station.size, "#64748b");
 
   for (const ship of state.ships) {
@@ -137,18 +143,21 @@ function draw(): void {
     if (gauge) drawGauge(ship.position, gauge);
   }
 
-  // Re-checked every frame, so zooming under a still pointer updates it too.
-  const menuOpen = hoveringStation(state, camera, viewport, pointer);
-  menu.hidden = !menuOpen;
-  if (menuOpen) {
-    const station = state.station;
+  // Re-checked every frame, so zooming under a still pointer updates it too,
+  // and the box closes by itself when a hovered asteroid runs out.
+  const hovered = hoveredBody(state, camera, viewport, pointer);
+  const info = infoBox(state, hovered);
+  box.hidden = info === null;
+  const body = hovered && bodyOf(state, hovered);
+  if (body && info) {
     const anchor = worldToScreen(camera, viewport, {
-      x: station.position.x + station.size.width / 2,
-      y: station.position.y - station.size.height / 2,
+      x: body.position.x + body.size.width / 2,
+      y: body.position.y - body.size.height / 2,
     });
-    menu.style.left = `${anchor.x + 8}px`;
-    menu.style.top = `${anchor.y}px`;
-    stored.textContent = String(station.inventory);
+    box.style.left = `${anchor.x + 8}px`;
+    box.style.top = `${anchor.y}px`;
+    boxTitle.textContent = info.title;
+    boxLine.textContent = info.line;
   }
 }
 
