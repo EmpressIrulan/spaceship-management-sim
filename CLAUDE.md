@@ -38,4 +38,4 @@ Never make a check pass by weakening it. If the right fix is unclear, stop and r
 
 ## CI and merge gate
 
-`.github/workflows/ci.yml` runs `npm install`, `npm run typecheck` and `npm test` on every PR and on push to `main`. Its job is named `build`, and that check gates merges once branch protection is on.
+`.github/workflows/ci.yml` runs `npm ci`, `npm run typecheck` and `npm test` on every PR and on push to `main`. It installs with `npm ci` rather than `npm install` so a lockfile that has drifted from `package.json` fails the check instead of being quietly repaired. Its job is named `build`, and that check gates merges once branch protection is on.

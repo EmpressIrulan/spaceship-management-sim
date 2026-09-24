@@ -8,6 +8,6 @@ if ! command -v npm >/dev/null; then
   exit 1
 fi
 
-npm install
+npm ci
 npm run typecheck --workspaces --if-present
 npm test --workspaces --if-present
