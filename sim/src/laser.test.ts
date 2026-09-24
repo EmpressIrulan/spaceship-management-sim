@@ -65,7 +65,20 @@ describe("where the ship mines from", () => {
       const beam = laserBeam({ ...state, ships: [arrived] }, arrived);
       expect(beam).not.toBeNull();
       expect(edgeness(beam!.to, asteroid.position, asteroid.size)).toBeCloseTo(1, 9);
-      expect(distance(site(state), beam!.to)).toBeCloseTo(MINING_GAP, 9);
+      // Measured from the ship's nose, which is what the eye reads as the gap:
+      // the point on the beam where it leaves the ship's outline.
+      const length = distance(beam!.from, beam!.to);
+      const step = 0.05;
+      const leaves = Array.from({ length: 200 }, (_, i) => {
+        const f = (i * step) / length;
+        return edgeness(
+          { x: beam!.from.x + (beam!.to.x - beam!.from.x) * f, y: beam!.from.y + (beam!.to.y - beam!.from.y) * f },
+          site(state),
+          SHIP_SIZE,
+        );
+      });
+      const noseAt = leaves.findIndex((e) => e >= 1 - 1e-9) * step;
+      expect(Math.abs(length - noseAt - MINING_GAP)).toBeLessThanOrEqual(step);
     }
   });
 

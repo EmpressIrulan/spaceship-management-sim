@@ -125,15 +125,16 @@ function edgeToward(asteroid: Asteroid, from: Vec): Vec {
   return { x: asteroid.position.x + dx * scale, y: asteroid.position.y + dy * scale };
 }
 
-// The point on the station side of the asteroid, MINING_GAP off its edge,
-// where a ship stops to mine it.
+// The point on the station side of the asteroid where a ship stops to mine
+// it, with MINING_GAP between the ship's nose and the asteroid's edge.
 export function miningSite(station: Vec, asteroid: Asteroid): Vec {
   const edge = edgeToward(asteroid, station);
   const d = distance(station, asteroid.position);
-  return {
-    x: edge.x + ((station.x - asteroid.position.x) / d) * MINING_GAP,
-    y: edge.y + ((station.y - asteroid.position.y) / d) * MINING_GAP,
-  };
+  const ux = (station.x - asteroid.position.x) / d;
+  const uy = (station.y - asteroid.position.y) / d;
+  // Centre to outline of the ship along the line it flies in on.
+  const nose = Math.min(SHIP_SIZE.width / 2 / Math.abs(ux), SHIP_SIZE.height / 2 / Math.abs(uy));
+  return { x: edge.x + ux * (MINING_GAP + nose), y: edge.y + uy * (MINING_GAP + nose) };
 }
 
 // The asteroid with ore left that is closest to the station, or null.
