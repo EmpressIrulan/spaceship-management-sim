@@ -1,4 +1,4 @@
-import { SHIP_SIZE, createInitialState, tick, type Size, type Vec } from "sim";
+import { SHIP_SIZE, createInitialState, laserBeam, tick, type Beam, type Size, type Vec } from "sim";
 import {
   bodyOf,
   fitCamera,
@@ -11,6 +11,7 @@ import {
   type Viewport,
 } from "./camera";
 import { cargoGauge, infoBox, type Gauge } from "./labels";
+import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -128,13 +129,41 @@ function drawGauge(shipPosition: Vec, gauge: Gauge): void {
   ctx.fillText(gauge.text, x + GAUGE.width / 2, y + GAUGE.height / 2 + 0.5);
 }
 
-function draw(): void {
+// Screen-space, like the gauge, so the beam and flicker read at any zoom.
+function drawLaser(beam: Beam, seconds: number): void {
+  const from = worldToScreen(camera, viewport, beam.from);
+  const to = worldToScreen(camera, viewport, beam.to);
+  const pulse = laserPulse(seconds);
+
+  ctx.save();
+  ctx.globalAlpha = pulse;
+  ctx.strokeStyle = LASER_COLOR;
+  ctx.lineWidth = 1 + pulse;
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+  ctx.restore();
+
+  // 2 by 2 so a single spark is still visible on a low-density screen.
+  ctx.fillStyle = "#fff1f2";
+  for (const pixel of flickerPixels({ x: Math.round(to.x), y: Math.round(to.y) }, seconds)) {
+    ctx.fillRect(pixel.x - 1, pixel.y - 1, 2, 2);
+  }
+}
+
+function draw(seconds: number): void {
   ctx.clearRect(0, 0, viewport.width, viewport.height);
 
   for (const asteroid of state.asteroids) {
     fillWorldRect(asteroid.position, asteroid.size, "#a16207");
   }
   fillWorldRect(state.station.position, state.station.size, "#64748b");
+
+  for (const ship of state.ships) {
+    const beam = laserBeam(state, ship);
+    if (beam) drawLaser(beam, seconds);
+  }
 
   for (const ship of state.ships) {
     fillWorldRect(ship.position, SHIP_SIZE, ship.cargo > 0 ? "#fde047" : "#4ade80");
@@ -167,7 +196,7 @@ function frame(nowMs: number): void {
   const dt = Math.max(0, (nowMs - lastTimeMs) / 1000);
   lastTimeMs = nowMs;
   state = tick(state, dt);
-  draw();
+  draw(nowMs / 1000);
   requestAnimationFrame(frame);
 }
 

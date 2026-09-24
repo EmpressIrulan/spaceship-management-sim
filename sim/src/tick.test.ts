@@ -44,7 +44,7 @@ function nearestWithOre(state: SimState): Asteroid {
 }
 
 function legSeconds(state: SimState): number {
-  return travelSeconds(distance(state.station.position, target(state).position));
+  return travelSeconds(distance(state.station.position, ship(state).target!.site));
 }
 
 function cycleSeconds(state: SimState): number {
@@ -121,7 +121,7 @@ describe("mining cycle", () => {
     const start = createInitialState(7);
     const nearlyDone = run(start, legSeconds(start) + 11.5);
     expect(ship(nearlyDone).state).toBe("working");
-    expect(ship(nearlyDone).position).toEqual(target(start).position);
+    expect(ship(nearlyDone).position).toEqual(ship(start).target!.site);
 
     const leaving = run(nearlyDone, 1);
     expect(ship(leaving).state).toBe("homebound");
