@@ -180,7 +180,8 @@ export function tick(state: SimState, dt: number): SimState {
     ships: state.ships,
   };
 
-  let remaining = dt;
+  // A negative or NaN dt would wind timers backwards, so it counts as no time.
+  let remaining = dt > 0 ? dt : 0;
   do {
     const step = Math.min(remaining, nextEvent(draft));
     advance(draft, step);

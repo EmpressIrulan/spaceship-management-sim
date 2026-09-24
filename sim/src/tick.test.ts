@@ -170,6 +170,15 @@ describe("mining cycle", () => {
     }
   });
 
+  it("treats a negative or missing time step as no time passing", () => {
+    const start = createInitialState(7);
+    for (const dt of [-5, Number.NaN]) {
+      const next = tick(start, dt);
+      expect(next.ships).toEqual(start.ships);
+      expect(next.asteroids).toEqual(start.asteroids);
+    }
+  });
+
   it("does not mutate the state it was given", () => {
     const start = createInitialState(7);
     const snapshot = JSON.parse(JSON.stringify(start)) as SimState;
