@@ -4,12 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "sim": "*"
   },
   "devDependencies": {
-    "typescript": "^7.0.0"
+    "typescript": "^7.0.0",
+    "vitest": "^5.0.0"
   }
 }
