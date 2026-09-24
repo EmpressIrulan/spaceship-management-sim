@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import esbuild from "esbuild";
 
@@ -8,7 +8,6 @@ const appDir = path.join(root, "app");
 const distDir = path.join(root, "dist");
 
 const buildOptions = {
-  entryPoints: [path.join(appDir, "src", "main.ts")],
   bundle: true,
   format: "esm",
   target: "es2022",
@@ -17,6 +16,7 @@ const buildOptions = {
 async function dev() {
   const ctx = await esbuild.context({
     ...buildOptions,
+    entryPoints: [path.join(appDir, "src", "main.ts")],
     outfile: path.join(appDir, "main.js"),
     sourcemap: true,
   });
@@ -25,11 +25,14 @@ async function dev() {
   console.log(`serving http://${hosts[0]}:${port}`);
 }
 
-async function build() {
+export async function build(rootDir = root) {
+  const appDir = path.join(rootDir, "app");
+  const distDir = path.join(rootDir, "dist");
   // No sourcemap: dist/index.html is a single file with no server behind it,
   // and a sourceMappingURL comment would 404 when opened from the filesystem.
   const result = await esbuild.build({
     ...buildOptions,
+    entryPoints: [path.join(appDir, "src", "main.ts")],
     outfile: path.join(appDir, "main.js"),
     write: false,
   });
@@ -43,6 +46,8 @@ async function build() {
   if (!html.includes(tag)) {
     throw new Error(`app/index.html is missing the script tag: ${tag}`);
   }
+  // Function replacer: the bundle bytes must land in the HTML literally, even
+  // when they contain replacement tokens like `$$`, `$&` or `` $` ``.
   const inlined = html.replace(
     tag,
     () => `<script type="module">\n${bundle.text}\n</script>`,
@@ -53,9 +58,13 @@ async function build() {
   console.log(`wrote ${path.join("dist", "index.html")}`);
 }
 
-const mode = process.argv.includes("--dev") ? "dev" : "build";
-if (mode === "dev") {
-  await dev();
-} else {
-  await build();
+// Only run the CLI when this file is the entry point, so a test importing
+// build.mjs gets the exported build() without kicking off a build.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const mode = process.argv.includes("--dev") ? "dev" : "build";
+  if (mode === "dev") {
+    await dev();
+  } else {
+    await build();
+  }
 }
