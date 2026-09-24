@@ -39,9 +39,13 @@ async function build() {
   }
 
   const html = await readFile(path.join(appDir, "index.html"), "utf8");
+  const tag = '<script type="module" src="./main.js"></script>';
+  if (!html.includes(tag)) {
+    throw new Error(`app/index.html is missing the script tag: ${tag}`);
+  }
   const inlined = html.replace(
-    '<script type="module" src="./main.js"></script>',
-    `<script type="module">\n${bundle.text}\n</script>`,
+    tag,
+    () => `<script type="module">\n${bundle.text}\n</script>`,
   );
 
   await mkdir(distDir, { recursive: true });
