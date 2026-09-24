@@ -19,7 +19,7 @@ describe("impact flicker", () => {
     for (let i = 0; i < 100; i += 1) {
       const pixels = flickerPixels(impact, i / 30);
       expect(pixels.length).toBeGreaterThanOrEqual(2);
-      expect(pixels.length).toBeLessThanOrEqual(6);
+      expect(pixels.length).toBeLessThanOrEqual(5);
       for (const p of pixels) {
         expect(Math.abs(p.x - impact.x)).toBeLessThanOrEqual(3);
         expect(Math.abs(p.y - impact.y)).toBeLessThanOrEqual(3);
