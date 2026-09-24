@@ -50,20 +50,27 @@ interface Draft {
   ships: Ship[];
 }
 
-// Takes ore from the asteroid a ship is mining, removing the asteroid and
-// queueing its replacement once it is empty.
-function mine(draft: Draft, ship: Ship, units: number): void {
-  if (units <= 0 || !ship.target) return;
+// Takes up to `units` of ore from the asteroid a ship is mining and returns
+// how many it got, removing the asteroid and queueing its replacement once it
+// is empty. A ship whose asteroid is already gone gets nothing.
+function mine(draft: Draft, ship: Ship, units: number): number {
+  if (units <= 0 || !ship.target) return 0;
   const id = ship.target.asteroidId;
   const asteroid = draft.asteroids.find((a) => a.id === id);
-  if (!asteroid) return;
-  const ore = asteroid.ore - units;
+  if (!asteroid) return 0;
+  const taken = Math.min(units, asteroid.ore);
+  const ore = asteroid.ore - taken;
   if (ore > 0) {
     draft.asteroids = draft.asteroids.map((a) => (a.id === id ? { ...a, ore } : a));
-    return;
+    return taken;
   }
   draft.asteroids = draft.asteroids.filter((a) => a.id !== id);
   draft.respawns = [...draft.respawns, { timer: RESPAWN_SECONDS, lastPosition: asteroid.position }];
+  return taken;
+}
+
+function asteroidGone(draft: Draft, ship: Ship): boolean {
+  return !draft.asteroids.some((a) => a.id === ship.target?.asteroidId);
 }
 
 // Moves a ship partway through its current state, leaving `timer` seconds.
@@ -89,12 +96,15 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
           : ship.position,
       };
     case "working": {
-      const cargo = unitsDone(timer, WORKING_SECONDS);
-      mine(draft, ship, cargo - ship.cargo);
-      return { ...ship, timer, cargo };
+      const cargo = ship.cargo + mine(draft, ship, unitsDone(timer, WORKING_SECONDS) - ship.cargo);
+      // Out of ore before the hold is full: stop now and head home with what is aboard.
+      const done = cargo < CARGO_PER_TRIP && asteroidGone(draft, ship);
+      return { ...ship, timer: done ? 0 : timer, cargo };
     }
     case "unloading": {
-      const cargo = CARGO_PER_TRIP - unitsDone(timer, UNLOADING_SECONDS);
+      // A partial load unloads at the same rate per unit, so it only starts
+      // dropping once the countdown reaches what is aboard.
+      const cargo = Math.min(ship.cargo, CARGO_PER_TRIP - unitsDone(timer, UNLOADING_SECONDS));
       draft.inventory += ship.cargo - cargo;
       return { ...ship, timer, cargo };
     }
@@ -116,12 +126,11 @@ function finish(draft: Draft, ship: Ship): Ship {
         cargo: 0,
       };
     case "working":
-      mine(draft, ship, CARGO_PER_TRIP - ship.cargo);
       return {
         ...ship,
         state: "homebound",
         timer: route ? route.legSeconds : 0,
-        cargo: CARGO_PER_TRIP,
+        cargo: ship.cargo + mine(draft, ship, CARGO_PER_TRIP - ship.cargo),
       };
     case "homebound":
       return { ...ship, state: "unloading", position: { ...draft.station }, timer: UNLOADING_SECONDS };

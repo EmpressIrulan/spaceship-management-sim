@@ -313,3 +313,93 @@ describe("asteroid field", () => {
     expect(big.station.inventory).toBe(small.station.inventory);
   });
 });
+
+describe("ore is conserved", () => {
+  // A ship already at the asteroid and starting to mine it, built by hand
+  // because the game itself only has one ship so far.
+  function workingOn(state: SimState, asteroid: Asteroid) {
+    return {
+      state: "working" as const,
+      position: { ...asteroid.position },
+      timer: WORKING_SECONDS,
+      cargo: 0,
+      target: { asteroidId: asteroid.id, site: { ...asteroid.position } },
+    };
+  }
+
+  function withRock(ore: number, shipCount: number): SimState {
+    const start = createInitialState(7);
+    const rock = { ...target(start), ore };
+    return {
+      ...start,
+      asteroids: start.asteroids.map((a) => (a.id === rock.id ? rock : a)),
+      ships: Array.from({ length: shipCount }, () => workingOn(start, rock)),
+    };
+  }
+
+  // Everything that ever spawned, minus what is still in the field.
+  function oreRemoved(start: SimState, state: SimState): number {
+    const spawned = (state.nextAsteroidId - start.nextAsteroidId) * ASTEROID_ORE;
+    const total = (s: SimState) => s.asteroids.reduce((sum, a) => sum + a.ore, 0);
+    return total(start) + spawned - total(state);
+  }
+
+  function oreHeld(start: SimState, state: SimState): number {
+    const cargo = state.ships.reduce((sum, s) => sum + s.cargo, 0);
+    const startCargo = start.ships.reduce((sum, s) => sum + s.cargo, 0);
+    return cargo - startCargo + state.station.inventory - start.station.inventory;
+  }
+
+  it("sends a ship home with a partial load when the rock has fewer than 10 left", () => {
+    const start = withRock(4, 1);
+    const id = start.ships[0]!.target!.asteroidId;
+    const perUnit = WORKING_SECONDS / CARGO_PER_TRIP;
+
+    const emptied = run(start, 4 * perUnit + 0.05);
+    expect(emptied.asteroids.map((a) => a.id)).not.toContain(id);
+    expect(ship(emptied).cargo).toBe(4);
+    expect(ship(emptied).state).toBe("homebound");
+
+    const home = run(emptied, legSeconds(createInitialState(7)) + UNLOADING_SECONDS + 0.1);
+    expect(home.station.inventory).toBe(4);
+    expect(ship(home).cargo).toBe(0);
+  });
+
+  it("splits a rock between two ships mining it, taking no more than it held", () => {
+    const start = withRock(12, 2);
+    const id = start.ships[0]!.target!.asteroidId;
+
+    const emptied = run(start, 8);
+    expect(emptied.asteroids.map((a) => a.id)).not.toContain(id);
+    expect(emptied.ships.map((s) => s.cargo)).toEqual([6, 6]);
+    expect(emptied.ships.map((s) => s.state)).toEqual(["homebound", "homebound"]);
+
+    const home = run(emptied, legSeconds(createInitialState(7)) + UNLOADING_SECONDS + 0.1);
+    expect(home.station.inventory).toBe(12);
+  });
+
+  it("gives nothing to a ship whose rock was removed by another ship", () => {
+    const start = withRock(10, 2);
+    // The second ship arrives later, so the first takes the whole rock.
+    const late = { ...start.ships[1]!, state: "outbound" as const, timer: WORKING_SECONDS + 1 };
+    const state = run({ ...start, ships: [start.ships[0]!, late] }, 2 * WORKING_SECONDS + 2);
+
+    expect(state.ships[0]!.cargo + state.station.inventory).toBe(10);
+    expect(state.ships[1]!.cargo).toBe(0);
+    expect(state.ships[1]!.state).not.toBe("working");
+  });
+
+  it("balances ore mined against cargo and station stock over a long run with many ships", () => {
+    for (const shipCount of [2, 5, 8]) {
+      const initial = createInitialState(7);
+      const start: SimState = {
+        ...initial,
+        ships: Array.from({ length: shipCount }, () => ship(initial)),
+      };
+      for (const end of [run(start, 1200, 0.1), tick(start, 1200)]) {
+        expect(oreHeld(start, end)).toBe(oreRemoved(start, end));
+        for (const s of end.ships) expect(s.cargo).toBeLessThanOrEqual(CARGO_PER_TRIP);
+      }
+    }
+  });
+});
