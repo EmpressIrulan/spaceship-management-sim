@@ -1,4 +1,5 @@
 import { distanceAlong, travelSeconds } from "./motion";
+import { nextRandom } from "./prng";
 import {
   ASTEROID_ORE,
   ASTEROID_SIZE,
@@ -44,7 +45,7 @@ interface Draft {
   rng: number;
   nextAsteroidId: number;
   station: Vec;
-  inventory: number;
+  inventory: SimState["station"]["inventory"];
   asteroids: Asteroid[];
   respawns: SimState["respawns"];
   ships: Ship[];
@@ -71,6 +72,14 @@ function mine(draft: Draft, ship: Ship, units: number): number {
 
 function asteroidGone(draft: Draft, ship: Ship): boolean {
   return !draft.asteroids.some((a) => a.id === ship.target?.asteroidId);
+}
+
+function unload(draft: Draft, ship: Ship, units: number): void {
+  if (units <= 0 || !ship.cargoMaterial) return;
+  draft.inventory = {
+    ...draft.inventory,
+    [ship.cargoMaterial]: draft.inventory[ship.cargoMaterial] + units,
+  };
 }
 
 // Moves a ship partway through its current state, leaving `timer` seconds.
@@ -105,7 +114,7 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
       // A partial load unloads at the same rate per unit, so it only starts
       // dropping once the countdown reaches what is aboard.
       const cargo = Math.min(ship.cargo, CARGO_PER_TRIP - unitsDone(timer, UNLOADING_SECONDS));
-      draft.inventory += ship.cargo - cargo;
+      unload(draft, ship, ship.cargo - cargo);
       return { ...ship, timer, cargo };
     }
   }
@@ -135,7 +144,7 @@ function finish(draft: Draft, ship: Ship): Ship {
     case "homebound":
       return { ...ship, state: "unloading", position: { ...draft.station }, timer: UNLOADING_SECONDS };
     case "unloading":
-      draft.inventory += ship.cargo;
+      unload(draft, ship, ship.cargo);
       return depart({ ...ship, cargo: 0 }, draft.station, draft.asteroids);
   }
 }
@@ -166,9 +175,12 @@ function settle(draft: Draft): void {
       ...draft.asteroids.map((a) => a.position),
     ]);
     draft.rng = placed.rng;
+    const material = nextRandom(draft.rng);
+    draft.rng = material.state;
     draft.asteroids = [
       ...draft.asteroids,
-      { id: draft.nextAsteroidId, position: placed.position, size: ASTEROID_SIZE, ore: ASTEROID_ORE },
+      { id: draft.nextAsteroidId, position: placed.position, size: ASTEROID_SIZE, ore: ASTEROID_ORE,
+        material: material.value < 0.5 ? "Metal" : "Ice" },
     ];
     draft.nextAsteroidId += 1;
   }

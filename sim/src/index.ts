@@ -2,6 +2,7 @@ export { createPrng, type Prng } from "./prng";
 export {
   ASTEROID_ORE,
   CARGO_PER_TRIP,
+  MATERIALS,
   SHIP_SIZE,
   UNLOADING_SECONDS,
   WORKING_SECONDS,
@@ -9,6 +10,7 @@ export {
   laserBeam,
   type Asteroid,
   type Beam,
+  type Material,
   type Ship,
   type ShipState,
   type SimState,

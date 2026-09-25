@@ -1,4 +1,4 @@
-import { CARGO_PER_TRIP, UNLOADING_SECONDS, WORKING_SECONDS, type Ship, type SimState } from "sim";
+import { CARGO_PER_TRIP, MATERIALS, UNLOADING_SECONDS, WORKING_SECONDS, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 
 export interface Gauge {
@@ -33,8 +33,10 @@ export interface InfoBox {
 export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | null {
   if (!hovered) return null;
   if (hovered.kind === "station") {
-    return { title: "Station inventory", line: `Stored: ${state.station.inventory}` };
+    const lines = MATERIALS.filter((material) => state.station.inventory[material] > 0)
+      .map((material) => `${material}: ${state.station.inventory[material]}`);
+    return { title: "Station inventory", line: lines.join("\n") || "Empty" };
   }
   const asteroid = state.asteroids.find((a) => a.id === hovered.id);
-  return asteroid ? { title: "Asteroid", line: `Ore: ${asteroid.ore}` } : null;
+  return asteroid ? { title: "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;
 }
