@@ -2,7 +2,7 @@
   "name": "spaceship-management-sim",
   "version": "0.0.0",
   "private": true,
-  "workspaces": ["sim", "app"],
+  "workspaces": ["sim", "app", "tools"],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
