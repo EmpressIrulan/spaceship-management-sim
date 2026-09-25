@@ -27,6 +27,10 @@ function ship(state: SimState) {
   return state.ships[0]!;
 }
 
+function stored(state: SimState): number {
+  return state.station.inventory.Metal + state.station.inventory.Ice;
+}
+
 // The asteroid the ship is currently assigned to.
 function target(state: SimState): Asteroid {
   const id = ship(state).target?.asteroidId;
@@ -72,7 +76,7 @@ describe("initial state", () => {
     const state = createInitialState(7);
     expect(state.ships).toHaveLength(1);
     expect(ship(state).position).toEqual(state.station.position);
-    expect(state.station.inventory).toBe(0);
+    expect(state.station.inventory).toEqual({ Metal: 0, Ice: 0 });
   });
 });
 
@@ -143,14 +147,14 @@ describe("mining cycle", () => {
     expect(ship(midUnload).state).toBe("unloading");
     expect(ship(midUnload).position).toEqual(start.station.position);
     expect(ship(midUnload).cargo).toBe(CARGO_PER_TRIP / 2);
-    expect(midUnload.station.inventory).toBe(CARGO_PER_TRIP / 2);
+    expect(stored(midUnload)).toBe(CARGO_PER_TRIP / 2);
   });
 
   it("banks the full load once unloaded and immediately sets off again", () => {
     const start = createInitialState(7);
     const next = run(start, cycleSeconds(start) + 0.1);
 
-    expect(next.station.inventory).toBe(CARGO_PER_TRIP);
+    expect(stored(next)).toBe(CARGO_PER_TRIP);
     expect(ship(next).state).toBe("outbound");
     expect(ship(next).cargo).toBe(0);
   });
@@ -159,15 +163,15 @@ describe("mining cycle", () => {
     const start = createInitialState(7);
     const seconds = 3 * cycleSeconds(start) + 0.1;
 
-    expect(run(start, seconds).station.inventory).toBe(3 * CARGO_PER_TRIP);
+    expect(stored(run(start, seconds))).toBe(3 * CARGO_PER_TRIP);
     // One big step, as after a backgrounded tab resumes.
-    expect(tick(start, seconds).station.inventory).toBe(3 * CARGO_PER_TRIP);
+    expect(stored(tick(start, seconds))).toBe(3 * CARGO_PER_TRIP);
   });
 
   it("gets through at least two full cycles within two minutes for any seed", () => {
     for (let seed = 0; seed < 50; seed += 1) {
       const state = run(createInitialState(seed), 120, 0.1);
-      expect(state.station.inventory).toBeGreaterThanOrEqual(2 * CARGO_PER_TRIP);
+      expect(stored(state)).toBeGreaterThanOrEqual(2 * CARGO_PER_TRIP);
     }
   });
 
@@ -246,7 +250,7 @@ describe("asteroid field", () => {
     expect(ship(nextTrip).state).toBe("outbound");
     expect(target(nextTrip).id).not.toBe(first.id);
     expect(target(nextTrip).id).toBe(nearestWithOre(nextTrip).id);
-    expect(nextTrip.station.inventory).toBe(3 * CARGO_PER_TRIP);
+    expect(stored(nextTrip)).toBe(3 * CARGO_PER_TRIP);
   });
 
   it("brings a fresh asteroid back somewhere else 30 seconds after one runs out", () => {
@@ -284,7 +288,7 @@ describe("asteroid field", () => {
     expect(ship(waiting).state).toBe("idle");
     expect(ship(waiting).position).toEqual(start.station.position);
     expect(ship(waiting).cargo).toBe(0);
-    expect(waiting.station.inventory).toBe(CARGO_PER_TRIP);
+    expect(stored(waiting)).toBe(CARGO_PER_TRIP);
 
     const leaving = run(waiting, 0.2);
     expect(leaving.asteroids).toHaveLength(1);
@@ -294,8 +298,8 @@ describe("asteroid field", () => {
 
   it("replays the same asteroids and respawn spots for the same seed", () => {
     const positions = (state: SimState) => state.asteroids.map((a) => a.position);
-    const a = run(createInitialState(42), 600, 0.1);
-    const b = run(createInitialState(42), 600, 0.1);
+    const a = run(createInitialState(42), 900, 0.1);
+    const b = run(createInitialState(42), 900, 0.1);
 
     // Ids count up from 0, so this means at least two respawns have happened.
     expect(Math.max(...a.asteroids.map((x) => x.id))).toBeGreaterThanOrEqual(ASTEROID_COUNT + 1);
@@ -311,7 +315,7 @@ describe("asteroid field", () => {
       state.asteroids.map((a) => ({ id: a.id, ore: a.ore, position: a.position }));
 
     expect(summary(big)).toEqual(summary(small));
-    expect(big.station.inventory).toBe(small.station.inventory);
+    expect(big.station.inventory).toEqual(small.station.inventory);
   });
 });
 
@@ -325,6 +329,7 @@ describe("ore is conserved", () => {
       position: site,
       timer: WORKING_SECONDS,
       cargo: 0,
+      cargoMaterial: asteroid.material,
       target: { asteroidId: asteroid.id, site },
     };
   }
@@ -349,7 +354,7 @@ describe("ore is conserved", () => {
   function oreHeld(start: SimState, state: SimState): number {
     const cargo = state.ships.reduce((sum, s) => sum + s.cargo, 0);
     const startCargo = start.ships.reduce((sum, s) => sum + s.cargo, 0);
-    return cargo - startCargo + state.station.inventory - start.station.inventory;
+    return cargo - startCargo + stored(state) - stored(start);
   }
 
   it("sends a ship home with a partial load when the rock has fewer than 10 left", () => {
@@ -363,7 +368,7 @@ describe("ore is conserved", () => {
     expect(ship(emptied).state).toBe("homebound");
 
     const home = run(emptied, legSeconds(createInitialState(7)) + UNLOADING_SECONDS + 0.1);
-    expect(home.station.inventory).toBe(4);
+    expect(stored(home)).toBe(4);
     expect(ship(home).cargo).toBe(0);
   });
 
@@ -377,7 +382,7 @@ describe("ore is conserved", () => {
     expect(emptied.ships.map((s) => s.state)).toEqual(["homebound", "homebound"]);
 
     const home = run(emptied, legSeconds(createInitialState(7)) + UNLOADING_SECONDS + 0.1);
-    expect(home.station.inventory).toBe(12);
+    expect(stored(home)).toBe(12);
   });
 
   it("gives nothing to a ship whose rock was removed by another ship", () => {
@@ -386,7 +391,7 @@ describe("ore is conserved", () => {
     const late = { ...start.ships[1]!, state: "outbound" as const, timer: WORKING_SECONDS + 1 };
     const state = run({ ...start, ships: [start.ships[0]!, late] }, 2 * WORKING_SECONDS + 2);
 
-    expect(state.ships[0]!.cargo + state.station.inventory).toBe(10);
+    expect(state.ships[0]!.cargo + stored(state)).toBe(10);
     expect(state.ships[1]!.cargo).toBe(0);
     expect(state.ships[1]!.state).not.toBe("working");
   });

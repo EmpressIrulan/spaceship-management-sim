@@ -18,6 +18,9 @@ export const RESPAWN_SECONDS = 30;
 // where the last one ran out. About three asteroid widths.
 export const ASTEROID_MIN_SPACING = 40;
 
+export const MATERIALS = ["Metal", "Ice"] as const;
+export type Material = (typeof MATERIALS)[number];
+
 export const STATION_SIZE = { width: 60, height: 60 };
 // The mining ship is meant to be the smallest ship class.
 export const SHIP_SIZE = { width: 10, height: 7 };
@@ -52,13 +55,14 @@ export interface Ship {
   // Seconds left in the current state. Unused while idle.
   timer: number;
   cargo: number;
+  cargoMaterial: Material | null;
   target: Target | null;
 }
 
 export interface Station {
   position: Vec;
   size: Size;
-  inventory: number;
+  inventory: Record<Material, number>;
 }
 
 export interface Asteroid {
@@ -66,6 +70,7 @@ export interface Asteroid {
   position: Vec;
   size: Size;
   ore: number;
+  material: Material;
 }
 
 export interface Respawn {
@@ -154,7 +159,7 @@ export function nearestWithOre(station: Vec, asteroids: Asteroid[]): Asteroid | 
 export function depart(ship: Ship, station: Vec, asteroids: Asteroid[]): Ship {
   const asteroid = nearestWithOre(station, asteroids);
   if (!asteroid) {
-    return { ...ship, state: "idle", position: { ...station }, timer: 0, cargo: 0, target: null };
+    return { ...ship, state: "idle", position: { ...station }, timer: 0, cargo: 0, cargoMaterial: null, target: null };
   }
   const site = miningSite(station, asteroid);
   return {
@@ -163,6 +168,7 @@ export function depart(ship: Ship, station: Vec, asteroids: Asteroid[]): Ship {
     position: { ...station },
     timer: travelSeconds(distance(station, site)),
     cargo: 0,
+    cargoMaterial: asteroid.material,
     target: { asteroidId: asteroid.id, site },
   };
 }
@@ -170,29 +176,39 @@ export function depart(ship: Ship, station: Vec, asteroids: Asteroid[]): Ship {
 export function createInitialState(seed: number): SimState {
   const stationPosition = { x: 0, y: 0 };
   let rng = seed >>> 0;
-  const asteroids: Asteroid[] = [];
+  const positions: Vec[] = [];
   for (let id = 0; id < ASTEROID_COUNT; id += 1) {
-    const placed = placeAsteroid(
-      rng,
-      stationPosition,
-      asteroids.map((a) => a.position),
-    );
+    const placed = placeAsteroid(rng, stationPosition, positions);
     rng = placed.rng;
-    asteroids.push({ id, position: placed.position, size: ASTEROID_SIZE, ore: ASTEROID_ORE });
+    positions.push(placed.position);
   }
+
+  // Shuffle an even mix independently of distance, so either material can be
+  // the closest while every starting field contains both.
+  const materials: Material[] = ["Metal", "Metal", "Ice", "Ice"];
+  for (let i = materials.length - 1; i > 0; i -= 1) {
+    const choice = nextRandom(rng);
+    rng = choice.state;
+    const j = Math.floor(choice.value * (i + 1));
+    [materials[i], materials[j]] = [materials[j]!, materials[i]!];
+  }
+  const asteroids: Asteroid[] = positions.map((position, id) => ({
+    id, position, size: ASTEROID_SIZE, ore: ASTEROID_ORE, material: materials[id]!,
+  }));
 
   const idle: Ship = {
     state: "idle",
     position: { ...stationPosition },
     timer: 0,
     cargo: 0,
+    cargoMaterial: null,
     target: null,
   };
   return {
     tickCount: 0,
     rng,
     nextAsteroidId: ASTEROID_COUNT,
-    station: { position: stationPosition, size: STATION_SIZE, inventory: 0 },
+    station: { position: stationPosition, size: STATION_SIZE, inventory: { Metal: 0, Ice: 0 } },
     asteroids,
     respawns: [],
     ships: [depart(idle, stationPosition, asteroids)],

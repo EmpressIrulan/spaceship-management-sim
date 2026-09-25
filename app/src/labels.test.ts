@@ -11,6 +11,7 @@ import { cargoGauge, infoBox } from "./labels";
 const ship = (state: Ship["state"], cargo: number, timer = 1): Ship => ({
   state,
   cargo,
+  cargoMaterial: cargo > 0 ? "Metal" : null,
   timer,
   position: { x: 0, y: 0 },
   target: null,
@@ -46,24 +47,24 @@ describe("hover box", () => {
   const state = createInitialState(7);
   const asteroid = state.asteroids[0]!;
 
-  it("shows the station's stored ore", () => {
-    const stocked = { ...state, station: { ...state.station, inventory: 40 } };
+  it("shows the station's stored material", () => {
+    const stocked = { ...state, station: { ...state.station, inventory: { Metal: 40, Ice: 0 } } };
     expect(infoBox(stocked, { kind: "station" })).toEqual({
       title: "Station inventory",
-      line: "Stored: 40",
+      line: "Metal: 40",
     });
   });
 
-  it("shows an asteroid's ore left, titled Asteroid", () => {
+  it("shows an asteroid's material and ore left, titled Asteroid", () => {
     expect(infoBox(state, { kind: "asteroid", id: asteroid.id })).toEqual({
       title: "Asteroid",
-      line: "Ore: 30",
+      line: `${asteroid.material}: 30`,
     });
     const mined = {
       ...state,
       asteroids: state.asteroids.map((a) => (a.id === asteroid.id ? { ...a, ore: 20 } : a)),
     };
-    expect(infoBox(mined, { kind: "asteroid", id: asteroid.id })?.line).toBe("Ore: 20");
+    expect(infoBox(mined, { kind: "asteroid", id: asteroid.id })?.line).toBe(`${asteroid.material}: 20`);
   });
 
   it("closes when nothing is hovered or the hovered asteroid has gone", () => {

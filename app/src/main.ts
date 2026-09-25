@@ -11,6 +11,7 @@ import {
   type Viewport,
 } from "./camera";
 import { cargoGauge, infoBox, type Gauge } from "./labels";
+import { asteroidColor } from "./asteroid";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
@@ -156,7 +157,7 @@ function draw(seconds: number): void {
   ctx.clearRect(0, 0, viewport.width, viewport.height);
 
   for (const asteroid of state.asteroids) {
-    fillWorldRect(asteroid.position, asteroid.size, "#a16207");
+    fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material));
   }
   fillWorldRect(state.station.position, state.station.size, "#64748b");
 
