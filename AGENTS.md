@@ -4,6 +4,17 @@
 
 Working name. There is no title yet.
 
+Workflow: story lane. A change to what the game does is planned as a story and accepted by playing it; everything else is a chore.
+
+## Working rules
+
+- Never commit to the default branch. Branch as `type/short-slug`.
+- GitHub writes go out as the project's bot account, never the owner's. No co-author trailers, agent footers or session links.
+- Merging belongs to Alice, on the PR page. An agent merges only a PR Alice has named in the conversation, and that permission doesn't carry to the next PR or session.
+- Never make a check pass by weakening it. If the fix is unclear, stop and report.
+- The tracker holds accepted stories and open chores. Review findings go to `docs/accepted-tradeoffs.md` or become a future story, questions get asked in planning, and none of those become issues.
+- Repo visibility, force pushes, deleting anything not already merged, and repo settings stay manual.
+
 ## Repo layout
 
 - `sim/` the simulation core: state, `tick`, the seeded PRNG. See the invariants below.
