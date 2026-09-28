@@ -2,7 +2,7 @@
   "name": "tools",
   "version": "0.0.0",
   "private": true,
-  "description": "Build tooling. See CLAUDE.md repo layout.",
+  "description": "Build tooling. See AGENTS.md repo layout.",
   "type": "module",
   "scripts": {
     "test": "vitest run"
