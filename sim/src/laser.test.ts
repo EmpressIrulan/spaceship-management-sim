@@ -182,7 +182,7 @@ describe("the laser", () => {
       position: workSite,
       timer: 0.001,
       cargo: 0,
-      target: { asteroidId: shared.id, site: workSite },
+      target: { asteroidId: shared.id, sectorId: 0, site: workSite },
     };
     const other = {
       ...ship(base),
@@ -190,7 +190,7 @@ describe("the laser", () => {
       position: workSite,
       timer: WORKING_SECONDS - 1,
       cargo: 2,
-      target: { asteroidId: shared.id, site: workSite },
+      target: { asteroidId: shared.id, sectorId: 0, site: workSite },
     };
 
     const state: SimState = { ...base, asteroids: [shared], respawns: [], ships: [drainer, other] };

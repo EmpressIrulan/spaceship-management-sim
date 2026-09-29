@@ -5,36 +5,35 @@ import {
   ASTEROID_SIZE,
   CARGO_PER_TRIP,
   DOCK_CAPACITY,
+  HOME_SECTOR,
+  JUMP_SECONDS,
   RESPAWN_SECONDS,
+  SECTOR_CENTRE,
   STORAGE_CAPACITY,
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   depart,
+  fly,
+  homeboundStop,
+  outboundStop,
   placeAsteroid,
   type Asteroid,
+  type Leg,
+  type Sector,
   type Ship,
   type SimState,
   type Station,
   type Vec,
 } from "./state";
 
-interface Route {
-  dock: Vec;
-  site: Vec;
-  length: number;
-  legSeconds: number;
-}
-
-function routeOf(ship: Ship, dock: Vec): Route | null {
-  if (!ship.target) return null;
-  const site = ship.target.site;
-  const length = Math.hypot(site.x - dock.x, site.y - dock.y);
-  return { dock, site, length, legSeconds: travelSeconds(length) };
-}
-
-function pointAlong(from: Vec, to: Vec, route: Route, elapsed: number): Vec {
-  const fraction = distanceAlong(route.length, elapsed) / route.length;
-  return { x: from.x + (to.x - from.x) * fraction, y: from.y + (to.y - from.y) * fraction };
+function pointAlong(leg: Leg, timer: number): Vec {
+  const length = Math.hypot(leg.to.x - leg.from.x, leg.to.y - leg.from.y);
+  if (length === 0) return { ...leg.to };
+  const fraction = distanceAlong(length, travelSeconds(length) - timer) / length;
+  return {
+    x: leg.from.x + (leg.to.x - leg.from.x) * fraction,
+    y: leg.from.y + (leg.to.y - leg.from.y) * fraction,
+  };
 }
 
 // Cargo moves in whole units, in step with how far through the timer the ship is.
@@ -47,6 +46,7 @@ function unitsDone(timer: number, duration: number): number {
 interface Draft {
   rng: number;
   nextAsteroidId: number;
+  sectors: Sector[];
   // The Dock module's position, the station's home point and route origin.
   dock: Vec;
   storageCapacity: number;
@@ -66,7 +66,7 @@ function mine(draft: Draft, ship: Ship, units: number): number {
   if (units <= 0 || !ship.target) return 0;
   const id = ship.target.asteroidId;
   const asteroid = draft.asteroids.find((a) => a.id === id);
-  if (!asteroid) return 0;
+  if (!asteroid || !holdTakes(ship, asteroid)) return 0;
   const taken = Math.min(units, asteroid.ore);
   const ore = asteroid.ore - taken;
   if (ore > 0) {
@@ -74,12 +74,22 @@ function mine(draft: Draft, ship: Ship, units: number): number {
     return taken;
   }
   draft.asteroids = draft.asteroids.filter((a) => a.id !== id);
-  draft.respawns = [...draft.respawns, { timer: RESPAWN_SECONDS, lastPosition: asteroid.position }];
+  draft.respawns = [
+    ...draft.respawns,
+    { sectorId: asteroid.sectorId, timer: RESPAWN_SECONDS, lastPosition: asteroid.position },
+  ];
   return taken;
 }
 
-function asteroidGone(draft: Draft, ship: Ship): boolean {
-  return !draft.asteroids.some((a) => a.id === ship.target?.asteroidId);
+// A hold carries one material at a time.
+function holdTakes(ship: Ship, asteroid: Asteroid): boolean {
+  return ship.cargo === 0 || ship.cargoMaterial === asteroid.material;
+}
+
+// True once the ship's rock is gone, or holds ore its cargo can't mix with.
+function nothingToMine(draft: Draft, ship: Ship): boolean {
+  const asteroid = draft.asteroids.find((a) => a.id === ship.target?.asteroidId);
+  return !asteroid || !holdTakes(ship, asteroid);
 }
 
 function storageRemaining(draft: Draft): number {
@@ -99,31 +109,20 @@ function unload(draft: Draft, ship: Ship, units: number): number {
 
 // Moves a ship partway through its current state, leaving `timer` seconds.
 function progress(draft: Draft, ship: Ship, timer: number): Ship {
-  const route = routeOf(ship, draft.dock);
   switch (ship.state) {
     case "idle":
     case "waiting":
       return ship;
+    case "jumpingOut":
+    case "jumpingHome":
+      return { ...ship, timer };
     case "outbound":
-      return {
-        ...ship,
-        timer,
-        position: route
-          ? pointAlong(route.dock, route.site, route, route.legSeconds - timer)
-          : ship.position,
-      };
     case "homebound":
-      return {
-        ...ship,
-        timer,
-        position: route
-          ? pointAlong(route.site, route.dock, route, route.legSeconds - timer)
-          : ship.position,
-      };
+      return { ...ship, timer, position: ship.leg ? pointAlong(ship.leg, timer) : ship.position };
     case "working": {
       const cargo = ship.cargo + mine(draft, ship, unitsDone(timer, WORKING_SECONDS) - ship.cargo);
       // Out of ore before the hold is full: stop now and head home with what is aboard.
-      const done = cargo < CARGO_PER_TRIP && asteroidGone(draft, ship);
+      const done = cargo < CARGO_PER_TRIP && nothingToMine(draft, { ...ship, cargo });
       return { ...ship, timer: done ? 0 : timer, cargo };
     }
     case "unloading": {
@@ -136,9 +135,14 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
   }
 }
 
+// Comes out of the gate at the far end, in the sector it leads to.
+function exitGate(draft: Draft, ship: Ship): Ship {
+  const to = draft.sectors[ship.sectorId]!.gate.to;
+  return { ...ship, sectorId: to, position: { ...draft.sectors[to]!.gate.position } };
+}
+
 // Moves a ship whose timer has run out into its next state.
 function finish(draft: Draft, ship: Ship): Ship {
-  const route = routeOf(ship, draft.dock);
   switch (ship.state) {
     case "idle":
       return depart(ship, draft.dock, draft.asteroids);
@@ -148,26 +152,35 @@ function finish(draft: Draft, ship: Ship): Ship {
         return { ...ship, state: "unloading", timer: UNLOADING_SECONDS };
       }
       return ship;
-    case "outbound":
-      return {
-        ...ship,
-        state: "working",
-        position: route ? { ...route.site } : ship.position,
-        timer: WORKING_SECONDS,
-        cargo: 0,
-      };
-    case "working":
-      return {
-        ...ship,
-        state: "homebound",
-        timer: route ? route.legSeconds : 0,
-        cargo: ship.cargo + mine(draft, ship, CARGO_PER_TRIP - ship.cargo),
-      };
-    case "homebound":
-      if (ship.cargo > 0 && storageRemaining(draft) === 0) {
-        return { ...ship, state: "waiting", position: { ...draft.dock }, timer: 0 };
+    case "outbound": {
+      const arrived = { ...ship, position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null };
+      if (ship.target && ship.target.sectorId !== ship.sectorId) {
+        return { ...arrived, state: "jumpingOut", timer: JUMP_SECONDS };
       }
-      return { ...ship, state: "unloading", position: { ...draft.dock }, timer: UNLOADING_SECONDS };
+      return { ...arrived, state: "working", timer: WORKING_SECONDS };
+    }
+    case "jumpingOut": {
+      const out = exitGate(draft, ship);
+      return fly(out, "outbound", outboundStop(draft, out));
+    }
+    case "working": {
+      const loaded = { ...ship, cargo: ship.cargo + mine(draft, ship, CARGO_PER_TRIP - ship.cargo) };
+      return fly(loaded, "homebound", homeboundStop(draft, loaded, draft.dock));
+    }
+    case "jumpingHome": {
+      const out = exitGate(draft, ship);
+      return fly(out, "homebound", homeboundStop(draft, out, draft.dock));
+    }
+    case "homebound": {
+      const arrived = { ...ship, position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null };
+      if (ship.sectorId !== HOME_SECTOR) {
+        return { ...arrived, state: "jumpingHome", timer: JUMP_SECONDS };
+      }
+      if (ship.cargo > 0 && storageRemaining(draft) === 0) {
+        return { ...arrived, state: "waiting", position: { ...draft.dock }, timer: 0 };
+      }
+      return { ...arrived, state: "unloading", position: { ...draft.dock }, timer: UNLOADING_SECONDS };
+    }
     case "unloading":
       const unloaded = unload(draft, ship, ship.cargo);
       if (unloaded < ship.cargo) {
@@ -209,18 +222,20 @@ function settle(draft: Draft): void {
   const due = draft.respawns.filter((r) => r.timer <= 0);
   draft.respawns = draft.respawns.filter((r) => r.timer > 0);
   for (const respawn of due) {
-    const placed = placeAsteroid(draft.rng, draft.dock, [
+    const home = respawn.sectorId === HOME_SECTOR;
+    const placed = placeAsteroid(draft.rng, home ? draft.dock : SECTOR_CENTRE, [
       respawn.lastPosition,
-      ...draft.asteroids.map((a) => a.position),
-      ...draft.modules.map((module) => module.position),
-      ...(draft.construction ? [draft.construction.position] : []),
+      draft.sectors[respawn.sectorId]!.gate.position,
+      ...draft.asteroids.filter((a) => a.sectorId === respawn.sectorId).map((a) => a.position),
+      ...(home ? draft.modules.map((module) => module.position) : [SECTOR_CENTRE]),
+      ...(home && draft.construction ? [draft.construction.position] : []),
     ]);
     draft.rng = placed.rng;
     const material = nextRandom(draft.rng);
     draft.rng = material.state;
     draft.asteroids = [
       ...draft.asteroids,
-      { id: draft.nextAsteroidId, position: placed.position, size: ASTEROID_SIZE, ore: ASTEROID_ORE,
+      { id: draft.nextAsteroidId, sectorId: respawn.sectorId, position: placed.position, size: ASTEROID_SIZE, ore: ASTEROID_ORE,
         material: material.value < 0.5 ? "Metal" : "Ice" },
     ];
     draft.nextAsteroidId += 1;
@@ -235,6 +250,7 @@ export function tick(state: SimState, dt: number): SimState {
   const draft: Draft = {
     rng: state.rng,
     nextAsteroidId: state.nextAsteroidId,
+    sectors: state.sectors,
     dock: state.station.dock.position,
     storageCapacity: state.station.storage.capacity,
     inventory: state.station.inventory,

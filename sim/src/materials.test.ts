@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { CARGO_PER_TRIP, UNLOADING_SECONDS, WORKING_SECONDS, createInitialState, depart, type SimState } from "./state";
+import { CARGO_PER_TRIP, HOME_SECTOR, UNLOADING_SECONDS, WORKING_SECONDS, createInitialState, depart, type SimState } from "./state";
 import { tick } from "./tick";
+
+const homeRocks = (state: SimState) => state.asteroids.filter((rock) => rock.sectorId === HOME_SECTOR);
 
 describe("material deliveries", () => {
   it("starts with both materials in seeded positions, without reserving the nearest for either type", () => {
     const nearestTypes = new Set<string>();
     for (let seed = 0; seed < 50; seed += 1) {
       const state = createInitialState(seed);
-      expect(state.asteroids).toHaveLength(4);
-      expect(new Set(state.asteroids.map((rock) => rock.material))).toEqual(
+      expect(homeRocks(state)).toHaveLength(4);
+      expect(new Set(homeRocks(state).map((rock) => rock.material))).toEqual(
         new Set(["Metal", "Ice"]),
       );
-      const nearest = [...state.asteroids].sort(
+      const nearest = homeRocks(state).sort(
         (a, b) =>
           Math.hypot(a.position.x, a.position.y) - Math.hypot(b.position.x, b.position.y),
       )[0]!;
@@ -58,7 +60,7 @@ describe("material deliveries", () => {
     for (let seed = 0; seed < 30; seed += 1) {
       const a = tick(createInitialState(seed), 600);
       const b = tick(createInitialState(seed), 600);
-      const replacements = a.asteroids.filter((rock) => rock.id >= 4);
+      const replacements = a.asteroids.filter((rock) => rock.id >= createInitialState(seed).nextAsteroidId);
       expect(replacements.length).toBeGreaterThan(0);
       expect(a.asteroids).toEqual(b.asteroids);
       for (const rock of replacements) replacementTypes.add(rock.material);
