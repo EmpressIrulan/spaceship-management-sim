@@ -18,3 +18,11 @@ export function buildMenuItems(state: SimState): BuildMenuItem[] {
 export function buildControlsVisible(stationHovered: boolean, controlsHovered: boolean): boolean {
   return stationHovered || controlsHovered;
 }
+
+export function dismissBuildMenuForClick(insideMenu: boolean, insideControls: boolean): boolean {
+  return !insideMenu && !insideControls;
+}
+
+export function dismissBuildMenuForKey(key: string): boolean {
+  return key === "Escape";
+}

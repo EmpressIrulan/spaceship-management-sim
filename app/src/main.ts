@@ -14,7 +14,12 @@ import {
 import { cargoGauge, infoBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
-import { buildControlsVisible, buildMenuItems } from "./building";
+import {
+  buildControlsVisible,
+  buildMenuItems,
+  dismissBuildMenuForClick,
+  dismissBuildMenuForKey,
+} from "./building";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -52,6 +57,12 @@ let renderedSites = "";
 let controlsHovered = false;
 let selectedBuildSite: Vec | null = null;
 
+function closeBuildMenu(): void {
+  buildMenuOpen = false;
+  buildMenu.hidden = true;
+  selectedBuildSite = null;
+}
+
 buildControls.addEventListener("pointerover", () => {
   controlsHovered = true;
 });
@@ -71,9 +82,19 @@ buildMenu.addEventListener("click", (event) => {
   if (!button || button.disabled) return;
   if (!selectedBuildSite) return;
   state = startModuleBuild(state, button.dataset.module as ModuleType, selectedBuildSite);
-  buildMenuOpen = false;
-  buildMenu.hidden = true;
-  selectedBuildSite = null;
+  closeBuildMenu();
+});
+
+document.addEventListener("click", (event) => {
+  if (!buildMenuOpen) return;
+  const target = event.target as Node | null;
+  if (dismissBuildMenuForClick(buildMenu.contains(target), buildControls.contains(target))) {
+    closeBuildMenu();
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
 });
 
 function resize(): void {

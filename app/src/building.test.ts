@@ -5,8 +5,12 @@ import {
   startModuleBuild,
   tick,
 } from "sim";
-import { buildMenuItems } from "./building";
-import { buildControlsVisible } from "./building";
+import {
+  buildControlsVisible,
+  buildMenuItems,
+  dismissBuildMenuForClick,
+  dismissBuildMenuForKey,
+} from "./building";
 import { infoBox } from "./labels";
 
 describe("station building controls", () => {
@@ -41,5 +45,13 @@ describe("station building controls", () => {
     expect(buildControlsVisible(false, false)).toBe(false);
     expect(buildControlsVisible(true, false)).toBe(true);
     expect(buildControlsVisible(false, true)).toBe(true);
+  });
+
+  it("dismisses the Add module menu outside it or with Escape", () => {
+    expect(dismissBuildMenuForClick(false, false)).toBe(true);
+    expect(dismissBuildMenuForClick(true, false)).toBe(false);
+    expect(dismissBuildMenuForClick(false, true)).toBe(false);
+    expect(dismissBuildMenuForKey("Escape")).toBe(true);
+    expect(dismissBuildMenuForKey("Enter")).toBe(false);
   });
 });
