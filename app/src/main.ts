@@ -4,7 +4,7 @@ import {
   fitCamera,
   hoveredBody,
   panBy,
-  pointerOverStation,
+  screenToWorld,
   wheelZoomFactor,
   worldToScreen,
   zoomAt,
@@ -15,10 +15,12 @@ import { cargoGauge, infoBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
 import {
+  buildControlSize,
   buildControlsVisible,
   buildMenuItems,
   dismissBuildMenuForClick,
   dismissBuildMenuForKey,
+  pointerInBuildArea,
 } from "./building";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
@@ -65,6 +67,11 @@ function closeBuildMenu(): void {
 
 buildControls.addEventListener("pointerover", () => {
   controlsHovered = true;
+});
+// The + cells sit above the canvas, so the canvas stops hearing the pointer
+// while it is over one.
+buildControls.addEventListener("pointermove", (event) => {
+  pointer = mousePoint(event);
 });
 buildControls.addEventListener("pointerout", (event) => {
   if (!buildControls.contains(event.relatedTarget as Node | null)) controlsHovered = false;
@@ -287,16 +294,20 @@ function draw(seconds: number): void {
       return button;
     }));
   }
+  const control = buildControlSize(camera.zoom);
+  buildControls.style.setProperty("--cell", `${control.cell}px`);
+  buildControls.style.setProperty("--glyph", `${control.glyph}px`);
   for (const button of buildControls.querySelectorAll<HTMLButtonElement>("button[data-x]")) {
     const screen = worldToScreen(camera, viewport, {
       x: Number(button.dataset.x),
       y: Number(button.dataset.y),
     });
-    button.style.left = `${Math.round(screen.x - 25)}px`;
-    button.style.top = `${Math.round(screen.y - 25)}px`;
+    button.style.left = `${screen.x - control.cell / 2}px`;
+    button.style.top = `${screen.y - control.cell / 2}px`;
   }
-  const stationHovered = pointerOverStation(state, camera, viewport, pointer);
-  buildControls.hidden = !buildControlsVisible(stationHovered, controlsHovered);
+  const inBuildArea = pointer !== null
+    && pointerInBuildArea(state, screenToWorld(camera, viewport, pointer));
+  buildControls.hidden = !buildControlsVisible(inBuildArea, controlsHovered);
   if (buildMenuOpen && selectedBuildSite) {
     const screen = worldToScreen(camera, viewport, selectedBuildSite);
     buildMenu.style.left = `${Math.round(screen.x + 20)}px`;

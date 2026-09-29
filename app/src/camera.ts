@@ -157,19 +157,6 @@ export function hoveredBody(
   return null;
 }
 
-export function pointerOverStation(
-  state: SimState,
-  camera: Camera,
-  viewport: Viewport,
-  pointer: Vec | null,
-): boolean {
-  if (pointer === null) return false;
-  const world = screenToWorld(camera, viewport, pointer);
-  return state.station.modules.some((module) => insideRect(world, module.position, module.size))
-    || (state.station.construction !== null
-      && insideRect(world, state.station.construction.position, state.station.construction.size));
-}
-
 // The body a hover refers to, or null if it has gone.
 export function bodyOf(
   state: SimState,

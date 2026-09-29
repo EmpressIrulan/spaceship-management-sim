@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILD_SECONDS,
+  MODULE_SPACING,
+  availableModuleBuildSites,
   createInitialState,
   startModuleBuild,
   tick,
 } from "sim";
 import {
+  buildControlSize,
   buildControlsVisible,
   buildMenuItems,
+  pointerInBuildArea,
   dismissBuildMenuForClick,
   dismissBuildMenuForKey,
 } from "./building";
@@ -53,5 +57,32 @@ describe("station building controls", () => {
     expect(dismissBuildMenuForClick(false, true)).toBe(false);
     expect(dismissBuildMenuForKey("Escape")).toBe(true);
     expect(dismissBuildMenuForKey("Enter")).toBe(false);
+  });
+
+  it("keeps the pointer inside the build area on the way from any module to any +", () => {
+    const state = createInitialState(7);
+    for (const site of availableModuleBuildSites(state)) {
+      const from = state.station.modules
+        .map((module) => module.position)
+        .find((position) => Math.hypot(position.x - site.x, position.y - site.y) === MODULE_SPACING)!;
+      for (let step = 0; step <= 40; step += 1) {
+        const t = step / 40;
+        const point = { x: from.x + (site.x - from.x) * t, y: from.y + (site.y - from.y) * t };
+        expect(pointerInBuildArea(state, point), `${JSON.stringify(point)} toward ${JSON.stringify(site)}`)
+          .toBe(true);
+      }
+    }
+    expect(pointerInBuildArea(state, { x: 0, y: 150 })).toBe(false);
+    expect(pointerInBuildArea(state, { x: -61, y: 0 })).toBe(false);
+  });
+
+  it("sizes each + to its slot so neighbours never overlap at any zoom", () => {
+    expect(buildControlSize(1)).toEqual({ cell: 40, glyph: 26 });
+    expect(buildControlSize(8)).toEqual({ cell: 320, glyph: 26 });
+    for (const zoom of [0.2, 0.35, 0.5, 0.75]) {
+      const { cell, glyph } = buildControlSize(zoom);
+      expect(cell).toBeCloseTo(MODULE_SPACING * zoom);
+      expect(glyph).toBeLessThan(cell);
+    }
   });
 });

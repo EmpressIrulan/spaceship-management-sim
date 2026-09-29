@@ -275,7 +275,8 @@ export function availableModuleBuilds(state: SimState): ModuleBuildOption[] {
   return MODULE_TYPES.map((type) => ({ type, enabled }));
 }
 
-const MODULE_SPACING = 40;
+// Centre-to-centre distance between neighbouring module slots.
+export const MODULE_SPACING = 40;
 const BUILD_DIRECTIONS: Vec[] = [
   { x: -MODULE_SPACING, y: 0 },
   { x: 0, y: -MODULE_SPACING },
