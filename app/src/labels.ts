@@ -31,6 +31,17 @@ export interface InfoBox {
   line: string;
 }
 
+// Every Storage module shares one inventory, so each shows the same box.
+function storageBox(state: SimState): InfoBox {
+  const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
+  const lines = MATERIALS.filter((material) => state.station.inventory[material] > 0)
+    .map((material) => `${material}: ${state.station.inventory[material]}`);
+  return {
+    title: "Storage",
+    line: [`Stored ${stored} / ${state.station.storage.capacity}`, ...lines].join("\n"),
+  };
+}
+
 // Null closes the box, including when the hovered asteroid has just gone.
 export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | null {
   if (!hovered) return null;
@@ -41,15 +52,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       line: `Unloading ${unloading} / ${state.station.dock.capacity}`,
     };
   }
-  if (hovered.kind === "storage") {
-    const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
-    const lines = MATERIALS.filter((material) => state.station.inventory[material] > 0)
-      .map((material) => `${material}: ${state.station.inventory[material]}`);
-    return {
-      title: "Storage",
-      line: [`Stored ${stored} / ${state.station.storage.capacity}`, ...lines].join("\n"),
-    };
-  }
+  if (hovered.kind === "storage") return storageBox(state);
   if (hovered.kind === "construction") {
     const construction = state.station.construction;
     return construction
@@ -64,8 +67,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       const unloading = state.ships.filter((ship) => ship.state === "unloading").length;
       return { title: "Dock", line: `Unloading ${unloading} / ${state.station.dock.capacity}` };
     }
-    const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
-    return { title: "Storage", line: `Stored ${stored} / ${state.station.storage.capacity}` };
+    return storageBox(state);
   }
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
