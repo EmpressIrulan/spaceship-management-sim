@@ -47,11 +47,11 @@ describe("hover box", () => {
   const state = createInitialState(7);
   const asteroid = state.asteroids[0]!;
 
-  it("shows the station's stored material", () => {
+  it("shows Storage's combined and per-material totals", () => {
     const stocked = { ...state, station: { ...state.station, inventory: { Metal: 40, Ice: 0 } } };
-    expect(infoBox(stocked, { kind: "station" })).toEqual({
-      title: "Station inventory",
-      line: "Metal: 40",
+    expect(infoBox(stocked, { kind: "storage" })).toEqual({
+      title: "Storage",
+      line: "Stored 40 / 100\nMetal: 40",
     });
   });
 

@@ -54,7 +54,7 @@ resize();
 
 // Fits the starting field only. Respawns can land off screen; the camera does
 // not follow them.
-let camera: Camera = fitCamera(viewport, [state.station, ...state.asteroids]);
+let camera: Camera = fitCamera(viewport, [state.station.dock, state.station.storage, ...state.asteroids]);
 
 function mousePoint(event: MouseEvent): Vec {
   const bounds = canvas.getBoundingClientRect();
@@ -159,7 +159,8 @@ function draw(seconds: number): void {
   for (const asteroid of state.asteroids) {
     fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material));
   }
-  fillWorldRect(state.station.position, state.station.size, "#64748b");
+  fillWorldRect(state.station.dock.position, state.station.dock.size, "#64748b");
+  fillWorldRect(state.station.storage.position, state.station.storage.size, "#475569");
 
   for (const ship of state.ships) {
     const beam = laserBeam(state, ship);

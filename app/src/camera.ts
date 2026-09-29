@@ -1,4 +1,4 @@
-import type { SimState, Size, Vec } from "sim";
+import { SHIP_SIZE, type SimState, type Size, type Vec } from "sim";
 
 // Placeholder limits. Revisit when sectors get bigger than one station and
 // a handful of asteroids and the client wants to see more of them at once.
@@ -86,8 +86,13 @@ export function panBy(camera: Camera, dxScreen: number, dyScreen: number): Camer
 // Asteroids are only a few pixels across when zoomed out, so their hover
 // area never shrinks below this many screen pixels.
 const MIN_HOVER_PX = 16;
+const MIN_SHIP_HOVER_PX = 8;
 
-export type Hovered = { kind: "station" } | { kind: "asteroid"; id: number };
+export type Hovered =
+  | { kind: "dock" }
+  | { kind: "storage" }
+  | { kind: "ship"; index: number }
+  | { kind: "asteroid"; id: number };
 
 function insideRect(point: Vec, center: Vec, size: Size): boolean {
   return (
@@ -105,10 +110,25 @@ export function hoveredBody(
 ): Hovered | null {
   if (pointer === null) return null;
   const world = screenToWorld(camera, viewport, pointer);
-  if (insideRect(world, state.station.position, state.station.size)) {
-    return { kind: "station" };
-  }
   const floor = MIN_HOVER_PX / camera.zoom;
+  const shipFloor = MIN_SHIP_HOVER_PX / camera.zoom;
+  const overShip = (index: number): boolean => {
+    const ship = state.ships[index]!;
+    return insideRect(world, ship.position, {
+      width: Math.max(SHIP_SIZE.width, shipFloor),
+      height: Math.max(SHIP_SIZE.height, shipFloor),
+    });
+  };
+
+  // A waiting ship has its own useful status, so it wins over the Dock beneath it.
+  for (let index = 0; index < state.ships.length; index += 1) {
+    const ship = state.ships[index]!;
+    if (ship.state === "waiting" && overShip(index)) return { kind: "ship", index };
+  }
+  if (insideRect(world, state.station.dock.position, state.station.dock.size)) return { kind: "dock" };
+  if (insideRect(world, state.station.storage.position, state.station.storage.size)) {
+    return { kind: "storage" };
+  }
   for (const asteroid of state.asteroids) {
     const area = {
       width: Math.max(asteroid.size.width, floor),
@@ -118,14 +138,24 @@ export function hoveredBody(
       return { kind: "asteroid", id: asteroid.id };
     }
   }
+  // Other ship states have no hover text yet and must not hide the body they
+  // are using when zoomed out.
+  for (let index = 0; index < state.ships.length; index += 1) {
+    if (state.ships[index]!.state !== "waiting" && overShip(index)) return { kind: "ship", index };
+  }
   return null;
 }
 
-// The station or asteroid a hover refers to, or null if that asteroid has gone.
+// The body a hover refers to, or null if it has gone.
 export function bodyOf(
   state: SimState,
   hovered: Hovered,
 ): { position: Vec; size: Size } | null {
-  if (hovered.kind === "station") return state.station;
+  if (hovered.kind === "dock") return state.station.dock;
+  if (hovered.kind === "storage") return state.station.storage;
+  if (hovered.kind === "ship") {
+    const ship = state.ships[hovered.index];
+    return ship ? { position: ship.position, size: SHIP_SIZE } : null;
+  }
   return state.asteroids.find((a) => a.id === hovered.id) ?? null;
 }

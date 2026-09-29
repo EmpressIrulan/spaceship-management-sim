@@ -72,11 +72,11 @@ describe("initial state", () => {
     );
   });
 
-  it("starts one ship at the station with an empty station inventory", () => {
+  it("starts one ship at the station with 20 Metal and 20 Ice in Storage", () => {
     const state = createInitialState(7);
     expect(state.ships).toHaveLength(1);
     expect(ship(state).position).toEqual(state.station.position);
-    expect(state.station.inventory).toEqual({ Metal: 0, Ice: 0 });
+    expect(state.station.inventory).toEqual({ Metal: 20, Ice: 20 });
   });
 });
 
@@ -147,14 +147,14 @@ describe("mining cycle", () => {
     expect(ship(midUnload).state).toBe("unloading");
     expect(ship(midUnload).position).toEqual(start.station.position);
     expect(ship(midUnload).cargo).toBe(CARGO_PER_TRIP / 2);
-    expect(stored(midUnload)).toBe(CARGO_PER_TRIP / 2);
+    expect(stored(midUnload)).toBe(stored(start) + CARGO_PER_TRIP / 2);
   });
 
   it("banks the full load once unloaded and immediately sets off again", () => {
     const start = createInitialState(7);
     const next = run(start, cycleSeconds(start) + 0.1);
 
-    expect(stored(next)).toBe(CARGO_PER_TRIP);
+    expect(stored(next)).toBe(stored(start) + CARGO_PER_TRIP);
     expect(ship(next).state).toBe("outbound");
     expect(ship(next).cargo).toBe(0);
   });
@@ -163,15 +163,17 @@ describe("mining cycle", () => {
     const start = createInitialState(7);
     const seconds = 3 * cycleSeconds(start) + 0.1;
 
-    expect(stored(run(start, seconds))).toBe(3 * CARGO_PER_TRIP);
+    expect(stored(run(start, seconds))).toBe(stored(start) + 3 * CARGO_PER_TRIP);
     // One big step, as after a backgrounded tab resumes.
-    expect(stored(tick(start, seconds))).toBe(3 * CARGO_PER_TRIP);
+    expect(stored(tick(start, seconds))).toBe(stored(start) + 3 * CARGO_PER_TRIP);
   });
 
   it("gets through at least two full cycles within two minutes for any seed", () => {
     for (let seed = 0; seed < 50; seed += 1) {
       const state = run(createInitialState(seed), 120, 0.1);
-      expect(stored(state)).toBeGreaterThanOrEqual(2 * CARGO_PER_TRIP);
+      expect(stored(state) - stored(createInitialState(seed))).toBeGreaterThanOrEqual(
+        2 * CARGO_PER_TRIP,
+      );
     }
   });
 
@@ -250,7 +252,7 @@ describe("asteroid field", () => {
     expect(ship(nextTrip).state).toBe("outbound");
     expect(target(nextTrip).id).not.toBe(first.id);
     expect(target(nextTrip).id).toBe(nearestWithOre(nextTrip).id);
-    expect(stored(nextTrip)).toBe(3 * CARGO_PER_TRIP);
+    expect(stored(nextTrip)).toBe(stored(start) + 3 * CARGO_PER_TRIP);
   });
 
   it("brings a fresh asteroid back somewhere else 30 seconds after one runs out", () => {
@@ -288,7 +290,7 @@ describe("asteroid field", () => {
     expect(ship(waiting).state).toBe("idle");
     expect(ship(waiting).position).toEqual(start.station.position);
     expect(ship(waiting).cargo).toBe(0);
-    expect(stored(waiting)).toBe(CARGO_PER_TRIP);
+    expect(stored(waiting)).toBe(stored(start) + CARGO_PER_TRIP);
 
     const leaving = run(waiting, 0.2);
     expect(leaving.asteroids).toHaveLength(1);
@@ -368,7 +370,7 @@ describe("ore is conserved", () => {
     expect(ship(emptied).state).toBe("homebound");
 
     const home = run(emptied, legSeconds(createInitialState(7)) + UNLOADING_SECONDS + 0.1);
-    expect(stored(home)).toBe(4);
+    expect(stored(home)).toBe(stored(start) + 4);
     expect(ship(home).cargo).toBe(0);
   });
 
@@ -382,7 +384,7 @@ describe("ore is conserved", () => {
     expect(emptied.ships.map((s) => s.state)).toEqual(["homebound", "homebound"]);
 
     const home = run(emptied, legSeconds(createInitialState(7)) + UNLOADING_SECONDS + 0.1);
-    expect(stored(home)).toBe(12);
+    expect(stored(home)).toBe(stored(start) + 12);
   });
 
   it("gives nothing to a ship whose rock was removed by another ship", () => {
@@ -391,7 +393,7 @@ describe("ore is conserved", () => {
     const late = { ...start.ships[1]!, state: "outbound" as const, timer: WORKING_SECONDS + 1 };
     const state = run({ ...start, ships: [start.ships[0]!, late] }, 2 * WORKING_SECONDS + 2);
 
-    expect(state.ships[0]!.cargo + stored(state)).toBe(10);
+    expect(state.ships[0]!.cargo + stored(state) - stored(start)).toBe(10);
     expect(state.ships[1]!.cargo).toBe(0);
     expect(state.ships[1]!.state).not.toBe("working");
   });

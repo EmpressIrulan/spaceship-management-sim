@@ -43,14 +43,14 @@ describe("material deliveries", () => {
 
     const firstCycle = 2 * start.ships[0]!.timer + WORKING_SECONDS + UNLOADING_SECONDS;
     const afterMetal = tick(start, firstCycle + 0.1);
-    expect(afterMetal.station.inventory).toEqual({ Metal: 10, Ice: 0 });
+    expect(afterMetal.station.inventory).toEqual({ Metal: 30, Ice: 20 });
     expect(afterMetal.ships[0]!.target?.asteroidId).toBe(second.id);
     expect(afterMetal.ships[0]!.cargoMaterial).toBe("Ice");
 
     const secondCycle = 2 * (afterMetal.ships[0]!.timer + 0.1) + WORKING_SECONDS + UNLOADING_SECONDS;
     const delivered = tick(afterMetal, secondCycle);
-    expect(delivered.station.inventory).toEqual({ Metal: 10, Ice: 10 });
-    expect(start.station.inventory).toEqual({ Metal: 0, Ice: 0 });
+    expect(delivered.station.inventory).toEqual({ Metal: 30, Ice: 30 });
+    expect(start.station.inventory).toEqual({ Metal: 20, Ice: 20 });
   });
 
   it("replays replacement positions and types from the seed, while allowing either type", () => {

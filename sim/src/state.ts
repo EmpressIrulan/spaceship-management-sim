@@ -21,7 +21,11 @@ export const ASTEROID_MIN_SPACING = 40;
 export const MATERIALS = ["Metal", "Ice"] as const;
 export type Material = (typeof MATERIALS)[number];
 
-export const STATION_SIZE = { width: 60, height: 60 };
+export const DOCK_CAPACITY = 6;
+export const STORAGE_CAPACITY = 100;
+export const DOCK_SIZE = { width: 30, height: 40 };
+export const STORAGE_SIZE = { width: 30, height: 40 };
+export const STATION_SIZE = { width: 70, height: 40 };
 // The mining ship is meant to be the smallest ship class.
 export const SHIP_SIZE = { width: 10, height: 7 };
 export const ASTEROID_SIZE = { width: 13, height: 10 };
@@ -40,7 +44,7 @@ export interface Size {
 }
 
 // "idle" means waiting at the station because no asteroid has ore.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading";
+export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting";
 
 export interface Target {
   asteroidId: number;
@@ -60,8 +64,12 @@ export interface Ship {
 }
 
 export interface Station {
+  // The Dock is the station's home point; `position` remains as a convenient
+  // route origin for the simulation.
   position: Vec;
   size: Size;
+  dock: { position: Vec; size: Size; capacity: number };
+  storage: { position: Vec; size: Size; capacity: number };
   inventory: Record<Material, number>;
 }
 
@@ -175,6 +183,7 @@ export function depart(ship: Ship, station: Vec, asteroids: Asteroid[]): Ship {
 
 export function createInitialState(seed: number): SimState {
   const stationPosition = { x: 0, y: 0 };
+  const storagePosition = { x: 40, y: 0 };
   let rng = seed >>> 0;
   const positions: Vec[] = [];
   for (let id = 0; id < ASTEROID_COUNT; id += 1) {
@@ -208,7 +217,13 @@ export function createInitialState(seed: number): SimState {
     tickCount: 0,
     rng,
     nextAsteroidId: ASTEROID_COUNT,
-    station: { position: stationPosition, size: STATION_SIZE, inventory: { Metal: 0, Ice: 0 } },
+    station: {
+      position: stationPosition,
+      size: STATION_SIZE,
+      dock: { position: stationPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
+      storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
+      inventory: { Metal: 20, Ice: 20 },
+    },
     asteroids,
     respawns: [],
     ships: [depart(idle, stationPosition, asteroids)],

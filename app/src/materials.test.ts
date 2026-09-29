@@ -18,16 +18,19 @@ describe("material display", () => {
     expect(infoBox(mined, hovered)?.line).toBe(`${rock.material}: 25`);
   });
 
-  it("shows Empty at first, then only nonzero material totals on separate lines", () => {
+  it("shows initial and changed material totals on separate lines", () => {
     const state = createInitialState(7);
-    const hovered = { kind: "station" as const };
-    expect(infoBox(state, hovered)).toEqual({ title: "Station inventory", line: "Empty" });
+    const hovered = { kind: "storage" as const };
+    expect(infoBox(state, hovered)).toEqual({
+      title: "Storage",
+      line: "Stored 40 / 100\nMetal: 20\nIce: 20",
+    });
     const one = { ...state, station: { ...state.station, inventory: { Metal: 10, Ice: 0 } } };
-    expect(infoBox(one, hovered)).toEqual({ title: "Station inventory", line: "Metal: 10" });
+    expect(infoBox(one, hovered)).toEqual({ title: "Storage", line: "Stored 10 / 100\nMetal: 10" });
     const both = { ...state, station: { ...state.station, inventory: { Metal: 10, Ice: 10 } } };
     expect(infoBox(both, hovered)).toEqual({
-      title: "Station inventory",
-      line: "Metal: 10\nIce: 10",
+      title: "Storage",
+      line: "Stored 20 / 100\nMetal: 10\nIce: 10",
     });
   });
 });

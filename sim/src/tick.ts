@@ -45,6 +45,7 @@ interface Draft {
   rng: number;
   nextAsteroidId: number;
   station: Vec;
+  storageCapacity: number;
   inventory: SimState["station"]["inventory"];
   asteroids: Asteroid[];
   respawns: SimState["respawns"];
@@ -74,12 +75,19 @@ function asteroidGone(draft: Draft, ship: Ship): boolean {
   return !draft.asteroids.some((a) => a.id === ship.target?.asteroidId);
 }
 
-function unload(draft: Draft, ship: Ship, units: number): void {
-  if (units <= 0 || !ship.cargoMaterial) return;
+function storageRemaining(draft: Draft): number {
+  const stored = Object.values(draft.inventory).reduce((total, amount) => total + amount, 0);
+  return Math.max(0, draft.storageCapacity - stored);
+}
+
+function unload(draft: Draft, ship: Ship, units: number): number {
+  if (units <= 0 || !ship.cargoMaterial) return 0;
+  const accepted = Math.min(units, storageRemaining(draft));
   draft.inventory = {
     ...draft.inventory,
-    [ship.cargoMaterial]: draft.inventory[ship.cargoMaterial] + units,
+    [ship.cargoMaterial]: draft.inventory[ship.cargoMaterial] + accepted,
   };
+  return accepted;
 }
 
 // Moves a ship partway through its current state, leaving `timer` seconds.
@@ -87,6 +95,7 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
   const route = routeOf(ship, draft.station);
   switch (ship.state) {
     case "idle":
+    case "waiting":
       return ship;
     case "outbound":
       return {
@@ -113,9 +122,9 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     case "unloading": {
       // A partial load unloads at the same rate per unit, so it only starts
       // dropping once the countdown reaches what is aboard.
-      const cargo = Math.min(ship.cargo, CARGO_PER_TRIP - unitsDone(timer, UNLOADING_SECONDS));
-      unload(draft, ship, ship.cargo - cargo);
-      return { ...ship, timer, cargo };
+      const targetCargo = Math.min(ship.cargo, CARGO_PER_TRIP - unitsDone(timer, UNLOADING_SECONDS));
+      const unloaded = unload(draft, ship, ship.cargo - targetCargo);
+      return { ...ship, timer, cargo: ship.cargo - unloaded };
     }
   }
 }
@@ -126,6 +135,8 @@ function finish(draft: Draft, ship: Ship): Ship {
   switch (ship.state) {
     case "idle":
       return depart(ship, draft.station, draft.asteroids);
+    case "waiting":
+      return ship;
     case "outbound":
       return {
         ...ship,
@@ -142,9 +153,15 @@ function finish(draft: Draft, ship: Ship): Ship {
         cargo: ship.cargo + mine(draft, ship, CARGO_PER_TRIP - ship.cargo),
       };
     case "homebound":
+      if (ship.cargo > 0 && storageRemaining(draft) === 0) {
+        return { ...ship, state: "waiting", position: { ...draft.station }, timer: 0 };
+      }
       return { ...ship, state: "unloading", position: { ...draft.station }, timer: UNLOADING_SECONDS };
     case "unloading":
-      unload(draft, ship, ship.cargo);
+      const unloaded = unload(draft, ship, ship.cargo);
+      if (unloaded < ship.cargo) {
+        return { ...ship, state: "waiting", timer: 0, cargo: ship.cargo - unloaded };
+      }
       return depart({ ...ship, cargo: 0 }, draft.station, draft.asteroids);
   }
 }
@@ -153,7 +170,7 @@ function finish(draft: Draft, ship: Ship): Ship {
 function nextEvent(draft: Draft): number {
   let soonest = Infinity;
   for (const ship of draft.ships) {
-    if (ship.state !== "idle") soonest = Math.min(soonest, ship.timer);
+    if (ship.state !== "idle" && ship.state !== "waiting") soonest = Math.min(soonest, ship.timer);
   }
   for (const respawn of draft.respawns) soonest = Math.min(soonest, respawn.timer);
   return soonest;
@@ -195,6 +212,7 @@ export function tick(state: SimState, dt: number): SimState {
     rng: state.rng,
     nextAsteroidId: state.nextAsteroidId,
     station: state.station.position,
+    storageCapacity: state.station.storage.capacity,
     inventory: state.station.inventory,
     asteroids: state.asteroids,
     respawns: state.respawns,
