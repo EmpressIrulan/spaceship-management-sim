@@ -143,6 +143,10 @@ function finish(draft: Draft, ship: Ship): Ship {
     case "idle":
       return depart(ship, draft.dock, draft.asteroids);
     case "waiting":
+      // Room can appear without any ship moving, when a Storage module completes.
+      if (ship.cargo > 0 && storageRemaining(draft) > 0) {
+        return { ...ship, state: "unloading", timer: UNLOADING_SECONDS };
+      }
       return ship;
     case "outbound":
       return {

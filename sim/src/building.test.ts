@@ -88,6 +88,23 @@ describe("building station modules", () => {
     expect(building.ships[0]).toMatchObject({ state: "unloading", cargo: 10 });
   });
 
+  it("lets a ship waiting on full Storage leave once a Storage module completes", () => {
+    const building = startModuleBuild(funded(), "Storage", east);
+    const full: SimState = {
+      ...building,
+      station: { ...building.station, inventory: { Metal: 75, Ice: 25 } },
+      ships: [{ ...building.ships[0]!, state: "waiting", cargo: 10, cargoMaterial: "Metal", timer: 0 }],
+    };
+
+    const completed = tick(full, BUILD_SECONDS);
+    expect(completed.station.storage.capacity).toBe(200);
+    expect(completed.ships[0]).toMatchObject({ state: "unloading", cargo: 10 });
+
+    const unloaded = tick(completed, completed.ships[0]!.timer);
+    expect(unloaded.station.inventory).toEqual({ Metal: 85, Ice: 25 });
+    expect(unloaded.ships[0]).toMatchObject({ state: "outbound", cargo: 0 });
+  });
+
   it("keeps respawned asteroids clear of a station grown in every direction and mineable", () => {
     const initial = createInitialState(17);
     const positions: Vec[] = [];
