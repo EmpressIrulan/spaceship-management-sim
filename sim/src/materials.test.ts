@@ -34,7 +34,7 @@ describe("material deliveries", () => {
     const start: SimState = {
       ...initial,
       asteroids: rocks,
-      ships: [depart(initial.ships[0]!, initial.station.position, rocks)],
+      ships: [depart(initial.ships[0]!, initial.station.dock.position, rocks)],
     };
     const atWork = tick(start, start.ships[0]!.timer + 6.1);
     expect(atWork.ships[0]!.cargo).toBe(5);

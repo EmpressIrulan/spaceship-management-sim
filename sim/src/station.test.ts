@@ -6,19 +6,8 @@ import {
   WORKING_SECONDS,
   createInitialState,
   type SimState,
-  type Station,
-  type Vec,
 } from "./state";
 import { travelSeconds } from "./motion";
-
-type ModuleStation = Station & {
-  dock: { position: Vec; size: { width: number; height: number }; capacity: number };
-  storage: { position: Vec; size: { width: number; height: number }; capacity: number };
-};
-
-function station(state: SimState): ModuleStation {
-  return state.station as ModuleStation;
-}
 
 function stored(state: SimState): number {
   return state.station.inventory.Metal + state.station.inventory.Ice;
@@ -28,11 +17,11 @@ describe("Dock and Storage", () => {
   it("starts with two separate station modules", () => {
     const state = createInitialState(7);
 
-    expect(station(state)).toMatchObject({
+    expect(state.station).toMatchObject({
       dock: { capacity: 6 },
       storage: { capacity: 100 },
     });
-    expect(station(state).dock.position).not.toEqual(station(state).storage.position);
+    expect(state.station.dock.position).not.toEqual(state.station.storage.position);
   });
 
   it("returns the ship to the Dock to unload", () => {
@@ -40,20 +29,20 @@ describe("Dock and Storage", () => {
     const ship = state.ships[0]!;
     const leg = travelSeconds(
       Math.hypot(
-        ship.target!.site.x - state.station.position.x,
-        ship.target!.site.y - state.station.position.y,
+        ship.target!.site.x - state.station.dock.position.x,
+        ship.target!.site.y - state.station.dock.position.y,
       ),
     );
 
     const arrived = tick(state, 2 * leg + WORKING_SECONDS);
 
     expect(arrived.ships[0]!.state).toBe("unloading");
-    expect(arrived.ships[0]!.position).toEqual(station(arrived).dock?.position);
+    expect(arrived.ships[0]!.position).toEqual(state.station.dock.position);
   });
 
   it("stops at 100 stored and leaves the ship waiting at the Dock with the rest", () => {
     const initial = createInitialState(7);
-    const dock = station(initial).dock?.position ?? initial.station.position;
+    const dock = initial.station.dock.position;
     const nearlyFull: SimState = {
       ...initial,
       station: {

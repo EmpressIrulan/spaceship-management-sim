@@ -25,7 +25,6 @@ export const DOCK_CAPACITY = 6;
 export const STORAGE_CAPACITY = 100;
 export const DOCK_SIZE = { width: 30, height: 40 };
 export const STORAGE_SIZE = { width: 30, height: 40 };
-export const STATION_SIZE = { width: 70, height: 40 };
 // The mining ship is meant to be the smallest ship class.
 export const SHIP_SIZE = { width: 10, height: 7 };
 export const ASTEROID_SIZE = { width: 13, height: 10 };
@@ -64,10 +63,8 @@ export interface Ship {
 }
 
 export interface Station {
-  // The Dock is the station's home point; `position` remains as a convenient
-  // route origin for the simulation.
-  position: Vec;
-  size: Size;
+  // The Dock is the station's home point: the position ships route to and
+  // from, and the one the asteroid band is measured out from.
   dock: { position: Vec; size: Size; capacity: number };
   storage: { position: Vec; size: Size; capacity: number };
   inventory: Record<Material, number>;
@@ -103,14 +100,14 @@ function distance(a: Vec, b: Vec): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-// A random spot in the band around the station, re-rolled a few times if it
-// lands too close to anything in `avoid`.
+// A random spot in the band around the Dock, the station's home point,
+// re-rolled a few times if it lands too close to anything in `avoid`.
 export function placeAsteroid(
   rng: number,
-  station: Vec,
+  dock: Vec,
   avoid: Vec[],
 ): { position: Vec; rng: number } {
-  let position: Vec = station;
+  let position: Vec = dock;
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const angle = nextRandom(rng);
     const band = nextRandom(angle.state);
@@ -118,8 +115,8 @@ export function placeAsteroid(
     const d =
       ASTEROID_MIN_DISTANCE + band.value * (ASTEROID_MAX_DISTANCE - ASTEROID_MIN_DISTANCE);
     position = {
-      x: station.x + Math.cos(angle.value * 2 * Math.PI) * d,
-      y: station.y + Math.sin(angle.value * 2 * Math.PI) * d,
+      x: dock.x + Math.cos(angle.value * 2 * Math.PI) * d,
+      y: dock.y + Math.sin(angle.value * 2 * Math.PI) * d,
     };
     if (avoid.every((other) => distance(other, position) >= ASTEROID_MIN_SPACING)) break;
   }
@@ -138,43 +135,43 @@ function edgeToward(asteroid: Asteroid, from: Vec): Vec {
   return { x: asteroid.position.x + dx * scale, y: asteroid.position.y + dy * scale };
 }
 
-// The point on the station side of the asteroid where a ship stops to mine
-// it, with MINING_GAP between the ship's nose and the asteroid's edge.
-export function miningSite(station: Vec, asteroid: Asteroid): Vec {
-  const edge = edgeToward(asteroid, station);
-  const d = distance(station, asteroid.position);
-  const ux = (station.x - asteroid.position.x) / d;
-  const uy = (station.y - asteroid.position.y) / d;
+// The point on the side of the asteroid facing the Dock, where a ship stops
+// to mine it, with MINING_GAP between the ship's nose and the asteroid's edge.
+export function miningSite(dock: Vec, asteroid: Asteroid): Vec {
+  const edge = edgeToward(asteroid, dock);
+  const d = distance(dock, asteroid.position);
+  const ux = (dock.x - asteroid.position.x) / d;
+  const uy = (dock.y - asteroid.position.y) / d;
   // Centre to outline of the ship along the line it flies in on.
   const nose = Math.min(SHIP_SIZE.width / 2 / Math.abs(ux), SHIP_SIZE.height / 2 / Math.abs(uy));
   return { x: edge.x + ux * (MINING_GAP + nose), y: edge.y + uy * (MINING_GAP + nose) };
 }
 
-// The asteroid with ore left that is closest to the station, or null.
-export function nearestWithOre(station: Vec, asteroids: Asteroid[]): Asteroid | null {
+// The asteroid with ore left that is closest to the Dock, or null.
+export function nearestWithOre(dock: Vec, asteroids: Asteroid[]): Asteroid | null {
   let best: Asteroid | null = null;
   for (const asteroid of asteroids) {
     if (asteroid.ore <= 0) continue;
-    if (!best || distance(station, asteroid.position) < distance(station, best.position)) {
+    if (!best || distance(dock, asteroid.position) < distance(dock, best.position)) {
       best = asteroid;
     }
   }
   return best;
 }
 
-// Sends a ship waiting at the station to the nearest asteroid with ore, or
+// Sends a ship waiting at the Dock to the nearest asteroid with ore, or
 // leaves it idle if there is none.
-export function depart(ship: Ship, station: Vec, asteroids: Asteroid[]): Ship {
-  const asteroid = nearestWithOre(station, asteroids);
+export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[]): Ship {
+  const asteroid = nearestWithOre(dock, asteroids);
   if (!asteroid) {
-    return { ...ship, state: "idle", position: { ...station }, timer: 0, cargo: 0, cargoMaterial: null, target: null };
+    return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null };
   }
-  const site = miningSite(station, asteroid);
+  const site = miningSite(dock, asteroid);
   return {
     ...ship,
     state: "outbound",
-    position: { ...station },
-    timer: travelSeconds(distance(station, site)),
+    position: { ...dock },
+    timer: travelSeconds(distance(dock, site)),
     cargo: 0,
     cargoMaterial: asteroid.material,
     target: { asteroidId: asteroid.id, site },
@@ -182,12 +179,12 @@ export function depart(ship: Ship, station: Vec, asteroids: Asteroid[]): Ship {
 }
 
 export function createInitialState(seed: number): SimState {
-  const stationPosition = { x: 0, y: 0 };
+  const dockPosition = { x: 0, y: 0 };
   const storagePosition = { x: 40, y: 0 };
   let rng = seed >>> 0;
   const positions: Vec[] = [];
   for (let id = 0; id < ASTEROID_COUNT; id += 1) {
-    const placed = placeAsteroid(rng, stationPosition, positions);
+    const placed = placeAsteroid(rng, dockPosition, positions);
     rng = placed.rng;
     positions.push(placed.position);
   }
@@ -207,7 +204,7 @@ export function createInitialState(seed: number): SimState {
 
   const idle: Ship = {
     state: "idle",
-    position: { ...stationPosition },
+    position: { ...dockPosition },
     timer: 0,
     cargo: 0,
     cargoMaterial: null,
@@ -218,15 +215,13 @@ export function createInitialState(seed: number): SimState {
     rng,
     nextAsteroidId: ASTEROID_COUNT,
     station: {
-      position: stationPosition,
-      size: STATION_SIZE,
-      dock: { position: stationPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
+      dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
       inventory: { Metal: 20, Ice: 20 },
     },
     asteroids,
     respawns: [],
-    ships: [depart(idle, stationPosition, asteroids)],
+    ships: [depart(idle, dockPosition, asteroids)],
   };
 }
 
