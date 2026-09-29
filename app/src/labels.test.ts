@@ -55,6 +55,24 @@ describe("hover box", () => {
     });
   });
 
+  it("shows the same per-material totals on every Storage module", () => {
+    const grown = {
+      ...state,
+      station: {
+        ...state.station,
+        storage: { ...state.station.storage, capacity: 200 },
+        inventory: { Metal: 70, Ice: 40 },
+        modules: [
+          ...state.station.modules,
+          { type: "Storage" as const, position: { x: 80, y: 0 }, size: state.station.storage.size },
+        ],
+      },
+    };
+    const expected = { title: "Storage", line: "Stored 110 / 200\nMetal: 70\nIce: 40" };
+    expect(infoBox(grown, { kind: "storage" })).toEqual(expected);
+    expect(infoBox(grown, { kind: "module", index: 2 })).toEqual(expected);
+  });
+
   it("shows an asteroid's material and ore left, titled Asteroid", () => {
     expect(infoBox(state, { kind: "asteroid", id: asteroid.id })).toEqual({
       title: "Asteroid",
