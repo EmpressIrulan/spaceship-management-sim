@@ -10,10 +10,12 @@ import { cargoGauge, infoBox } from "./labels";
 
 const ship = (state: Ship["state"], cargo: number, timer = 1): Ship => ({
   state,
+  sectorId: 0,
   cargo,
   cargoMaterial: cargo > 0 ? "Metal" : null,
   timer,
   position: { x: 0, y: 0 },
+  leg: null,
   target: null,
 });
 
