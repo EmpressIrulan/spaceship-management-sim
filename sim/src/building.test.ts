@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   BUILD_SECONDS,
   MODULE_COST,
+  availableModuleBuildSites,
   availableModuleBuilds,
   createInitialState,
   startModuleBuild,
   tick,
   type SimState,
+  type Vec,
 } from "./index";
 
 describe("building station modules", () => {
@@ -17,6 +19,8 @@ describe("building station modules", () => {
       station: { ...state.station, inventory: { Metal: 50, Ice: 50 } },
     };
   }
+
+  const east = { x: 80, y: 0 };
 
   it("lists every module at 25 Metal and 25 Ice and disables unaffordable choices", () => {
     const state = createInitialState(7);
@@ -30,7 +34,7 @@ describe("building station modules", () => {
   });
 
   it("takes the cost immediately, occupies the next slot, and disables every choice", () => {
-    const state = startModuleBuild(funded(), "Storage");
+    const state = startModuleBuild(funded(), "Storage", east);
 
     expect(state.station.inventory).toEqual({ Metal: 25, Ice: 25 });
     expect(state.station.construction).toMatchObject({
@@ -41,16 +45,32 @@ describe("building station modules", () => {
     expect(availableModuleBuilds(state).every((option) => !option.enabled)).toBe(true);
   });
 
+  it("offers every empty adjacent slot so the station can grow in any direction", () => {
+    expect(availableModuleBuildSites(funded())).toEqual([
+      { x: -40, y: 0 },
+      { x: 0, y: -40 },
+      { x: 0, y: 40 },
+      { x: 40, y: -40 },
+      { x: 40, y: 40 },
+      { x: 80, y: 0 },
+    ]);
+
+    expect(startModuleBuild(funded(), "Builder", { x: 0, y: -40 }).station.construction)
+      .toMatchObject({ type: "Builder", position: { x: 0, y: -40 } });
+    const state = funded();
+    expect(startModuleBuild(state, "Builder", { x: 400, y: 400 })).toBe(state);
+  });
+
   it("finishes modules after 15 seconds and increases the matching capacity", () => {
-    const storage = tick(startModuleBuild(funded(), "Storage"), BUILD_SECONDS);
+    const storage = tick(startModuleBuild(funded(), "Storage", east), BUILD_SECONDS);
     expect(storage.station.construction).toBeNull();
     expect(storage.station.modules.at(-1)).toMatchObject({ type: "Storage", position: { x: 80, y: 0 } });
     expect(storage.station.storage.capacity).toBe(200);
 
-    const dock = tick(startModuleBuild(funded(), "Dock"), BUILD_SECONDS);
+    const dock = tick(startModuleBuild(funded(), "Dock", east), BUILD_SECONDS);
     expect(dock.station.dock.capacity).toBe(12);
 
-    const builder = tick(startModuleBuild(funded(), "Builder"), BUILD_SECONDS);
+    const builder = tick(startModuleBuild(funded(), "Builder", east), BUILD_SECONDS);
     expect(builder.station.modules.at(-1)).toMatchObject({ type: "Builder" });
   });
 
@@ -62,9 +82,51 @@ describe("building station modules", () => {
       ships: [{ ...initial.ships[0]!, state: "waiting", cargo: 10, cargoMaterial: "Metal", timer: 0 }],
     };
 
-    const building = startModuleBuild(waiting, "Builder");
+    const building = startModuleBuild(waiting, "Builder", east);
 
     expect(building.station.inventory).toEqual({ Metal: 50, Ice: 0 });
     expect(building.ships[0]).toMatchObject({ state: "unloading", cargo: 10 });
+  });
+
+  it("keeps respawned asteroids clear of a station grown in every direction and mineable", () => {
+    const initial = createInitialState(17);
+    const positions: Vec[] = [];
+    for (let offset = -400; offset <= 400; offset += 40) {
+      positions.push({ x: offset, y: 0 }, { x: 0, y: offset });
+    }
+    const unique = positions.filter(
+      (position, index) => positions.findIndex((other) => other.x === position.x && other.y === position.y) === index,
+    );
+    const grown: SimState = {
+      ...initial,
+      station: {
+        ...initial.station,
+        modules: unique.map((position, index) => ({
+          type: index === 0 ? "Dock" : "Storage",
+          position,
+          size: initial.station.storage.size,
+        })),
+      },
+      asteroids: [],
+      respawns: Array.from({ length: 8 }, (_, index) => ({
+        timer: 0,
+        lastPosition: { x: 200 + index * 10, y: 0 },
+      })),
+      ships: [{ ...initial.ships[0]!, state: "idle", timer: 0, cargo: 0, target: null }],
+    };
+
+    const respawned = tick(grown, 0);
+    for (const asteroid of respawned.asteroids) {
+      expect(respawned.station.modules.every((module) =>
+        Math.hypot(
+          asteroid.position.x - module.position.x,
+          asteroid.position.y - module.position.y,
+        ) >= 40,
+      )).toBe(true);
+    }
+    expect(respawned.ships[0]).toMatchObject({ state: "outbound" });
+
+    const mining = tick(respawned, respawned.ships[0]!.timer);
+    expect(mining.ships[0]).toMatchObject({ state: "working", cargoMaterial: expect.any(String) });
   });
 });

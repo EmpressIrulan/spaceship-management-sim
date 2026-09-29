@@ -1,9 +1,10 @@
-import { SHIP_SIZE, createInitialState, laserBeam, startModuleBuild, tick, type Beam, type ModuleType, type Size, type Vec } from "sim";
+import { SHIP_SIZE, availableModuleBuildSites, createInitialState, laserBeam, startModuleBuild, tick, type Beam, type ModuleType, type Size, type Vec } from "sim";
 import {
   bodyOf,
   fitCamera,
   hoveredBody,
   panBy,
+  pointerOverStation,
   wheelZoomFactor,
   worldToScreen,
   zoomAt,
@@ -13,24 +14,22 @@ import {
 import { cargoGauge, infoBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
-import { buildMenuItems } from "./building";
+import { buildControlsVisible, buildMenuItems } from "./building";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
 const titleEl = document.querySelector<HTMLElement>("#info-title");
 const lineEl = document.querySelector<HTMLElement>("#info-line");
-const buildControlEl = document.querySelector<HTMLElement>("#build-control");
-const buildToggleEl = document.querySelector<HTMLButtonElement>("#build-toggle");
+const buildControlsEl = document.querySelector<HTMLElement>("#build-controls");
 const buildMenuEl = document.querySelector<HTMLElement>("#build-menu");
-if (!canvasEl || !boxEl || !titleEl || !lineEl || !buildControlEl || !buildToggleEl || !buildMenuEl) {
+if (!canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl) {
   throw new Error("missing #screen canvas or #info box");
 }
 const canvas: HTMLCanvasElement = canvasEl;
 const box: HTMLElement = boxEl;
 const boxTitle: HTMLElement = titleEl;
 const boxLine: HTMLElement = lineEl;
-const buildControl: HTMLElement = buildControlEl;
-const buildToggle: HTMLButtonElement = buildToggleEl;
+const buildControls: HTMLElement = buildControlsEl;
 const buildMenu: HTMLElement = buildMenuEl;
 
 const context = canvas.getContext("2d");
@@ -49,18 +48,32 @@ let viewport: Viewport = { width: 0, height: 0 };
 let pointer: Vec | null = null;
 let buildMenuOpen = false;
 let renderedMenu = "";
+let renderedSites = "";
+let controlsHovered = false;
+let selectedBuildSite: Vec | null = null;
 
-buildToggle.addEventListener("click", () => {
-  buildMenuOpen = !buildMenuOpen;
-  buildMenu.hidden = !buildMenuOpen;
+buildControls.addEventListener("pointerover", () => {
+  controlsHovered = true;
+});
+buildControls.addEventListener("pointerout", (event) => {
+  if (!buildControls.contains(event.relatedTarget as Node | null)) controlsHovered = false;
+});
+buildControls.addEventListener("click", (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-x]");
+  if (!button) return;
+  selectedBuildSite = { x: Number(button.dataset.x), y: Number(button.dataset.y) };
+  buildMenuOpen = true;
+  buildMenu.hidden = false;
 });
 
 buildMenu.addEventListener("click", (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-module]");
   if (!button || button.disabled) return;
-  state = startModuleBuild(state, button.dataset.module as ModuleType);
+  if (!selectedBuildSite) return;
+  state = startModuleBuild(state, button.dataset.module as ModuleType, selectedBuildSite);
   buildMenuOpen = false;
   buildMenu.hidden = true;
+  selectedBuildSite = null;
 });
 
 function resize(): void {
@@ -237,26 +250,53 @@ function draw(seconds: number): void {
     boxLine.textContent = info.line;
   }
 
-  const stationEdge = state.station.construction?.position
-    ?? state.station.modules[state.station.modules.length - 1]!.position;
-  const controlPoint = worldToScreen(camera, viewport, { x: stationEdge.x + 24, y: stationEdge.y });
-  buildControl.style.left = `${Math.round(controlPoint.x)}px`;
-  buildControl.style.top = `${Math.round(controlPoint.y - 14)}px`;
+  const sites = availableModuleBuildSites(state);
+  const sitesKey = JSON.stringify(sites);
+  if (sitesKey !== renderedSites) {
+    renderedSites = sitesKey;
+    buildControls.replaceChildren(...sites.map((site) => {
+      const button = document.createElement("button");
+      button.className = "build-toggle";
+      button.dataset.x = String(site.x);
+      button.dataset.y = String(site.y);
+      button.setAttribute("aria-label", `Add station module at ${site.x}, ${site.y}`);
+      const symbol = document.createElement("span");
+      symbol.textContent = "+";
+      button.append(symbol);
+      return button;
+    }));
+  }
+  for (const button of buildControls.querySelectorAll<HTMLButtonElement>("button[data-x]")) {
+    const screen = worldToScreen(camera, viewport, {
+      x: Number(button.dataset.x),
+      y: Number(button.dataset.y),
+    });
+    button.style.left = `${Math.round(screen.x - 25)}px`;
+    button.style.top = `${Math.round(screen.y - 25)}px`;
+  }
+  const stationHovered = pointerOverStation(state, camera, viewport, pointer);
+  buildControls.hidden = !buildControlsVisible(stationHovered, controlsHovered);
+  if (buildMenuOpen && selectedBuildSite) {
+    const screen = worldToScreen(camera, viewport, selectedBuildSite);
+    buildMenu.style.left = `${Math.round(screen.x + 20)}px`;
+    buildMenu.style.top = `${Math.round(screen.y - 20)}px`;
+  }
   const menuItems = buildMenuItems(state);
   const menuKey = JSON.stringify(menuItems);
-  if (menuKey === renderedMenu) return;
-  renderedMenu = menuKey;
-  buildMenu.replaceChildren(...menuItems.map((item) => {
-    const button = document.createElement("button");
-    button.dataset.module = item.type;
-    button.disabled = item.disabled;
-    const name = document.createElement("span");
-    name.textContent = item.type;
-    const cost = document.createElement("span");
-    cost.textContent = item.cost;
-    button.append(name, cost);
-    return button;
-  }));
+  if (menuKey !== renderedMenu) {
+    renderedMenu = menuKey;
+    buildMenu.replaceChildren(...menuItems.map((item) => {
+      const button = document.createElement("button");
+      button.dataset.module = item.type;
+      button.disabled = item.disabled;
+      const name = document.createElement("span");
+      name.textContent = item.type;
+      const cost = document.createElement("span");
+      cost.textContent = item.cost;
+      button.append(name, cost);
+      return button;
+    }));
+  }
 }
 
 let lastTimeMs = performance.now();

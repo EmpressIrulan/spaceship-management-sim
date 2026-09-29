@@ -6,6 +6,7 @@ import {
   tick,
 } from "sim";
 import { buildMenuItems } from "./building";
+import { buildControlsVisible } from "./building";
 import { infoBox } from "./labels";
 
 describe("station building controls", () => {
@@ -23,7 +24,7 @@ describe("station building controls", () => {
       ...initial,
       station: { ...initial.station, inventory: { Metal: 50, Ice: 50 } },
     };
-    const building = tick(startModuleBuild(funded, "Builder"), 3);
+    const building = tick(startModuleBuild(funded, "Builder", { x: 0, y: -40 }), 3);
     expect(infoBox(building, { kind: "construction" })).toEqual({
       title: "Building Builder",
       line: "12 s",
@@ -34,5 +35,11 @@ describe("station building controls", () => {
       title: "Builder",
       line: "Idle",
     });
+  });
+
+  it("shows build controls only while the station or a build control is hovered", () => {
+    expect(buildControlsVisible(false, false)).toBe(false);
+    expect(buildControlsVisible(true, false)).toBe(true);
+    expect(buildControlsVisible(false, true)).toBe(true);
   });
 });

@@ -208,6 +208,8 @@ function settle(draft: Draft): void {
     const placed = placeAsteroid(draft.rng, draft.dock, [
       respawn.lastPosition,
       ...draft.asteroids.map((a) => a.position),
+      ...draft.modules.map((module) => module.position),
+      ...(draft.construction ? [draft.construction.position] : []),
     ]);
     draft.rng = placed.rng;
     const material = nextRandom(draft.rng);

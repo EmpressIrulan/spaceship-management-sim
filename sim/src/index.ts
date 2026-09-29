@@ -15,6 +15,7 @@ export {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  availableModuleBuildSites,
   availableModuleBuilds,
   laserBeam,
   startModuleBuild,

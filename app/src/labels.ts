@@ -70,7 +70,11 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
     if (!ship) return null;
-    return ship.state === "waiting" ? { title: "Ship", line: "Waiting: storage full" } : null;
+    if (ship.state === "waiting") return { title: "Ship", line: "Waiting: storage full" };
+    if (ship.state === "working" && ship.cargoMaterial) {
+      return { title: "Ship", line: `Mining ${ship.cargoMaterial}` };
+    }
+    return null;
   }
   const asteroid = state.asteroids.find((a) => a.id === hovered.id);
   return asteroid ? { title: "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;

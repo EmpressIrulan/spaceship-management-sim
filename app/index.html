@@ -35,23 +35,36 @@
       #info-line {
         white-space: pre-line;
       }
-      #build-control {
+      #build-controls {
         position: absolute;
+        inset: 0;
+        pointer-events: none;
         font: 13px monospace;
       }
-      #build-toggle {
-        width: 28px;
-        height: 28px;
+      #build-controls[hidden] { display: none; }
+      .build-toggle {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        padding: 11px;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+      .build-toggle span {
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
         border: 1px solid #94a3b8;
         background: #1f2937;
         color: #f8fafc;
         font: bold 20px monospace;
-        cursor: pointer;
       }
       #build-menu {
         position: absolute;
-        left: 34px;
-        top: 0;
+        z-index: 2;
         display: grid;
         gap: 4px;
         width: 210px;
@@ -79,10 +92,8 @@
   </head>
   <body>
     <canvas id="screen" width="800" height="600"></canvas>
-    <div id="build-control">
-      <button id="build-toggle" aria-label="Add station module">+</button>
-      <div id="build-menu" hidden></div>
-    </div>
+    <div id="build-controls" hidden></div>
+    <div id="build-menu" hidden></div>
     <div id="info" hidden>
       <h2 id="info-title"></h2>
       <div id="info-line"></div>

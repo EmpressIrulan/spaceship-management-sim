@@ -109,6 +109,19 @@ describe("station module hover", () => {
     );
   });
 
+  it("shows that a ship which reached an asteroid is mining it", () => {
+    const initial = createInitialState(7);
+    const working: SimState = {
+      ...initial,
+      ships: [{ ...initial.ships[0]!, state: "working", cargoMaterial: "Ice" }],
+    };
+
+    expect(infoBox(working, { kind: "ship", index: 0 })).toEqual({
+      title: "Ship",
+      line: "Mining Ice",
+    });
+  });
+
   it("shows storage-full waiting as soon as a loaded ship reaches the Dock", () => {
     const initial = createInitialState(7);
     const returning: SimState = {

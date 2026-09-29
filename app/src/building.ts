@@ -14,3 +14,7 @@ export function buildMenuItems(state: SimState): BuildMenuItem[] {
     disabled: !option.enabled,
   }));
 }
+
+export function buildControlsVisible(stationHovered: boolean, controlsHovered: boolean): boolean {
+  return stationHovered || controlsHovered;
+}
