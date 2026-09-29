@@ -25,6 +25,11 @@ export const DOCK_CAPACITY = 6;
 export const STORAGE_CAPACITY = 100;
 export const DOCK_SIZE = { width: 30, height: 40 };
 export const STORAGE_SIZE = { width: 30, height: 40 };
+export const BUILDER_SIZE = { width: 30, height: 40 };
+export const BUILD_SECONDS = 15;
+export const MODULE_COST: Record<Material, number> = { Metal: 25, Ice: 25 };
+export const MODULE_TYPES = ["Dock", "Storage", "Builder"] as const;
+export type ModuleType = (typeof MODULE_TYPES)[number];
 // The mining ship is meant to be the smallest ship class.
 export const SHIP_SIZE = { width: 10, height: 7 };
 export const ASTEROID_SIZE = { width: 13, height: 10 };
@@ -68,6 +73,18 @@ export interface Station {
   dock: { position: Vec; size: Size; capacity: number };
   storage: { position: Vec; size: Size; capacity: number };
   inventory: Record<Material, number>;
+  modules: StationModule[];
+  construction: ModuleConstruction | null;
+}
+
+export interface StationModule {
+  type: ModuleType;
+  position: Vec;
+  size: Size;
+}
+
+export interface ModuleConstruction extends StationModule {
+  timer: number;
 }
 
 export interface Asteroid {
@@ -218,10 +235,65 @@ export function createInitialState(seed: number): SimState {
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
       inventory: { Metal: 20, Ice: 20 },
+      modules: [
+        { type: "Dock", position: dockPosition, size: DOCK_SIZE },
+        { type: "Storage", position: storagePosition, size: STORAGE_SIZE },
+      ],
+      construction: null,
     },
     asteroids,
     respawns: [],
     ships: [depart(idle, dockPosition, asteroids)],
+  };
+}
+
+export interface ModuleBuildOption {
+  type: ModuleType;
+  enabled: boolean;
+}
+
+export function availableModuleBuilds(state: SimState): ModuleBuildOption[] {
+  const canPay = MATERIALS.every(
+    (material) => state.station.inventory[material] >= MODULE_COST[material],
+  );
+  const enabled = canPay && state.station.construction === null;
+  return MODULE_TYPES.map((type) => ({ type, enabled }));
+}
+
+function moduleSize(type: ModuleType): Size {
+  if (type === "Dock") return DOCK_SIZE;
+  if (type === "Storage") return STORAGE_SIZE;
+  return BUILDER_SIZE;
+}
+
+export function startModuleBuild(state: SimState, type: ModuleType): SimState {
+  const option = availableModuleBuilds(state).find((candidate) => candidate.type === type);
+  if (!option?.enabled) return state;
+
+  const inventory = Object.fromEntries(
+    MATERIALS.map((material) => [material, state.station.inventory[material] - MODULE_COST[material]]),
+  ) as Record<Material, number>;
+  const construction: ModuleConstruction = {
+    type,
+    position: {
+      x: state.station.modules[state.station.modules.length - 1]!.position.x + 40,
+      y: state.station.modules[state.station.modules.length - 1]!.position.y,
+    },
+    size: moduleSize(type),
+    timer: BUILD_SECONDS,
+  };
+  const stored = MATERIALS.reduce((total, material) => total + inventory[material], 0);
+  const hasRoom = stored < state.station.storage.capacity;
+  const ships = state.ships.map((ship) =>
+    ship.state === "waiting" && ship.cargo > 0 && hasRoom
+      ? { ...ship, state: "unloading" as const, timer: UNLOADING_SECONDS }
+      : ship,
+  );
+
+  return {
+    ...state,
+    station: { ...state.station, inventory, construction },
+    ships,
   };
 }
 

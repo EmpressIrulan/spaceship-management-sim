@@ -35,10 +35,54 @@
       #info-line {
         white-space: pre-line;
       }
+      #build-control {
+        position: absolute;
+        font: 13px monospace;
+      }
+      #build-toggle {
+        width: 28px;
+        height: 28px;
+        border: 1px solid #94a3b8;
+        background: #1f2937;
+        color: #f8fafc;
+        font: bold 20px monospace;
+        cursor: pointer;
+      }
+      #build-menu {
+        position: absolute;
+        left: 34px;
+        top: 0;
+        display: grid;
+        gap: 4px;
+        width: 210px;
+        padding: 8px;
+        border: 1px solid #64748b;
+        background: #1f2937;
+      }
+      #build-menu[hidden] { display: none; }
+      #build-menu button {
+        display: flex;
+        justify-content: space-between;
+        padding: 7px;
+        border: 1px solid #64748b;
+        background: #334155;
+        color: #f8fafc;
+        font: 12px monospace;
+        cursor: pointer;
+      }
+      #build-menu button:disabled {
+        color: #64748b;
+        background: #1e293b;
+        cursor: not-allowed;
+      }
     </style>
   </head>
   <body>
     <canvas id="screen" width="800" height="600"></canvas>
+    <div id="build-control">
+      <button id="build-toggle" aria-label="Add station module">+</button>
+      <div id="build-menu" hidden></div>
+    </div>
     <div id="info" hidden>
       <h2 id="info-title"></h2>
       <div id="info-line"></div>

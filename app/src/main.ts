@@ -1,4 +1,4 @@
-import { SHIP_SIZE, createInitialState, laserBeam, tick, type Beam, type Size, type Vec } from "sim";
+import { SHIP_SIZE, createInitialState, laserBeam, startModuleBuild, tick, type Beam, type ModuleType, type Size, type Vec } from "sim";
 import {
   bodyOf,
   fitCamera,
@@ -13,18 +13,25 @@ import {
 import { cargoGauge, infoBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
+import { buildMenuItems } from "./building";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
 const titleEl = document.querySelector<HTMLElement>("#info-title");
 const lineEl = document.querySelector<HTMLElement>("#info-line");
-if (!canvasEl || !boxEl || !titleEl || !lineEl) {
+const buildControlEl = document.querySelector<HTMLElement>("#build-control");
+const buildToggleEl = document.querySelector<HTMLButtonElement>("#build-toggle");
+const buildMenuEl = document.querySelector<HTMLElement>("#build-menu");
+if (!canvasEl || !boxEl || !titleEl || !lineEl || !buildControlEl || !buildToggleEl || !buildMenuEl) {
   throw new Error("missing #screen canvas or #info box");
 }
 const canvas: HTMLCanvasElement = canvasEl;
 const box: HTMLElement = boxEl;
 const boxTitle: HTMLElement = titleEl;
 const boxLine: HTMLElement = lineEl;
+const buildControl: HTMLElement = buildControlEl;
+const buildToggle: HTMLButtonElement = buildToggleEl;
+const buildMenu: HTMLElement = buildMenuEl;
 
 const context = canvas.getContext("2d");
 if (!context) {
@@ -40,6 +47,21 @@ let state = createInitialState(seed);
 let viewport: Viewport = { width: 0, height: 0 };
 // Last pointer position over the canvas, or null once it has left.
 let pointer: Vec | null = null;
+let buildMenuOpen = false;
+let renderedMenu = "";
+
+buildToggle.addEventListener("click", () => {
+  buildMenuOpen = !buildMenuOpen;
+  buildMenu.hidden = !buildMenuOpen;
+});
+
+buildMenu.addEventListener("click", (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-module]");
+  if (!button || button.disabled) return;
+  state = startModuleBuild(state, button.dataset.module as ModuleType);
+  buildMenuOpen = false;
+  buildMenu.hidden = true;
+});
 
 function resize(): void {
   const ratio = window.devicePixelRatio || 1;
@@ -104,6 +126,26 @@ function fillWorldRect(center: Vec, size: Size, color: string): void {
   ctx.fillRect(topLeft.x, topLeft.y, size.width * camera.zoom, size.height * camera.zoom);
 }
 
+function strokeWorldRect(center: Vec, size: Size, color: string): void {
+  const topLeft = worldToScreen(camera, viewport, {
+    x: center.x - size.width / 2,
+    y: center.y - size.height / 2,
+  });
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = color;
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(topLeft.x, topLeft.y, size.width * camera.zoom, size.height * camera.zoom);
+  ctx.restore();
+}
+
+function moduleColor(type: ModuleType): string {
+  if (type === "Dock") return "#64748b";
+  if (type === "Storage") return "#475569";
+  return "#7c3aed";
+}
+
 // Screen-space so the numbers stay readable at any zoom.
 const GAUGE = { width: 36, height: 12, gap: 4 };
 
@@ -159,8 +201,12 @@ function draw(seconds: number): void {
   for (const asteroid of state.asteroids) {
     fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material));
   }
-  fillWorldRect(state.station.dock.position, state.station.dock.size, "#64748b");
-  fillWorldRect(state.station.storage.position, state.station.storage.size, "#475569");
+  for (const module of state.station.modules) {
+    fillWorldRect(module.position, module.size, moduleColor(module.type));
+  }
+  if (state.station.construction) {
+    strokeWorldRect(state.station.construction.position, state.station.construction.size, "#cbd5e1");
+  }
 
   for (const ship of state.ships) {
     const beam = laserBeam(state, ship);
@@ -190,6 +236,27 @@ function draw(seconds: number): void {
     boxTitle.textContent = info.title;
     boxLine.textContent = info.line;
   }
+
+  const stationEdge = state.station.construction?.position
+    ?? state.station.modules[state.station.modules.length - 1]!.position;
+  const controlPoint = worldToScreen(camera, viewport, { x: stationEdge.x + 24, y: stationEdge.y });
+  buildControl.style.left = `${Math.round(controlPoint.x)}px`;
+  buildControl.style.top = `${Math.round(controlPoint.y - 14)}px`;
+  const menuItems = buildMenuItems(state);
+  const menuKey = JSON.stringify(menuItems);
+  if (menuKey === renderedMenu) return;
+  renderedMenu = menuKey;
+  buildMenu.replaceChildren(...menuItems.map((item) => {
+    const button = document.createElement("button");
+    button.dataset.module = item.type;
+    button.disabled = item.disabled;
+    const name = document.createElement("span");
+    name.textContent = item.type;
+    const cost = document.createElement("span");
+    cost.textContent = item.cost;
+    button.append(name, cost);
+    return button;
+  }));
 }
 
 let lastTimeMs = performance.now();
