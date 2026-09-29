@@ -40,16 +40,16 @@ function target(state: SimState): Asteroid {
 }
 
 function nearestWithOre(state: SimState): Asteroid {
+  const dock = state.station.dock.position;
   const candidates = state.asteroids.filter((a) => a.ore > 0);
   candidates.sort(
-    (a, b) =>
-      distance(state.station.position, a.position) - distance(state.station.position, b.position),
+    (a, b) => distance(dock, a.position) - distance(dock, b.position),
   );
   return candidates[0]!;
 }
 
 function legSeconds(state: SimState): number {
-  return travelSeconds(distance(state.station.position, ship(state).target!.site));
+  return travelSeconds(distance(state.station.dock.position, ship(state).target!.site));
 }
 
 function cycleSeconds(state: SimState): number {
@@ -66,16 +66,16 @@ function run(state: SimState, seconds: number, dt = 1 / 60): SimState {
 }
 
 describe("initial state", () => {
-  it("puts the station at a fixed position whatever the seed", () => {
-    expect(createInitialState(1).station.position).toEqual(
-      createInitialState(2).station.position,
+  it("puts the Dock at a fixed position whatever the seed", () => {
+    expect(createInitialState(1).station.dock.position).toEqual(
+      createInitialState(2).station.dock.position,
     );
   });
 
-  it("starts one ship at the station with 20 Metal and 20 Ice in Storage", () => {
+  it("starts one ship at the Dock with 20 Metal and 20 Ice in Storage", () => {
     const state = createInitialState(7);
     expect(state.ships).toHaveLength(1);
-    expect(ship(state).position).toEqual(state.station.position);
+    expect(ship(state).position).toEqual(state.station.dock.position);
     expect(state.station.inventory).toEqual({ Metal: 20, Ice: 20 });
   });
 });
@@ -104,7 +104,7 @@ describe("mining cycle", () => {
 
     expect(ship(later).state).toBe("outbound");
     expect(distance(ship(later).position, target(start).position)).toBeLessThan(
-      distance(start.station.position, target(start).position),
+      distance(start.station.dock.position, target(start).position),
     );
   });
 
@@ -145,7 +145,7 @@ describe("mining cycle", () => {
 
     const midUnload = run(start, docked + UNLOADING_SECONDS / 2 + 0.01);
     expect(ship(midUnload).state).toBe("unloading");
-    expect(ship(midUnload).position).toEqual(start.station.position);
+    expect(ship(midUnload).position).toEqual(start.station.dock.position);
     expect(ship(midUnload).cargo).toBe(CARGO_PER_TRIP / 2);
     expect(stored(midUnload)).toBe(stored(start) + CARGO_PER_TRIP / 2);
   });
@@ -200,14 +200,14 @@ describe("asteroid field", () => {
     return 2 * cycleSeconds(start) + legSeconds(start) + WORKING_SECONDS;
   }
 
-  it("starts with 4 asteroids of 30 ore each, 200 to 400 units from the station", () => {
+  it("starts with 4 asteroids of 30 ore each, 200 to 400 units from the Dock", () => {
     for (let seed = 0; seed < 50; seed += 1) {
       const state = createInitialState(seed);
       expect(state.asteroids).toHaveLength(ASTEROID_COUNT);
       expect(ASTEROID_COUNT).toBe(4);
       for (const asteroid of state.asteroids) {
         expect(asteroid.ore).toBe(30);
-        const d = distance(state.station.position, asteroid.position);
+        const d = distance(state.station.dock.position, asteroid.position);
         expect(d).toBeGreaterThanOrEqual(ASTEROID_MIN_DISTANCE);
         expect(d).toBeLessThanOrEqual(ASTEROID_MAX_DISTANCE);
       }
@@ -271,12 +271,12 @@ describe("asteroid field", () => {
     expect(fresh).toHaveLength(1);
     expect(fresh[0]!.ore).toBe(ASTEROID_ORE);
     expect(fresh[0]!.position).not.toEqual(first.position);
-    const d = distance(start.station.position, fresh[0]!.position);
+    const d = distance(start.station.dock.position, fresh[0]!.position);
     expect(d).toBeGreaterThanOrEqual(ASTEROID_MIN_DISTANCE);
     expect(d).toBeLessThanOrEqual(ASTEROID_MAX_DISTANCE);
   });
 
-  it("waits at the station when nothing has ore, and leaves as soon as an asteroid appears", () => {
+  it("waits at the Dock when nothing has ore, and leaves as soon as an asteroid appears", () => {
     const start = createInitialState(7);
     const unloading = run(start, 2 * legSeconds(start) + WORKING_SECONDS + 0.01);
     expect(ship(unloading).state).toBe("unloading");
@@ -288,7 +288,7 @@ describe("asteroid field", () => {
 
     const waiting = run(barren, UNLOADING_SECONDS + 9.9);
     expect(ship(waiting).state).toBe("idle");
-    expect(ship(waiting).position).toEqual(start.station.position);
+    expect(ship(waiting).position).toEqual(start.station.dock.position);
     expect(ship(waiting).cargo).toBe(0);
     expect(stored(waiting)).toBe(stored(start) + CARGO_PER_TRIP);
 
@@ -325,7 +325,7 @@ describe("ore is conserved", () => {
   // A ship already at its mining site and starting to work the rock, built
   // by hand because the game itself only has one ship so far.
   function workingOn(state: SimState, asteroid: Asteroid) {
-    const site = miningSite(state.station.position, asteroid);
+    const site = miningSite(state.station.dock.position, asteroid);
     return {
       state: "working" as const,
       position: site,

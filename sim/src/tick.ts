@@ -16,17 +16,17 @@ import {
 } from "./state";
 
 interface Route {
-  station: Vec;
+  dock: Vec;
   site: Vec;
   length: number;
   legSeconds: number;
 }
 
-function routeOf(ship: Ship, station: Vec): Route | null {
+function routeOf(ship: Ship, dock: Vec): Route | null {
   if (!ship.target) return null;
   const site = ship.target.site;
-  const length = Math.hypot(site.x - station.x, site.y - station.y);
-  return { station, site, length, legSeconds: travelSeconds(length) };
+  const length = Math.hypot(site.x - dock.x, site.y - dock.y);
+  return { dock, site, length, legSeconds: travelSeconds(length) };
 }
 
 function pointAlong(from: Vec, to: Vec, route: Route, elapsed: number): Vec {
@@ -44,7 +44,8 @@ function unitsDone(timer: number, duration: number): number {
 interface Draft {
   rng: number;
   nextAsteroidId: number;
-  station: Vec;
+  // The Dock module's position, the station's home point and route origin.
+  dock: Vec;
   storageCapacity: number;
   inventory: SimState["station"]["inventory"];
   asteroids: Asteroid[];
@@ -92,7 +93,7 @@ function unload(draft: Draft, ship: Ship, units: number): number {
 
 // Moves a ship partway through its current state, leaving `timer` seconds.
 function progress(draft: Draft, ship: Ship, timer: number): Ship {
-  const route = routeOf(ship, draft.station);
+  const route = routeOf(ship, draft.dock);
   switch (ship.state) {
     case "idle":
     case "waiting":
@@ -102,7 +103,7 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
         ...ship,
         timer,
         position: route
-          ? pointAlong(route.station, route.site, route, route.legSeconds - timer)
+          ? pointAlong(route.dock, route.site, route, route.legSeconds - timer)
           : ship.position,
       };
     case "homebound":
@@ -110,7 +111,7 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
         ...ship,
         timer,
         position: route
-          ? pointAlong(route.site, route.station, route, route.legSeconds - timer)
+          ? pointAlong(route.site, route.dock, route, route.legSeconds - timer)
           : ship.position,
       };
     case "working": {
@@ -131,10 +132,10 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
 
 // Moves a ship whose timer has run out into its next state.
 function finish(draft: Draft, ship: Ship): Ship {
-  const route = routeOf(ship, draft.station);
+  const route = routeOf(ship, draft.dock);
   switch (ship.state) {
     case "idle":
-      return depart(ship, draft.station, draft.asteroids);
+      return depart(ship, draft.dock, draft.asteroids);
     case "waiting":
       return ship;
     case "outbound":
@@ -154,15 +155,15 @@ function finish(draft: Draft, ship: Ship): Ship {
       };
     case "homebound":
       if (ship.cargo > 0 && storageRemaining(draft) === 0) {
-        return { ...ship, state: "waiting", position: { ...draft.station }, timer: 0 };
+        return { ...ship, state: "waiting", position: { ...draft.dock }, timer: 0 };
       }
-      return { ...ship, state: "unloading", position: { ...draft.station }, timer: UNLOADING_SECONDS };
+      return { ...ship, state: "unloading", position: { ...draft.dock }, timer: UNLOADING_SECONDS };
     case "unloading":
       const unloaded = unload(draft, ship, ship.cargo);
       if (unloaded < ship.cargo) {
         return { ...ship, state: "waiting", timer: 0, cargo: ship.cargo - unloaded };
       }
-      return depart({ ...ship, cargo: 0 }, draft.station, draft.asteroids);
+      return depart({ ...ship, cargo: 0 }, draft.dock, draft.asteroids);
   }
 }
 
@@ -187,7 +188,7 @@ function settle(draft: Draft): void {
   const due = draft.respawns.filter((r) => r.timer <= 0);
   draft.respawns = draft.respawns.filter((r) => r.timer > 0);
   for (const respawn of due) {
-    const placed = placeAsteroid(draft.rng, draft.station, [
+    const placed = placeAsteroid(draft.rng, draft.dock, [
       respawn.lastPosition,
       ...draft.asteroids.map((a) => a.position),
     ]);
@@ -211,7 +212,7 @@ export function tick(state: SimState, dt: number): SimState {
   const draft: Draft = {
     rng: state.rng,
     nextAsteroidId: state.nextAsteroidId,
-    station: state.station.position,
+    dock: state.station.dock.position,
     storageCapacity: state.station.storage.capacity,
     inventory: state.station.inventory,
     asteroids: state.asteroids,

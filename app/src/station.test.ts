@@ -6,25 +6,6 @@ import { infoBox } from "./labels";
 const viewport = { width: 800, height: 600 };
 const camera: Camera = { center: { x: 0, y: 0 }, zoom: 1 };
 
-function withModules(state: SimState): SimState {
-  return {
-    ...state,
-    station: {
-      ...state.station,
-      dock: {
-        position: { x: -35, y: 0 },
-        size: { width: 30, height: 40 },
-        capacity: 6,
-      },
-      storage: {
-        position: { x: 35, y: 0 },
-        size: { width: 30, height: 40 },
-        capacity: 100,
-      },
-    },
-  } as SimState;
-}
-
 describe("station module hover", () => {
   it.each([1, 0.5, MIN_ZOOM])(
     "shows the Dock at its centre while a ship unloads there at zoom %s",
@@ -53,23 +34,29 @@ describe("station module hover", () => {
   );
 
   it("can hover the Dock and Storage as separate sprites", () => {
-    const state = withModules(createInitialState(7));
-    const modules = state.station as typeof state.station & {
-      dock: { position: { x: number; y: number } };
-      storage: { position: { x: number; y: number } };
-    };
+    const state = createInitialState(7);
 
     expect(
-      hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, modules.dock.position)),
+      hoveredBody(
+        state,
+        camera,
+        viewport,
+        worldToScreen(camera, viewport, state.station.dock.position),
+      ),
     ).toEqual({ kind: "dock" });
     expect(
-      hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, modules.storage.position)),
+      hoveredBody(
+        state,
+        camera,
+        viewport,
+        worldToScreen(camera, viewport, state.station.storage.position),
+      ),
     ).toEqual({ kind: "storage" });
   });
 
   it("shows Dock berth use increasing from zero to one out of six", () => {
-    const empty = withModules(createInitialState(7));
-    expect(infoBox(empty, { kind: "dock" } as never)).toEqual({
+    const empty = createInitialState(7);
+    expect(infoBox(empty, { kind: "dock" })).toEqual({
       title: "Dock",
       line: "Unloading 0 / 6",
     });
@@ -84,7 +71,7 @@ describe("station module hover", () => {
         },
       ],
     };
-    expect(infoBox(unloading, { kind: "dock" } as never)).toEqual({
+    expect(infoBox(unloading, { kind: "dock" })).toEqual({
       title: "Dock",
       line: "Unloading 1 / 6",
     });
@@ -93,14 +80,14 @@ describe("station module hover", () => {
   it("shows combined Storage use above each material total", () => {
     const initial = createInitialState(7);
 
-    expect(infoBox(initial, { kind: "storage" } as never)).toEqual({
+    expect(infoBox(initial, { kind: "storage" })).toEqual({
       title: "Storage",
       line: "Stored 40 / 100\nMetal: 20\nIce: 20",
     });
   });
 
   it("explains that a cargo-carrying ship is waiting because Storage is full", () => {
-    const initial = withModules(createInitialState(7));
+    const initial = createInitialState(7);
     const waiting: SimState = {
       ...initial,
       station: {
@@ -110,14 +97,14 @@ describe("station module hover", () => {
       ships: [
         {
           ...initial.ships[0]!,
-          state: "waiting" as never,
+          state: "waiting",
           cargo: 10,
           cargoMaterial: "Metal",
         },
       ],
     };
 
-    expect(infoBox(waiting, { kind: "ship", index: 0 } as never)?.line).toBe(
+    expect(infoBox(waiting, { kind: "ship", index: 0 })?.line).toBe(
       "Waiting: storage full",
     );
   });

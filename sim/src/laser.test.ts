@@ -33,7 +33,7 @@ function targetOf(state: SimState): Asteroid {
 }
 
 function legSeconds(state: SimState): number {
-  return travelSeconds(distance(state.station.position, site(state)));
+  return travelSeconds(distance(state.station.dock.position, site(state)));
 }
 
 function cycleSeconds(state: SimState): number {
@@ -82,16 +82,16 @@ describe("where the ship mines from", () => {
     }
   });
 
-  it("stops on the side facing the station, on the straight line out", () => {
+  it("stops on the side facing the Dock, on the straight line out", () => {
     for (let seed = 0; seed < 50; seed += 1) {
       const state = createInitialState(seed);
-      const station = state.station.position;
+      const dock = state.station.dock.position;
       const asteroid = targetOf(state).position;
       const s = site(state);
-      expect(distance(station, s)).toBeLessThan(distance(station, asteroid));
-      // On the segment from station to asteroid.
-      expect(distance(station, s) + distance(s, asteroid)).toBeCloseTo(
-        distance(station, asteroid),
+      expect(distance(dock, s)).toBeLessThan(distance(dock, asteroid));
+      // On the segment from the Dock to the asteroid.
+      expect(distance(dock, s) + distance(s, asteroid)).toBeCloseTo(
+        distance(dock, asteroid),
         9,
       );
     }
@@ -141,8 +141,8 @@ describe("the laser", () => {
       expect(beam).not.toBeNull();
       expect(beam!.from).toEqual(ship(state).position);
       expect(edgeness(beam!.to, asteroid.position, asteroid.size)).toBeCloseTo(1, 9);
-      expect(distance(beam!.to, start.station.position)).toBeLessThan(
-        distance(asteroid.position, start.station.position),
+      expect(distance(beam!.to, start.station.dock.position)).toBeLessThan(
+        distance(asteroid.position, start.station.dock.position),
       );
     }
   });
