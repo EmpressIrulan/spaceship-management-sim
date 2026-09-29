@@ -143,6 +143,28 @@ describe("hovering", () => {
     });
   });
 
+  it("lets a zoomed-out asteroid win over the mining ship beside it", () => {
+    const ship = state.ships[0]!;
+    const target = state.asteroids.find((candidate) => candidate.id === ship.target!.asteroidId)!;
+    const mining = {
+      ...state,
+      ships: [{ ...ship, state: "working" as const, position: { ...ship.target!.site } }],
+    };
+    const zoomedOut: Camera = { center: { x: 0, y: 0 }, zoom: MIN_ZOOM };
+    // At minimum zoom the hit-area floors overlap between the nearby ship and
+    // asteroid. This point is inside both, close to the ship.
+    const overlap = {
+      x: mining.ships[0]!.position.x + (target.position.x - mining.ships[0]!.position.x) * 0.1,
+      y: mining.ships[0]!.position.y + (target.position.y - mining.ships[0]!.position.y) * 0.1,
+    };
+    const pointer = worldToScreen(zoomedOut, viewport, overlap);
+
+    expect(hoveredBody(mining, zoomedOut, viewport, pointer)).toEqual({
+      kind: "asteroid",
+      id: target.id,
+    });
+  });
+
   it("points at nothing over empty space or once the pointer has left the canvas", () => {
     expect(hoveredBody(state, home, viewport, { x: 5, y: 5 })).toBeNull();
     expect(hoveredBody(state, home, viewport, null)).toBeNull();

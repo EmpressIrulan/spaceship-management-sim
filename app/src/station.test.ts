@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { UNLOADING_SECONDS, createInitialState, tick, type SimState } from "sim";
-import { hoveredBody, worldToScreen, type Camera } from "./camera";
+import { MIN_ZOOM, hoveredBody, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
 
 const viewport = { width: 800, height: 600 };
@@ -26,6 +26,32 @@ function withModules(state: SimState): SimState {
 }
 
 describe("station module hover", () => {
+  it.each([1, 0.5, MIN_ZOOM])(
+    "shows the Dock at its centre while a ship unloads there at zoom %s",
+    (zoom) => {
+      const initial = createInitialState(7);
+      const unloading: SimState = {
+        ...initial,
+        ships: [
+          {
+            ...initial.ships[0]!,
+            state: "unloading",
+            position: { ...initial.station.dock.position },
+            timer: UNLOADING_SECONDS,
+          },
+        ],
+      };
+      const zoomed = { ...camera, zoom };
+      const pointer = worldToScreen(zoomed, viewport, unloading.station.dock.position);
+      const hovered = hoveredBody(unloading, zoomed, viewport, pointer);
+
+      expect({ hovered, info: infoBox(unloading, hovered) }).toEqual({
+        hovered: { kind: "dock" },
+        info: { title: "Dock", line: "Unloading 1 / 6" },
+      });
+    },
+  );
+
   it("can hover the Dock and Storage as separate sprites", () => {
     const state = withModules(createInitialState(7));
     const modules = state.station as typeof state.station & {

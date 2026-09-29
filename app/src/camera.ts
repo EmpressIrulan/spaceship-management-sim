@@ -111,14 +111,19 @@ export function hoveredBody(
   if (pointer === null) return null;
   const world = screenToWorld(camera, viewport, pointer);
   const floor = MIN_HOVER_PX / camera.zoom;
-  for (let index = 0; index < state.ships.length; index += 1) {
+  const shipFloor = MIN_SHIP_HOVER_PX / camera.zoom;
+  const overShip = (index: number): boolean => {
     const ship = state.ships[index]!;
-    const shipFloor = MIN_SHIP_HOVER_PX / camera.zoom;
-    const area = {
+    return insideRect(world, ship.position, {
       width: Math.max(SHIP_SIZE.width, shipFloor),
       height: Math.max(SHIP_SIZE.height, shipFloor),
-    };
-    if (insideRect(world, ship.position, area)) return { kind: "ship", index };
+    });
+  };
+
+  // A waiting ship has its own useful status, so it wins over the Dock beneath it.
+  for (let index = 0; index < state.ships.length; index += 1) {
+    const ship = state.ships[index]!;
+    if (ship.state === "waiting" && overShip(index)) return { kind: "ship", index };
   }
   if (insideRect(world, state.station.dock.position, state.station.dock.size)) return { kind: "dock" };
   if (insideRect(world, state.station.storage.position, state.station.storage.size)) {
@@ -132,6 +137,11 @@ export function hoveredBody(
     if (insideRect(world, asteroid.position, area)) {
       return { kind: "asteroid", id: asteroid.id };
     }
+  }
+  // Other ship states have no hover text yet and must not hide the body they
+  // are using when zoomed out.
+  for (let index = 0; index < state.ships.length; index += 1) {
+    if (state.ships[index]!.state !== "waiting" && overShip(index)) return { kind: "ship", index };
   }
   return null;
 }
