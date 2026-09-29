@@ -66,7 +66,7 @@ describe("starting view", () => {
     const short = { width: 900, height: 500 };
     for (let seed = 0; seed < 200; seed += 1) {
       const state = createInitialState(seed);
-      const bodies = [state.station, ...state.asteroids];
+      const bodies = [state.station.dock, state.station.storage, ...state.asteroids];
       const camera = fitCamera(short, bodies);
       for (const body of bodies) {
         const topLeft = worldToScreen(camera, short, {
@@ -87,7 +87,13 @@ describe("starting view", () => {
 
   it("does not zoom in past 1:1 when everything already fits", () => {
     const state = createInitialState(7);
-    expect(fitCamera({ width: 4000, height: 3000 }, [state.station, ...state.asteroids]).zoom).toBe(1);
+    expect(
+      fitCamera({ width: 4000, height: 3000 }, [
+        state.station.dock,
+        state.station.storage,
+        ...state.asteroids,
+      ]).zoom,
+    ).toBe(1);
   });
 });
 
@@ -106,15 +112,16 @@ describe("hovering", () => {
   const state = createInitialState(7);
   const asteroid = state.asteroids[2]!;
 
-  it("points at the station wherever the camera has moved it", () => {
+  it("points at the Dock wherever the camera has moved it", () => {
     const cameras: Camera[] = [
       home,
       { center: { x: 200, y: -150 }, zoom: 0.5 },
       { center: { x: -40, y: 30 }, zoom: 3 },
     ];
     for (const camera of cameras) {
-      const onScreen = worldToScreen(camera, viewport, state.station.position);
-      expect(hoveredBody(state, camera, viewport, onScreen)).toEqual({ kind: "station" });
+      const dockSurface = { x: state.station.dock.position.x + 12, y: state.station.dock.position.y };
+      const onScreen = worldToScreen(camera, viewport, dockSurface);
+      expect(hoveredBody(state, camera, viewport, onScreen)).toEqual({ kind: "dock" });
     }
   });
 

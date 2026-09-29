@@ -2,8 +2,12 @@ export { createPrng, type Prng } from "./prng";
 export {
   ASTEROID_ORE,
   CARGO_PER_TRIP,
+  DOCK_CAPACITY,
+  DOCK_SIZE,
   MATERIALS,
   SHIP_SIZE,
+  STORAGE_CAPACITY,
+  STORAGE_SIZE,
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
