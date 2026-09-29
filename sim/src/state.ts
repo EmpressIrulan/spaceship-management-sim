@@ -25,6 +25,11 @@ export const DOCK_CAPACITY = 6;
 export const STORAGE_CAPACITY = 100;
 export const DOCK_SIZE = { width: 30, height: 40 };
 export const STORAGE_SIZE = { width: 30, height: 40 };
+export const BUILDER_SIZE = { width: 30, height: 40 };
+export const BUILD_SECONDS = 15;
+export const MODULE_COST: Record<Material, number> = { Metal: 25, Ice: 25 };
+export const MODULE_TYPES = ["Dock", "Storage", "Builder"] as const;
+export type ModuleType = (typeof MODULE_TYPES)[number];
 // The mining ship is meant to be the smallest ship class.
 export const SHIP_SIZE = { width: 10, height: 7 };
 export const ASTEROID_SIZE = { width: 13, height: 10 };
@@ -68,6 +73,18 @@ export interface Station {
   dock: { position: Vec; size: Size; capacity: number };
   storage: { position: Vec; size: Size; capacity: number };
   inventory: Record<Material, number>;
+  modules: StationModule[];
+  construction: ModuleConstruction | null;
+}
+
+export interface StationModule {
+  type: ModuleType;
+  position: Vec;
+  size: Size;
+}
+
+export interface ModuleConstruction extends StationModule {
+  timer: number;
 }
 
 export interface Asteroid {
@@ -100,15 +117,16 @@ function distance(a: Vec, b: Vec): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-// A random spot in the band around the Dock, the station's home point,
-// re-rolled a few times if it lands too close to anything in `avoid`.
+// A random spot in the band around the Dock, re-rolled if it lands too
+// close to anything in `avoid`. A station that fills the band pushes the
+// fallback outward rather than allowing an asteroid under a module.
 export function placeAsteroid(
   rng: number,
   dock: Vec,
   avoid: Vec[],
 ): { position: Vec; rng: number } {
   let position: Vec = dock;
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     const angle = nextRandom(rng);
     const band = nextRandom(angle.state);
     rng = band.state;
@@ -118,9 +136,23 @@ export function placeAsteroid(
       x: dock.x + Math.cos(angle.value * 2 * Math.PI) * d,
       y: dock.y + Math.sin(angle.value * 2 * Math.PI) * d,
     };
-    if (avoid.every((other) => distance(other, position) >= ASTEROID_MIN_SPACING)) break;
+    if (avoid.every((other) => distance(other, position) >= ASTEROID_MIN_SPACING)) {
+      return { position, rng };
+    }
   }
-  return { position, rng };
+  // A station can eventually occupy much of the starting asteroid band. If
+  // random retries cannot find a gap, walk deterministic rings outside it so
+  // a growing station can never trap future asteroids underneath itself.
+  for (let ring = 1; ; ring += 1) {
+    const radius = ASTEROID_MAX_DISTANCE + ring * ASTEROID_MIN_SPACING;
+    for (let step = 0; step < 36; step += 1) {
+      const angle = step * 2 * Math.PI / 36;
+      position = { x: dock.x + Math.cos(angle) * radius, y: dock.y + Math.sin(angle) * radius };
+      if (avoid.every((other) => distance(other, position) >= ASTEROID_MIN_SPACING)) {
+        return { position, rng };
+      }
+    }
+  }
 }
 
 // Where the straight line from `from` to the asteroid's centre crosses its
@@ -184,7 +216,7 @@ export function createInitialState(seed: number): SimState {
   let rng = seed >>> 0;
   const positions: Vec[] = [];
   for (let id = 0; id < ASTEROID_COUNT; id += 1) {
-    const placed = placeAsteroid(rng, dockPosition, positions);
+    const placed = placeAsteroid(rng, dockPosition, [dockPosition, storagePosition, ...positions]);
     rng = placed.rng;
     positions.push(placed.position);
   }
@@ -218,10 +250,93 @@ export function createInitialState(seed: number): SimState {
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
       inventory: { Metal: 20, Ice: 20 },
+      modules: [
+        { type: "Dock", position: dockPosition, size: DOCK_SIZE },
+        { type: "Storage", position: storagePosition, size: STORAGE_SIZE },
+      ],
+      construction: null,
     },
     asteroids,
     respawns: [],
     ships: [depart(idle, dockPosition, asteroids)],
+  };
+}
+
+export interface ModuleBuildOption {
+  type: ModuleType;
+  enabled: boolean;
+}
+
+export function availableModuleBuilds(state: SimState): ModuleBuildOption[] {
+  const canPay = MATERIALS.every(
+    (material) => state.station.inventory[material] >= MODULE_COST[material],
+  );
+  const enabled = canPay && state.station.construction === null;
+  return MODULE_TYPES.map((type) => ({ type, enabled }));
+}
+
+// Centre-to-centre distance between neighbouring module slots.
+export const MODULE_SPACING = 40;
+const BUILD_DIRECTIONS: Vec[] = [
+  { x: -MODULE_SPACING, y: 0 },
+  { x: 0, y: -MODULE_SPACING },
+  { x: 0, y: MODULE_SPACING },
+  { x: MODULE_SPACING, y: 0 },
+];
+
+function samePosition(a: Vec, b: Vec): boolean {
+  return a.x === b.x && a.y === b.y;
+}
+
+export function availableModuleBuildSites(state: SimState): Vec[] {
+  const occupied = [
+    ...state.station.modules.map((module) => module.position),
+    ...(state.station.construction ? [state.station.construction.position] : []),
+  ];
+  const sites: Vec[] = [];
+  for (const module of state.station.modules) {
+    for (const direction of BUILD_DIRECTIONS) {
+      const site = { x: module.position.x + direction.x, y: module.position.y + direction.y };
+      const blocked = occupied.some((position) => samePosition(position, site))
+        || state.asteroids.some((asteroid) => distance(asteroid.position, site) < ASTEROID_MIN_SPACING);
+      if (!blocked && !sites.some((position) => samePosition(position, site))) sites.push(site);
+    }
+  }
+  return sites;
+}
+
+function moduleSize(type: ModuleType): Size {
+  if (type === "Dock") return DOCK_SIZE;
+  if (type === "Storage") return STORAGE_SIZE;
+  return BUILDER_SIZE;
+}
+
+export function startModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {
+  const option = availableModuleBuilds(state).find((candidate) => candidate.type === type);
+  const site = availableModuleBuildSites(state).find((candidate) => samePosition(candidate, position));
+  if (!option?.enabled || !site) return state;
+
+  const inventory = Object.fromEntries(
+    MATERIALS.map((material) => [material, state.station.inventory[material] - MODULE_COST[material]]),
+  ) as Record<Material, number>;
+  const construction: ModuleConstruction = {
+    type,
+    position: { ...site },
+    size: moduleSize(type),
+    timer: BUILD_SECONDS,
+  };
+  const stored = MATERIALS.reduce((total, material) => total + inventory[material], 0);
+  const hasRoom = stored < state.station.storage.capacity;
+  const ships = state.ships.map((ship) =>
+    ship.state === "waiting" && ship.cargo > 0 && hasRoom
+      ? { ...ship, state: "unloading" as const, timer: UNLOADING_SECONDS }
+      : ship,
+  );
+
+  return {
+    ...state,
+    station: { ...state.station, inventory, construction },
+    ships,
   };
 }
 

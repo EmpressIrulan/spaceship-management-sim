@@ -4,7 +4,9 @@ import {
   ASTEROID_ORE,
   ASTEROID_SIZE,
   CARGO_PER_TRIP,
+  DOCK_CAPACITY,
   RESPAWN_SECONDS,
+  STORAGE_CAPACITY,
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   depart,
@@ -12,6 +14,7 @@ import {
   type Asteroid,
   type Ship,
   type SimState,
+  type Station,
   type Vec,
 } from "./state";
 
@@ -51,6 +54,9 @@ interface Draft {
   asteroids: Asteroid[];
   respawns: SimState["respawns"];
   ships: Ship[];
+  modules: Station["modules"];
+  construction: Station["construction"];
+  dockCapacity: number;
 }
 
 // Takes up to `units` of ore from the asteroid a ship is mining and returns
@@ -137,6 +143,10 @@ function finish(draft: Draft, ship: Ship): Ship {
     case "idle":
       return depart(ship, draft.dock, draft.asteroids);
     case "waiting":
+      // Room can appear without any ship moving, when a Storage module completes.
+      if (ship.cargo > 0 && storageRemaining(draft) > 0) {
+        return { ...ship, state: "unloading", timer: UNLOADING_SECONDS };
+      }
       return ship;
     case "outbound":
       return {
@@ -174,23 +184,36 @@ function nextEvent(draft: Draft): number {
     if (ship.state !== "idle" && ship.state !== "waiting") soonest = Math.min(soonest, ship.timer);
   }
   for (const respawn of draft.respawns) soonest = Math.min(soonest, respawn.timer);
+  if (draft.construction) soonest = Math.min(soonest, draft.construction.timer);
   return soonest;
 }
 
 function advance(draft: Draft, seconds: number): void {
   draft.respawns = draft.respawns.map((r) => ({ ...r, timer: r.timer - seconds }));
   draft.ships = draft.ships.map((ship) => progress(draft, ship, ship.timer - seconds));
+  if (draft.construction) {
+    draft.construction = { ...draft.construction, timer: draft.construction.timer - seconds };
+  }
 }
 
 // Fires every timer that has reached zero. Respawns go first so a ship that
 // becomes free at the same moment can head for the new asteroid.
 function settle(draft: Draft): void {
+  if (draft.construction && draft.construction.timer <= 0) {
+    const { timer: _timer, ...module } = draft.construction;
+    draft.modules = [...draft.modules, module];
+    if (module.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
+    if (module.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
+    draft.construction = null;
+  }
   const due = draft.respawns.filter((r) => r.timer <= 0);
   draft.respawns = draft.respawns.filter((r) => r.timer > 0);
   for (const respawn of due) {
     const placed = placeAsteroid(draft.rng, draft.dock, [
       respawn.lastPosition,
       ...draft.asteroids.map((a) => a.position),
+      ...draft.modules.map((module) => module.position),
+      ...(draft.construction ? [draft.construction.position] : []),
     ]);
     draft.rng = placed.rng;
     const material = nextRandom(draft.rng);
@@ -218,6 +241,9 @@ export function tick(state: SimState, dt: number): SimState {
     asteroids: state.asteroids,
     respawns: state.respawns,
     ships: state.ships,
+    modules: state.station.modules,
+    construction: state.station.construction,
+    dockCapacity: state.station.dock.capacity,
   };
 
   // A negative or NaN dt would wind timers backwards, so it counts as no time.
@@ -234,7 +260,14 @@ export function tick(state: SimState, dt: number): SimState {
     tickCount: state.tickCount + 1,
     rng: draft.rng,
     nextAsteroidId: draft.nextAsteroidId,
-    station: { ...state.station, inventory: draft.inventory },
+    station: {
+      ...state.station,
+      dock: { ...state.station.dock, capacity: draft.dockCapacity },
+      storage: { ...state.station.storage, capacity: draft.storageCapacity },
+      inventory: draft.inventory,
+      modules: draft.modules,
+      construction: draft.construction,
+    },
     asteroids: draft.asteroids,
     respawns: draft.respawns,
     ships: draft.ships,

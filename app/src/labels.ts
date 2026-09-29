@@ -50,10 +50,31 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       line: [`Stored ${stored} / ${state.station.storage.capacity}`, ...lines].join("\n"),
     };
   }
+  if (hovered.kind === "construction") {
+    const construction = state.station.construction;
+    return construction
+      ? { title: `Building ${construction.type}`, line: `${Math.ceil(construction.timer)} s` }
+      : null;
+  }
+  if (hovered.kind === "module") {
+    const module = state.station.modules[hovered.index];
+    if (!module) return null;
+    if (module.type === "Builder") return { title: "Builder", line: "Idle" };
+    if (module.type === "Dock") {
+      const unloading = state.ships.filter((ship) => ship.state === "unloading").length;
+      return { title: "Dock", line: `Unloading ${unloading} / ${state.station.dock.capacity}` };
+    }
+    const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
+    return { title: "Storage", line: `Stored ${stored} / ${state.station.storage.capacity}` };
+  }
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
     if (!ship) return null;
-    return ship.state === "waiting" ? { title: "Ship", line: "Waiting: storage full" } : null;
+    if (ship.state === "waiting") return { title: "Ship", line: "Waiting: storage full" };
+    if (ship.state === "working" && ship.cargoMaterial) {
+      return { title: "Ship", line: `Mining ${ship.cargoMaterial}` };
+    }
+    return null;
   }
   const asteroid = state.asteroids.find((a) => a.id === hovered.id);
   return asteroid ? { title: "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;

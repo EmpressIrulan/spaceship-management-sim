@@ -1,9 +1,10 @@
-import { SHIP_SIZE, createInitialState, laserBeam, tick, type Beam, type Size, type Vec } from "sim";
+import { SHIP_SIZE, availableModuleBuildSites, createInitialState, laserBeam, startModuleBuild, tick, type Beam, type ModuleType, type Size, type Vec } from "sim";
 import {
   bodyOf,
   fitCamera,
   hoveredBody,
   panBy,
+  screenToWorld,
   wheelZoomFactor,
   worldToScreen,
   zoomAt,
@@ -13,18 +14,30 @@ import {
 import { cargoGauge, infoBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
+import {
+  buildControlSize,
+  buildControlsVisible,
+  buildMenuItems,
+  dismissBuildMenuForClick,
+  dismissBuildMenuForKey,
+  pointerInBuildArea,
+} from "./building";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
 const titleEl = document.querySelector<HTMLElement>("#info-title");
 const lineEl = document.querySelector<HTMLElement>("#info-line");
-if (!canvasEl || !boxEl || !titleEl || !lineEl) {
+const buildControlsEl = document.querySelector<HTMLElement>("#build-controls");
+const buildMenuEl = document.querySelector<HTMLElement>("#build-menu");
+if (!canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl) {
   throw new Error("missing #screen canvas or #info box");
 }
 const canvas: HTMLCanvasElement = canvasEl;
 const box: HTMLElement = boxEl;
 const boxTitle: HTMLElement = titleEl;
 const boxLine: HTMLElement = lineEl;
+const buildControls: HTMLElement = buildControlsEl;
+const buildMenu: HTMLElement = buildMenuEl;
 
 const context = canvas.getContext("2d");
 if (!context) {
@@ -40,6 +53,56 @@ let state = createInitialState(seed);
 let viewport: Viewport = { width: 0, height: 0 };
 // Last pointer position over the canvas, or null once it has left.
 let pointer: Vec | null = null;
+let buildMenuOpen = false;
+let renderedMenu = "";
+let renderedSites = "";
+let controlsHovered = false;
+let selectedBuildSite: Vec | null = null;
+
+function closeBuildMenu(): void {
+  buildMenuOpen = false;
+  buildMenu.hidden = true;
+  selectedBuildSite = null;
+}
+
+buildControls.addEventListener("pointerover", () => {
+  controlsHovered = true;
+});
+// The + cells sit above the canvas, so the canvas stops hearing the pointer
+// while it is over one.
+buildControls.addEventListener("pointermove", (event) => {
+  pointer = mousePoint(event);
+});
+buildControls.addEventListener("pointerout", (event) => {
+  if (!buildControls.contains(event.relatedTarget as Node | null)) controlsHovered = false;
+});
+buildControls.addEventListener("click", (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-x]");
+  if (!button) return;
+  selectedBuildSite = { x: Number(button.dataset.x), y: Number(button.dataset.y) };
+  buildMenuOpen = true;
+  buildMenu.hidden = false;
+});
+
+buildMenu.addEventListener("click", (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-module]");
+  if (!button || button.disabled) return;
+  if (!selectedBuildSite) return;
+  state = startModuleBuild(state, button.dataset.module as ModuleType, selectedBuildSite);
+  closeBuildMenu();
+});
+
+document.addEventListener("click", (event) => {
+  if (!buildMenuOpen) return;
+  const target = event.target as Node | null;
+  if (dismissBuildMenuForClick(buildMenu.contains(target), buildControls.contains(target))) {
+    closeBuildMenu();
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
+});
 
 function resize(): void {
   const ratio = window.devicePixelRatio || 1;
@@ -104,6 +167,26 @@ function fillWorldRect(center: Vec, size: Size, color: string): void {
   ctx.fillRect(topLeft.x, topLeft.y, size.width * camera.zoom, size.height * camera.zoom);
 }
 
+function strokeWorldRect(center: Vec, size: Size, color: string): void {
+  const topLeft = worldToScreen(camera, viewport, {
+    x: center.x - size.width / 2,
+    y: center.y - size.height / 2,
+  });
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = color;
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(topLeft.x, topLeft.y, size.width * camera.zoom, size.height * camera.zoom);
+  ctx.restore();
+}
+
+function moduleColor(type: ModuleType): string {
+  if (type === "Dock") return "#64748b";
+  if (type === "Storage") return "#475569";
+  return "#7c3aed";
+}
+
 // Screen-space so the numbers stay readable at any zoom.
 const GAUGE = { width: 36, height: 12, gap: 4 };
 
@@ -159,8 +242,12 @@ function draw(seconds: number): void {
   for (const asteroid of state.asteroids) {
     fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material));
   }
-  fillWorldRect(state.station.dock.position, state.station.dock.size, "#64748b");
-  fillWorldRect(state.station.storage.position, state.station.storage.size, "#475569");
+  for (const module of state.station.modules) {
+    fillWorldRect(module.position, module.size, moduleColor(module.type));
+  }
+  if (state.station.construction) {
+    strokeWorldRect(state.station.construction.position, state.station.construction.size, "#cbd5e1");
+  }
 
   for (const ship of state.ships) {
     const beam = laserBeam(state, ship);
@@ -189,6 +276,58 @@ function draw(seconds: number): void {
     box.style.top = `${anchor.y}px`;
     boxTitle.textContent = info.title;
     boxLine.textContent = info.line;
+  }
+
+  const sites = availableModuleBuildSites(state);
+  const sitesKey = JSON.stringify(sites);
+  if (sitesKey !== renderedSites) {
+    renderedSites = sitesKey;
+    buildControls.replaceChildren(...sites.map((site) => {
+      const button = document.createElement("button");
+      button.className = "build-toggle";
+      button.dataset.x = String(site.x);
+      button.dataset.y = String(site.y);
+      button.setAttribute("aria-label", `Add station module at ${site.x}, ${site.y}`);
+      const symbol = document.createElement("span");
+      symbol.textContent = "+";
+      button.append(symbol);
+      return button;
+    }));
+  }
+  const control = buildControlSize(camera.zoom);
+  buildControls.style.setProperty("--cell", `${control.cell}px`);
+  buildControls.style.setProperty("--glyph", `${control.glyph}px`);
+  for (const button of buildControls.querySelectorAll<HTMLButtonElement>("button[data-x]")) {
+    const screen = worldToScreen(camera, viewport, {
+      x: Number(button.dataset.x),
+      y: Number(button.dataset.y),
+    });
+    button.style.left = `${screen.x - control.cell / 2}px`;
+    button.style.top = `${screen.y - control.cell / 2}px`;
+  }
+  const inBuildArea = pointer !== null
+    && pointerInBuildArea(state, screenToWorld(camera, viewport, pointer));
+  buildControls.hidden = !buildControlsVisible(inBuildArea, controlsHovered);
+  if (buildMenuOpen && selectedBuildSite) {
+    const screen = worldToScreen(camera, viewport, selectedBuildSite);
+    buildMenu.style.left = `${Math.round(screen.x + 20)}px`;
+    buildMenu.style.top = `${Math.round(screen.y - 20)}px`;
+  }
+  const menuItems = buildMenuItems(state);
+  const menuKey = JSON.stringify(menuItems);
+  if (menuKey !== renderedMenu) {
+    renderedMenu = menuKey;
+    buildMenu.replaceChildren(...menuItems.map((item) => {
+      const button = document.createElement("button");
+      button.dataset.module = item.type;
+      button.disabled = item.disabled;
+      const name = document.createElement("span");
+      name.textContent = item.type;
+      const cost = document.createElement("span");
+      cost.textContent = item.cost;
+      button.append(name, cost);
+      return button;
+    }));
   }
 }
 

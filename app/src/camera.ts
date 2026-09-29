@@ -91,6 +91,8 @@ const MIN_SHIP_HOVER_PX = 8;
 export type Hovered =
   | { kind: "dock" }
   | { kind: "storage" }
+  | { kind: "module"; index: number }
+  | { kind: "construction" }
   | { kind: "ship"; index: number }
   | { kind: "asteroid"; id: number };
 
@@ -129,6 +131,15 @@ export function hoveredBody(
   if (insideRect(world, state.station.storage.position, state.station.storage.size)) {
     return { kind: "storage" };
   }
+  if (state.station.construction && insideRect(
+    world,
+    state.station.construction.position,
+    state.station.construction.size,
+  )) return { kind: "construction" };
+  for (let index = 2; index < state.station.modules.length; index += 1) {
+    const module = state.station.modules[index]!;
+    if (insideRect(world, module.position, module.size)) return { kind: "module", index };
+  }
   for (const asteroid of state.asteroids) {
     const area = {
       width: Math.max(asteroid.size.width, floor),
@@ -153,6 +164,8 @@ export function bodyOf(
 ): { position: Vec; size: Size } | null {
   if (hovered.kind === "dock") return state.station.dock;
   if (hovered.kind === "storage") return state.station.storage;
+  if (hovered.kind === "construction") return state.station.construction;
+  if (hovered.kind === "module") return state.station.modules[hovered.index] ?? null;
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
     return ship ? { position: ship.position, size: SHIP_SIZE } : null;
