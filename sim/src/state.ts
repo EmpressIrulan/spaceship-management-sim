@@ -1,12 +1,20 @@
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
+import {
+  MINING_GAP,
+  STARTING_SHIP,
+  canMine,
+  shipBuildCost,
+  shipBuildSeconds,
+  shipSize,
+  speedFactor,
+  unloadingSeconds,
+  validDesign,
+  type ShipDesign,
+} from "./ship";
 
-// Placeholder tuning. The client asked for the first cut to run four times
-// slower, which puts one cycle at roughly 35 to 50 seconds. Ship speed lives
-// in motion.ts.
-export const WORKING_SECONDS = 12;
-export const UNLOADING_SECONDS = 6;
-export const CARGO_PER_TRIP = 10;
+// Ship speed lives in motion.ts, and the mining and unloading rates in ship.ts.
+export { CARGO_PER_TRIP, MINING_GAP, UNLOADING_SECONDS, WORKING_SECONDS } from "./ship";
 export const ASTEROID_MIN_DISTANCE = 200;
 export const ASTEROID_MAX_DISTANCE = 400;
 export const ASTEROID_COUNT = 4;
@@ -30,12 +38,7 @@ export const BUILD_SECONDS = 15;
 export const MODULE_COST: Record<Material, number> = { Metal: 25, Ice: 25 };
 export const MODULE_TYPES = ["Dock", "Storage", "Builder"] as const;
 export type ModuleType = (typeof MODULE_TYPES)[number];
-// The mining ship is meant to be the smallest ship class.
-export const SHIP_SIZE = { width: 10, height: 7 };
 export const ASTEROID_SIZE = { width: 13, height: 10 };
-// How far off the asteroid's edge a ship stops to mine: three ship lengths.
-// Placeholder, to tune at the demo.
-export const MINING_GAP = 3 * SHIP_SIZE.width;
 
 export interface Vec {
   x: number;
@@ -47,7 +50,8 @@ export interface Size {
   height: number;
 }
 
-// "idle" means waiting at the station because no asteroid has ore.
+// "idle" means sitting at the Dock, because no asteroid has ore or the ship
+// can't mine. "waiting" means home with cargo and no room or no free berth.
 export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting";
 
 export interface Target {
@@ -58,6 +62,8 @@ export interface Target {
 }
 
 export interface Ship {
+  id: number;
+  design: ShipDesign;
   state: ShipState;
   position: Vec;
   // Seconds left in the current state. Unused while idle.
@@ -75,6 +81,14 @@ export interface Station {
   inventory: Record<Material, number>;
   modules: StationModule[];
   construction: ModuleConstruction | null;
+  shipBuilds: ShipBuild[];
+}
+
+export interface ShipBuild {
+  // Index of the Builder in `modules`. Modules are only ever appended.
+  builder: number;
+  design: ShipDesign;
+  timer: number;
 }
 
 export interface StationModule {
@@ -107,6 +121,7 @@ export interface SimState {
   // PRNG state, carried here so respawn spots replay exactly from the seed.
   rng: number;
   nextAsteroidId: number;
+  nextShipId: number;
   station: Station;
   asteroids: Asteroid[];
   respawns: Respawn[];
@@ -169,41 +184,55 @@ function edgeToward(asteroid: Asteroid, from: Vec): Vec {
 
 // The point on the side of the asteroid facing the Dock, where a ship stops
 // to mine it, with MINING_GAP between the ship's nose and the asteroid's edge.
-export function miningSite(dock: Vec, asteroid: Asteroid): Vec {
+export function miningSite(dock: Vec, asteroid: Asteroid, ship: Size = shipSize(STARTING_SHIP)): Vec {
   const edge = edgeToward(asteroid, dock);
   const d = distance(dock, asteroid.position);
   const ux = (dock.x - asteroid.position.x) / d;
   const uy = (dock.y - asteroid.position.y) / d;
   // Centre to outline of the ship along the line it flies in on.
-  const nose = Math.min(SHIP_SIZE.width / 2 / Math.abs(ux), SHIP_SIZE.height / 2 / Math.abs(uy));
+  const nose = Math.min(ship.width / 2 / Math.abs(ux), ship.height / 2 / Math.abs(uy));
   return { x: edge.x + ux * (MINING_GAP + nose), y: edge.y + uy * (MINING_GAP + nose) };
 }
 
-// The asteroid with ore left that is closest to the Dock, or null.
-export function nearestWithOre(dock: Vec, asteroids: Asteroid[]): Asteroid | null {
+// The asteroid with ore left that is closest to the Dock, or null. Rocks no
+// other ship is heading for or mining come first, so a fleet spreads out
+// while there are rocks to go round.
+export function nearestWithOre(dock: Vec, asteroids: Asteroid[], others: Ship[] = []): Asteroid | null {
+  const taken = new Set(
+    others
+      .filter((other) => other.state === "outbound" || other.state === "working")
+      .map((other) => other.target?.asteroidId),
+  );
   let best: Asteroid | null = null;
+  let bestTaken = true;
   for (const asteroid of asteroids) {
     if (asteroid.ore <= 0) continue;
-    if (!best || distance(dock, asteroid.position) < distance(dock, best.position)) {
+    const isTaken = taken.has(asteroid.id);
+    if (
+      !best
+      || (bestTaken && !isTaken)
+      || (bestTaken === isTaken && distance(dock, asteroid.position) < distance(dock, best.position))
+    ) {
       best = asteroid;
+      bestTaken = isTaken;
     }
   }
   return best;
 }
 
-// Sends a ship waiting at the Dock to the nearest asteroid with ore, or
-// leaves it idle if there is none.
-export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[]): Ship {
-  const asteroid = nearestWithOre(dock, asteroids);
+// Sends a ship sitting at the Dock to the nearest asteroid with ore, or
+// leaves it idle if there is none or it can't mine.
+export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Ship[] = []): Ship {
+  const asteroid = canMine(ship.design) ? nearestWithOre(dock, asteroids, others) : null;
   if (!asteroid) {
     return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null };
   }
-  const site = miningSite(dock, asteroid);
+  const site = miningSite(dock, asteroid, shipSize(ship.design));
   return {
     ...ship,
     state: "outbound",
     position: { ...dock },
-    timer: travelSeconds(distance(dock, site)),
+    timer: travelSeconds(distance(dock, site), speedFactor(ship.design)),
     cargo: 0,
     cargoMaterial: asteroid.material,
     target: { asteroidId: asteroid.id, site },
@@ -235,6 +264,8 @@ export function createInitialState(seed: number): SimState {
   }));
 
   const idle: Ship = {
+    id: 0,
+    design: STARTING_SHIP,
     state: "idle",
     position: { ...dockPosition },
     timer: 0,
@@ -246,6 +277,7 @@ export function createInitialState(seed: number): SimState {
     tickCount: 0,
     rng,
     nextAsteroidId: ASTEROID_COUNT,
+    nextShipId: 1,
     station: {
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
@@ -255,6 +287,7 @@ export function createInitialState(seed: number): SimState {
         { type: "Storage", position: storagePosition, size: STORAGE_SIZE },
       ],
       construction: null,
+      shipBuilds: [],
     },
     asteroids,
     respawns: [],
@@ -325,19 +358,56 @@ export function startModuleBuild(state: SimState, type: ModuleType, position: Ve
     size: moduleSize(type),
     timer: BUILD_SECONDS,
   };
-  const stored = MATERIALS.reduce((total, material) => total + inventory[material], 0);
-  const hasRoom = stored < state.station.storage.capacity;
-  const ships = state.ships.map((ship) =>
-    ship.state === "waiting" && ship.cargo > 0 && hasRoom
-      ? { ...ship, state: "unloading" as const, timer: UNLOADING_SECONDS }
-      : ship,
-  );
+  const station = { ...state.station, inventory, construction };
+  return { ...state, station, ships: dockWaitingShips(station, state.ships) };
+}
 
-  return {
-    ...state,
-    station: { ...state.station, inventory, construction },
-    ships,
+function storedTotal(inventory: Record<Material, number>): number {
+  return MATERIALS.reduce((total, material) => total + inventory[material], 0);
+}
+
+// Whether a ship home with cargo can start unloading now: Storage has room
+// and the Dock has a free berth.
+export function canUnload(station: Station, ships: Ship[]): boolean {
+  const unloading = ships.filter((ship) => ship.state === "unloading").length;
+  return storedTotal(station.inventory) < station.storage.capacity
+    && unloading < station.dock.capacity;
+}
+
+// Moves waiting ships into free berths in fleet order, so they take their turn.
+export function dockWaitingShips(station: Station, ships: Ship[]): Ship[] {
+  const next = [...ships];
+  for (let i = 0; i < next.length; i += 1) {
+    const ship = next[i]!;
+    if (ship.state === "waiting" && ship.cargo > 0 && canUnload(station, next)) {
+      next[i] = { ...ship, state: "unloading", timer: unloadingSeconds(ship.design) };
+    }
+  }
+  return next;
+}
+
+// A Builder can take a job when it is built, idle, and Storage can pay.
+export function availableShipBuild(state: SimState, builder: number, design: ShipDesign): boolean {
+  const module = state.station.modules[builder];
+  if (module?.type !== "Builder" || !validDesign(design)) return false;
+  if (state.station.shipBuilds.some((job) => job.builder === builder)) return false;
+  const cost = shipBuildCost(design);
+  return MATERIALS.every((material) => state.station.inventory[material] >= cost[material]);
+}
+
+export function startShipBuild(state: SimState, builder: number, design: ShipDesign): SimState {
+  if (!availableShipBuild(state, builder, design)) return state;
+  const cost = shipBuildCost(design);
+  const inventory = Object.fromEntries(
+    MATERIALS.map((material) => [material, state.station.inventory[material] - cost[material]]),
+  ) as Record<Material, number>;
+  const job: ShipBuild = {
+    builder,
+    design: { ...design, slots: [...design.slots] },
+    timer: shipBuildSeconds(design),
   };
+  const station = { ...state.station, inventory, shipBuilds: [...state.station.shipBuilds, job] };
+  return { ...state, station, ships: dockWaitingShips(station, state.ships) };
 }
 
 export interface Beam {

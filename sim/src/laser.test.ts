@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { ONE_STORAGE, oneStorageStart } from "./test-ships";
+import { shipSize } from "./ship";
+const ONE_STORAGE_SIZE = shipSize(ONE_STORAGE);
 import { tick } from "./tick";
 import {
   CARGO_PER_TRIP,
   MINING_GAP,
-  SHIP_SIZE,
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
@@ -57,9 +59,9 @@ function edgeness(point: Vec, center: Vec, size: Size): number {
 
 describe("where the ship mines from", () => {
   it("stops about three ship lengths off the asteroid's edge", () => {
-    expect(MINING_GAP).toBe(3 * SHIP_SIZE.width);
+    expect(MINING_GAP).toBe(3 * ONE_STORAGE_SIZE.width);
     for (let seed = 0; seed < 50; seed += 1) {
-      const state = createInitialState(seed);
+      const state = oneStorageStart(seed);
       const asteroid = targetOf(state);
       const arrived = { ...ship(state), state: "working" as const, position: site(state) };
       const beam = laserBeam({ ...state, ships: [arrived] }, arrived);
@@ -74,7 +76,7 @@ describe("where the ship mines from", () => {
         return edgeness(
           { x: beam!.from.x + (beam!.to.x - beam!.from.x) * f, y: beam!.from.y + (beam!.to.y - beam!.from.y) * f },
           site(state),
-          SHIP_SIZE,
+          ONE_STORAGE_SIZE,
         );
       });
       const noseAt = leaves.findIndex((e) => e >= 1 - 1e-9) * step;
@@ -84,7 +86,7 @@ describe("where the ship mines from", () => {
 
   it("stops on the side facing the Dock, on the straight line out", () => {
     for (let seed = 0; seed < 50; seed += 1) {
-      const state = createInitialState(seed);
+      const state = oneStorageStart(seed);
       const dock = state.station.dock.position;
       const asteroid = targetOf(state).position;
       const s = site(state);
@@ -99,26 +101,26 @@ describe("where the ship mines from", () => {
 
   it("never overlaps the asteroid it mines, flying out, mining or flying home", () => {
     for (let seed = 0; seed < 20; seed += 1) {
-      let state = createInitialState(seed);
+      let state = oneStorageStart(seed);
       const asteroid = targetOf(state);
       const end = cycleSeconds(state);
       for (let t = 0; t < end; t += 1 / 30) {
         state = tick(state, 1 / 30);
         const s = ship(state);
-        expect(overlaps(s.position, SHIP_SIZE, asteroid.position, asteroid.size)).toBe(false);
+        expect(overlaps(s.position, ONE_STORAGE_SIZE, asteroid.position, asteroid.size)).toBe(false);
       }
     }
   });
 
   it("gives the same stopping point for the same seed on every load", () => {
-    expect(site(createInitialState(42))).toEqual(site(createInitialState(42)));
-    expect(site(createInitialState(1))).not.toEqual(site(createInitialState(2)));
+    expect(site(oneStorageStart(42))).toEqual(site(oneStorageStart(42)));
+    expect(site(oneStorageStart(1))).not.toEqual(site(oneStorageStart(2)));
   });
 });
 
 describe("the laser", () => {
   it("is off while flying out and on the moment the ship stops", () => {
-    const start = createInitialState(7);
+    const start = oneStorageStart(7);
     const leg = legSeconds(start);
 
     const almost = tick(start, leg - 0.01);
@@ -131,7 +133,7 @@ describe("the laser", () => {
   });
 
   it("runs from the ship to the asteroid's edge the whole time the ship mines", () => {
-    const start = createInitialState(7);
+    const start = oneStorageStart(7);
     const asteroid = targetOf(start);
     const leg = legSeconds(start);
     for (let s = 0.01; s < WORKING_SECONDS; s += 0.5) {
@@ -150,7 +152,7 @@ describe("the laser", () => {
   it("is on exactly when the ship is mining, never flying, unloading or waiting", () => {
     // Three trips, so the last one empties the asteroid and the ship flies
     // home after its rock is gone.
-    let state = createInitialState(7);
+    let state = oneStorageStart(7);
     const end = 3 * cycleSeconds(state) + 5;
     const seen = new Set<string>();
     for (let t = 0; t < end; t += 0.1) {
@@ -163,7 +165,7 @@ describe("the laser", () => {
   });
 
   it("is off for a ship waiting at the station with nothing to mine", () => {
-    const state = createInitialState(7);
+    const state = oneStorageStart(7);
     const idle = { ...ship(state), state: "idle" as const, target: null };
     expect(laserBeam({ ...state, ships: [idle] }, idle)).toBeNull();
   });
@@ -172,7 +174,7 @@ describe("the laser", () => {
     // Two ships mining the same asteroid: one is about to take the last of
     // its ore this tick, the other is mid-cycle with a partial load. Only
     // reachable with more than one ship on the same rock.
-    const base = createInitialState(7);
+    const base = oneStorageStart(7);
     const workSite = site(base);
     const shared: Asteroid = { ...targetOf(base), ore: 5 };
 
@@ -207,7 +209,7 @@ describe("the laser", () => {
 
 describe("cargo while mining from a distance", () => {
   it("still counts up one unit at a time over the 12 s", () => {
-    let state = createInitialState(7);
+    let state = oneStorageStart(7);
     state = tick(state, legSeconds(state) + 0.001);
     expect(ship(state).state).toBe("working");
     let last = ship(state).cargo;

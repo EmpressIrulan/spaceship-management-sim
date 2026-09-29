@@ -1,14 +1,12 @@
 import { distanceAlong, travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
+import { shipStats, speedFactor, unloadingSeconds } from "./ship";
 import {
   ASTEROID_ORE,
   ASTEROID_SIZE,
-  CARGO_PER_TRIP,
   DOCK_CAPACITY,
   RESPAWN_SECONDS,
   STORAGE_CAPACITY,
-  UNLOADING_SECONDS,
-  WORKING_SECONDS,
   depart,
   placeAsteroid,
   type Asteroid,
@@ -22,6 +20,7 @@ interface Route {
   dock: Vec;
   site: Vec;
   length: number;
+  factor: number;
   legSeconds: number;
 }
 
@@ -29,17 +28,23 @@ function routeOf(ship: Ship, dock: Vec): Route | null {
   if (!ship.target) return null;
   const site = ship.target.site;
   const length = Math.hypot(site.x - dock.x, site.y - dock.y);
-  return { dock, site, length, legSeconds: travelSeconds(length) };
+  const factor = speedFactor(ship.design);
+  return { dock, site, length, factor, legSeconds: travelSeconds(length, factor) };
 }
 
 function pointAlong(from: Vec, to: Vec, route: Route, elapsed: number): Vec {
-  const fraction = distanceAlong(route.length, elapsed) / route.length;
+  const fraction = distanceAlong(route.length, elapsed, route.factor) / route.length;
   return { x: from.x + (to.x - from.x) * fraction, y: from.y + (to.y - from.y) * fraction };
 }
 
 // Cargo moves in whole units, in step with how far through the timer the ship is.
-function unitsDone(timer: number, duration: number): number {
-  return Math.floor(CARGO_PER_TRIP * (1 - timer / duration) + 1e-9);
+function unitsDone(timer: number, duration: number, hold: number): number {
+  return Math.floor(hold * (1 - timer / duration) + 1e-9);
+}
+
+// Only called for a ship that can mine, so it has a Laser.
+function miningSeconds(ship: Ship): number {
+  return shipStats(ship.design).miningSeconds ?? 0;
 }
 
 // Mutable copy of the parts of SimState that one tick changes. Built fresh
@@ -47,6 +52,7 @@ function unitsDone(timer: number, duration: number): number {
 interface Draft {
   rng: number;
   nextAsteroidId: number;
+  nextShipId: number;
   // The Dock module's position, the station's home point and route origin.
   dock: Vec;
   storageCapacity: number;
@@ -56,6 +62,7 @@ interface Draft {
   ships: Ship[];
   modules: Station["modules"];
   construction: Station["construction"];
+  shipBuilds: Station["shipBuilds"];
   dockCapacity: number;
 }
 
@@ -85,6 +92,10 @@ function asteroidGone(draft: Draft, ship: Ship): boolean {
 function storageRemaining(draft: Draft): number {
   const stored = Object.values(draft.inventory).reduce((total, amount) => total + amount, 0);
   return Math.max(0, draft.storageCapacity - stored);
+}
+
+function berthFree(draft: Draft): boolean {
+  return draft.ships.filter((ship) => ship.state === "unloading").length < draft.dockCapacity;
 }
 
 function unload(draft: Draft, ship: Ship, units: number): number {
@@ -121,15 +132,17 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
           : ship.position,
       };
     case "working": {
-      const cargo = ship.cargo + mine(draft, ship, unitsDone(timer, WORKING_SECONDS) - ship.cargo);
+      const { hold } = shipStats(ship.design);
+      const cargo = ship.cargo + mine(draft, ship, unitsDone(timer, miningSeconds(ship), hold) - ship.cargo);
       // Out of ore before the hold is full: stop now and head home with what is aboard.
-      const done = cargo < CARGO_PER_TRIP && asteroidGone(draft, ship);
+      const done = cargo < hold && asteroidGone(draft, ship);
       return { ...ship, timer: done ? 0 : timer, cargo };
     }
     case "unloading": {
       // A partial load unloads at the same rate per unit, so it only starts
       // dropping once the countdown reaches what is aboard.
-      const targetCargo = Math.min(ship.cargo, CARGO_PER_TRIP - unitsDone(timer, UNLOADING_SECONDS));
+      const { hold } = shipStats(ship.design);
+      const targetCargo = Math.min(ship.cargo, hold - unitsDone(timer, unloadingSeconds(ship.design), hold));
       const unloaded = unload(draft, ship, ship.cargo - targetCargo);
       return { ...ship, timer, cargo: ship.cargo - unloaded };
     }
@@ -141,11 +154,12 @@ function finish(draft: Draft, ship: Ship): Ship {
   const route = routeOf(ship, draft.dock);
   switch (ship.state) {
     case "idle":
-      return depart(ship, draft.dock, draft.asteroids);
+      return depart(ship, draft.dock, draft.asteroids, draft.ships);
     case "waiting":
-      // Room can appear without any ship moving, when a Storage module completes.
-      if (ship.cargo > 0 && storageRemaining(draft) > 0) {
-        return { ...ship, state: "unloading", timer: UNLOADING_SECONDS };
+      // Room can appear without any ship moving, when a Storage module
+      // completes, and a berth frees up when another ship finishes unloading.
+      if (ship.cargo > 0 && storageRemaining(draft) > 0 && berthFree(draft)) {
+        return { ...ship, state: "unloading", timer: unloadingSeconds(ship.design) };
       }
       return ship;
     case "outbound":
@@ -153,7 +167,7 @@ function finish(draft: Draft, ship: Ship): Ship {
         ...ship,
         state: "working",
         position: route ? { ...route.site } : ship.position,
-        timer: WORKING_SECONDS,
+        timer: miningSeconds(ship),
         cargo: 0,
       };
     case "working":
@@ -161,19 +175,19 @@ function finish(draft: Draft, ship: Ship): Ship {
         ...ship,
         state: "homebound",
         timer: route ? route.legSeconds : 0,
-        cargo: ship.cargo + mine(draft, ship, CARGO_PER_TRIP - ship.cargo),
+        cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo),
       };
     case "homebound":
-      if (ship.cargo > 0 && storageRemaining(draft) === 0) {
+      if (ship.cargo > 0 && (storageRemaining(draft) === 0 || !berthFree(draft))) {
         return { ...ship, state: "waiting", position: { ...draft.dock }, timer: 0 };
       }
-      return { ...ship, state: "unloading", position: { ...draft.dock }, timer: UNLOADING_SECONDS };
+      return { ...ship, state: "unloading", position: { ...draft.dock }, timer: unloadingSeconds(ship.design) };
     case "unloading":
       const unloaded = unload(draft, ship, ship.cargo);
       if (unloaded < ship.cargo) {
         return { ...ship, state: "waiting", timer: 0, cargo: ship.cargo - unloaded };
       }
-      return depart({ ...ship, cargo: 0 }, draft.dock, draft.asteroids);
+      return depart({ ...ship, cargo: 0 }, draft.dock, draft.asteroids, draft.ships);
   }
 }
 
@@ -185,6 +199,7 @@ function nextEvent(draft: Draft): number {
   }
   for (const respawn of draft.respawns) soonest = Math.min(soonest, respawn.timer);
   if (draft.construction) soonest = Math.min(soonest, draft.construction.timer);
+  for (const job of draft.shipBuilds) soonest = Math.min(soonest, job.timer);
   return soonest;
 }
 
@@ -194,6 +209,7 @@ function advance(draft: Draft, seconds: number): void {
   if (draft.construction) {
     draft.construction = { ...draft.construction, timer: draft.construction.timer - seconds };
   }
+  draft.shipBuilds = draft.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds }));
 }
 
 // Fires every timer that has reached zero. Respawns go first so a ship that
@@ -225,7 +241,29 @@ function settle(draft: Draft): void {
     ];
     draft.nextAsteroidId += 1;
   }
-  draft.ships = draft.ships.map((ship) => (ship.timer <= 0 ? finish(draft, ship) : ship));
+  // A finished ship appears at the Dock with nothing to do, and the loop
+  // below sends it out in the same step.
+  for (const job of draft.shipBuilds.filter((j) => j.timer <= 0)) {
+    draft.ships = [...draft.ships, {
+      id: draft.nextShipId,
+      design: job.design,
+      state: "idle",
+      position: { ...draft.dock },
+      timer: 0,
+      cargo: 0,
+      cargoMaterial: null,
+      target: null,
+    }];
+    draft.nextShipId += 1;
+  }
+  draft.shipBuilds = draft.shipBuilds.filter((job) => job.timer > 0);
+  // In place and in fleet order, so each ship sees the berths and rocks the
+  // ships before it have just taken.
+  draft.ships = [...draft.ships];
+  for (let i = 0; i < draft.ships.length; i += 1) {
+    const ship = draft.ships[i]!;
+    if (ship.timer <= 0) draft.ships[i] = finish(draft, ship);
+  }
 }
 
 // Steps from one timer running out to the next, so a large dt (a tab coming
@@ -235,6 +273,7 @@ export function tick(state: SimState, dt: number): SimState {
   const draft: Draft = {
     rng: state.rng,
     nextAsteroidId: state.nextAsteroidId,
+    nextShipId: state.nextShipId,
     dock: state.station.dock.position,
     storageCapacity: state.station.storage.capacity,
     inventory: state.station.inventory,
@@ -243,6 +282,7 @@ export function tick(state: SimState, dt: number): SimState {
     ships: state.ships,
     modules: state.station.modules,
     construction: state.station.construction,
+    shipBuilds: state.station.shipBuilds,
     dockCapacity: state.station.dock.capacity,
   };
 
@@ -260,6 +300,7 @@ export function tick(state: SimState, dt: number): SimState {
     tickCount: state.tickCount + 1,
     rng: draft.rng,
     nextAsteroidId: draft.nextAsteroidId,
+    nextShipId: draft.nextShipId,
     station: {
       ...state.station,
       dock: { ...state.station.dock, capacity: draft.dockCapacity },
@@ -267,6 +308,7 @@ export function tick(state: SimState, dt: number): SimState {
       inventory: draft.inventory,
       modules: draft.modules,
       construction: draft.construction,
+      shipBuilds: draft.shipBuilds,
     },
     asteroids: draft.asteroids,
     respawns: draft.respawns,

@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { ONE_STORAGE, oneStorageStart } from "./test-ships";
+import { shipSize } from "./ship";
+const ONE_STORAGE_SIZE = shipSize(ONE_STORAGE);
 import { tick } from "./tick";
 import {
   CARGO_PER_TRIP,
@@ -15,7 +18,7 @@ function stored(state: SimState): number {
 
 describe("Dock and Storage", () => {
   it("starts with two separate station modules", () => {
-    const state = createInitialState(7);
+    const state = oneStorageStart(7);
 
     expect(state.station).toMatchObject({
       dock: { capacity: 6 },
@@ -25,7 +28,7 @@ describe("Dock and Storage", () => {
   });
 
   it("returns the ship to the Dock to unload", () => {
-    const state = createInitialState(7);
+    const state = oneStorageStart(7);
     const ship = state.ships[0]!;
     const leg = travelSeconds(
       Math.hypot(
@@ -41,7 +44,7 @@ describe("Dock and Storage", () => {
   });
 
   it("stops at 100 stored and leaves the ship waiting at the Dock with the rest", () => {
-    const initial = createInitialState(7);
+    const initial = oneStorageStart(7);
     const dock = initial.station.dock.position;
     const nearlyFull: SimState = {
       ...initial,

@@ -8,7 +8,11 @@ import {
 } from "sim";
 import { cargoGauge, infoBox } from "./labels";
 
+// One Storage, so the hold matches CARGO_PER_TRIP and one Laser mines it in
+// WORKING_SECONDS.
 const ship = (state: Ship["state"], cargo: number, timer = 1): Ship => ({
+  id: 0,
+  design: { width: 2, height: 2, slots: ["Engine", "Laser", "Storage", null] },
   state,
   cargo,
   cargoMaterial: cargo > 0 ? "Metal" : null,

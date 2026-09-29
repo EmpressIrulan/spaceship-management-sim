@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { ONE_STORAGE, oneStorageStart } from "./test-ships";
+import { shipSize } from "./ship";
+const ONE_STORAGE_SIZE = shipSize(ONE_STORAGE);
 import { CARGO_PER_TRIP, UNLOADING_SECONDS, WORKING_SECONDS, createInitialState, depart, type SimState } from "./state";
 import { tick } from "./tick";
 
@@ -6,7 +9,7 @@ describe("material deliveries", () => {
   it("starts with both materials in seeded positions, without reserving the nearest for either type", () => {
     const nearestTypes = new Set<string>();
     for (let seed = 0; seed < 50; seed += 1) {
-      const state = createInitialState(seed);
+      const state = oneStorageStart(seed);
       expect(state.asteroids).toHaveLength(4);
       expect(new Set(state.asteroids.map((rock) => rock.material))).toEqual(
         new Set(["Metal", "Ice"]),
@@ -19,11 +22,11 @@ describe("material deliveries", () => {
       nearestTypes.add(nearest.material);
     }
     expect(nearestTypes).toEqual(new Set(["Metal", "Ice"]));
-    expect(createInitialState(42).asteroids).toEqual(createInitialState(42).asteroids);
+    expect(oneStorageStart(42).asteroids).toEqual(oneStorageStart(42).asteroids);
   });
 
   it("takes only the targeted rock's material and unloads into that total, one unit at a time", () => {
-    const initial = createInitialState(7);
+    const initial = oneStorageStart(7);
     const first = initial.asteroids.find((rock) => rock.material === "Metal")!;
     const second = initial.asteroids.find((rock) => rock.material === "Ice")!;
     const rocks = [first, second].map((rock, i) => ({
@@ -56,8 +59,8 @@ describe("material deliveries", () => {
   it("replays replacement positions and types from the seed, while allowing either type", () => {
     const replacementTypes = new Set<string>();
     for (let seed = 0; seed < 30; seed += 1) {
-      const a = tick(createInitialState(seed), 600);
-      const b = tick(createInitialState(seed), 600);
+      const a = tick(oneStorageStart(seed), 600);
+      const b = tick(oneStorageStart(seed), 600);
       const replacements = a.asteroids.filter((rock) => rock.id >= 4);
       expect(replacements.length).toBeGreaterThan(0);
       expect(a.asteroids).toEqual(b.asteroids);
