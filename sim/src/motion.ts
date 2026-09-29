@@ -20,6 +20,8 @@ function profile(distance: number): { rampSeconds: number; rampDistance: number;
 }
 
 export function travelSeconds(distance: number): number {
+  // An order to where the ship already is takes no time.
+  if (distance <= 0) return 0;
   const { rampSeconds, rampDistance, peak } = profile(distance);
   return 2 * rampSeconds + (distance - 2 * rampDistance) / peak;
 }

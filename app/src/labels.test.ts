@@ -15,6 +15,9 @@ const ship = (state: Ship["state"], cargo: number, timer = 1): Ship => ({
   timer,
   position: { x: 0, y: 0 },
   target: null,
+  leg: null,
+  order: null,
+  defaultBehaviour: "mine",
 });
 
 describe("cargo gauge", () => {
@@ -35,6 +38,13 @@ describe("cargo gauge", () => {
     const gauge = cargoGauge(ship("unloading", 7, UNLOADING_SECONDS * 0.7));
     expect(gauge?.fill).toBeCloseTo(0.7);
     expect(gauge?.text).toBe(`7/${CARGO_PER_TRIP}`);
+  });
+
+  it("shows what a ship on an order carries, and nothing when it is empty", () => {
+    expect(cargoGauge(ship("moving", 4))).toEqual({ fill: 0.4, text: `4/${CARGO_PER_TRIP}` });
+    expect(cargoGauge(ship("holding", 4))).toEqual({ fill: 0.4, text: `4/${CARGO_PER_TRIP}` });
+    expect(cargoGauge(ship("moving", 0))).toBeNull();
+    expect(cargoGauge(ship("holding", 0))).toBeNull();
   });
 
   it("shows nothing on an empty ship flying out or waiting at the station", () => {
@@ -71,5 +81,25 @@ describe("hover box", () => {
     expect(infoBox(state, null)).toBeNull();
     const gone = { ...state, asteroids: state.asteroids.filter((a) => a.id !== asteroid.id) };
     expect(infoBox(gone, { kind: "asteroid", id: asteroid.id })).toBeNull();
+  });
+
+  it("shows the order a ship is following", () => {
+    const withOrder = (order: Ship["order"], state: Ship["state"]) => ({
+      ...createInitialState(7),
+      ships: [{ ...ship(state, 0), order }],
+    });
+    expect(infoBox(withOrder({ kind: "mine", asteroidId: 1, loaded: false }, "outbound"), { kind: "ship", index: 0 }))
+      .toEqual({ title: "Ship", line: "Order: mine" });
+    expect(infoBox(withOrder({ kind: "move", point: { x: 0, y: 0 } }, "moving"), { kind: "ship", index: 0 }))
+      .toEqual({ title: "Ship", line: "Order: move" });
+    expect(infoBox(withOrder({ kind: "move", point: { x: 0, y: 0 } }, "holding"), { kind: "ship", index: 0 }))
+      .toEqual({ title: "Ship", line: "Order: move\nHolding" });
+    expect(infoBox(withOrder({ kind: "home" }, "homebound"), { kind: "ship", index: 0 }))
+      .toEqual({ title: "Ship", line: "Order: home" });
+  });
+
+  it("shows a ship holding with no order", () => {
+    const holding = { ...createInitialState(7), ships: [ship("holding", 0)] };
+    expect(infoBox(holding, { kind: "ship", index: 0 })).toEqual({ title: "Ship", line: "Holding" });
   });
 });

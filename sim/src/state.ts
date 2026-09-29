@@ -48,7 +48,33 @@ export interface Size {
 }
 
 // "idle" means waiting at the station because no asteroid has ore.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting";
+// "moving" flies to a point the player picked, and "holding" stays put until
+// the player sends the ship somewhere or resumes its default.
+export type ShipState =
+  | "idle"
+  | "outbound"
+  | "working"
+  | "homebound"
+  | "unloading"
+  | "waiting"
+  | "moving"
+  | "holding";
+
+// What a ship does when it has no order. More defaults, such as trading, are #31.
+export type DefaultBehaviour = "mine" | "none";
+
+// A player's order. A mine order is done once its load has been unloaded at
+// home; `loaded` says whether that load has been mined yet.
+export type Order =
+  | { kind: "mine"; asteroidId: number; loaded: boolean }
+  | { kind: "move"; point: Vec }
+  | { kind: "home" };
+
+// A straight flight. The ship's timer counts down the seconds left on it.
+export interface Leg {
+  from: Vec;
+  to: Vec;
+}
 
 export interface Target {
   asteroidId: number;
@@ -65,6 +91,10 @@ export interface Ship {
   cargo: number;
   cargoMaterial: Material | null;
   target: Target | null;
+  // The flight in progress while outbound, homebound or moving.
+  leg: Leg | null;
+  order: Order | null;
+  defaultBehaviour: DefaultBehaviour;
 }
 
 export interface Station {
@@ -113,8 +143,14 @@ export interface SimState {
   ships: Ship[];
 }
 
-function distance(a: Vec, b: Vec): number {
+export function distance(a: Vec, b: Vec): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+// Starts a flight from wherever the ship is now.
+export function flyTo(ship: Ship, state: "outbound" | "homebound" | "moving", to: Vec): Ship {
+  const leg = { from: { ...ship.position }, to: { ...to } };
+  return { ...ship, state, leg, timer: travelSeconds(distance(leg.from, leg.to)) };
 }
 
 // A random spot in the band around the Dock, re-rolled if it lands too
@@ -196,18 +232,22 @@ export function nearestWithOre(dock: Vec, asteroids: Asteroid[]): Asteroid | nul
 export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[]): Ship {
   const asteroid = nearestWithOre(dock, asteroids);
   if (!asteroid) {
-    return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null };
+    return {
+      ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null,
+    };
   }
   const site = miningSite(dock, asteroid);
-  return {
-    ...ship,
-    state: "outbound",
-    position: { ...dock },
-    timer: travelSeconds(distance(dock, site)),
-    cargo: 0,
-    cargoMaterial: asteroid.material,
-    target: { asteroidId: asteroid.id, site },
-  };
+  return flyTo(
+    {
+      ...ship,
+      position: { ...dock },
+      cargo: 0,
+      cargoMaterial: asteroid.material,
+      target: { asteroidId: asteroid.id, site },
+    },
+    "outbound",
+    site,
+  );
 }
 
 export function createInitialState(seed: number): SimState {
@@ -241,6 +281,9 @@ export function createInitialState(seed: number): SimState {
     cargo: 0,
     cargoMaterial: null,
     target: null,
+    leg: null,
+    order: null,
+    defaultBehaviour: "mine",
   };
   return {
     tickCount: 0,

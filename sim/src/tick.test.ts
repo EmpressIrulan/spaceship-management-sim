@@ -333,6 +333,9 @@ describe("ore is conserved", () => {
       cargo: 0,
       cargoMaterial: asteroid.material,
       target: { asteroidId: asteroid.id, site },
+      leg: null,
+      order: null,
+      defaultBehaviour: "mine" as const,
     };
   }
 

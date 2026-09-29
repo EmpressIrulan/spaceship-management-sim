@@ -1,4 +1,20 @@
-import { SHIP_SIZE, availableModuleBuildSites, createInitialState, laserBeam, startModuleBuild, tick, type Beam, type ModuleType, type Size, type Vec } from "sim";
+import {
+  SHIP_SIZE,
+  availableModuleBuildSites,
+  createInitialState,
+  giveOrder,
+  laserBeam,
+  resumeDefault,
+  setDefaultBehaviour,
+  startModuleBuild,
+  tick,
+  type Beam,
+  type DefaultBehaviour,
+  type ModuleType,
+  type OrderTarget,
+  type Size,
+  type Vec,
+} from "sim";
 import {
   bodyOf,
   fitCamera,
@@ -22,6 +38,15 @@ import {
   dismissBuildMenuForKey,
   pointerInBuildArea,
 } from "./building";
+import {
+  isBoxDrag,
+  keyPan,
+  orderLineAlpha,
+  orderTargetAt,
+  selectionPanel,
+  shipsInBox,
+  toggleShip,
+} from "./selection";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -29,9 +54,11 @@ const titleEl = document.querySelector<HTMLElement>("#info-title");
 const lineEl = document.querySelector<HTMLElement>("#info-line");
 const buildControlsEl = document.querySelector<HTMLElement>("#build-controls");
 const buildMenuEl = document.querySelector<HTMLElement>("#build-menu");
-if (!canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl) {
+const shipPanelEl = document.querySelector<HTMLElement>("#ship-panel");
+if (!canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipPanelEl) {
   throw new Error("missing #screen canvas or #info box");
 }
+const shipPanel: HTMLElement = shipPanelEl;
 const canvas: HTMLCanvasElement = canvasEl;
 const box: HTMLElement = boxEl;
 const boxTitle: HTMLElement = titleEl;
@@ -46,10 +73,15 @@ if (!context) {
 const ctx: CanvasRenderingContext2D = context;
 
 // ?seed=N replays a sector exactly; otherwise each load gets a fresh one.
-const seedParam = new URLSearchParams(location.search).get("seed");
+const params = new URLSearchParams(location.search);
+const seedParam = params.get("seed");
 const seed = seedParam === null ? Date.now() % 2 ** 32 : Number(seedParam);
 
 let state = createInitialState(seed);
+// ?ships=N starts with N copies of the first ship, for trying orders on a
+// fleet until ships can be built at the Builder (#14).
+const shipCount = Math.min(20, Math.max(1, Math.floor(Number(params.get("ships") ?? 1)) || 1));
+state = { ...state, ships: Array.from({ length: shipCount }, () => state.ships[0]!) };
 let viewport: Viewport = { width: 0, height: 0 };
 // Last pointer position over the canvas, or null once it has left.
 let pointer: Vec | null = null;
@@ -100,9 +132,20 @@ document.addEventListener("click", (event) => {
   }
 });
 
+// Keys held for panning. A focused dropdown keeps its own arrow keys.
+const heldKeys = new Set<string>();
 window.addEventListener("keydown", (event) => {
   if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
+  if (event.target instanceof HTMLSelectElement) return;
+  heldKeys.add(event.key);
+  if (event.key.startsWith("Arrow")) event.preventDefault();
 });
+window.addEventListener("keyup", (event) => {
+  heldKeys.delete(event.key);
+  heldKeys.delete(event.key.toLowerCase());
+  heldKeys.delete(event.key.toUpperCase());
+});
+window.addEventListener("blur", () => heldKeys.clear());
 
 function resize(): void {
   const ratio = window.devicePixelRatio || 1;
@@ -133,10 +176,22 @@ canvas.addEventListener(
   { passive: false },
 );
 
-let drag: { last: Vec } | null = null;
+let selection: number[] = [];
+// Middle-drag pans. Left-drag draws a selection box from `start`.
+let pan: { last: Vec } | null = null;
+let dragBox: { start: Vec; end: Vec; additive: boolean } | null = null;
+// Lines from each ordered ship to its target, faded out after a second.
+let orderLines: { from: Vec[]; to: Vec; startSeconds: number } | null = null;
 
 canvas.addEventListener("mousedown", (event) => {
-  drag = { last: mousePoint(event) };
+  const point = mousePoint(event);
+  if (event.button === 1) {
+    // Stops the browser's middle-click autoscroll.
+    event.preventDefault();
+    pan = { last: point };
+  } else if (event.button === 0) {
+    dragBox = { start: point, end: point, additive: event.shiftKey };
+  }
 });
 
 canvas.addEventListener("mousemove", (event) => {
@@ -148,14 +203,59 @@ canvas.addEventListener("mouseleave", () => {
 });
 
 window.addEventListener("mousemove", (event) => {
-  if (!drag) return;
   const point = mousePoint(event);
-  camera = panBy(camera, point.x - drag.last.x, point.y - drag.last.y);
-  drag.last = point;
+  if (pan) {
+    camera = panBy(camera, point.x - pan.last.x, point.y - pan.last.y);
+    pan.last = point;
+  }
+  if (dragBox) dragBox.end = point;
 });
 
-window.addEventListener("mouseup", () => {
-  drag = null;
+window.addEventListener("mouseup", (event) => {
+  if (event.button === 1) pan = null;
+  if (event.button !== 0 || !dragBox) return;
+  const { start, end, additive } = dragBox;
+  dragBox = null;
+  if (isBoxDrag(start, end)) {
+    const picked = shipsInBox(state, camera, viewport, start, end);
+    selection = additive ? [...new Set([...selection, ...picked])].sort((a, b) => a - b) : picked;
+    return;
+  }
+  const hovered = hoveredBody(state, camera, viewport, end);
+  if (hovered?.kind === "ship") {
+    selection = additive ? toggleShip(selection, hovered.index) : [hovered.index];
+  } else if (!additive) {
+    selection = [];
+  }
+});
+
+function orderPoint(target: OrderTarget): Vec {
+  if (target.kind === "move") return target.point;
+  if (target.kind === "home") return state.station.dock.position;
+  return state.asteroids.find((a) => a.id === target.asteroidId)?.position ?? state.station.dock.position;
+}
+
+canvas.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+  if (selection.length === 0) return;
+  const point = mousePoint(event);
+  const hovered = hoveredBody(state, camera, viewport, point);
+  const target = orderTargetAt(state, hovered, screenToWorld(camera, viewport, point));
+  orderLines = {
+    from: selection.map((index) => ({ ...state.ships[index]!.position })),
+    to: orderPoint(target),
+    startSeconds: performance.now() / 1000,
+  };
+  state = giveOrder(state, selection, target);
+});
+
+shipPanel.addEventListener("change", (event) => {
+  const select = event.target as HTMLSelectElement;
+  if (select.name !== "default") return;
+  state = setDefaultBehaviour(state, selection, select.value as DefaultBehaviour);
+});
+shipPanel.addEventListener("click", (event) => {
+  if ((event.target as HTMLElement).closest("button[data-resume]")) state = resumeDefault(state, selection);
 });
 
 function fillWorldRect(center: Vec, size: Size, color: string): void {
@@ -236,6 +336,102 @@ function drawLaser(beam: Beam, seconds: number): void {
   }
 }
 
+const SELECTED_COLOR = "#22c55e";
+
+function drawSelectionRing(position: Vec): void {
+  const center = worldToScreen(camera, viewport, position);
+  // Clears the hull at any zoom, and stays visible as a ring when zoomed out.
+  const radius = Math.max(8, (SHIP_SIZE.width / 2) * camera.zoom + 4);
+  ctx.save();
+  ctx.strokeStyle = SELECTED_COLOR;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSelectionBox(): void {
+  if (!dragBox || !isBoxDrag(dragBox.start, dragBox.end)) return;
+  ctx.save();
+  ctx.strokeStyle = SELECTED_COLOR;
+  ctx.fillStyle = "rgba(34, 197, 94, 0.12)";
+  ctx.lineWidth = 1;
+  const x = Math.min(dragBox.start.x, dragBox.end.x);
+  const y = Math.min(dragBox.start.y, dragBox.end.y);
+  const w = Math.abs(dragBox.end.x - dragBox.start.x);
+  const h = Math.abs(dragBox.end.y - dragBox.start.y);
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+  ctx.restore();
+}
+
+function drawOrderLines(seconds: number): void {
+  if (!orderLines) return;
+  const alpha = orderLineAlpha(seconds - orderLines.startSeconds);
+  if (alpha <= 0) {
+    orderLines = null;
+    return;
+  }
+  const to = worldToScreen(camera, viewport, orderLines.to);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = SELECTED_COLOR;
+  ctx.lineWidth = 1.5;
+  for (const fromWorld of orderLines.from) {
+    const from = worldToScreen(camera, viewport, fromWorld);
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+let renderedPanel = "";
+
+function renderShipPanel(): void {
+  const panel = selectionPanel(state, selection);
+  const key = JSON.stringify(panel);
+  if (key === renderedPanel) return;
+  renderedPanel = key;
+  shipPanel.hidden = panel === null;
+  if (!panel) {
+    shipPanel.replaceChildren();
+    return;
+  }
+  const title = document.createElement("h2");
+  title.textContent = panel.rows.length === 1 ? "Selected: 1 ship" : `Selected: ${panel.rows.length} ships`;
+  const list = document.createElement("ul");
+  list.append(...panel.rows.map((row) => {
+    const item = document.createElement("li");
+    item.dataset.ship = String(row.index);
+    const name = document.createElement("span");
+    name.textContent = row.name;
+    const status = document.createElement("span");
+    status.textContent = row.status;
+    item.append(name, status);
+    return item;
+  }));
+  const select = document.createElement("select");
+  select.name = "default";
+  const options: [string, string][] = [["mine", "Default: Mine for Station"], ["none", "Default: None"]];
+  if (panel.defaultBehaviour === "mixed") options.unshift(["mixed", "Default: Mixed"]);
+  select.append(...options.map(([value, label]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    option.disabled = value === "mixed";
+    return option;
+  }));
+  select.value = panel.defaultBehaviour;
+  const resume = document.createElement("button");
+  resume.dataset.resume = "";
+  resume.textContent = "Resume";
+  resume.disabled = !panel.canResume;
+  shipPanel.replaceChildren(title, list, select, resume);
+}
+
 function draw(seconds: number): void {
   ctx.clearRect(0, 0, viewport.width, viewport.height);
 
@@ -254,12 +450,20 @@ function draw(seconds: number): void {
     if (beam) drawLaser(beam, seconds);
   }
 
+  drawOrderLines(seconds);
+
   for (const ship of state.ships) {
     fillWorldRect(ship.position, SHIP_SIZE, ship.cargo > 0 ? "#fde047" : "#4ade80");
 
     const gauge = cargoGauge(ship);
     if (gauge) drawGauge(ship.position, gauge);
   }
+  for (const index of selection) {
+    const ship = state.ships[index];
+    if (ship) drawSelectionRing(ship.position);
+  }
+  drawSelectionBox();
+  renderShipPanel();
 
   // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
@@ -336,6 +540,8 @@ let lastTimeMs = performance.now();
 function frame(nowMs: number): void {
   const dt = Math.max(0, (nowMs - lastTimeMs) / 1000);
   lastTimeMs = nowMs;
+  const keys = keyPan(heldKeys, dt);
+  if (keys.dx !== 0 || keys.dy !== 0) camera = panBy(camera, keys.dx, keys.dy);
   state = tick(state, dt);
   draw(nowMs / 1000);
   requestAnimationFrame(frame);

@@ -15,6 +15,9 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "idle":
     case "outbound":
       return null;
+    case "moving":
+    case "holding":
+      return ship.cargo > 0 ? { fill: ship.cargo / CARGO_PER_TRIP, text } : null;
     case "waiting":
       return { fill: ship.cargo / CARGO_PER_TRIP, text };
     case "working":
@@ -70,6 +73,11 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
     if (!ship) return null;
+    if (ship.order) {
+      const order = `Order: ${ship.order.kind}`;
+      return { title: "Ship", line: ship.state === "holding" ? `${order}\nHolding` : order };
+    }
+    if (ship.state === "holding") return { title: "Ship", line: "Holding" };
     if (ship.state === "waiting") return { title: "Ship", line: "Waiting: storage full" };
     if (ship.state === "working" && ship.cargoMaterial) {
       return { title: "Ship", line: `Mining ${ship.cargoMaterial}` };

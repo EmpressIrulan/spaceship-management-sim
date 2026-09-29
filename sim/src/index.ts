@@ -22,6 +22,9 @@ export {
   startModuleBuild,
   type Asteroid,
   type Beam,
+  type DefaultBehaviour,
+  type Leg,
+  type Order,
   type Material,
   type ModuleBuildOption,
   type ModuleConstruction,
@@ -36,3 +39,4 @@ export {
   type Vec,
 } from "./state";
 export { tick } from "./tick";
+export { formation, giveOrder, resumeDefault, setDefaultBehaviour, type OrderTarget } from "./orders";
