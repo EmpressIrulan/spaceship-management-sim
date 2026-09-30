@@ -15,6 +15,7 @@
         height: 100%;
         cursor: grab;
       }
+      #sector-name { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #f8fafc; font: 16px monospace; pointer-events: none; }
       #info {
         position: absolute;
         min-width: 140px;
@@ -132,6 +133,7 @@
   </head>
   <body>
     <canvas id="screen" width="800" height="600"></canvas>
+    <div id="sector-name" aria-live="polite"></div>
     <div id="build-controls" hidden></div>
     <div id="build-menu" hidden></div>
     <div id="ship-menu" hidden></div>

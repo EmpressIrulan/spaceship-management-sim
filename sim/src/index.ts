@@ -1,6 +1,9 @@
 export { createPrng, type Prng } from "./prng";
 export {
   ASTEROID_ORE,
+  HOME_SECTOR,
+  JUMP_SECONDS,
+  GATE_SIZE,
   BUILD_SECONDS,
   BUILDER_SIZE,
   CARGO_PER_TRIP,
@@ -22,6 +25,7 @@ export {
   startModuleBuild,
   startShipBuild,
   type Asteroid,
+  type Sector,
   type Beam,
   type Material,
   type ModuleBuildOption,

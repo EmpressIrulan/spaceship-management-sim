@@ -43,7 +43,7 @@ function target(state: SimState): Asteroid {
 
 function nearestWithOre(state: SimState): Asteroid {
   const dock = state.station.dock.position;
-  const candidates = state.asteroids.filter((a) => a.ore > 0);
+  const candidates = state.asteroids.filter((a) => a.ore > 0 && a.sectorId === 0);
   candidates.sort(
     (a, b) => distance(dock, a.position) - distance(dock, b.position),
   );
@@ -205,9 +205,10 @@ describe("asteroid field", () => {
   it("starts with 4 asteroids of 30 ore each, 200 to 400 units from the Dock", () => {
     for (let seed = 0; seed < 50; seed += 1) {
       const state = oneStorageStart(seed);
-      expect(state.asteroids).toHaveLength(ASTEROID_COUNT);
+      const home = state.asteroids.filter((asteroid) => asteroid.sectorId === 0);
+      expect(home).toHaveLength(ASTEROID_COUNT);
       expect(ASTEROID_COUNT).toBe(4);
-      for (const asteroid of state.asteroids) {
+      for (const asteroid of home) {
         expect(asteroid.ore).toBe(30);
         const d = distance(state.station.dock.position, asteroid.position);
         expect(d).toBeGreaterThanOrEqual(ASTEROID_MIN_DISTANCE);
@@ -246,7 +247,7 @@ describe("asteroid field", () => {
 
     const gone = run(start, emptied + 0.01);
     expect(gone.asteroids.map((a) => a.id)).not.toContain(first.id);
-    expect(gone.asteroids).toHaveLength(ASTEROID_COUNT - 1);
+    expect(gone.asteroids.filter((asteroid) => asteroid.sectorId === 0)).toHaveLength(ASTEROID_COUNT - 1);
     expect(ship(gone).state).toBe("homebound");
     expect(ship(gone).cargo).toBe(CARGO_PER_TRIP);
 
@@ -264,12 +265,12 @@ describe("asteroid field", () => {
     const emptied = emptiedAt(start);
 
     const before = run(start, emptied + RESPAWN_SECONDS - 0.1);
-    expect(before.asteroids).toHaveLength(ASTEROID_COUNT - 1);
+    expect(before.asteroids.filter((asteroid) => asteroid.sectorId === 0)).toHaveLength(ASTEROID_COUNT - 1);
 
     const after = run(start, emptied + RESPAWN_SECONDS + 0.1);
-    expect(after.asteroids).toHaveLength(ASTEROID_COUNT);
-    const known = new Set(start.asteroids.map((a) => a.id));
-    const fresh = after.asteroids.filter((a) => !known.has(a.id));
+    expect(after.asteroids.filter((asteroid) => asteroid.sectorId === 0)).toHaveLength(ASTEROID_COUNT);
+    const known = new Set(start.asteroids.filter((a) => a.sectorId === 0).map((a) => a.id));
+    const fresh = after.asteroids.filter((a) => a.sectorId === 0 && !known.has(a.id));
     expect(fresh).toHaveLength(1);
     expect(fresh[0]!.ore).toBe(ASTEROID_ORE);
     expect(fresh[0]!.position).not.toEqual(first.position);
