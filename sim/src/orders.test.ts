@@ -87,4 +87,16 @@ describe("RTS ship orders", () => {
       kind: "move", point: { x: 20, y: 20 },
     });
   });
+
+  it("departs for mining after a rock respawns if resumed while the field is empty", () => {
+    const start = fleet(1);
+    const empty = { ...start, asteroids: start.asteroids.map((rock) => ({ ...rock, ore: 0 })) };
+    const ordered = giveOrder(empty, [0], { kind: "move", point: { x: 20, y: 20 } });
+    const held = until(ordered, (s) => s.ships[0]!.state === "holding");
+    const resumed = resumeDefault(held, [0]);
+    const restored = { ...resumed, asteroids: start.asteroids };
+    const departed = tick(restored, 1 / 30);
+    expect(departed.ships[0]!.state).toBe("outbound");
+    expect(departed.ships[0]!.target).not.toBeNull();
+  });
 });

@@ -34,7 +34,7 @@ function resume(ship: Ship, dock: Vec, asteroids: Asteroid[]): Ship {
   if (ship.defaultBehaviour === "none") return hold(ship);
   if (ship.cargo > 0) return fly({ ...ship, target: null }, "homebound", dock);
   const rock = nearestWithOre(dock, asteroids);
-  if (!rock || !canMine(ship.design)) return hold({ ...ship, state: "idle" });
+  if (!rock || !canMine(ship.design)) return { ...ship, state: "idle", timer: 0, leg: null, target: null };
   const site = miningSite(dock, rock, shipSize(ship.design));
   return fly({ ...ship, target: { asteroidId: rock.id, site }, cargoMaterial: rock.material }, "outbound", site);
 }
