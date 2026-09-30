@@ -14,6 +14,24 @@ export interface BlueprintStore {
   setItem(key: string, value: string): void;
 }
 
+interface BlueprintStoreSource {
+  readonly localStorage: BlueprintStore;
+}
+
+// Some browsers throw on the localStorage property access itself. Resolve it
+// once at startup so every later blueprint action uses the same safe store.
+export function resolveBlueprintStore(source: BlueprintStoreSource): BlueprintStore {
+  try {
+    return source.localStorage;
+  } catch {
+    const values = new Map<string, string>();
+    return {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+    };
+  }
+}
+
 export const BLUEPRINTS_KEY = "spaceship-management-sim.blueprints";
 
 function isDesign(value: unknown): value is ShipDesign {

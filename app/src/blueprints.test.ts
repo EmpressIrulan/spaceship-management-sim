@@ -5,6 +5,7 @@ import {
   deleteBlueprint,
   draftFromDesign,
   loadBlueprints,
+  resolveBlueprintStore,
   saveBlueprint,
   viewCentredOn,
   type BlueprintStore,
@@ -26,6 +27,18 @@ const SCOUT: ShipDesign = { width: 2, height: 2, slots: ["Engine", "Hull", null,
 const HAULER: ShipDesign = { width: 3, height: 1, slots: ["Storage", "Storage", "Engine"] };
 
 describe("blueprints", () => {
+  it("uses an in-memory store when reading localStorage throws", () => {
+    const blocked = Object.defineProperty({}, "localStorage", {
+      get: () => {
+        throw new DOMException("denied", "SecurityError");
+      },
+    }) as { readonly localStorage: BlueprintStore };
+
+    const store = resolveBlueprintStore(blocked);
+    saveBlueprint(store, "Scout", SCOUT);
+    expect(loadBlueprints(store)).toEqual([{ name: "Scout", design: SCOUT }]);
+  });
+
   it("starts with no blueprints", () => {
     expect(loadBlueprints(memoryStore())).toEqual([]);
   });

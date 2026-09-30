@@ -72,6 +72,7 @@ import {
   deleteBlueprint,
   draftFromDesign,
   loadBlueprints,
+  resolveBlueprintStore,
   saveBlueprint,
   viewCentredOn,
   type Blueprint,
@@ -128,7 +129,8 @@ let selectedBuildSite: Vec | null = null;
 // The Builder whose Build ship menu is open, by module index.
 let shipMenuBuilder: number | null = null;
 let draft: ShipDraft = emptyDraft();
-let blueprints: Blueprint[] = loadBlueprints(localStorage);
+const blueprintStore = resolveBlueprintStore(window);
+let blueprints: Blueprint[] = loadBlueprints(blueprintStore);
 // The Build ship canvas: which canvas pixel is at its middle and how big one
 // is on screen, plus the mouse state of a stroke or a pan in progress.
 let paintView: Camera = emptyView();
@@ -380,7 +382,7 @@ shipMenu.addEventListener("click", (event) => {
   else if (data.tool) draft = withTool(draft, data.tool as ShipDraft["tool"]);
   else if (data.blueprintSave !== undefined) {
     const input = shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
-    blueprints = saveBlueprint(localStorage, input.value, designOf(draft));
+    blueprints = saveBlueprint(blueprintStore, input.value, designOf(draft));
     input.value = "";
     target.disabled = true;
     renderBlueprints();
@@ -394,7 +396,7 @@ shipMenu.addEventListener("click", (event) => {
   else if (data.blueprintDelete !== undefined) {
     const blueprint = blueprints[Number(data.blueprintDelete)];
     if (!blueprint) return;
-    blueprints = deleteBlueprint(localStorage, blueprint.name);
+    blueprints = deleteBlueprint(blueprintStore, blueprint.name);
     renderBlueprints();
   }
   else if (data.build !== undefined) {
