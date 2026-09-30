@@ -94,6 +94,7 @@ export type Hovered =
   | { kind: "module"; index: number }
   | { kind: "construction" }
   | { kind: "ship"; index: number }
+  | { kind: "gateProject"; id: number; end?: number }
   | { kind: "asteroid"; id: number };
 
 function insideRect(point: Vec, center: Vec, size: Size): boolean {
@@ -128,6 +129,10 @@ export function hoveredBody(
   const parked = (index: number) => ["waiting", "idle"].includes(state.ships[index]!.state);
   const ships = state.ships.map((ship, index) => ({ ship, index })).filter(({ ship }) => ship.sectorId === currentSector);
   const stationVisible = state.station.sectorId === currentSector;
+  for (const project of state.gateProjects) {
+    const end = project.ends.findIndex((candidate) => candidate.sectorId === currentSector);
+    if (end >= 0 && insideRect(world, project.ends[end]!.position, { width: 24, height: 24 })) return { kind: "gateProject", id: project.id, end };
+  }
 
   for (const { index } of ships) {
     if (parked(index) && overShip(index)) return { kind: "ship", index };
@@ -175,6 +180,11 @@ export function bodyOf(
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
     return ship ? { position: ship.position, size: shipSize(ship.design) } : null;
+  }
+  if (hovered.kind === "gateProject") {
+    const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
+    const end = project?.ends[hovered.end ?? 0];
+    return end ? { position: end.position, size: { width: 24, height: 24 } } : null;
   }
   return state.asteroids.find((a) => a.id === hovered.id) ?? null;
 }

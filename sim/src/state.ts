@@ -43,6 +43,9 @@ export const HOME_SECTOR = 0;
 export const JUMP_SECONDS = 2;
 export const GATE_SIZE = { width: 24, height: 24 };
 export const GATE_DISTANCE = 480;
+export const SECTOR_COUNT = 4;
+export const GATE_COST: Record<Material, number> = { Metal: 200, Ice: 200 };
+export const SECTOR_MAP_POINTS = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 1 }] as const;
 
 export interface Vec {
   x: number;
@@ -56,12 +59,13 @@ export interface Size {
 
 // "idle" means sitting at the Dock, because no asteroid has ore or the ship
 // can't mine. "waiting" means home with cargo and no room or no free berth.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome";
+export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning";
 export type DefaultBehaviour = "mine" | "none";
 export type Order =
   | { kind: "mine"; asteroidId: number; loaded: boolean }
   | { kind: "move"; point: Vec; sectorId: number }
-  | { kind: "home" };
+  | { kind: "home" }
+  | { kind: "haulGate"; gateId: number };
 export interface Leg { from: Vec; to: Vec }
 
 export interface Target {
@@ -141,6 +145,8 @@ export interface SimState {
   nextAsteroidId: number;
   nextShipId: number;
   sectors: Sector[];
+  nextGateId: number;
+  gateProjects: GateProject[];
   station: Station;
   asteroids: Asteroid[];
   respawns: Respawn[];
@@ -148,6 +154,43 @@ export interface SimState {
 }
 
 export interface Sector { id: number; name: string; gate: { position: Vec; size: Size; to: number } }
+export interface GateEnd { sectorId: number; position: Vec }
+export interface GateProject {
+  id: number;
+  ends: [GateEnd, GateEnd];
+  delivered: Record<Material, number>;
+  complete: boolean;
+}
+
+export function sectorInGateRange(a: number, b: number): boolean {
+  const left = SECTOR_MAP_POINTS[a]; const right = SECTOR_MAP_POINTS[b];
+  return !!left && !!right && Math.hypot(left.x - right.x, left.y - right.y) <= 1.5;
+}
+
+export function startGateBuild(state: SimState, fromSector: number, from: Vec, toSector: number, to: Vec): SimState {
+  if (fromSector === toSector || !state.sectors[fromSector] || !state.sectors[toSector]
+    || (fromSector !== HOME_SECTOR && toSector !== HOME_SECTOR) || !sectorInGateRange(fromSector, toSector)) return state;
+  const project: GateProject = {
+    id: state.nextGateId,
+    ends: [{ sectorId: fromSector, position: { ...from } }, { sectorId: toSector, position: { ...to } }],
+    delivered: { Metal: 0, Ice: 0 },
+    complete: false,
+  };
+  return { ...state, nextGateId: state.nextGateId + 1, gateProjects: [...state.gateProjects, project] };
+}
+
+export function gateRoute(state: Pick<SimState, "sectors" | "gateProjects">, fromSector: number, toSector: number): { from: Vec; to: Vec } | null {
+  const built = state.gateProjects.find((project) => project.complete
+    && project.ends.some((end) => end.sectorId === fromSector)
+    && project.ends.some((end) => end.sectorId === toSector));
+  if (built) return {
+    from: { ...built.ends.find((end) => end.sectorId === fromSector)!.position },
+    to: { ...built.ends.find((end) => end.sectorId === toSector)!.position },
+  };
+  const from = state.sectors[fromSector]; const to = state.sectors[toSector];
+  return from?.gate.to === toSector && to?.gate.to === fromSector
+    ? { from: { ...from.gate.position }, to: { ...to.gate.position } } : null;
+}
 
 function distance(a: Vec, b: Vec): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -286,17 +329,17 @@ export function createInitialState(seed: number): SimState {
   }));
 
   const nameChoices = ["Kael", "Vela", "Oris", "Thara", "Mira", "Zorin", "Selen", "Draco", "Hyron", "Corin", "Neris", "Ulmar"];
-  const firstNameRoll = nextRandom(rng); rng = firstNameRoll.state;
-  const secondNameRoll = nextRandom(rng); rng = secondNameRoll.state;
-  const firstNameIndex = Math.floor(firstNameRoll.value * nameChoices.length);
-  let secondNameIndex = Math.floor(secondNameRoll.value * nameChoices.length);
-  if (secondNameIndex === firstNameIndex) secondNameIndex = (secondNameIndex + 1) % nameChoices.length;
-  const sectorNames = [nameChoices[firstNameIndex]!, nameChoices[secondNameIndex]!];
-  const sectors: Sector[] = [0, 1].map((id) => {
+  const sectorNames: string[] = [];
+  while (sectorNames.length < SECTOR_COUNT) {
+    const roll = nextRandom(rng); rng = roll.state;
+    const name = nameChoices[Math.floor(roll.value * nameChoices.length)]!;
+    if (!sectorNames.includes(name)) sectorNames.push(name);
+  }
+  const sectors: Sector[] = Array.from({ length: SECTOR_COUNT }, (_, id) => {
     const roll = nextRandom(rng); rng = roll.state;
     const angle = roll.value * Math.PI * 2;
     return { id, name: sectorNames[id]!,
-      gate: { position: { x: Math.cos(angle) * GATE_DISTANCE, y: Math.sin(angle) * GATE_DISTANCE }, size: GATE_SIZE, to: 1 - id } };
+      gate: { position: { x: Math.cos(angle) * GATE_DISTANCE, y: Math.sin(angle) * GATE_DISTANCE }, size: GATE_SIZE, to: id < 2 ? 1 - id : id } };
   });
   const farCenter = { x: 0, y: 0 };
   const farPositions: Vec[] = [];
@@ -312,6 +355,15 @@ export function createInitialState(seed: number): SimState {
   }
   asteroids.push(...farPositions.map((position, id) => ({ id: ASTEROID_COUNT + id, sectorId: 1,
     position, size: ASTEROID_SIZE, ore: ASTEROID_ORE, material: farMaterials[id]! })));
+  for (const sectorId of [2, 3]) {
+    const sectorPositions: Vec[] = [];
+    for (let id = 0; id < ASTEROID_COUNT; id += 1) {
+      const placed = placeAsteroid(rng, { x: 0, y: 0 }, sectorPositions);
+      rng = placed.rng; sectorPositions.push(placed.position);
+    }
+    asteroids.push(...sectorPositions.map((position, id) => ({ id: sectorId * ASTEROID_COUNT + id, sectorId,
+      position, size: ASTEROID_SIZE, ore: ASTEROID_ORE, material: id < 2 ? "Metal" as const : "Ice" as const })));
+  }
 
   const idle: Ship = {
     id: 0,
@@ -330,8 +382,10 @@ export function createInitialState(seed: number): SimState {
   return {
     tickCount: 0,
     rng,
-    nextAsteroidId: ASTEROID_COUNT * 2,
+    nextAsteroidId: ASTEROID_COUNT * SECTOR_COUNT,
     sectors,
+    nextGateId: 0,
+    gateProjects: [],
     nextShipId: 1,
     station: {
       sectorId: HOME_SECTOR,

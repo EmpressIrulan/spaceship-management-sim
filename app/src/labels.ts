@@ -1,4 +1,4 @@
-import { MATERIALS, shipStats, unloadingSeconds, type Ship, type SimState } from "sim";
+import { GATE_COST, MATERIALS, shipStats, unloadingSeconds, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -22,6 +22,10 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "jumpingOut":
     case "jumpingHome":
       return null;
+    case "gateReturning":
+      return null;
+    case "gateHauling":
+      return { fill: shipStats(ship.design).hold ? ship.cargo / shipStats(ship.design).hold : 0, text };
     case "waiting":
       return { fill: ship.cargo / hold, text };
     case "working":
@@ -84,6 +88,16 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
     return ship ? { title: "Ship", line: shipStatus(state, ship) } : null;
+  }
+  if (hovered.kind === "gateProject") {
+    const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
+    if (!project) return null;
+    if (project.complete) {
+      const here = project.ends[hovered.end ?? 0];
+      const other = project.ends.find((end) => end !== here);
+      return other ? { title: "Gate", line: `Gate to ${state.sectors[other.sectorId]!.name}` } : null;
+    }
+    return { title: "Gate", line: `Gate ${project.delivered.Metal} / ${GATE_COST.Metal} Metal, ${project.delivered.Ice} / ${GATE_COST.Ice} Ice` };
   }
   const asteroid = state.asteroids.find((a) => a.id === hovered.id);
   return asteroid ? { title: "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;

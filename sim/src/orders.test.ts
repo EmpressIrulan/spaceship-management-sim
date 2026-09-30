@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, JUMP_SECONDS, type SimState } from "./state";
+import { createInitialState, JUMP_SECONDS, startGateBuild, type SimState } from "./state";
 import { tick } from "./tick";
 import { giveOrder, formation, resumeDefault, setDefaultBehaviour } from "./orders";
 
@@ -24,6 +24,12 @@ function until(state: SimState, done: (state: SimState) => boolean): SimState {
   throw new Error("condition never held");
 }
 
+function materialTotal(state: SimState, material: "Metal" | "Ice"): number {
+  return state.station.inventory[material]
+    + state.ships.filter((ship) => ship.cargoMaterial === material).reduce((sum, ship) => sum + ship.cargo, 0)
+    + state.gateProjects.reduce((sum, project) => sum + project.delivered[material], 0);
+}
+
 function farSector(state: SimState, changes: Partial<SimState["ships"][number]> = {}): SimState {
   const ship = state.ships[0]!;
   return {
@@ -34,6 +40,79 @@ function farSector(state: SimState, changes: Partial<SimState["ships"][number]> 
 }
 
 describe("RTS ship orders", () => {
+  it("loads Storage ships and loops deliveries to a gate project", () => {
+    let start = startGateBuild(createInitialState(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    start = { ...start, station: { ...start.station, inventory: { Metal: 200, Ice: 200 } },
+      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
+    const ordered = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
+    expect(ordered.ships[0]).toMatchObject({ state: "gateHauling", cargoMaterial: "Metal", cargo: 20 });
+    expect(ordered.station.inventory.Metal).toBe(180);
+    const delivered = until(ordered, (state) => state.gateProjects[0]!.delivered.Metal > 0);
+    expect(delivered.gateProjects[0]!.delivered.Metal).toBe(20);
+    expect(delivered.ships[0]!.order).toEqual({ kind: "haulGate", gateId: 0 });
+  });
+
+  it("unloads existing cargo before beginning a haul order without losing material", () => {
+    let start = startGateBuild(createInitialState(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    start = { ...start, station: { ...start.station, inventory: { Metal: 60, Ice: 40 } },
+      ships: [{ ...start.ships[0]!, state: "homebound", cargo: 20, cargoMaterial: "Metal",
+      position: { x: 120, y: 0 }, timer: 2, leg: { from: { x: 200, y: 0 }, to: start.station.dock.position }, target: null }] };
+    const before = materialTotal(start, "Metal");
+    const ordered = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
+    expect(ordered.ships[0]).toMatchObject({ state: "gateReturning", cargo: 20, cargoMaterial: "Metal" });
+    const unloaded = until(ordered, (state) => state.gateProjects[0]!.delivered.Metal > 0);
+    expect(materialTotal(unloaded, "Metal")).toBe(before);
+  });
+
+  it("reserves in-flight loads and returns cargo left when another hauler completes the gate", () => {
+    let start = startGateBuild(createInitialState(7), 0, { x: 1, y: 0 }, 3, { x: -1, y: 0 });
+    const base = start.ships[0]!;
+    start = { ...start,
+      gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 180, Ice: 200 } }],
+      station: { ...start.station, inventory: { Metal: 0, Ice: 0 } },
+      ships: [0, 1].map((id) => ({ ...base, id, state: "gateHauling" as const, position: { x: 1, y: 0 }, timer: 0,
+        cargo: 20, cargoMaterial: "Metal" as const, target: null, leg: { from: { x: 0, y: 0 }, to: { x: 1, y: 0 } },
+        order: { kind: "haulGate" as const, gateId: 0 } })) };
+    const before = materialTotal(start, "Metal");
+    const completed = tick(start, 0);
+    expect(completed.gateProjects[0]).toMatchObject({ delivered: { Metal: 200 }, complete: true });
+    expect(completed.ships[1]).toMatchObject({ state: "gateReturning", cargo: 20, cargoMaterial: "Metal" });
+    const returned = until(completed, (state) => state.station.inventory.Metal === 20);
+    expect(materialTotal(returned, "Metal")).toBe(before);
+  });
+
+  it("does not load more than the gate needs across simultaneous haulers", () => {
+    let start = startGateBuild(createInitialState(7), 0, { x: 1, y: 0 }, 3, { x: -1, y: 0 });
+    const base = start.ships[0]!;
+    start = { ...start,
+      gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 180, Ice: 200 } }],
+      station: { ...start.station, inventory: { Metal: 40, Ice: 0 } },
+      ships: [0, 1].map((id) => ({ ...base, id, state: "holding" as const, position: { ...start.station.dock.position },
+        cargo: 0, cargoMaterial: null, target: null, timer: 0, leg: null, order: { kind: "haulGate" as const, gateId: 0 } })) };
+    const loaded = tick(start, 0);
+    expect(loaded.ships.filter((ship) => ship.state === "gateHauling").map((ship) => ship.cargo)).toEqual([20]);
+    expect(loaded.station.inventory.Metal).toBe(20);
+    expect(materialTotal(loaded, "Metal")).toBe(materialTotal(start, "Metal"));
+  });
+
+  it("activates a paid gate and moves a ship through its player-placed ends", () => {
+    let start = startGateBuild(createInitialState(7), 0, { x: 1, y: 2 }, 3, { x: 30, y: 40 });
+    start = { ...start,
+      gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 200, Ice: 180 } }],
+      station: { ...start.station, inventory: { Metal: 0, Ice: 20 } },
+      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
+    const hauling = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
+    const active = until(hauling, (state) => state.gateProjects[0]!.complete);
+    expect(active.gateProjects[0]!.delivered).toEqual({ Metal: 200, Ice: 200 });
+    const ordered = giveOrder(active, [0], { kind: "move", point: { x: 60, y: 70 }, sectorId: 3 });
+    expect(ordered.ships[0]!.leg?.to).toEqual({ x: 1, y: 2 });
+    const arrived = until(ordered, (state) => state.ships[0]!.sectorId === 3);
+    expect(arrived.ships[0]!.position).toEqual({ x: 30, y: 40 });
+    const homeward = giveOrder({ ...arrived, ships: [{ ...arrived.ships[0]!, state: "holding", timer: 0, leg: null }] }, [0], { kind: "home" });
+    expect(homeward.ships[0]!.leg?.to).toEqual({ x: 30, y: 40 });
+    const home = until(homeward, (state) => state.ships[0]!.sectorId === 0);
+    expect(home.ships[0]!.position).toEqual({ x: 1, y: 2 });
+  });
   it("starts new ships on Mine for Station", () => {
     expect(fleet(1).ships[0]!.defaultBehaviour).toBe("mine");
   });
