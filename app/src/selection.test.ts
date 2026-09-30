@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, startGateBuild } from "sim";
-import { fitCamera } from "./camera";
+import { fitCamera, hoveredBody, worldToScreen } from "./camera";
 import { contextOrderAllowed, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 
 describe("RTS selection helpers", () => {
@@ -50,5 +50,28 @@ describe("RTS selection helpers", () => {
     expect(orderTargetAt(building, hovered, { x: 80, y: 0 }, 0)).toEqual({ kind: "haulGate", gateId: 0 });
     const complete = { ...building, gateProjects: [{ ...building.gateProjects[0]!, complete: true }] };
     expect(orderTargetAt(complete, hovered, { x: 80, y: 0 }, 0)).toEqual({ kind: "move", point: { x: 80, y: 0 }, sectorId: 0 });
+  });
+
+  it("orders home when the Dock is overlapped by a ship", () => {
+    const state = createInitialState(7);
+    const viewport = { width: 800, height: 600 };
+    const camera = { center: { x: 0, y: 0 }, zoom: 1 };
+    const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+    const hovered = hoveredBody(state, camera, viewport, pointer, 0, { includeShips: false });
+
+    expect(orderTargetAt(state, hovered, state.station.dock.position)).toEqual({ kind: "home" });
+  });
+
+  it("orders a haul to a gate end overlapped by a ship", () => {
+    const initial = createInitialState(7);
+    const state = startGateBuild(initial, 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    const gateEnd = state.gateProjects[0]!.ends[0]!;
+    state.ships[0] = { ...state.ships[0]!, state: "gateHauling", position: { ...gateEnd.position } };
+    const viewport = { width: 800, height: 600 };
+    const camera = { center: { x: 0, y: 0 }, zoom: 1 };
+    const pointer = worldToScreen(camera, viewport, gateEnd.position);
+    const hovered = hoveredBody(state, camera, viewport, pointer, gateEnd.sectorId, { includeShips: false });
+
+    expect(orderTargetAt(state, hovered, gateEnd.position, gateEnd.sectorId)).toEqual({ kind: "haulGate", gateId: 0 });
   });
 });

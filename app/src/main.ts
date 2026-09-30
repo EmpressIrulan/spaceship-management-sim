@@ -1,8 +1,6 @@
 import {
-  MAX_HULL,
   HOME_SECTOR,
   SHIP_MODULES,
-  SHIP_SLOT_SIZE,
   availableModuleBuildSites,
   createInitialState,
   laserBeam,
@@ -17,8 +15,8 @@ import {
   tick,
   type Beam,
   type ModuleType,
+  type Ship,
   type ShipDesign,
-  type ShipModule,
   type Size,
   type Vec,
 } from "sim";
@@ -46,16 +44,24 @@ import {
   dismissBuildMenuForKey,
   pointerInBuildArea,
 } from "./building";
-import { shipBlocks, shipPanel, slotColor } from "./ships";
+import { INITIAL_CLOCK, clockAfterButton, clockAfterKey, gameSeconds, speedButtons, type SpeedButtonId } from "./speed";
+import { shipPanel, shipSprite, slotColor } from "./ships";
 import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 import {
+  BRUSH_SIZES,
+  applyTool,
+  cellAt,
   designOf,
   emptyDraft,
-  paintSlot,
-  resizeDraft,
+  emptyView,
+  lineCells,
+  placedDesign,
   shipMenuView,
   shouldDismissShipMenuOnMouseDown,
-  withBrush,
+  withModule,
+  withSize,
+  withTool,
+  zoomView,
   type ShipDraft,
 } from "./shipyard";
 
@@ -69,7 +75,8 @@ const shipMenuEl = document.querySelector<HTMLElement>("#ship-menu");
 const shipPanelEl = document.querySelector<HTMLElement>("#ship-panel");
 const sectorNameEl = document.querySelector<HTMLElement>("#sector-name");
 const gateMenuEl = document.querySelector<HTMLElement>("#gate-menu");
-if (!canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !gateMenuEl) {
+const speedControlsEl = document.querySelector<HTMLElement>("#speed-controls");
+if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !gateMenuEl) {
   throw new Error("missing #screen canvas or #info box");
 }
 const shipMenu: HTMLElement = shipMenuEl;
@@ -81,6 +88,7 @@ const boxLine: HTMLElement = lineEl;
 const buildControls: HTMLElement = buildControlsEl;
 const buildMenu: HTMLElement = buildMenuEl;
 const gateMenu: HTMLElement = gateMenuEl;
+const speedControls: HTMLElement = speedControlsEl;
 
 const context = canvas.getContext("2d");
 if (!context) {
@@ -106,6 +114,13 @@ let selectedBuildSite: Vec | null = null;
 // The Builder whose Build ship menu is open, by module index.
 let shipMenuBuilder: number | null = null;
 let draft: ShipDraft = emptyDraft();
+// The Build ship canvas: which canvas pixel is at its middle and how big one
+// is on screen, plus the mouse state of a stroke or a pan in progress.
+let paintView: Camera = emptyView();
+let paintCanvas: HTMLCanvasElement | null = null;
+let paintPointer: Vec | null = null;
+let stroking: Vec | null = null;
+let paintPan: Vec | null = null;
 let selectedShip: number | null = null;
 let selectedShips: number[] = [];
 let renderedPanel = "";
@@ -114,6 +129,7 @@ let pan: { last: Vec } | null = null;
 let dragBox: { start: Vec; end: Vec; additive: boolean } | null = null;
 let orderLines: { from: Vec[]; to: Vec; start: number } | null = null;
 let pendingGate: PendingGate | null = null;
+let clock = INITIAL_CLOCK;
 
 function closeGateMenu(): void {
   gateMenu.hidden = true;
@@ -180,11 +196,40 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeGateMenu();
   if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
   if (shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
-  if (!(event.target instanceof HTMLSelectElement)) heldKeys.add(event.key);
+  if (!(event.target instanceof HTMLSelectElement)) {
+    heldKeys.add(event.key);
+    const next = clockAfterKey(clock, event.key, event.repeat);
+    if (next !== clock || event.key === " ") { clock = next; event.preventDefault(); }
+  }
   if (event.key.startsWith("Arrow")) event.preventDefault();
 });
 window.addEventListener("keyup", (event) => { heldKeys.delete(event.key); heldKeys.delete(event.key.toLowerCase()); });
 window.addEventListener("blur", () => heldKeys.clear());
+
+speedControls.addEventListener("click", (event) => {
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-speed]");
+  if (!target) return;
+  clock = clockAfterButton(clock, target.dataset.speed as SpeedButtonId);
+  // Focus would make a later Space press click this button as well.
+  target.blur();
+});
+
+function renderSpeedControls(): void {
+  const buttons = speedButtons(clock);
+  if (speedControls.children.length !== buttons.length) {
+    speedControls.replaceChildren(...buttons.map((item) => {
+      const element = document.createElement("button");
+      element.dataset.speed = item.id;
+      element.textContent = item.label;
+      return element;
+    }));
+  }
+  buttons.forEach((item, index) => {
+    const element = speedControls.children[index] as HTMLButtonElement;
+    element.classList.toggle("active", item.active);
+    element.setAttribute("aria-pressed", String(item.active));
+  });
+}
 
 function button(text: string, data: Record<string, string>, pressed = false): HTMLButtonElement {
   const element = document.createElement("button");
@@ -194,55 +239,70 @@ function button(text: string, data: Record<string, string>, pressed = false): HT
   return element;
 }
 
-function gridElement(design: ShipDesign, clickable: boolean): HTMLElement {
-  const grid = document.createElement("div");
-  grid.className = "ship-grid";
-  grid.style.gridTemplateColumns = `repeat(${design.width}, var(--slot))`;
-  design.slots.forEach((slot, index) => {
-    const cell = document.createElement(clickable ? "button" : "div");
-    cell.className = "slot";
-    cell.style.background = slotColor(slot);
-    cell.dataset.slot = String(index);
-    if (slot) cell.title = slot;
-    grid.append(cell);
-  });
-  return grid;
+// A small picture of a ship, scaled to fit the panel.
+function thumbnailElement(design: ShipDesign): HTMLElement {
+  const thumb = document.createElement("canvas");
+  thumb.width = design.width;
+  thumb.height = design.height;
+  thumb.className = "ship-thumb";
+  const scale = Math.min(176 / design.width, 120 / design.height, 24);
+  thumb.style.width = `${design.width * scale}px`;
+  thumb.style.height = `${design.height * scale}px`;
+  thumb.getContext("2d")!.drawImage(shipSprite(design), 0, 0);
+  return thumb;
 }
 
-// Rebuilt whenever the draft changes. The stats, cost and Build button are
-// refreshed every frame in draw(), since Storage keeps changing underneath.
+const TOOL_BUTTONS = [["erase", "Eraser"], ["fill", "Fill"]] as const;
+
+// Built once when the menu opens. The buttons only change which one is
+// pressed afterwards, so the paint canvas and its listeners stay put. The
+// stats, cost and Build button are refreshed every frame in draw(), since
+// Storage keeps changing underneath.
 function renderShipMenu(): void {
   const title = document.createElement("h2");
   title.textContent = "Build ship";
-  const sizes = document.createElement("div");
-  sizes.className = "row";
-  for (const [label, axis] of [["Width", "width"], ["Height", "height"]] as const) {
-    const name = document.createElement("span");
-    name.textContent = label;
-    sizes.append(name);
-    for (let n = 1; n <= MAX_HULL; n += 1) {
-      sizes.append(button(String(n), { [axis]: String(n) }, draft[axis] === n));
-    }
+  const modules = document.createElement("div");
+  modules.className = "row";
+  for (const module of SHIP_MODULES) {
+    const pick = button(module, { module });
+    pick.style.borderLeft = `6px solid ${slotColor(module)}`;
+    modules.append(pick);
   }
-  const brushes = document.createElement("div");
-  brushes.className = "row";
-  for (const module of [...SHIP_MODULES, null]) {
-    const brush = button(module ?? "clear", { brush: module ?? "" }, draft.brush === module);
-    if (module) brush.style.borderLeft = `6px solid ${slotColor(module)}`;
-    brushes.append(brush);
-  }
+  const tools = document.createElement("div");
+  tools.className = "row";
+  for (const size of BRUSH_SIZES) tools.append(button(`${size} px`, { size: String(size) }));
+  for (const [tool, label] of TOOL_BUTTONS) tools.append(button(label, { tool }));
+  paintCanvas = document.createElement("canvas");
+  paintCanvas.className = "paint";
+  const hint = document.createElement("div");
+  hint.className = "hint";
+  hint.textContent = "Drag to paint. Right-drag or middle-drag to pan, scroll to zoom.";
   const stats = document.createElement("div");
   stats.className = "stats";
   const cost = document.createElement("div");
   cost.className = "cost";
   const build = button("Build", { build: "" });
   build.className = "build";
-  shipMenu.replaceChildren(title, sizes, brushes, gridElement(designOf(draft), true), stats, cost, build);
+  shipMenu.replaceChildren(title, modules, tools, paintCanvas, hint, stats, cost, build);
+  syncShipMenuButtons();
+}
+
+function syncShipMenuButtons(): void {
+  for (const element of shipMenu.querySelectorAll<HTMLButtonElement>("button[data-module]")) {
+    element.classList.toggle("pressed", draft.tool === "paint" && draft.module === element.dataset.module);
+  }
+  for (const element of shipMenu.querySelectorAll<HTMLButtonElement>("button[data-size]")) {
+    element.classList.toggle("pressed", draft.tool !== "fill" && draft.size === Number(element.dataset.size));
+  }
+  for (const element of shipMenu.querySelectorAll<HTMLButtonElement>("button[data-tool]")) {
+    element.classList.toggle("pressed", draft.tool === element.dataset.tool);
+  }
 }
 
 function openShipMenu(builder: number): void {
   shipMenuBuilder = builder;
   draft = emptyDraft();
+  paintView = emptyView();
   renderShipMenu();
   shipMenu.hidden = false;
 }
@@ -250,22 +310,78 @@ function openShipMenu(builder: number): void {
 function closeShipMenu(): void {
   shipMenuBuilder = null;
   shipMenu.hidden = true;
+  stroking = null;
+  paintPan = null;
 }
 
 shipMenu.addEventListener("click", (event) => {
   const target = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
   if (!target || target.disabled || shipMenuBuilder === null) return;
   const data = target.dataset;
-  if (data.width) draft = resizeDraft(draft, Number(data.width), draft.height);
-  else if (data.height) draft = resizeDraft(draft, draft.width, Number(data.height));
-  else if (data.brush !== undefined) draft = withBrush(draft, (data.brush || null) as ShipModule | null);
-  else if (data.slot) draft = paintSlot(draft, Number(data.slot));
+  if (data.module) draft = withModule(withTool(draft, "paint"), data.module as ShipDraft["module"]);
+  else if (data.size) draft = withSize(draft.tool === "fill" ? withTool(draft, "paint") : draft, Number(data.size) as ShipDraft["size"]);
+  else if (data.tool) draft = withTool(draft, data.tool as ShipDraft["tool"]);
   else if (data.build !== undefined) {
     state = startShipBuild(state, shipMenuBuilder, designOf(draft));
     closeShipMenu();
     return;
   }
-  renderShipMenu();
+  syncShipMenuButtons();
+});
+
+function paintPoint(event: MouseEvent): Vec {
+  const bounds = paintCanvas!.getBoundingClientRect();
+  return {
+    x: (event.clientX - bounds.left) * (paintCanvas!.width / bounds.width),
+    y: (event.clientY - bounds.top) * (paintCanvas!.height / bounds.height),
+  };
+}
+
+function paintViewport(): Viewport {
+  return { width: paintCanvas!.width, height: paintCanvas!.height };
+}
+
+shipMenu.addEventListener("mousedown", (event) => {
+  if (event.target !== paintCanvas) return;
+  event.preventDefault();
+  const point = paintPoint(event);
+  if (event.button === 0) {
+    const cell = cellAt(paintView, paintViewport(), point);
+    applyTool(draft, cell);
+    stroking = cell;
+  } else if (event.button === 1 || event.button === 2) paintPan = point;
+});
+shipMenu.addEventListener("contextmenu", (event) => {
+  if (event.target === paintCanvas) event.preventDefault();
+});
+shipMenu.addEventListener("wheel", (event) => {
+  if (event.target !== paintCanvas) return;
+  event.preventDefault();
+  paintView = zoomView(paintView, paintViewport(), paintPoint(event), wheelZoomFactor(event.deltaY));
+}, { passive: false });
+shipMenu.addEventListener("mousemove", (event) => {
+  paintPointer = event.target === paintCanvas ? paintPoint(event) : null;
+});
+shipMenu.addEventListener("mouseleave", () => {
+  paintPointer = null;
+});
+window.addEventListener("mousemove", (event) => {
+  if (!paintCanvas || shipMenuBuilder === null) return;
+  const point = paintPoint(event);
+  if (paintPan) {
+    paintView = panBy(paintView, (point.x - paintPan.x), (point.y - paintPan.y));
+    paintPan = point;
+  }
+  // Fill is a single click, so dragging with it does nothing more.
+  if (stroking && draft.tool !== "fill") {
+    const cell = cellAt(paintView, paintViewport(), point);
+    for (const step of lineCells(stroking, cell)) applyTool(draft, step);
+    stroking = cell;
+  }
+});
+window.addEventListener("mouseup", () => {
+  stroking = null;
+  paintPan = null;
 });
 
 function resize(): void {
@@ -352,7 +468,7 @@ window.addEventListener("mouseup", (event) => {
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
   if (!contextOrderAllowed(mapOpen)) return;
-  const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
+  const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector, { includeShips: false });
   if (!selectedShips.length && !hovered && currentSector === HOME_SECTOR) {
     pendingGate = { sectorId: currentSector, position: screenToWorld(camera, viewport, point) };
     gateMenu.style.left = `${point.x}px`; gateMenu.style.top = `${point.y}px`; gateMenu.hidden = false;
@@ -407,18 +523,14 @@ function moduleColor(type: ModuleType): string {
   return "#7c3aed";
 }
 
-// Edges are rounded one by one so neighbouring blocks share a pixel edge
-// with no gap between them at any zoom.
-function drawShip(ship: Parameters<typeof shipBlocks>[0]): void {
-  const half = SHIP_SLOT_SIZE / 2;
-  for (const block of shipBlocks(ship)) {
-    const a = worldToScreen(camera, viewport, { x: block.position.x - half, y: block.position.y - half });
-    const b = worldToScreen(camera, viewport, { x: block.position.x + half, y: block.position.y + half });
-    const x = Math.round(a.x);
-    const y = Math.round(a.y);
-    ctx.fillStyle = block.color;
-    ctx.fillRect(x, y, Math.max(1, Math.round(b.x) - x), Math.max(1, Math.round(b.y) - y));
-  }
+// Edges are rounded so the image lands on whole screen pixels at any zoom.
+function drawShip(ship: Ship): void {
+  const size = shipSize(ship.design);
+  const a = worldToScreen(camera, viewport, { x: ship.position.x - size.width / 2, y: ship.position.y - size.height / 2 });
+  const b = worldToScreen(camera, viewport, { x: ship.position.x + size.width / 2, y: ship.position.y + size.height / 2 });
+  const x = Math.round(a.x);
+  const y = Math.round(a.y);
+  ctx.drawImage(shipSprite(ship.design), x, y, Math.max(1, Math.round(b.x) - x), Math.max(1, Math.round(b.y) - y));
 }
 
 function drawSelectionRing(center: Vec, size: Size): void {
@@ -433,13 +545,63 @@ function drawSelectionRing(center: Vec, size: Size): void {
   ctx.restore();
 }
 
+// Screen pixels per canvas pixel above which the pixel grid is drawn.
+const GRID_ZOOM = 6;
+
+function drawPaintCanvas(): void {
+  const surface = paintCanvas!;
+  if (surface.width !== surface.clientWidth || surface.height !== surface.clientHeight) {
+    surface.width = surface.clientWidth;
+    surface.height = surface.clientHeight;
+  }
+  const g = surface.getContext("2d")!;
+  const vp = paintViewport();
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = "#0f172a";
+  g.fillRect(0, 0, vp.width, vp.height);
+  const { design, origin } = placedDesign(draft);
+  if (design.width > 0) {
+    const at = worldToScreen(paintView, vp, origin);
+    g.drawImage(shipSprite(design), at.x, at.y, design.width * paintView.zoom, design.height * paintView.zoom);
+  }
+  if (paintView.zoom >= GRID_ZOOM) {
+    const first = screenToWorld(paintView, vp, { x: 0, y: 0 });
+    const last = screenToWorld(paintView, vp, { x: vp.width, y: vp.height });
+    g.strokeStyle = "rgba(148,163,184,.25)";
+    g.lineWidth = 1;
+    g.beginPath();
+    for (let x = Math.ceil(first.x); x <= last.x; x += 1) {
+      const sx = Math.round(worldToScreen(paintView, vp, { x, y: 0 }).x) + 0.5;
+      g.moveTo(sx, 0);
+      g.lineTo(sx, vp.height);
+    }
+    for (let y = Math.ceil(first.y); y <= last.y; y += 1) {
+      const sy = Math.round(worldToScreen(paintView, vp, { x: 0, y }).y) + 0.5;
+      g.moveTo(0, sy);
+      g.lineTo(vp.width, sy);
+    }
+    g.stroke();
+  }
+  if (paintPointer) {
+    const cell = cellAt(paintView, vp, paintPointer);
+    const reach = draft.tool === "fill" ? 0 : Math.floor(draft.size / 2);
+    const corner = worldToScreen(paintView, vp, { x: cell.x - reach, y: cell.y - reach });
+    const span = (2 * reach + 1) * paintView.zoom;
+    g.strokeStyle = draft.tool === "erase" ? "#f87171" : "#facc15";
+    g.lineWidth = 2;
+    g.strokeRect(corner.x, corner.y, span, span);
+  }
+}
+
 function renderShipPanel(): void {
   selectedShips = selectedShips.filter((id) => state.ships.some((ship) => ship.id === id));
   selectedShip = selectedShips[0] ?? null;
   const panel = selectedShip === null ? null : shipPanel(state, selectedShip);
   const list = selectionPanel(state, selectedShips);
   shipPanelBox.hidden = !panel || !list;
-  const key = JSON.stringify({ panel, list });
+  // The design is left out of the key, since a capital ship's pixels are too
+  // many to serialise every frame. The ship's id stands in for it.
+  const key = JSON.stringify({ panel: { ...panel, design: null }, list, ship: selectedShip });
   if (!panel || !list || key === renderedPanel) return;
   renderedPanel = key;
   const title = document.createElement("h2");
@@ -464,7 +626,7 @@ function renderShipPanel(): void {
   }
   if (list.defaultBehaviour === "mixed") { const mixed = document.createElement("option"); mixed.textContent = "Default: Mixed"; mixed.selected = true; select.prepend(mixed); }
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
-  shipPanelBox.replaceChildren(title, rows, select, resume, ...(selectedShips.length === 1 ? [gridElement(panel.design, false)] : []));
+  shipPanelBox.replaceChildren(title, rows, select, resume, ...(selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
 }
 
 // Screen-space so the numbers stay readable at any zoom.
@@ -646,16 +808,14 @@ function draw(seconds: number): void {
     buildMenu.style.top = `${Math.round(screen.y - 20)}px`;
   }
   if (shipMenuBuilder !== null) {
-    const builder = state.station.modules[shipMenuBuilder]!;
-    const screen = worldToScreen(camera, viewport, builder.position);
-    shipMenu.style.left = `${Math.round(screen.x + builder.size.width / 2 * camera.zoom + 12)}px`;
-    shipMenu.style.top = `${Math.round(screen.y - 20)}px`;
+    drawPaintCanvas();
     const view = shipMenuView(state, shipMenuBuilder, draft);
     const stats = shipMenu.querySelector<HTMLElement>(".stats")!;
-    const text = `Speed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;
+    const text = `Pixels ${view.pixels}\nSpeed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;
     if (stats.textContent !== text) stats.textContent = text;
     const cost = shipMenu.querySelector<HTMLElement>(".cost")!;
-    if (cost.textContent !== view.cost) cost.textContent = view.cost;
+    const costText = `Build time ${view.buildTime}\nCost ${view.cost}`;
+    if (cost.textContent !== costText) cost.textContent = costText;
     shipMenu.querySelector<HTMLButtonElement>(".build")!.disabled = !view.canBuild;
   }
   const menuItems = buildMenuItems(state);
@@ -702,7 +862,11 @@ function frame(nowMs: number): void {
   lastTimeMs = nowMs;
   const movement = keyPan(heldKeys, dt);
   if (movement.x || movement.y) camera = panBy(camera, movement.x, movement.y);
-  state = tick(state, dt);
+  // Paused frames skip the tick, so selecting, ordering and the menus keep
+  // working on a state that simply does not advance.
+  const seconds = gameSeconds(clock, dt);
+  if (seconds > 0) state = tick(state, seconds);
+  renderSpeedControls();
   draw(nowMs / 1000);
   requestAnimationFrame(frame);
 }

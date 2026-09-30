@@ -1,18 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, tick, type Ship, type ShipDesign, type SimState } from "sim";
+import { createInitialState, tick, type GateProject, type Ship, type ShipDesign, type SimState } from "sim";
 import { hoveredBody, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
-import { shipBlocks, shipPanel } from "./ships";
+import { spritePixels, shipPanel } from "./ships";
 
 const viewport = { width: 800, height: 600 };
 const camera: Camera = { center: { x: 0, y: 0 }, zoom: 1 };
 
 const noLaser: ShipDesign = { width: 2, height: 1, slots: ["Engine", "Storage"] };
-const big: ShipDesign = {
-  width: 3,
-  height: 3,
-  slots: ["Engine", "Laser", "Storage", "Storage", null, "Engine", "Laser", "Storage", "Storage"],
-};
+const big: ShipDesign = { width: 6, height: 6, slots: Array(36).fill("Hull") };
 
 function withShips(ships: Partial<Ship>[], station: Partial<SimState["station"]> = {}): SimState {
   const state = createInitialState(7);
@@ -52,24 +48,67 @@ describe("hovering a ship shows its state", () => {
     const pointer = worldToScreen(camera, viewport, state.station.dock.position);
     expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
   });
-});
 
-describe("ships drawn from their grid", () => {
-  it("draws one block per slot in the module's colour", () => {
-    const [ship] = withShips([{ position: { x: 100, y: 50 } }]).ships;
-    const blocks = shipBlocks(ship!);
-    expect(blocks.map((block) => block.color)).toEqual(["#f97316", "#ef4444", "#94a3b8", "#94a3b8"]);
-    expect(blocks[0]!.position.x).toBeLessThan(blocks[1]!.position.x);
-    expect(blocks[0]!.position.y).toBeLessThan(blocks[2]!.position.y);
+  it("lets a ship at the Dock win over the station underneath it", () => {
+    const state = withShips([{ state: "unloading", position: { ...createInitialState(7).station.dock.position } }]);
+    const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+
+    expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
   });
 
-  it("makes a 3x3 hover area bigger than a 2x2's", () => {
+  it("keeps a ship selectable during its outbound transition from the Dock", () => {
+    const state = createInitialState(7);
+    const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+
+    expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
+  });
+
+  it("lets a ship at a gate win over the gate underneath it", () => {
+    const position = { x: 80, y: 0 };
+    const state = {
+      ...withShips([{ state: "gateHauling", position }]),
+      gateProjects: [{
+        id: 0,
+        ends: [{ sectorId: 0, position }, { sectorId: 1, position: { x: 200, y: 0 } }],
+        delivered: { Metal: 0, Ice: 0 },
+        complete: false,
+      } as GateProject],
+    };
+    const pointer = worldToScreen(camera, viewport, position);
+
+    expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
+  });
+
+  it("lets a ship at the other gate end win when viewing that sector", () => {
+    const position = { x: 200, y: 0 };
+    const state = {
+      ...withShips([{ state: "gateHauling", sectorId: 1, position }]),
+      gateProjects: [{
+        id: 0,
+        ends: [{ sectorId: 0, position: { x: 80, y: 0 } }, { sectorId: 1, position }],
+        delivered: { Metal: 0, Ice: 0 },
+        complete: false,
+      } as GateProject],
+    };
+    const pointer = worldToScreen(camera, viewport, position);
+
+    expect(hoveredBody(state, camera, viewport, pointer, 1)).toEqual({ kind: "ship", index: 0 });
+  });
+});
+
+describe("ships drawn from their pixels", () => {
+  it("colours each painted pixel by its module and leaves the empty ones clear", () => {
+    const pixels = spritePixels({ width: 3, height: 1, slots: ["Engine", null, "Hull"] });
+    expect([...pixels]).toEqual([0xf9, 0x73, 0x16, 255, 0, 0, 0, 0, 0x47, 0x55, 0x69, 255]);
+  });
+
+  it("makes a 6x6 pixel ship's hover area bigger than the starting ship's", () => {
     const state = withShips([
       { state: "outbound", position: { x: 100, y: 100 } },
       { state: "outbound", design: big, position: { x: -100, y: 100 } },
     ]);
     const edge = (x: number) => hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, { x, y: 100 }));
-    // 5.5 units off centre is outside a 9-wide 2x2 and inside a 13.5-wide 3x3.
+    // 5.5 units off centre is outside the 9-wide starting ship and inside a 13.5-wide 6x6.
     expect(edge(100 + 5.5)).toBeNull();
     expect(edge(-100 + 5.5)).toEqual({ kind: "ship", index: 1 });
   });
@@ -79,7 +118,7 @@ describe("the selected ship's panel", () => {
   it("shows size, grid, speed, hold, mining time, cargo and state", () => {
     const state = withShips([{ state: "working", cargo: 12, cargoMaterial: "Metal" }]);
     expect(shipPanel(state, 0)).toEqual({
-      size: "2x2",
+      size: "4x4",
       design: state.ships[0]!.design,
       rows: [
         ["Speed", "25"],
