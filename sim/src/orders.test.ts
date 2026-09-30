@@ -25,6 +25,10 @@ function until(state: SimState, done: (state: SimState) => boolean): SimState {
 }
 
 describe("RTS ship orders", () => {
+  it("starts new ships on Mine for Station", () => {
+    expect(fleet(1).ships[0]!.defaultBehaviour).toBe("mine");
+  });
+
   it("gives each ship a distinct nearby formation position", () => {
     const points = formation({ x: 50, y: -25 }, 5);
     expect(new Set(points.map((p) => `${p.x},${p.y}`)).size).toBe(5);
@@ -41,6 +45,13 @@ describe("RTS ship orders", () => {
     expect(resumeDefault(arrived, [arrived.ships[1]!.id]).ships[1]!.state).not.toBe("holding");
   });
 
+  it("keeps cargo aboard when a move order interrupts the current trip", () => {
+    const state = fleet(1);
+    const loaded = { ...state, ships: [{ ...state.ships[0]!, cargo: 7, cargoMaterial: "Metal" as const }] };
+    const ordered = giveOrder(loaded, [0], { kind: "move", point: { x: 40, y: 30 } });
+    expect(ordered.ships[0]).toMatchObject({ cargo: 7, cargoMaterial: "Metal", order: { kind: "move" } });
+  });
+
   it("mines one selected rock load and returns to the default", () => {
     const start = fleet(1);
     const rock = start.asteroids[1]!;
@@ -48,6 +59,14 @@ describe("RTS ship orders", () => {
     const home = until(ordered, (s) => s.ships[0]!.order === null);
     expect(home.station.inventory[rock.material]).toBeGreaterThan(0);
     expect(home.ships[0]!.defaultBehaviour).toBe("mine");
+  });
+
+  it("sends a ship home to unload, then resumes its default", () => {
+    const start = fleet(1);
+    const ordered = giveOrder(start, [0], { kind: "home" });
+    expect(ordered.ships[0]!.state).toBe("homebound");
+    expect(until(ordered, (s) => s.ships[0]!.order === null && s.ships[0]!.state === "outbound").ships[0]!.defaultBehaviour)
+      .toBe("mine");
   });
 
   it("keeps a same-material partial load while mining the selected rock", () => {
