@@ -25,15 +25,15 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "gateReturning":
       return null;
     case "gateHauling":
-      return { fill: shipStats(ship.design).hold ? ship.cargo / shipStats(ship.design).hold : 0, text };
     case "waiting":
-      return { fill: ship.cargo / hold, text };
+    case "homebound":
+      return { fill: hold ? ship.cargo / hold : 0, text };
     case "working":
       return { fill: miningSeconds ? 1 - ship.timer / miningSeconds : 0, text };
-    case "homebound":
-      return { fill: 1, text };
     case "unloading":
-      return { fill: ship.timer / unloadingSeconds(ship.design), text };
+      // A partial load starts below the timer's fraction, so the bar never
+      // reads fuller than what is aboard.
+      return { fill: Math.min(ship.timer / unloadingSeconds(ship.design), hold ? ship.cargo / hold : 0), text };
   }
 }
 
