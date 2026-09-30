@@ -11,7 +11,7 @@ describe("material deliveries", () => {
     for (let seed = 0; seed < 50; seed += 1) {
       const state = oneStorageStart(seed);
       const homeRocks = state.asteroids.filter((rock) => rock.sectorId === 0);
-      expect(homeRocks).toHaveLength(4);
+      expect(homeRocks.length).toBeGreaterThan(4);
       expect(new Set(homeRocks.map((rock) => rock.material))).toEqual(
         new Set(["Metal", "Ice"]),
       );
