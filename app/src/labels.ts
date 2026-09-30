@@ -74,7 +74,7 @@ function storageBox(state: SimState): InfoBox {
 export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | null {
   if (!hovered) return null;
   if (hovered.kind === "dock") {
-    const unloading = state.ships.filter((ship) => ship.state === "unloading").length;
+    const unloading = state.ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length;
     return {
       title: "Dock",
       line: `Unloading ${unloading} / ${state.station.dock.capacity}`,
@@ -97,7 +97,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       return { title: "Builder", line: `Building ${size}: ${formatDuration(Math.ceil(job.timer))}` };
     }
     if (module.type === "Dock") {
-      const unloading = state.ships.filter((ship) => ship.state === "unloading").length;
+      const unloading = state.ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length;
       return { title: "Dock", line: `Unloading ${unloading} / ${state.station.dock.capacity}` };
     }
     return storageBox(state);

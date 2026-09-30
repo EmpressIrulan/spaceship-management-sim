@@ -498,7 +498,7 @@ function storedTotal(inventory: Record<Material, number>): number {
 // Whether a ship home with cargo can start unloading now: Storage has room
 // and the Dock has a free berth.
 export function canUnload(station: Station, ships: Ship[]): boolean {
-  const unloading = ships.filter((ship) => ship.state === "unloading").length;
+  const unloading = ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length;
   return storedTotal(station.inventory) < station.storage.capacity
     && unloading < station.dock.capacity;
 }

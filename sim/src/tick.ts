@@ -107,7 +107,7 @@ function storageRemaining(draft: Draft): number {
 }
 
 function berthFree(draft: Draft): boolean {
-  return draft.ships.filter((ship) => ship.state === "unloading").length < draft.dockCapacity;
+  return draft.ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length < draft.dockCapacity;
 }
 
 function unload(draft: Draft, ship: Ship, units: number): number {
@@ -156,6 +156,11 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
       return { ...ship, timer: done ? 0 : timer, cargo };
     }
     case "unloading": {
+      if (ship.order?.kind === "supplySite") {
+        const { hold } = shipStats(ship.design);
+        const targetCargo = Math.min(ship.cargo, hold - unitsDone(timer, unloadingSeconds(ship.design), hold));
+        return { ...ship, timer, cargo: ship.cargo - giveToSite(draft, ship, ship.cargo - targetCargo) };
+      }
       // A partial load unloads at the same rate per unit, so it only starts
       // dropping once the countdown reaches what is aboard.
       const { hold } = shipStats(ship.design);
@@ -203,17 +208,28 @@ function loadGateHauler(draft: Draft, ship: Ship): Ship {
     leg: { from, to }, timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
 }
 
-// Unloads what the site still needs, then sends the ship on with the rest.
-function supplySite(draft: Draft, ship: Ship): Ship {
+// Puts up to `units` of the ship's cargo into the site it is ordered to and
+// returns how many the site took.
+function giveToSite(draft: Draft, ship: Ship, units: number): number {
   const siteId = ship.order?.kind === "supplySite" ? ship.order.siteId : -1;
   const site = draft.claimSites.find((candidate) => candidate.id === siteId);
-  if (site && ship.cargoMaterial) {
-    const { site: next, accepted } = deliverToSite(site, ship.cargoMaterial, ship.cargo);
-    draft.claimSites = draft.claimSites.map((candidate) => (candidate.id === siteId ? next : candidate));
-    const cargo = ship.cargo - accepted;
-    ship = { ...ship, cargo, cargoMaterial: cargo > 0 ? ship.cargoMaterial : null };
-  }
-  return afterOrder(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+  if (!site || !ship.cargoMaterial) return 0;
+  const { site: next, accepted } = deliverToSite(site, ship.cargoMaterial, units);
+  draft.claimSites = draft.claimSites.map((candidate) => (candidate.id === siteId ? next : candidate));
+  return accepted;
+}
+
+// Arrival at a site starts the same unloading countdown as at the Dock.
+function arriveAtSite(draft: Draft, ship: Ship): Ship {
+  return ship.cargo > 0
+    ? { ...ship, state: "unloading", timer: unloadingSeconds(ship.design) }
+    : afterOrder(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+}
+
+// The countdown is over: the site takes what it can of the rest and the ship moves on.
+function finishSupply(draft: Draft, ship: Ship): Ship {
+  const cargo = ship.cargo - giveToSite(draft, ship, ship.cargo);
+  return afterOrder({ ...ship, cargo, cargoMaterial: cargo > 0 ? ship.cargoMaterial : null }, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
 }
 
 // Moves a ship whose timer has run out into its next state.
@@ -243,7 +259,7 @@ function finish(draft: Draft, ship: Ship): Ship {
       if (ship.order && (travelOrder(ship.order)?.sectorId ?? ship.sectorId) !== ship.sectorId) {
         return { ...ship, state: "jumpingOut", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
       }
-      if (ship.order?.kind === "supplySite") return supplySite(draft, { ...ship, position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null });
+      if (ship.order?.kind === "supplySite") return arriveAtSite(draft, { ...ship, position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null });
       return { ...ship, state: "holding", position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null, timer: 0 };
     case "gateHauling": {
       const gateId = ship.order?.kind === "haulGate" ? ship.order.gateId : -1;
@@ -307,6 +323,7 @@ function finish(draft: Draft, ship: Ship): Ship {
       }
       return { ...ship, state: "unloading", position: { ...draft.dock }, leg: null, timer: unloadingSeconds(ship.design) };
     case "unloading":
+      if (ship.order?.kind === "supplySite") return finishSupply(draft, ship);
       const unloaded = unload(draft, ship, ship.cargo);
       if (unloaded < ship.cargo) {
         const remaining = { ...ship, cargo: ship.cargo - unloaded };

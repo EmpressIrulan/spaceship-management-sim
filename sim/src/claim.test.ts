@@ -9,6 +9,7 @@ import {
   startClaimSite,
 } from "./claim";
 import { giveOrder } from "./orders";
+import { unloadingSeconds } from "./ship";
 import { createInitialState, type Ship, type SimState, type Vec } from "./state";
 import { tick } from "./tick";
 
@@ -74,10 +75,36 @@ describe("claim station sites", () => {
     const start = loaded(withSite, 10, "Metal");
     const ordered = giveOrder(start, [0], { kind: "supplySite", siteId: 0 });
     expect(ordered.ships[0]).toMatchObject({ state: "moving", cargo: 10 });
-    const done = until(ordered, (next) => next.claimSites[0]!.delivered.Metal > 0);
+    const done = until(ordered, (next) => next.ships[0]!.order === null);
     expect(done.claimSites[0]!.delivered).toEqual({ Metal: 10, Ice: 0 });
     expect(done.ships[0]!.cargo).toBe(0);
     expect(done.station.inventory).toEqual(start.station.inventory);
+  });
+
+  it("unloads over the same time as at the Dock, one unit at a time", () => {
+    const { state: withSite } = place(createInitialState(7), 0);
+    const start = loaded(withSite, 20, "Metal");
+    const arrived = until(giveOrder(start, [0], { kind: "supplySite", siteId: 0 }), (next) => next.ships[0]!.state === "unloading");
+    const seconds = unloadingSeconds(arrived.ships[0]!.design);
+    expect(arrived.claimSites[0]!.delivered.Metal).toBe(0);
+    expect(arrived.ships[0]!.cargo).toBe(20);
+    const half = tick(arrived, seconds / 2);
+    expect(half.ships[0]!.state).toBe("unloading");
+    expect(half.claimSites[0]!.delivered.Metal).toBeGreaterThan(0);
+    expect(half.claimSites[0]!.delivered.Metal).toBeLessThan(20);
+    expect(half.claimSites[0]!.delivered.Metal + half.ships[0]!.cargo).toBe(20);
+    const done = tick(arrived, seconds + 0.01);
+    expect(done.ships[0]).toMatchObject({ cargo: 0, order: null });
+    expect(done.claimSites[0]!.delivered.Metal).toBe(20);
+  });
+
+  it("does not use up a Dock berth while unloading at a site", () => {
+    const { state: withSite } = place(createInitialState(7), 0);
+    const start = loaded(withSite, 20, "Metal");
+    const arrived = until(giveOrder(start, [0], { kind: "supplySite", siteId: 0 }), (next) => next.ships[0]!.state === "unloading");
+    const waiting = { ...arrived, ships: [...arrived.ships, { ...arrived.ships[0]!, id: 9, state: "waiting" as const, order: null, timer: 0 }] };
+    const dockBusy = { ...waiting, station: { ...waiting.station, dock: { ...waiting.station.dock, capacity: 1 } } };
+    expect(tick(dockBusy, 0.01).ships[1]!.state).toBe("unloading");
   });
 
   it("takes cargo from a ship in another sector by way of the gate", () => {
