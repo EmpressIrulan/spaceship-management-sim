@@ -71,6 +71,9 @@ export function shipStatus(state: SimState, ship: Ship): string {
       return "Moving";
     case "holding":
       return "Holding";
+    case "jumpingOut":
+    case "jumpingHome":
+      return "Jumping";
   }
 }
 

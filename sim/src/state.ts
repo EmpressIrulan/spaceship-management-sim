@@ -39,6 +39,10 @@ export const MODULE_COST: Record<Material, number> = { Metal: 25, Ice: 25 };
 export const MODULE_TYPES = ["Dock", "Storage", "Builder"] as const;
 export type ModuleType = (typeof MODULE_TYPES)[number];
 export const ASTEROID_SIZE = { width: 13, height: 10 };
+export const HOME_SECTOR = 0;
+export const JUMP_SECONDS = 2;
+export const GATE_SIZE = { width: 24, height: 24 };
+export const GATE_DISTANCE = 480;
 
 export interface Vec {
   x: number;
@@ -52,16 +56,17 @@ export interface Size {
 
 // "idle" means sitting at the Dock, because no asteroid has ore or the ship
 // can't mine. "waiting" means home with cargo and no room or no free berth.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting" | "moving" | "holding";
+export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome";
 export type DefaultBehaviour = "mine" | "none";
 export type Order =
   | { kind: "mine"; asteroidId: number; loaded: boolean }
-  | { kind: "move"; point: Vec }
+  | { kind: "move"; point: Vec; sectorId: number }
   | { kind: "home" };
 export interface Leg { from: Vec; to: Vec }
 
 export interface Target {
   asteroidId: number;
+  sectorId: number;
   // Where the ship mines from. Kept on the ship so it can fly home after the
   // asteroid has been mined out and removed.
   site: Vec;
@@ -71,6 +76,7 @@ export interface Ship {
   id: number;
   design: ShipDesign;
   state: ShipState;
+  sectorId: number;
   position: Vec;
   // Seconds left in the current state. Unused while idle.
   timer: number;
@@ -83,6 +89,7 @@ export interface Ship {
 }
 
 export interface Station {
+  sectorId: number;
   // The Dock is the station's home point: the position ships route to and
   // from, and the one the asteroid band is measured out from.
   dock: { position: Vec; size: Size; capacity: number };
@@ -112,6 +119,7 @@ export interface ModuleConstruction extends StationModule {
 
 export interface Asteroid {
   id: number;
+  sectorId: number;
   position: Vec;
   size: Size;
   ore: number;
@@ -119,6 +127,7 @@ export interface Asteroid {
 }
 
 export interface Respawn {
+  sectorId: number;
   // Seconds until a new asteroid appears.
   timer: number;
   // Where the emptied asteroid was, so the new one lands somewhere else.
@@ -131,11 +140,14 @@ export interface SimState {
   rng: number;
   nextAsteroidId: number;
   nextShipId: number;
+  sectors: Sector[];
   station: Station;
   asteroids: Asteroid[];
   respawns: Respawn[];
   ships: Ship[];
 }
+
+export interface Sector { id: number; name: string; gate: { position: Vec; size: Size; to: number } }
 
 function distance(a: Vec, b: Vec): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -232,7 +244,7 @@ export function nearestWithOre(dock: Vec, asteroids: Asteroid[], others: Ship[] 
 // Sends a ship sitting at the Dock to the nearest asteroid with ore, or
 // leaves it idle if there is none or it can't mine.
 export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Ship[] = []): Ship {
-  const asteroid = canMine(ship.design) ? nearestWithOre(dock, asteroids, others) : null;
+  const asteroid = canMine(ship.design) ? nearestWithOre(dock, asteroids.filter((rock) => rock.sectorId === HOME_SECTOR), others) : null;
   if (!asteroid) {
     return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null };
   }
@@ -244,7 +256,7 @@ export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Shi
     timer: travelSeconds(distance(dock, site), speedFactor(ship.design)),
     cargo: 0,
     cargoMaterial: asteroid.material,
-    target: { asteroidId: asteroid.id, site },
+    target: { asteroidId: asteroid.id, sectorId: HOME_SECTOR, site },
     leg: null,
   };
 }
@@ -270,13 +282,42 @@ export function createInitialState(seed: number): SimState {
     [materials[i], materials[j]] = [materials[j]!, materials[i]!];
   }
   const asteroids: Asteroid[] = positions.map((position, id) => ({
-    id, position, size: ASTEROID_SIZE, ore: ASTEROID_ORE, material: materials[id]!,
+    id, sectorId: HOME_SECTOR, position, size: ASTEROID_SIZE, ore: ASTEROID_ORE, material: materials[id]!,
   }));
+
+  const nameChoices = ["Kael", "Vela", "Oris", "Thara", "Mira", "Zorin", "Selen", "Draco", "Hyron", "Corin", "Neris", "Ulmar"];
+  const firstNameRoll = nextRandom(rng); rng = firstNameRoll.state;
+  const secondNameRoll = nextRandom(rng); rng = secondNameRoll.state;
+  const firstNameIndex = Math.floor(firstNameRoll.value * nameChoices.length);
+  let secondNameIndex = Math.floor(secondNameRoll.value * nameChoices.length);
+  if (secondNameIndex === firstNameIndex) secondNameIndex = (secondNameIndex + 1) % nameChoices.length;
+  const sectorNames = [nameChoices[firstNameIndex]!, nameChoices[secondNameIndex]!];
+  const sectors: Sector[] = [0, 1].map((id) => {
+    const roll = nextRandom(rng); rng = roll.state;
+    const angle = roll.value * Math.PI * 2;
+    return { id, name: sectorNames[id]!,
+      gate: { position: { x: Math.cos(angle) * GATE_DISTANCE, y: Math.sin(angle) * GATE_DISTANCE }, size: GATE_SIZE, to: 1 - id } };
+  });
+  const farCenter = { x: 0, y: 0 };
+  const farPositions: Vec[] = [];
+  for (let id = 0; id < ASTEROID_COUNT; id += 1) {
+    const placed = placeAsteroid(rng, farCenter, farPositions);
+    rng = placed.rng; farPositions.push(placed.position);
+  }
+  const farMaterials: Material[] = ["Metal", "Metal", "Ice", "Ice"];
+  for (let i = farMaterials.length - 1; i > 0; i -= 1) {
+    const choice = nextRandom(rng); rng = choice.state;
+    const j = Math.floor(choice.value * (i + 1));
+    [farMaterials[i], farMaterials[j]] = [farMaterials[j]!, farMaterials[i]!];
+  }
+  asteroids.push(...farPositions.map((position, id) => ({ id: ASTEROID_COUNT + id, sectorId: 1,
+    position, size: ASTEROID_SIZE, ore: ASTEROID_ORE, material: farMaterials[id]! })));
 
   const idle: Ship = {
     id: 0,
     design: STARTING_SHIP,
     state: "idle",
+    sectorId: HOME_SECTOR,
     position: { ...dockPosition },
     timer: 0,
     cargo: 0,
@@ -289,9 +330,11 @@ export function createInitialState(seed: number): SimState {
   return {
     tickCount: 0,
     rng,
-    nextAsteroidId: ASTEROID_COUNT,
+    nextAsteroidId: ASTEROID_COUNT * 2,
+    sectors,
     nextShipId: 1,
     station: {
+      sectorId: HOME_SECTOR,
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
       inventory: { Metal: 20, Ice: 20 },

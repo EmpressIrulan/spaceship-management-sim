@@ -126,6 +126,7 @@ describe("building station modules", () => {
       },
       asteroids: [],
       respawns: Array.from({ length: 8 }, (_, index) => ({
+        sectorId: 0,
         timer: 0,
         lastPosition: { x: 200 + index * 10, y: 0 },
       })),

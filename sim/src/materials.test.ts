@@ -10,11 +10,12 @@ describe("material deliveries", () => {
     const nearestTypes = new Set<string>();
     for (let seed = 0; seed < 50; seed += 1) {
       const state = oneStorageStart(seed);
-      expect(state.asteroids).toHaveLength(4);
-      expect(new Set(state.asteroids.map((rock) => rock.material))).toEqual(
+      const homeRocks = state.asteroids.filter((rock) => rock.sectorId === 0);
+      expect(homeRocks).toHaveLength(4);
+      expect(new Set(homeRocks.map((rock) => rock.material))).toEqual(
         new Set(["Metal", "Ice"]),
       );
-      const nearest = [...state.asteroids].sort(
+      const nearest = [...homeRocks].sort(
         (a, b) =>
           Math.hypot(a.position.x, a.position.y) - Math.hypot(b.position.x, b.position.y),
       )[0]!;

@@ -14,6 +14,7 @@ const ship = (state: Ship["state"], cargo: number, timer = 1): Ship => ({
   id: 0,
   design: { width: 2, height: 2, slots: ["Engine", "Laser", "Storage", null] },
   state,
+  sectorId: 0,
   cargo,
   cargoMaterial: cargo > 0 ? "Metal" : null,
   timer,

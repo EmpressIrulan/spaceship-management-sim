@@ -33,6 +33,7 @@ import {
 } from "./camera";
 import { cargoGauge, infoBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
+import { mapHit, mapLayout, mapToggled } from "./sectors";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
 import {
   buildControlSize,
@@ -43,7 +44,7 @@ import {
   pointerInBuildArea,
 } from "./building";
 import { shipBlocks, shipPanel, slotColor } from "./ships";
-import { isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
+import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 import {
   designOf,
   emptyDraft,
@@ -62,6 +63,7 @@ const buildControlsEl = document.querySelector<HTMLElement>("#build-controls");
 const buildMenuEl = document.querySelector<HTMLElement>("#build-menu");
 const shipMenuEl = document.querySelector<HTMLElement>("#ship-menu");
 const shipPanelEl = document.querySelector<HTMLElement>("#ship-panel");
+const sectorNameEl = document.querySelector<HTMLElement>("#sector-name");
 if (!canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl) {
   throw new Error("missing #screen canvas or #info box");
 }
@@ -85,6 +87,8 @@ const seedParam = new URLSearchParams(location.search).get("seed");
 const seed = seedParam === null ? Date.now() % 2 ** 32 : Number(seedParam);
 
 let state = createInitialState(seed);
+let currentSector = 0;
+let mapOpen = false;
 let viewport: Viewport = { width: 0, height: 0 };
 // Last pointer position over the canvas, or null once it has left.
 let pointer: Vec | null = null;
@@ -146,6 +150,7 @@ document.addEventListener("click", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
+  if (event.key.toLowerCase() === "m" || event.key === "Escape") mapOpen = mapToggled(mapOpen, event.key);
   if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
   if (shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
   if (!(event.target instanceof HTMLSelectElement)) heldKeys.add(event.key);
@@ -249,7 +254,7 @@ resize();
 
 // Fits the starting field only. Respawns can land off screen; the camera does
 // not follow them.
-let camera: Camera = fitCamera(viewport, [state.station.dock, state.station.storage, ...state.asteroids]);
+let camera: Camera = fitCamera(viewport, [state.station.dock, state.station.storage, ...state.asteroids.filter((rock) => rock.sectorId === 0), state.sectors[0]!.gate]);
 
 function mousePoint(event: MouseEvent): Vec {
   const bounds = canvas.getBoundingClientRect();
@@ -290,11 +295,20 @@ window.addEventListener("mouseup", (event) => {
   if (event.button === 0 && dragBox) {
     const { start, end, additive } = dragBox; dragBox = null;
     if (isBoxDrag(start, end)) {
-      const picked = shipsInBox(state, camera, viewport, start, end);
+      const picked = shipsInBox(state, camera, viewport, currentSector, start, end);
       selectedShips = additive ? [...new Set([...selectedShips, ...picked])] : picked;
       selectedShip = selectedShips[0] ?? null;
+    } else if (event.target === canvas && mapOpen) {
+      const id = mapHit(mapLayout(state, viewport), mousePoint(event));
+      if (id !== null) {
+        currentSector = id;
+        const sectorRocks = state.asteroids.filter((rock) => rock.sectorId === id);
+        const bodies = [...sectorRocks, ...(id === 0 ? [state.station.dock, state.station.storage, ...state.station.modules] : []), state.sectors[id]!.gate];
+        camera = fitCamera(viewport, bodies);
+        mapOpen = false;
+      }
     } else if (event.target === canvas) {
-      const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point);
+      const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
       if (hovered?.kind === "ship") selectedShips = additive ? toggleShip(selectedShips, state.ships[hovered.index]!.id) : [state.ships[hovered.index]!.id];
       else if (!additive) selectedShips = [];
       selectedShip = selectedShips[0] ?? null;
@@ -305,9 +319,9 @@ window.addEventListener("mouseup", (event) => {
 
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
-  if (!selectedShips.length) return;
-  const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point);
-  const world = screenToWorld(camera, viewport, point); const target = orderTargetAt(state, hovered, world);
+  if (!contextOrderAllowed(mapOpen) || !selectedShips.length) return;
+  const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
+  const world = screenToWorld(camera, viewport, point); const target = orderTargetAt(state, hovered, world, currentSector);
   const to = target.kind === "move" ? target.point : target.kind === "home" ? state.station.dock.position
     : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
   orderLines = { from: selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
@@ -485,22 +499,28 @@ function draw(seconds: number): void {
   ctx.clearRect(0, 0, viewport.width, viewport.height);
   drawOrderFeedback(seconds);
 
-  for (const asteroid of state.asteroids) {
+  const sectorRocks = state.asteroids.filter((asteroid) => asteroid.sectorId === currentSector);
+  const sectorShips = state.ships.filter((ship) => ship.sectorId === currentSector && ship.state !== "jumpingOut" && ship.state !== "jumpingHome");
+  const gate = state.sectors[currentSector]!.gate;
+  const gateScreen = worldToScreen(camera, viewport, gate.position);
+  ctx.fillStyle = "#22d3ee";
+  ctx.fillRect(gateScreen.x - gate.size.width * camera.zoom / 2, gateScreen.y - gate.size.height * camera.zoom / 2, gate.size.width * camera.zoom, gate.size.height * camera.zoom);
+  for (const asteroid of sectorRocks) {
     fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material));
   }
-  for (const module of state.station.modules) {
+  for (const module of currentSector === 0 ? state.station.modules : []) {
     fillWorldRect(module.position, module.size, moduleColor(module.type));
   }
-  if (state.station.construction) {
+  if (currentSector === 0 && state.station.construction) {
     strokeWorldRect(state.station.construction.position, state.station.construction.size, "#cbd5e1");
   }
 
-  for (const ship of state.ships) {
+  for (const ship of sectorShips) {
     const beam = laserBeam(state, ship);
     if (beam) drawLaser(beam, seconds);
   }
 
-  for (const ship of state.ships) {
+  for (const ship of sectorShips) {
     drawShip(ship);
     if (selectedShips.includes(ship.id)) drawSelectionRing(ship.position, shipSize(ship.design));
 
@@ -509,9 +529,13 @@ function draw(seconds: number): void {
   }
   renderShipPanel();
 
+  if (sectorNameEl) sectorNameEl.textContent = state.sectors[currentSector]!.name;
+  canvas.setAttribute("aria-label", mapOpen
+    ? mapLayout(state, viewport).circles.map((circle) => `${circle.name}: ${circle.ships} ships`).join("; ")
+    : `Sector ${state.sectors[currentSector]!.name}: ${sectorRocks.length} asteroids, ${currentSector === 0 ? "station present" : "no station"}, gate to ${state.sectors[gate.to]!.name}`);
   // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
-  const hovered = hoveredBody(state, camera, viewport, pointer);
+  const hovered = hoveredBody(state, camera, viewport, pointer, currentSector);
   const info = infoBox(state, hovered);
   box.hidden = info === null;
   const body = hovered && bodyOf(state, hovered);
@@ -524,6 +548,11 @@ function draw(seconds: number): void {
     box.style.top = `${anchor.y}px`;
     boxTitle.textContent = info.title;
     boxLine.textContent = info.line;
+  }
+  if (pointer && Math.hypot(pointer.x - gateScreen.x, pointer.y - gateScreen.y) < Math.max(14, gate.size.width * camera.zoom / 2)) {
+    const jumping = state.ships.some((ship) => ship.sectorId === currentSector && (ship.state === "jumpingOut" || ship.state === "jumpingHome"));
+    box.hidden = false; boxTitle.textContent = "Gate"; boxLine.textContent = jumping ? "Jumping" : `Gate to ${state.sectors[gate.to]!.name}`;
+    box.style.left = `${gateScreen.x + 16}px`; box.style.top = `${gateScreen.y}px`;
   }
 
   const sites = availableModuleBuildSites(state);
@@ -555,7 +584,7 @@ function draw(seconds: number): void {
   }
   const inBuildArea = pointer !== null
     && pointerInBuildArea(state, screenToWorld(camera, viewport, pointer));
-  buildControls.hidden = !buildControlsVisible(inBuildArea, controlsHovered);
+  buildControls.hidden = currentSector !== 0 || !buildControlsVisible(inBuildArea, controlsHovered);
   if (buildMenuOpen && selectedBuildSite) {
     const screen = worldToScreen(camera, viewport, selectedBuildSite);
     buildMenu.style.left = `${Math.round(screen.x + 20)}px`;
@@ -589,6 +618,21 @@ function draw(seconds: number): void {
       button.append(name, cost);
       return button;
     }));
+  }
+
+  if (mapOpen) {
+    const layout = mapLayout(state, viewport);
+    ctx.save(); ctx.fillStyle = "rgba(15,23,42,.94)"; ctx.fillRect(0, 0, viewport.width, viewport.height);
+    ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = 3;
+    for (const link of layout.links) { ctx.beginPath(); ctx.moveTo(link.from.x, link.from.y); ctx.lineTo(link.to.x, link.to.y); ctx.stroke(); }
+    for (const circle of layout.circles) {
+      ctx.beginPath(); ctx.arc(circle.center.x, circle.center.y, circle.radius, 0, Math.PI * 2);
+      ctx.fillStyle = "#1e293b"; ctx.fill(); ctx.strokeStyle = "#67e8f9"; ctx.stroke();
+      ctx.fillStyle = "#f8fafc"; ctx.textAlign = "center"; ctx.font = "14px monospace";
+      ctx.fillText(circle.name, circle.center.x, circle.center.y - 4);
+      ctx.fillText(`${circle.ships} ships`, circle.center.x, circle.center.y + 18);
+    }
+    ctx.restore();
   }
 }
 

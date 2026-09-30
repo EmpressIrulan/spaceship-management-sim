@@ -169,7 +169,7 @@ describe("several ships", () => {
         timer: 0,
         cargo: 20,
         cargoMaterial: "Metal",
-        target: { asteroidId: 0, site: { x: 100, y: 0 } },
+        target: { asteroidId: 0, sectorId: 0, site: { x: 100, y: 0 } },
       })),
     };
 

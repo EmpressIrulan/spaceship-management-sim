@@ -4,19 +4,20 @@ import { screenToWorld, type Camera, type Hovered, type Viewport } from "./camer
 const DRAG_THRESHOLD = 4;
 export const ORDER_LINE_SECONDS = 1;
 export function isBoxDrag(a: Vec, b: Vec): boolean { return Math.hypot(b.x - a.x, b.y - a.y) > DRAG_THRESHOLD; }
-export function shipsInBox(state: SimState, camera: Camera, viewport: Viewport, a: Vec, b: Vec): number[] {
+export function shipsInBox(state: SimState, camera: Camera, viewport: Viewport, sectorId: number, a: Vec, b: Vec): number[] {
   const p = screenToWorld(camera, viewport, a); const q = screenToWorld(camera, viewport, b);
-  return state.ships.filter((s) => s.position.x >= Math.min(p.x, q.x) && s.position.x <= Math.max(p.x, q.x)
+  return state.ships.filter((s) => s.sectorId === sectorId && s.position.x >= Math.min(p.x, q.x) && s.position.x <= Math.max(p.x, q.x)
     && s.position.y >= Math.min(p.y, q.y) && s.position.y <= Math.max(p.y, q.y)).map((s) => s.id);
 }
 export function toggleShip(selected: number[], id: number): number[] {
   return selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id].sort((a, b) => a - b);
 }
-export function orderTargetAt(state: SimState, hovered: Hovered | null, world: Vec): OrderTarget {
+export function orderTargetAt(state: SimState, hovered: Hovered | null, world: Vec, currentSector = 0): OrderTarget {
   if (hovered?.kind === "asteroid") return { kind: "mine", asteroidId: hovered.id };
   if (hovered?.kind === "dock" || (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Dock")) return { kind: "home" };
-  return { kind: "move", point: world };
+  return { kind: "move", point: world, sectorId: currentSector };
 }
+export function contextOrderAllowed(mapOpen: boolean): boolean { return !mapOpen; }
 export function keyPan(keys: ReadonlySet<string>, dt: number): Vec {
   const held = (...items: string[]) => items.some((item) => keys.has(item) || keys.has(item.toUpperCase()));
   const speed = 500 * dt;

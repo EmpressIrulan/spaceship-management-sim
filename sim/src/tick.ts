@@ -6,6 +6,7 @@ import {
   ASTEROID_ORE,
   ASTEROID_SIZE,
   DOCK_CAPACITY,
+  JUMP_SECONDS,
   RESPAWN_SECONDS,
   STORAGE_CAPACITY,
   depart,
@@ -65,6 +66,7 @@ interface Draft {
   construction: Station["construction"];
   shipBuilds: Station["shipBuilds"];
   dockCapacity: number;
+  sectors: SimState["sectors"];
 }
 
 // Takes up to `units` of ore from the asteroid a ship is mining and returns
@@ -82,7 +84,7 @@ function mine(draft: Draft, ship: Ship, units: number): number {
     return taken;
   }
   draft.asteroids = draft.asteroids.filter((a) => a.id !== id);
-  draft.respawns = [...draft.respawns, { timer: RESPAWN_SECONDS, lastPosition: asteroid.position }];
+  draft.respawns = [...draft.respawns, { sectorId: asteroid.sectorId, timer: RESPAWN_SECONDS, lastPosition: asteroid.position }];
   return taken;
 }
 
@@ -116,7 +118,9 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     case "idle":
     case "waiting":
     case "holding":
-      return ship;
+    case "jumpingOut":
+    case "jumpingHome":
+      return { ...ship, timer };
     case "outbound":
     case "homebound":
     case "moving": {
@@ -158,7 +162,22 @@ function finish(draft: Draft, ship: Ship): Ship {
       return depart(ship, draft.dock, draft.asteroids, draft.ships);
     case "holding":
       return ship;
+    case "jumpingOut": {
+      const targetSector = ship.target?.sectorId ?? (ship.order?.kind === "move" ? ship.order.sectorId : ship.sectorId);
+      const gate = draft.sectors[targetSector]!.gate.position;
+      const to = ship.target?.site ?? (ship.order?.kind === "move" ? ship.order.point : gate);
+      const length = Math.hypot(to.x - gate.x, to.y - gate.y);
+      return { ...ship, sectorId: targetSector, position: { ...gate }, state: ship.target ? "outbound" : "moving", leg: { from: gate, to }, timer: travelSeconds(length, speedFactor(ship.design)) };
+    }
+    case "jumpingHome": {
+      const gate = draft.sectors[0]!.gate.position;
+      const length = Math.hypot(draft.dock.x - gate.x, draft.dock.y - gate.y);
+      return { ...ship, sectorId: 0, position: { ...gate }, state: "homebound", leg: { from: gate, to: draft.dock }, timer: travelSeconds(length, speedFactor(ship.design)) };
+    }
     case "moving":
+      if (ship.order?.kind === "move" && ship.order.sectorId !== ship.sectorId) {
+        return { ...ship, state: "jumpingOut", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
+      }
       return { ...ship, state: "holding", position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null, timer: 0 };
     case "waiting":
       // Room can appear without any ship moving, when a Storage module
@@ -168,6 +187,7 @@ function finish(draft: Draft, ship: Ship): Ship {
       }
       return ship;
     case "outbound":
+      if (ship.target && ship.target.sectorId !== ship.sectorId) return { ...ship, state: "jumpingOut", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
       const { hold } = shipStats(ship.design);
       const remainingMining = miningSeconds(ship) * (hold > 0 ? (hold - ship.cargo) / hold : 0);
       return {
@@ -178,6 +198,13 @@ function finish(draft: Draft, ship: Ship): Ship {
         timer: remainingMining,
       };
     case "working":
+      if (ship.sectorId !== 0) {
+        const gate = draft.sectors[ship.sectorId]!.gate.position;
+        const length = Math.hypot(gate.x - ship.position.x, gate.y - ship.position.y);
+        return { ...ship, state: "homebound", leg: { from: { ...ship.position }, to: { ...gate } }, timer: travelSeconds(length, speedFactor(ship.design)),
+          cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo),
+          order: ship.order?.kind === "mine" ? { ...ship.order, loaded: true } : ship.order };
+      }
       return {
         ...ship,
         state: "homebound",
@@ -187,6 +214,7 @@ function finish(draft: Draft, ship: Ship): Ship {
         order: ship.order?.kind === "mine" ? { ...ship.order, loaded: true } : ship.order,
       };
     case "homebound":
+      if (ship.sectorId !== 0) return { ...ship, state: "jumpingHome", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
       if (ship.cargo > 0 && (storageRemaining(draft) === 0 || !berthFree(draft))) {
         return { ...ship, state: "waiting", position: { ...draft.dock }, timer: 0 };
       }
@@ -196,7 +224,7 @@ function finish(draft: Draft, ship: Ship): Ship {
       if (unloaded < ship.cargo) {
         return { ...ship, state: "waiting", timer: 0, cargo: ship.cargo - unloaded };
       }
-      return ship.order ? afterOrder({ ...ship, cargo: 0 }, draft.dock, draft.asteroids)
+      return ship.order ? afterOrder({ ...ship, cargo: 0 }, draft.dock, draft.asteroids, draft.sectors)
         : ship.defaultBehaviour === "none" ? { ...ship, state: "holding", cargo: 0, order: null, leg: null, timer: 0 }
           : depart({ ...ship, cargo: 0 }, draft.dock, draft.asteroids, draft.ships);
   }
@@ -236,9 +264,11 @@ function settle(draft: Draft): void {
   const due = draft.respawns.filter((r) => r.timer <= 0);
   draft.respawns = draft.respawns.filter((r) => r.timer > 0);
   for (const respawn of due) {
-    const placed = placeAsteroid(draft.rng, draft.dock, [
+    const respawnSector = respawn.sectorId;
+    const centre = respawnSector === 0 ? draft.dock : { x: 0, y: 0 };
+    const placed = placeAsteroid(draft.rng, centre, [
       respawn.lastPosition,
-      ...draft.asteroids.map((a) => a.position),
+      ...draft.asteroids.filter((a) => a.sectorId === respawnSector).map((a) => a.position),
       ...draft.modules.map((module) => module.position),
       ...(draft.construction ? [draft.construction.position] : []),
     ]);
@@ -247,7 +277,7 @@ function settle(draft: Draft): void {
     draft.rng = material.state;
     draft.asteroids = [
       ...draft.asteroids,
-      { id: draft.nextAsteroidId, position: placed.position, size: ASTEROID_SIZE, ore: ASTEROID_ORE,
+      { id: draft.nextAsteroidId, sectorId: respawn.sectorId, position: placed.position, size: ASTEROID_SIZE, ore: ASTEROID_ORE,
         material: material.value < 0.5 ? "Metal" : "Ice" },
     ];
     draft.nextAsteroidId += 1;
@@ -257,6 +287,7 @@ function settle(draft: Draft): void {
   for (const job of draft.shipBuilds.filter((j) => j.timer <= 0)) {
     draft.ships = [...draft.ships, {
       id: draft.nextShipId,
+      sectorId: 0,
       design: job.design,
       state: "idle",
       position: { ...draft.dock },
@@ -298,6 +329,7 @@ export function tick(state: SimState, dt: number): SimState {
     construction: state.station.construction,
     shipBuilds: state.station.shipBuilds,
     dockCapacity: state.station.dock.capacity,
+    sectors: state.sectors,
   };
 
   // A negative or NaN dt would wind timers backwards, so it counts as no time.

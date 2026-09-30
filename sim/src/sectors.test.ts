@@ -1,0 +1,57 @@
+import { describe, expect, it } from "vitest";
+import { createInitialState, HOME_SECTOR, JUMP_SECONDS } from "./state";
+import { tick } from "./tick";
+import { giveOrder } from "./orders";
+
+describe("two linked sectors", () => {
+  it("creates two reproducibly named sectors with paired gates and rocks", () => {
+    const a = createInitialState(11);
+    const b = createInitialState(11);
+    expect(a.sectors).toHaveLength(2);
+    expect(a.sectors.map((s) => s.name)).toEqual(b.sectors.map((s) => s.name));
+    expect(a.sectors[0]!.name).not.toBe(a.sectors[1]!.name);
+    expect(a.sectors.map((s) => s.gate.to)).toEqual([1, 0]);
+    expect(new Set(a.asteroids.map((rock) => rock.sectorId))).toEqual(new Set([0, 1]));
+    for (const sector of a.sectors) {
+      expect(new Set(a.asteroids.filter((rock) => rock.sectorId === sector.id).map((rock) => rock.material)))
+        .toEqual(new Set(["Metal", "Ice"]));
+    }
+    expect(a.station.sectorId).toBe(HOME_SECTOR);
+  });
+
+  it("sends an ID-selected ship through gates to mine a distant-sector rock", () => {
+    const start = createInitialState(11);
+    const rock = start.asteroids.find((item) => item.sectorId !== HOME_SECTOR)!;
+    const state = giveOrder(start, [start.ships[0]!.id], { kind: "mine", asteroidId: rock.id });
+    expect(state.ships[0]!.target?.sectorId).toBe(rock.sectorId);
+    expect(state.sectors).toHaveLength(2);
+    expect(JUMP_SECONDS).toBe(2);
+    const jumped = tick(state, 1);
+    expect(jumped.ships[0]!.state).toBe("outbound");
+    expect(jumped.ships[0]!.leg?.to).toEqual(start.sectors[0]!.gate.position);
+  });
+
+  it("jumps out, mines, returns through the gate, and unloads at home", () => {
+    let state = createInitialState(19);
+    const rock = state.asteroids.find((item) => item.sectorId === 1)!;
+    state = giveOrder(state, [state.ships[0]!.id], { kind: "mine", asteroidId: rock.id });
+    const until = (done: (s: typeof state) => boolean, limit = 1000) => {
+      for (let time = 0; time < limit; time += 1 / 30) {
+        if (done(state)) return;
+        state = tick(state, 1 / 30);
+      }
+      throw new Error("condition not reached");
+    };
+    until((s) => s.ships[0]!.state === "jumpingOut");
+    expect(state.ships[0]!.position).toEqual(state.sectors[0]!.gate.position);
+    state = tick(state, JUMP_SECONDS);
+    expect(state.ships[0]!.sectorId).toBe(1);
+    until((s) => s.ships[0]!.state === "working");
+    until((s) => s.ships[0]!.state === "jumpingHome");
+    state = tick(state, JUMP_SECONDS);
+    expect(state.ships[0]!.sectorId).toBe(0);
+    until((s) => s.station.inventory[rock.material] > 20);
+    until((s) => s.ships[0]!.state === "outbound");
+    expect(state.ships[0]!.target?.sectorId).toBe(0);
+  });
+});
