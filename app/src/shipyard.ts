@@ -33,6 +33,10 @@ export function emptyDraft(): ShipDraft {
   return { cells: new Map(), module: "Engine", tool: "paint", size: 1 };
 }
 
+export function shouldDismissShipMenuOnMouseDown(menuOpen: boolean, insideMenu: boolean): boolean {
+  return menuOpen && !insideMenu;
+}
+
 export function withModule(draft: ShipDraft, module: ShipModule): ShipDraft {
   return { ...draft, module };
 }

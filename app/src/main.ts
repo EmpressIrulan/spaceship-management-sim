@@ -57,6 +57,7 @@ import {
   lineCells,
   placedDesign,
   shipMenuView,
+  shouldDismissShipMenuOnMouseDown,
   withModule,
   withSize,
   withTool,
@@ -179,6 +180,13 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
 });
+
+window.addEventListener("mousedown", (event) => {
+  if (shouldDismissShipMenuOnMouseDown(shipMenuBuilder !== null, shipMenu.contains(event.target as Node | null))) {
+    closeShipMenu();
+  }
+}, true);
+
 window.addEventListener("mousedown", (event) => {
   if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
 }, true);

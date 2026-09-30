@@ -19,6 +19,7 @@ import {
   lineCells,
   placedDesign,
   shipMenuView,
+  shouldDismissShipMenuOnMouseDown,
   withModule,
   withSize,
   withTool,
@@ -62,6 +63,18 @@ function rows(draft: ShipDraft): string {
 }
 
 describe("Build ship canvas", () => {
+  it("leaves a menu opened on mouseup open, then dismisses on a later outside mousedown", () => {
+    // The mousedown preceding the Builder mouseup happens before the menu exists.
+    expect(shouldDismissShipMenuOnMouseDown(false, false)).toBe(false);
+
+    // The Builder mouseup opens the menu; its following click does not dismiss it.
+    const opened = true;
+    expect(shouldDismissShipMenuOnMouseDown(opened, true)).toBe(false);
+
+    // A subsequent outside mousedown closes it.
+    expect(shouldDismissShipMenuOnMouseDown(opened, false)).toBe(true);
+  });
+
   it("opens empty, with nothing to build", () => {
     const draft = emptyDraft();
     expect(designOf(draft)).toEqual({ width: 0, height: 0, slots: [] });
