@@ -15,9 +15,6 @@ import {
 
 // Ship speed lives in motion.ts, and the mining and unloading rates in ship.ts.
 export { CARGO_PER_TRIP, MINING_GAP, UNLOADING_SECONDS, WORKING_SECONDS } from "./ship";
-export const ASTEROID_MIN_DISTANCE = 200;
-export const ASTEROID_MAX_DISTANCE = 400;
-export const ASTEROID_COUNT = 4;
 // Three full trips per asteroid.
 export const ASTEROID_ORE = 30;
 // Placeholder, to tune at the demo.
@@ -25,6 +22,25 @@ export const RESPAWN_SECONDS = 30;
 // Keeps asteroids from landing on top of each other, or a respawn from landing
 // where the last one ran out. About three asteroid widths.
 export const ASTEROID_MIN_SPACING = 40;
+// Rocks in the same belt or cluster may sit closer than that, or a belt would
+// have no room to fill a gap once one rock is mined out.
+export const ROCK_SPACING = 25;
+
+// Each sector has these fields, at points picked from its own seed. A belt is
+// an arc of a circle around its point, a cluster a disc.
+export const FIELD_LAYOUT = ["belt", "cluster", "belt", "cluster"] as const;
+export const BELT_ROCKS = 5;
+export const CLUSTER_ROCKS = 4;
+export const BELT_RADIUS = 100;
+export const BELT_SWEEP = 1.8;
+export const BELT_WIDTH = 24;
+export const CLUSTER_RADIUS = 55;
+// How far from the sector's origin a field's point can be. Not tied to the
+// station, which only happens to sit at the origin of the home sector.
+const FIELD_MIN_REACH = 180;
+const FIELD_MAX_REACH = 340;
+const FIELD_SEPARATION = 240;
+const FIELD_GATE_CLEARANCE = 150;
 
 export const MATERIALS = ["Metal", "Ice"] as const;
 export type Material = (typeof MATERIALS)[number];
@@ -124,14 +140,23 @@ export interface ModuleConstruction extends StationModule {
 export interface Asteroid {
   id: number;
   sectorId: number;
+  // The belt or cluster this rock belongs to, and comes back to when mined out.
+  fieldId: number;
   position: Vec;
   size: Size;
   ore: number;
   material: Material;
 }
 
+interface FieldBase { id: number; sectorId: number; centre: Vec; radius: number }
+export type AsteroidField =
+  | (FieldBase & { kind: "cluster" })
+  // The arc runs `sweep` radians from angle `from`, `width` thick.
+  | (FieldBase & { kind: "belt"; from: number; sweep: number; width: number });
+
 export interface Respawn {
   sectorId: number;
+  fieldId: number;
   // Seconds until a new asteroid appears.
   timer: number;
   // Where the emptied asteroid was, so the new one lands somewhere else.
@@ -145,6 +170,7 @@ export interface SimState {
   nextAsteroidId: number;
   nextShipId: number;
   sectors: Sector[];
+  fields: AsteroidField[];
   nextGateId: number;
   gateProjects: GateProject[];
   station: Station;
@@ -196,42 +222,66 @@ function distance(a: Vec, b: Vec): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-// A random spot in the band around the Dock, re-rolled if it lands too
-// close to anything in `avoid`. A station that fills the band pushes the
-// fallback outward rather than allowing an asteroid under a module.
-export function placeAsteroid(
+// A random spot inside a belt or cluster, re-rolled if it lands too close to
+// another rock (`rocks`) or to anything the station occupies (`blocked`). If
+// a station has filled the field, the fallback walks rings outward from it so
+// a growing station can never trap future rocks underneath itself.
+export function placeInField(
   rng: number,
-  dock: Vec,
-  avoid: Vec[],
+  field: AsteroidField,
+  rocks: Vec[],
+  blocked: Vec[],
 ): { position: Vec; rng: number } {
-  let position: Vec = dock;
+  const free = (position: Vec) =>
+    rocks.every((other) => distance(other, position) >= ROCK_SPACING)
+    && blocked.every((other) => distance(other, position) >= ASTEROID_MIN_SPACING);
   for (let attempt = 0; attempt < 200; attempt += 1) {
-    const angle = nextRandom(rng);
-    const band = nextRandom(angle.state);
-    rng = band.state;
-    const d =
-      ASTEROID_MIN_DISTANCE + band.value * (ASTEROID_MAX_DISTANCE - ASTEROID_MIN_DISTANCE);
-    position = {
-      x: dock.x + Math.cos(angle.value * 2 * Math.PI) * d,
-      y: dock.y + Math.sin(angle.value * 2 * Math.PI) * d,
-    };
-    if (avoid.every((other) => distance(other, position) >= ASTEROID_MIN_SPACING)) {
-      return { position, rng };
-    }
+    const along = nextRandom(rng);
+    const across = nextRandom(along.state);
+    rng = across.state;
+    const angle = field.kind === "belt" ? field.from + along.value * field.sweep : along.value * 2 * Math.PI;
+    const d = field.kind === "belt"
+      ? field.radius + (across.value - 0.5) * field.width
+      : field.radius * Math.sqrt(across.value);
+    const position = { x: field.centre.x + Math.cos(angle) * d, y: field.centre.y + Math.sin(angle) * d };
+    if (free(position)) return { position, rng };
   }
-  // A station can eventually occupy much of the starting asteroid band. If
-  // random retries cannot find a gap, walk deterministic rings outside it so
-  // a growing station can never trap future asteroids underneath itself.
+  const edge = field.radius + (field.kind === "belt" ? field.width / 2 : 0);
   for (let ring = 1; ; ring += 1) {
-    const radius = ASTEROID_MAX_DISTANCE + ring * ASTEROID_MIN_SPACING;
     for (let step = 0; step < 36; step += 1) {
       const angle = step * 2 * Math.PI / 36;
-      position = { x: dock.x + Math.cos(angle) * radius, y: dock.y + Math.sin(angle) * radius };
-      if (avoid.every((other) => distance(other, position) >= ASTEROID_MIN_SPACING)) {
-        return { position, rng };
-      }
+      const position = {
+        x: field.centre.x + Math.cos(angle) * (edge + ring * ROCK_SPACING),
+        y: field.centre.y + Math.sin(angle) * (edge + ring * ROCK_SPACING),
+      };
+      if (free(position)) return { position, rng };
     }
   }
+}
+
+// The sector's belts and clusters, each at a point of its own that keeps clear
+// of the others and of the gate.
+function makeFields(rng: number, sectorId: number, firstId: number, gate: Vec): { fields: AsteroidField[]; rng: number } {
+  const fields: AsteroidField[] = [];
+  for (const kind of FIELD_LAYOUT) {
+    let centre: Vec = { x: 0, y: 0 };
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const angle = nextRandom(rng);
+      const reach = nextRandom(angle.state);
+      rng = reach.state;
+      const d = FIELD_MIN_REACH + reach.value * (FIELD_MAX_REACH - FIELD_MIN_REACH);
+      centre = { x: Math.cos(angle.value * 2 * Math.PI) * d, y: Math.sin(angle.value * 2 * Math.PI) * d };
+      if (distance(centre, gate) >= FIELD_GATE_CLEARANCE
+        && fields.every((field) => distance(field.centre, centre) >= FIELD_SEPARATION)) break;
+    }
+    const spin = nextRandom(rng);
+    rng = spin.state;
+    const id = firstId + fields.length;
+    fields.push(kind === "belt"
+      ? { id, sectorId, kind, centre, radius: BELT_RADIUS, from: spin.value * 2 * Math.PI, sweep: BELT_SWEEP, width: BELT_WIDTH }
+      : { id, sectorId, kind, centre, radius: CLUSTER_RADIUS });
+  }
+  return { fields, rng };
 }
 
 // Where the straight line from `from` to the asteroid's centre crosses its
@@ -308,25 +358,6 @@ export function createInitialState(seed: number): SimState {
   const dockPosition = { x: 0, y: 0 };
   const storagePosition = { x: 40, y: 0 };
   let rng = seed >>> 0;
-  const positions: Vec[] = [];
-  for (let id = 0; id < ASTEROID_COUNT; id += 1) {
-    const placed = placeAsteroid(rng, dockPosition, [dockPosition, storagePosition, ...positions]);
-    rng = placed.rng;
-    positions.push(placed.position);
-  }
-
-  // Shuffle an even mix independently of distance, so either material can be
-  // the closest while every starting field contains both.
-  const materials: Material[] = ["Metal", "Metal", "Ice", "Ice"];
-  for (let i = materials.length - 1; i > 0; i -= 1) {
-    const choice = nextRandom(rng);
-    rng = choice.state;
-    const j = Math.floor(choice.value * (i + 1));
-    [materials[i], materials[j]] = [materials[j]!, materials[i]!];
-  }
-  const asteroids: Asteroid[] = positions.map((position, id) => ({
-    id, sectorId: HOME_SECTOR, position, size: ASTEROID_SIZE, ore: ASTEROID_ORE, material: materials[id]!,
-  }));
 
   const nameChoices = ["Kael", "Vela", "Oris", "Thara", "Mira", "Zorin", "Selen", "Draco", "Hyron", "Corin", "Neris", "Ulmar"];
   const sectorNames: string[] = [];
@@ -341,28 +372,37 @@ export function createInitialState(seed: number): SimState {
     return { id, name: sectorNames[id]!,
       gate: { position: { x: Math.cos(angle) * GATE_DISTANCE, y: Math.sin(angle) * GATE_DISTANCE }, size: GATE_SIZE, to: id < 2 ? 1 - id : id } };
   });
-  const farCenter = { x: 0, y: 0 };
-  const farPositions: Vec[] = [];
-  for (let id = 0; id < ASTEROID_COUNT; id += 1) {
-    const placed = placeAsteroid(rng, farCenter, farPositions);
-    rng = placed.rng; farPositions.push(placed.position);
-  }
-  const farMaterials: Material[] = ["Metal", "Metal", "Ice", "Ice"];
-  for (let i = farMaterials.length - 1; i > 0; i -= 1) {
-    const choice = nextRandom(rng); rng = choice.state;
-    const j = Math.floor(choice.value * (i + 1));
-    [farMaterials[i], farMaterials[j]] = [farMaterials[j]!, farMaterials[i]!];
-  }
-  asteroids.push(...farPositions.map((position, id) => ({ id: ASTEROID_COUNT + id, sectorId: 1,
-    position, size: ASTEROID_SIZE, ore: ASTEROID_ORE, material: farMaterials[id]! })));
-  for (const sectorId of [2, 3]) {
-    const sectorPositions: Vec[] = [];
-    for (let id = 0; id < ASTEROID_COUNT; id += 1) {
-      const placed = placeAsteroid(rng, { x: 0, y: 0 }, sectorPositions);
-      rng = placed.rng; sectorPositions.push(placed.position);
+
+  const fields: AsteroidField[] = [];
+  const asteroids: Asteroid[] = [];
+  for (const sector of sectors) {
+    const made = makeFields(rng, sector.id, fields.length, sector.gate.position);
+    rng = made.rng;
+    fields.push(...made.fields);
+    // Only the home sector has a station to keep clear of.
+    const blocked = sector.id === HOME_SECTOR ? [dockPosition, storagePosition] : [];
+    const placed: { field: AsteroidField; position: Vec }[] = [];
+    for (const field of made.fields) {
+      const count = field.kind === "belt" ? BELT_ROCKS : CLUSTER_ROCKS;
+      for (let i = 0; i < count; i += 1) {
+        const spot = placeInField(rng, field, placed.map((rock) => rock.position), blocked);
+        rng = spot.rng;
+        placed.push({ field, position: spot.position });
+      }
     }
-    asteroids.push(...sectorPositions.map((position, id) => ({ id: sectorId * ASTEROID_COUNT + id, sectorId,
-      position, size: ASTEROID_SIZE, ore: ASTEROID_ORE, material: id < 2 ? "Metal" as const : "Ice" as const })));
+    // An even mix shuffled independently of where the rocks are, so either
+    // material can be the closest while every sector contains both.
+    const materials: Material[] = placed.map((_, i) => (i < placed.length / 2 ? "Metal" : "Ice"));
+    for (let i = materials.length - 1; i > 0; i -= 1) {
+      const choice = nextRandom(rng);
+      rng = choice.state;
+      const j = Math.floor(choice.value * (i + 1));
+      [materials[i], materials[j]] = [materials[j]!, materials[i]!];
+    }
+    asteroids.push(...placed.map(({ field, position }, i) => ({
+      id: asteroids.length + i, sectorId: sector.id, fieldId: field.id, position, size: ASTEROID_SIZE, ore: ASTEROID_ORE,
+      material: materials[i]!,
+    })));
   }
 
   const idle: Ship = {
@@ -382,8 +422,9 @@ export function createInitialState(seed: number): SimState {
   return {
     tickCount: 0,
     rng,
-    nextAsteroidId: ASTEROID_COUNT * SECTOR_COUNT,
+    nextAsteroidId: asteroids.length,
     sectors,
+    fields,
     nextGateId: 0,
     gateProjects: [],
     nextShipId: 1,
