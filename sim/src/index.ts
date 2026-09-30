@@ -29,6 +29,8 @@ export {
   availableShipBuild,
   laserBeam,
   stationIncome,
+  setStorageLimit,
+  deleteStock,
   startModuleBuild,
   startShipBuild,
   startGateBuild,

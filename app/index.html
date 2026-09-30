@@ -92,7 +92,7 @@
         background: #1e293b;
         cursor: not-allowed;
       }
-      #ship-menu, #ship-panel {
+      #ship-menu, #ship-panel, #storage-panel {
         position: absolute;
         z-index: 2;
         box-sizing: border-box;
@@ -115,8 +115,9 @@
       #ship-menu .cost { white-space: pre-line; }
       #ship-menu .stats { white-space: pre-line; }
       #ship-panel { top: 56px; right: 12px; width: 200px; }
-      #ship-menu[hidden], #ship-panel[hidden] { display: none; }
-      #ship-menu h2, #ship-panel h2 { margin: 0; font-size: 14px; }
+      #storage-panel { top: 56px; left: 12px; width: min(390px, calc(100vw - 24px)); }
+      #ship-menu[hidden], #ship-panel[hidden], #storage-panel[hidden] { display: none; }
+      #ship-menu h2, #ship-panel h2, #storage-panel h2 { margin: 0; font-size: 14px; }
       #ship-menu .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
       #ship-menu button {
         padding: 4px 7px;
@@ -140,6 +141,11 @@
       #gate-menu { position: absolute; z-index: 3; padding: 6px; border: 1px solid #64748b; background: #1f2937; }
       #gate-menu[hidden] { display: none; }
       #gate-menu button { padding: 7px 10px; border: 1px solid #64748b; background: #334155; color: #f8fafc; font: 12px monospace; cursor: pointer; }
+      .storage-row { display: grid; grid-template-columns: 62px 52px minmax(70px, 1fr) minmax(70px, 1fr) auto; align-items: end; gap: 6px; margin-top: 10px; }
+      .storage-row label { display: grid; gap: 3px; color: #94a3b8; }
+      .storage-row .material, .storage-row .amount { padding-bottom: 6px; }
+      .storage-row input { box-sizing: border-box; width: 100%; padding: 5px; border: 1px solid #64748b; background: #0f172a; color: #f8fafc; font: 12px monospace; }
+      .storage-row button { padding: 5px 8px; border: 1px solid #f87171; background: #334155; color: #fecaca; font: 12px monospace; cursor: pointer; }
     </style>
   </head>
   <body>
@@ -151,6 +157,7 @@
     <div id="gate-menu" hidden><button>Build gate here</button></div>
     <div id="speed-controls"></div>
     <aside id="ship-panel" hidden></aside>
+    <aside id="storage-panel" hidden></aside>
     <div id="part-tip" hidden></div>
     <div id="info" hidden>
       <h2 id="info-title"></h2>

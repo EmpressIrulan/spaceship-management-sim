@@ -3,10 +3,12 @@ import {
   SHIP_MODULES,
   availableModuleBuildSites,
   createInitialState,
+  deleteStock,
   laserBeam,
   giveOrder,
   setDefaultBehaviour,
   resumeDefault,
+  setStorageLimit,
   shipSize,
   startModuleBuild,
   startShipBuild,
@@ -15,6 +17,7 @@ import {
   tick,
   type Beam,
   type ModuleType,
+  type Material,
   type Ship,
   type ShipDesign,
   type Size,
@@ -68,6 +71,7 @@ import {
   type ShipDraft,
 } from "./shipyard";
 import { moduleAppearance, stationConnectors } from "./station-appearance";
+import { deleteButtonAction, storagePanelRows } from "./storage";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -81,7 +85,8 @@ const partTipEl = document.querySelector<HTMLElement>("#part-tip");
 const sectorNameEl = document.querySelector<HTMLElement>("#sector-name");
 const gateMenuEl = document.querySelector<HTMLElement>("#gate-menu");
 const speedControlsEl = document.querySelector<HTMLElement>("#speed-controls");
-if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !partTipEl || !gateMenuEl) {
+const storagePanelEl = document.querySelector<HTMLElement>("#storage-panel");
+if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !partTipEl || !gateMenuEl || !storagePanelEl) {
   throw new Error("missing #screen canvas or #info box");
 }
 const shipMenu: HTMLElement = shipMenuEl;
@@ -95,6 +100,7 @@ const buildControls: HTMLElement = buildControlsEl;
 const buildMenu: HTMLElement = buildMenuEl;
 const gateMenu: HTMLElement = gateMenuEl;
 const speedControls: HTMLElement = speedControlsEl;
+const storagePanel: HTMLElement = storagePanelEl;
 
 const context = canvas.getContext("2d");
 if (!context) {
@@ -140,6 +146,72 @@ let dragBox: { start: Vec; end: Vec; additive: boolean } | null = null;
 let orderLines: { from: Vec[]; to: Vec; start: number } | null = null;
 let pendingGate: PendingGate | null = null;
 let clock = INITIAL_CLOCK;
+let storagePanelOpen = false;
+const deleteConfirmUntil = new Map<Material, number>();
+
+function openStoragePanel(): void {
+  storagePanelOpen = true;
+  storagePanel.hidden = false;
+  if (storagePanel.children.length > 0) return;
+  const title = document.createElement("h2");
+  title.textContent = "Storage";
+  const rows = storagePanelRows(state).map(({ material }) => {
+    const row = document.createElement("div"); row.className = "storage-row"; row.dataset.material = material;
+    const name = document.createElement("span"); name.className = "material"; name.textContent = material;
+    const amount = document.createElement("span"); amount.className = "amount";
+    const limitLabel = document.createElement("label"); limitLabel.textContent = "Limit";
+    const limit = document.createElement("input"); limit.type = "number"; limit.min = "0"; limit.placeholder = "No limit"; limit.dataset.limit = material; limitLabel.append(limit);
+    const deleteLabel = document.createElement("label"); deleteLabel.textContent = "Amount";
+    const quantity = document.createElement("input"); quantity.type = "number"; quantity.min = "1"; quantity.dataset.deleteAmount = material; deleteLabel.append(quantity);
+    const remove = document.createElement("button"); remove.textContent = "Delete"; remove.dataset.delete = material;
+    row.append(name, amount, limitLabel, deleteLabel, remove);
+    return row;
+  });
+  storagePanel.replaceChildren(title, ...rows);
+}
+
+function closeStoragePanel(): void {
+  storagePanelOpen = false;
+  storagePanel.hidden = true;
+  deleteConfirmUntil.clear();
+}
+
+function renderStoragePanel(now: number): void {
+  if (!storagePanelOpen) return;
+  for (const row of storagePanelRows(state)) {
+    const element = storagePanel.querySelector<HTMLElement>(`.storage-row[data-material="${row.material}"]`)!;
+    element.querySelector<HTMLElement>(".amount")!.textContent = String(row.amount);
+    const limit = element.querySelector<HTMLInputElement>("input[data-limit]")!;
+    if (document.activeElement !== limit) limit.value = row.limit;
+    const confirmUntil = deleteConfirmUntil.get(row.material);
+    const remove = element.querySelector<HTMLButtonElement>("button[data-delete]")!;
+    remove.textContent = confirmUntil !== undefined && now <= confirmUntil ? "Confirm" : "Delete";
+    if (confirmUntil !== undefined && now > confirmUntil) deleteConfirmUntil.delete(row.material);
+  }
+}
+
+storagePanel.addEventListener("change", (event) => {
+  const input = (event.target as HTMLElement).closest<HTMLInputElement>("input[data-limit]");
+  if (!input) return;
+  const value = input.value.trim() === "" ? null : Number(input.value);
+  if (value !== null && (!Number.isFinite(value) || value < 0)) return;
+  state = setStorageLimit(state, input.dataset.limit as Material, value);
+});
+
+storagePanel.addEventListener("click", (event) => {
+  const remove = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-delete]");
+  if (!remove) return;
+  const material = remove.dataset.delete as Material;
+  const action = deleteButtonAction(deleteConfirmUntil.get(material) ?? null, performance.now());
+  if (action.deleteNow) {
+    const quantity = storagePanel.querySelector<HTMLInputElement>(`input[data-delete-amount="${material}"]`)!;
+    const amount = Number(quantity.value);
+    if (quantity.value !== "" && Number.isFinite(amount) && amount > 0) state = deleteStock(state, material, amount);
+    quantity.value = "";
+    deleteConfirmUntil.delete(material);
+  } else deleteConfirmUntil.set(material, action.confirmUntil!);
+  renderStoragePanel(performance.now());
+});
 
 function closeGateMenu(): void {
   gateMenu.hidden = true;
@@ -481,6 +553,10 @@ window.addEventListener("mouseup", (event) => {
       }
     } else if (event.target === canvas) {
       const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
+      const clickedStorage = hovered?.kind === "storage"
+        || (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Storage");
+      if (clickedStorage) openStoragePanel();
+      else if (!hovered) closeStoragePanel();
       if (hovered?.kind === "ship") selectedShips = additive ? toggleShip(selectedShips, state.ships[hovered.index]!.id) : [state.ships[hovered.index]!.id];
       else if (!additive) selectedShips = [];
       selectedShip = selectedShips[0] ?? null;
@@ -900,6 +976,7 @@ function draw(seconds: number): void {
     if (gauge) drawGauge(ship.position, gauge, shipSize(ship.design));
   }
   renderShipPanel();
+  renderStoragePanel(performance.now());
   renderPartTip();
 
   if (sectorNameEl) sectorNameEl.textContent = state.sectors[currentSector]!.name;

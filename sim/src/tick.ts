@@ -64,6 +64,7 @@ interface Draft {
   // The Dock module's position, the station's home point and route origin.
   dock: Vec;
   storageCapacity: number;
+  storageLimits: Station["storageLimits"];
   inventory: SimState["station"]["inventory"];
   asteroids: Asteroid[];
   respawns: SimState["respawns"];
@@ -111,13 +112,22 @@ function berthFree(draft: Draft): boolean {
 
 function unload(draft: Draft, ship: Ship, units: number): number {
   if (units <= 0 || !ship.cargoMaterial) return 0;
-  const accepted = Math.min(units, storageRemaining(draft));
+  const limit = draft.storageLimits[ship.cargoMaterial];
+  const materialRoom = limit === null ? Infinity : Math.max(0, limit - draft.inventory[ship.cargoMaterial]);
+  const accepted = Math.min(units, storageRemaining(draft), materialRoom);
   if (accepted > 0) draft.deliveries = [...draft.deliveries, { at: draft.time, material: ship.cargoMaterial, amount: accepted }];
   draft.inventory = {
     ...draft.inventory,
     [ship.cargoMaterial]: draft.inventory[ship.cargoMaterial] + accepted,
   };
-  return accepted;
+  const atLimit = limit !== null && draft.inventory[ship.cargoMaterial] >= limit;
+  return accepted + (atLimit ? units - accepted : 0);
+}
+
+function canProcessCargo(draft: Draft, ship: Ship): boolean {
+  if (!ship.cargoMaterial) return false;
+  const limit = draft.storageLimits[ship.cargoMaterial];
+  return storageRemaining(draft) > 0 || (limit !== null && draft.inventory[ship.cargoMaterial] >= limit);
 }
 
 // Moves a ship partway through its current state, leaving `timer` seconds.
@@ -253,7 +263,7 @@ function finish(draft: Draft, ship: Ship): Ship {
     case "waiting":
       // Room can appear without any ship moving, when a Storage module
       // completes, and a berth frees up when another ship finishes unloading.
-      if (ship.cargo > 0 && storageRemaining(draft) > 0 && berthFree(draft)) {
+      if (ship.cargo > 0 && canProcessCargo(draft, ship) && berthFree(draft)) {
         return { ...ship, state: "unloading", timer: unloadingSeconds(ship.design) };
       }
       return ship;
@@ -286,7 +296,7 @@ function finish(draft: Draft, ship: Ship): Ship {
       };
     case "homebound":
       if (ship.sectorId !== HOME_SECTOR) return { ...ship, state: "jumpingHome", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
-      if (ship.cargo > 0 && (storageRemaining(draft) === 0 || !berthFree(draft))) {
+      if (ship.cargo > 0 && (!canProcessCargo(draft, ship) || !berthFree(draft))) {
         return { ...ship, state: "waiting", position: { ...draft.dock }, timer: 0 };
       }
       return { ...ship, state: "unloading", position: { ...draft.dock }, leg: null, timer: unloadingSeconds(ship.design) };
@@ -407,6 +417,7 @@ export function tick(state: SimState, dt: number): SimState {
     nextShipId: state.nextShipId,
     dock: state.station.dock.position,
     storageCapacity: state.station.storage.capacity,
+    storageLimits: state.station.storageLimits,
     inventory: state.station.inventory,
     asteroids: state.asteroids,
     respawns: state.respawns,
