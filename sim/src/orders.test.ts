@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, JUMP_SECONDS, type SimState } from "./state";
+import { createInitialState, JUMP_SECONDS, startGateBuild, type SimState } from "./state";
 import { tick } from "./tick";
 import { giveOrder, formation, resumeDefault, setDefaultBehaviour } from "./orders";
 
@@ -34,6 +34,36 @@ function farSector(state: SimState, changes: Partial<SimState["ships"][number]> 
 }
 
 describe("RTS ship orders", () => {
+  it("loads Storage ships and loops deliveries to a gate project", () => {
+    let start = startGateBuild(createInitialState(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    start = { ...start, station: { ...start.station, inventory: { Metal: 200, Ice: 200 } },
+      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
+    const ordered = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
+    expect(ordered.ships[0]).toMatchObject({ state: "gateHauling", cargoMaterial: "Metal", cargo: 20 });
+    expect(ordered.station.inventory.Metal).toBe(180);
+    const delivered = until(ordered, (state) => state.gateProjects[0]!.delivered.Metal > 0);
+    expect(delivered.gateProjects[0]!.delivered.Metal).toBe(20);
+    expect(delivered.ships[0]!.order).toEqual({ kind: "haulGate", gateId: 0 });
+  });
+
+  it("activates a paid gate and moves a ship through its player-placed ends", () => {
+    let start = startGateBuild(createInitialState(7), 0, { x: 1, y: 2 }, 3, { x: 30, y: 40 });
+    start = { ...start,
+      gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 200, Ice: 180 } }],
+      station: { ...start.station, inventory: { Metal: 0, Ice: 20 } },
+      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
+    const hauling = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
+    const active = until(hauling, (state) => state.gateProjects[0]!.complete);
+    expect(active.gateProjects[0]!.delivered).toEqual({ Metal: 200, Ice: 200 });
+    const ordered = giveOrder(active, [0], { kind: "move", point: { x: 60, y: 70 }, sectorId: 3 });
+    expect(ordered.ships[0]!.leg?.to).toEqual({ x: 1, y: 2 });
+    const arrived = until(ordered, (state) => state.ships[0]!.sectorId === 3);
+    expect(arrived.ships[0]!.position).toEqual({ x: 30, y: 40 });
+    const homeward = giveOrder({ ...arrived, ships: [{ ...arrived.ships[0]!, state: "holding", timer: 0, leg: null }] }, [0], { kind: "home" });
+    expect(homeward.ships[0]!.leg?.to).toEqual({ x: 30, y: 40 });
+    const home = until(homeward, (state) => state.ships[0]!.sectorId === 0);
+    expect(home.ships[0]!.position).toEqual({ x: 1, y: 2 });
+  });
   it("starts new ships on Mine for Station", () => {
     expect(fleet(1).ships[0]!.defaultBehaviour).toBe("mine");
   });

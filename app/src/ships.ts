@@ -74,6 +74,10 @@ export function shipStatus(state: SimState, ship: Ship): string {
     case "jumpingOut":
     case "jumpingHome":
       return "Jumping";
+    case "gateHauling":
+      return `Hauling ${ship.cargo} ${ship.cargoMaterial ?? "ore"} to gate`;
+    case "gateReturning":
+      return "Returning to Storage";
   }
 }
 

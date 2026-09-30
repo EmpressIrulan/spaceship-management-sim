@@ -22,6 +22,10 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "jumpingOut":
     case "jumpingHome":
       return null;
+    case "gateReturning":
+      return null;
+    case "gateHauling":
+      return { fill: shipStats(ship.design).hold ? ship.cargo / shipStats(ship.design).hold : 0, text };
     case "waiting":
       return { fill: ship.cargo / hold, text };
     case "working":
@@ -84,6 +88,10 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
     return ship ? { title: "Ship", line: shipStatus(state, ship) } : null;
+  }
+  if (hovered.kind === "gateProject") {
+    const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
+    return project ? { title: "Gate", line: `Gate ${project.delivered.Metal} / 200 Metal, ${project.delivered.Ice} / 200 Ice` } : null;
   }
   const asteroid = state.asteroids.find((a) => a.id === hovered.id);
   return asteroid ? { title: "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;

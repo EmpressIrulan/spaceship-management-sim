@@ -98,4 +98,16 @@ describe("hover box", () => {
     const gone = { ...state, asteroids: state.asteroids.filter((a) => a.id !== asteroid.id) };
     expect(infoBox(gone, { kind: "asteroid", id: asteroid.id })).toBeNull();
   });
+
+  it("shows delivered gate materials on either outlined end", () => {
+    const building = {
+      ...state,
+      gateProjects: [{ id: 4, ends: [{ sectorId: 0, position: { x: 80, y: 0 } }, { sectorId: 3, position: { x: 0, y: 80 } }],
+        delivered: { Metal: 30, Ice: 10 }, complete: false }],
+    } as typeof state;
+    expect(infoBox(building, { kind: "gateProject", id: 4 })).toEqual({
+      title: "Gate",
+      line: "Gate 30 / 200 Metal, 10 / 200 Ice",
+    });
+  });
 });

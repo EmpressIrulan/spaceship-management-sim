@@ -13,6 +13,7 @@ export function toggleShip(selected: number[], id: number): number[] {
   return selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id].sort((a, b) => a - b);
 }
 export function orderTargetAt(state: SimState, hovered: Hovered | null, world: Vec, currentSector = 0): OrderTarget {
+  if (hovered?.kind === "gateProject") return { kind: "haulGate", gateId: hovered.id };
   if (hovered?.kind === "asteroid") return { kind: "mine", asteroidId: hovered.id };
   if (hovered?.kind === "dock" || (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Dock")) return { kind: "home" };
   return { kind: "move", point: world, sectorId: currentSector };

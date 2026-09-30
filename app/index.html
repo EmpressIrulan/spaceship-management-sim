@@ -129,6 +129,9 @@
       #ship-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 8px 0 0; }
       #ship-panel dt { color: #94a3b8; }
       #ship-panel dd { margin: 0; }
+      #gate-menu { position: absolute; z-index: 3; padding: 6px; border: 1px solid #64748b; background: #1f2937; }
+      #gate-menu[hidden] { display: none; }
+      #gate-menu button { padding: 7px 10px; border: 1px solid #64748b; background: #334155; color: #f8fafc; font: 12px monospace; cursor: pointer; }
     </style>
   </head>
   <body>
@@ -137,6 +140,7 @@
     <div id="build-controls" hidden></div>
     <div id="build-menu" hidden></div>
     <div id="ship-menu" hidden></div>
+    <div id="gate-menu" hidden><button>Build gate here</button></div>
     <aside id="ship-panel" hidden></aside>
     <div id="info" hidden>
       <h2 id="info-title"></h2>
