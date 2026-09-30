@@ -9,6 +9,7 @@ import {
   GATE_COST,
   JUMP_SECONDS,
   HOME_SECTOR,
+  INCOME_WINDOW_SECONDS,
   RESPAWN_SECONDS,
   STORAGE_CAPACITY,
   depart,
@@ -55,6 +56,8 @@ function miningSeconds(ship: Ship): number {
 // Mutable copy of the parts of SimState that one tick changes. Built fresh
 // from the input, so the caller's state is never touched.
 interface Draft {
+  time: number;
+  deliveries: Station["deliveries"];
   rng: number;
   nextAsteroidId: number;
   nextShipId: number;
@@ -108,6 +111,7 @@ function berthFree(draft: Draft): boolean {
 function unload(draft: Draft, ship: Ship, units: number): number {
   if (units <= 0 || !ship.cargoMaterial) return 0;
   const accepted = Math.min(units, storageRemaining(draft));
+  if (accepted > 0) draft.deliveries = [...draft.deliveries, { at: draft.time, material: ship.cargoMaterial, amount: accepted }];
   draft.inventory = {
     ...draft.inventory,
     [ship.cargoMaterial]: draft.inventory[ship.cargoMaterial] + accepted,
@@ -312,6 +316,7 @@ function nextEvent(draft: Draft): number {
 }
 
 function advance(draft: Draft, seconds: number): void {
+  draft.time += seconds;
   draft.respawns = draft.respawns.map((r) => ({ ...r, timer: r.timer - seconds }));
   draft.ships = draft.ships.map((ship) => progress(draft, ship, ship.timer - seconds));
   if (draft.construction) {
@@ -385,6 +390,8 @@ function settle(draft: Draft): void {
 // the order they would have happened.
 export function tick(state: SimState, dt: number): SimState {
   const draft: Draft = {
+    time: state.time,
+    deliveries: state.station.deliveries,
     rng: state.rng,
     nextAsteroidId: state.nextAsteroidId,
     nextShipId: state.nextShipId,
@@ -414,6 +421,7 @@ export function tick(state: SimState, dt: number): SimState {
   return {
     ...state,
     tickCount: state.tickCount + 1,
+    time: draft.time,
     rng: draft.rng,
     nextAsteroidId: draft.nextAsteroidId,
     nextShipId: draft.nextShipId,
@@ -422,6 +430,7 @@ export function tick(state: SimState, dt: number): SimState {
       dock: { ...state.station.dock, capacity: draft.dockCapacity },
       storage: { ...state.station.storage, capacity: draft.storageCapacity },
       inventory: draft.inventory,
+      deliveries: draft.deliveries.filter((delivery) => delivery.at > draft.time - INCOME_WINDOW_SECONDS),
       modules: draft.modules,
       construction: draft.construction,
       shipBuilds: draft.shipBuilds,

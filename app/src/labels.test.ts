@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CARGO_PER_TRIP,
   GATE_COST,
+  INCOME_WINDOW_SECONDS,
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
@@ -71,7 +72,7 @@ describe("hover box", () => {
     const stocked = { ...state, station: { ...state.station, inventory: { Metal: 40, Ice: 0 } } };
     expect(infoBox(stocked, { kind: "storage" })).toEqual({
       title: "Storage",
-      line: "Stored 40 / 100\nMetal: 40",
+      line: "Stored 40 / 100\nMetal: 40\nIncome: Metal +0/min, Ice +0/min",
     });
   });
 
@@ -88,7 +89,7 @@ describe("hover box", () => {
         ],
       },
     };
-    const expected = { title: "Storage", line: "Stored 110 / 200\nMetal: 70\nIce: 40" };
+    const expected = { title: "Storage", line: "Stored 110 / 200\nMetal: 70\nIce: 40\nIncome: Metal +0/min, Ice +0/min" };
     expect(infoBox(grown, { kind: "storage" })).toEqual(expected);
     expect(infoBox(grown, { kind: "module", index: 2 })).toEqual(expected);
   });
@@ -131,5 +132,34 @@ describe("hover box", () => {
     } as typeof state;
     expect(infoBox(completed, { kind: "gateProject", id: 5, end: 0 })).toEqual({ title: "Gate", line: "Gate to " + completed.sectors[3]!.name });
     expect(infoBox(completed, { kind: "gateProject", id: 5, end: 1 })).toEqual({ title: "Gate", line: "Gate to " + completed.sectors[0]!.name });
+  });
+});
+
+describe("storage income", () => {
+  const delivered = (deliveries: { at: number; material: "Metal" | "Ice"; amount: number }[], time: number) => {
+    const state = createInitialState(1);
+    return { ...state, time, station: { ...state.station, deliveries } };
+  };
+
+  it("reads per material over the last game minute", () => {
+    const state = delivered([{ at: 50, material: "Metal", amount: 42 }, { at: 70, material: "Ice", amount: 18 }], 100);
+    const box = infoBox(state, { kind: "storage" });
+    expect(box?.line).toContain("Income: Metal +42/min, Ice +18/min");
+  });
+
+  it("shows zero for a material that has not come in", () => {
+    const box = infoBox(delivered([], 100), { kind: "storage" });
+    expect(box?.line).toContain("Income: Metal +0/min, Ice +0/min");
+  });
+
+  it("drops deliveries older than a minute", () => {
+    const state = delivered([{ at: 10, material: "Metal", amount: 9 }], 10 + INCOME_WINDOW_SECONDS + 1);
+    expect(infoBox(state, { kind: "storage" })?.line).toContain("Metal +0/min");
+  });
+
+  it("shows on a built Storage module as well", () => {
+    const state = delivered([{ at: 90, material: "Ice", amount: 5 }], 100);
+    const index = state.station.modules.findIndex((module) => module.type === "Storage");
+    expect(infoBox(state, { kind: "module", index })?.line).toContain("Ice +5/min");
   });
 });

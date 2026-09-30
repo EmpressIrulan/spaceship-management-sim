@@ -46,6 +46,7 @@ import {
   dismissBuildMenuForKey,
   pointerInBuildArea,
 } from "./building";
+import { INITIAL_CLOCK, clockAfterButton, clockAfterKey, gameSeconds, speedButtons, type SpeedButtonId } from "./speed";
 import { shipBlocks, shipPanel, slotColor } from "./ships";
 import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 import {
@@ -68,7 +69,8 @@ const shipMenuEl = document.querySelector<HTMLElement>("#ship-menu");
 const shipPanelEl = document.querySelector<HTMLElement>("#ship-panel");
 const sectorNameEl = document.querySelector<HTMLElement>("#sector-name");
 const gateMenuEl = document.querySelector<HTMLElement>("#gate-menu");
-if (!canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !gateMenuEl) {
+const speedControlsEl = document.querySelector<HTMLElement>("#speed-controls");
+if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !gateMenuEl) {
   throw new Error("missing #screen canvas or #info box");
 }
 const shipMenu: HTMLElement = shipMenuEl;
@@ -80,6 +82,7 @@ const boxLine: HTMLElement = lineEl;
 const buildControls: HTMLElement = buildControlsEl;
 const buildMenu: HTMLElement = buildMenuEl;
 const gateMenu: HTMLElement = gateMenuEl;
+const speedControls: HTMLElement = speedControlsEl;
 
 const context = canvas.getContext("2d");
 if (!context) {
@@ -113,6 +116,7 @@ let pan: { last: Vec } | null = null;
 let dragBox: { start: Vec; end: Vec; additive: boolean } | null = null;
 let orderLines: { from: Vec[]; to: Vec; start: number } | null = null;
 let pendingGate: PendingGate | null = null;
+let clock = INITIAL_CLOCK;
 
 function closeGateMenu(): void {
   gateMenu.hidden = true;
@@ -172,11 +176,40 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeGateMenu();
   if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
   if (shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
-  if (!(event.target instanceof HTMLSelectElement)) heldKeys.add(event.key);
+  if (!(event.target instanceof HTMLSelectElement)) {
+    heldKeys.add(event.key);
+    const next = clockAfterKey(clock, event.key);
+    if (next !== clock) { clock = next; event.preventDefault(); }
+  }
   if (event.key.startsWith("Arrow")) event.preventDefault();
 });
 window.addEventListener("keyup", (event) => { heldKeys.delete(event.key); heldKeys.delete(event.key.toLowerCase()); });
 window.addEventListener("blur", () => heldKeys.clear());
+
+speedControls.addEventListener("click", (event) => {
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-speed]");
+  if (!target) return;
+  clock = clockAfterButton(clock, target.dataset.speed as SpeedButtonId);
+  // Focus would make a later Space press click this button as well.
+  target.blur();
+});
+
+function renderSpeedControls(): void {
+  const buttons = speedButtons(clock);
+  if (speedControls.children.length !== buttons.length) {
+    speedControls.replaceChildren(...buttons.map((item) => {
+      const element = document.createElement("button");
+      element.dataset.speed = item.id;
+      element.textContent = item.label;
+      return element;
+    }));
+  }
+  buttons.forEach((item, index) => {
+    const element = speedControls.children[index] as HTMLButtonElement;
+    element.classList.toggle("active", item.active);
+    element.setAttribute("aria-pressed", String(item.active));
+  });
+}
 
 function button(text: string, data: Record<string, string>, pressed = false): HTMLButtonElement {
   const element = document.createElement("button");
@@ -694,7 +727,11 @@ function frame(nowMs: number): void {
   lastTimeMs = nowMs;
   const movement = keyPan(heldKeys, dt);
   if (movement.x || movement.y) camera = panBy(camera, movement.x, movement.y);
-  state = tick(state, dt);
+  // Paused frames skip the tick, so selecting, ordering and the menus keep
+  // working on a state that simply does not advance.
+  const seconds = gameSeconds(clock, dt);
+  if (seconds > 0) state = tick(state, seconds);
+  renderSpeedControls();
   draw(nowMs / 1000);
   requestAnimationFrame(frame);
 }
