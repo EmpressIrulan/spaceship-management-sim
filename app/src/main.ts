@@ -34,7 +34,7 @@ import {
 } from "./camera";
 import { cargoGauge, infoBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
-import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, type PendingGate } from "./sectors";
+import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, sectorBackdrop, type PendingGate } from "./sectors";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
 import {
   buildControlSize,
@@ -700,8 +700,40 @@ function drawOrderFeedback(seconds: number): void {
   }
 }
 
+function backdropNumber(sectorId: number, index: number, salt: number): number {
+  let value = (sectorId + 1) * 0x9e3779b1 ^ (index + 1) * 0x85ebca6b ^ salt;
+  value = Math.imul(value ^ value >>> 16, 0x7feb352d);
+  value = Math.imul(value ^ value >>> 15, 0x846ca68b);
+  return ((value ^ value >>> 16) >>> 0) / 2 ** 32;
+}
+
+function drawBackdrop(sectorId: number): void {
+  const backdrop = sectorBackdrop(sectorId);
+  ctx.fillStyle = backdrop.background;
+  ctx.fillRect(0, 0, viewport.width, viewport.height);
+
+  const glowX = viewport.width * (0.2 + backdropNumber(sectorId, 0, 17) * 0.6);
+  const glowY = viewport.height * (0.2 + backdropNumber(sectorId, 0, 31) * 0.6);
+  const glowRadius = Math.max(viewport.width, viewport.height) * 0.7;
+  const glow = ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, glowRadius);
+  glow.addColorStop(0, backdrop.wash);
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, viewport.width, viewport.height);
+
+  ctx.fillStyle = backdrop.starColor;
+  for (let index = 0; index < backdrop.starCount; index += 1) {
+    const x = Math.floor(backdropNumber(sectorId, index, 101) * viewport.width);
+    const y = Math.floor(backdropNumber(sectorId, index, 211) * viewport.height);
+    const size = backdropNumber(sectorId, index, 307) > 0.88 ? 2 : 1;
+    ctx.globalAlpha = 0.35 + backdropNumber(sectorId, index, 401) * 0.65;
+    ctx.fillRect(x, y, size, size);
+  }
+  ctx.globalAlpha = 1;
+}
+
 function draw(seconds: number): void {
-  ctx.clearRect(0, 0, viewport.width, viewport.height);
+  drawBackdrop(currentSector);
   drawOrderFeedback(seconds);
 
   const sectorRocks = state.asteroids.filter((asteroid) => asteroid.sectorId === currentSector);
@@ -843,7 +875,7 @@ function draw(seconds: number): void {
     for (const circle of layout.circles) {
       const available = !pendingGate || circle.id === pendingGate.sectorId || sectorInGateRange(pendingGate.sectorId, circle.id);
       ctx.beginPath(); ctx.arc(circle.center.x, circle.center.y, circle.radius, 0, Math.PI * 2);
-      ctx.fillStyle = available ? "#1e293b" : "#334155";
+      ctx.fillStyle = available ? circle.tint : "#334155";
       ctx.globalAlpha = available ? 1 : 0.55;
       ctx.fill(); ctx.strokeStyle = available ? "#67e8f9" : "#64748b"; ctx.stroke();
       ctx.fillStyle = "#f8fafc"; ctx.textAlign = "center"; ctx.font = "14px monospace";

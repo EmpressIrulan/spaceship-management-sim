@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, sectorInGateRange } from "sim";
-import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled } from "./sectors";
+import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, sectorBackdrop } from "./sectors";
 
 describe("sector map", () => {
   it("toggles with M, closes with Escape, and otherwise stays open", () => {
@@ -19,6 +19,22 @@ describe("sector map", () => {
     expect(layout.circles.map((circle) => circle.ships)).toEqual([1, 0, 0, 0]);
     expect(mapHit(layout, layout.circles[1]!.center)).toBe(1);
     expect(mapHit(layout, { x: 0, y: 0 })).toBeNull();
+  });
+
+  it("gives every sector a distinct backdrop and matching map tint", () => {
+    const state = createInitialState(11);
+    const backdrops = state.sectors.map((sector) => sectorBackdrop(sector.id));
+    const layout = mapLayout(state, { width: 1000, height: 640 });
+
+    expect(new Set(backdrops.map((backdrop) => backdrop.background)).size).toBe(state.sectors.length);
+    expect(new Set(backdrops.map((backdrop) => backdrop.starCount)).size).toBeGreaterThan(1);
+    expect(layout.circles.map((circle) => circle.tint)).toEqual(backdrops.map((backdrop) => backdrop.tint));
+  });
+
+  it("swaps backdrop identity when the viewed sector changes", () => {
+    expect(sectorBackdrop(0)).not.toEqual(sectorBackdrop(1));
+    expect(sectorBackdrop(1).background).toBe("#321616");
+    expect(sectorBackdrop(2).background).toBe("#07313a");
   });
 
   it("puts exactly two sectors within gate-building range of Home", () => {
