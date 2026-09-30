@@ -13,6 +13,7 @@ import {
   createInitialState,
   laserBeam,
   giveOrder,
+  configureHaul,
   setDefaultBehaviour,
   resumeDefault,
   shipSize,
@@ -22,6 +23,9 @@ import {
   sectorInGateRange,
   tick,
   type Beam,
+  type DefaultBehaviour,
+  type HaulStationId,
+  type Material,
   type ModuleType,
   type Ship,
   type ShipDesign,
@@ -551,7 +555,18 @@ gateMenu.addEventListener("click", () => {
 });
 
 shipPanelBox.addEventListener("change", (event) => {
-  if ((event.target as HTMLSelectElement).name === "default") state = setDefaultBehaviour(state, selectedShips, (event.target as HTMLSelectElement).value as "mine" | "none");
+  const select = event.target as HTMLSelectElement;
+  if (select.name === "default") state = setDefaultBehaviour(state, selectedShips, select.value as DefaultBehaviour);
+  if (["haul-from", "haul-to", "haul-material"].includes(select.name)) {
+    const panel = selectionPanel(state, selectedShips);
+    const route = panel?.haulRoute;
+    if (!route) return;
+    state = configureHaul(state, selectedShips, {
+      from: select.name === "haul-from" ? select.value as HaulStationId : route.from,
+      to: select.name === "haul-to" ? select.value as HaulStationId : route.to,
+      material: select.name === "haul-material" ? select.value as Material : route.material,
+    });
+  }
 });
 shipPanelBox.addEventListener("click", (event) => {
   if ((event.target as HTMLElement).closest("button[data-resume]")) state = resumeDefault(state, selectedShips);
@@ -701,13 +716,29 @@ function renderShipPanel(): void {
     rows.append(term, detail);
   }
   const select = document.createElement("select"); select.name = "default";
-  for (const [value, label] of [["mine", "Default: Mine for Station"], ["none", "Default: None"]] as const) {
+  for (const [value, label] of [["mine", "Default: Mine for Station"], ["haul", "Default: Haul"], ["none", "Default: None"]] as const) {
     const option = document.createElement("option"); option.value = value; option.textContent = label;
+    if (value === "haul" && !list.canHaul) { option.disabled = true; option.title = list.haulDisabledReason ?? ""; }
     option.selected = list.defaultBehaviour === value; select.append(option);
   }
   if (list.defaultBehaviour === "mixed") { const mixed = document.createElement("option"); mixed.textContent = "Default: Mixed"; mixed.selected = true; select.prepend(mixed); }
+  if (!list.canHaul) select.title = list.haulDisabledReason ?? "";
+  const routeControls: HTMLElement[] = [];
+  if (list.defaultBehaviour === "haul" && list.haulRoute) {
+    const routeSelect = (name: "haul-from" | "haul-to", label: string, value: HaulStationId) => {
+      const wrap = document.createElement("label"); wrap.textContent = `${label} `;
+      const input = document.createElement("select"); input.name = name;
+      for (const station of list.stations) { const option = document.createElement("option"); option.value = station.id; option.textContent = station.name; option.selected = station.id === value; input.append(option); }
+      wrap.append(input); return wrap;
+    };
+    routeControls.push(routeSelect("haul-from", "From", list.haulRoute.from), routeSelect("haul-to", "To", list.haulRoute.to));
+    const material = document.createElement("label"); material.textContent = "Material ";
+    const materialSelect = document.createElement("select"); materialSelect.name = "haul-material";
+    for (const value of ["Metal", "Ice"] as const) { const option = document.createElement("option"); option.value = value; option.textContent = value; option.selected = value === list.haulRoute.material; materialSelect.append(option); }
+    material.append(materialSelect); routeControls.push(material);
+  }
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
-  shipPanelBox.replaceChildren(title, rows, select, resume, ...(selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
+  shipPanelBox.replaceChildren(title, rows, select, ...routeControls, resume, ...(selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
 }
 
 // Screen-space so the numbers stay readable at any zoom.

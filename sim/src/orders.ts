@@ -1,9 +1,10 @@
 import { claimSiteBuilt } from "./claim";
+import { haulStations, resumeHaulShip, validHaulRoute } from "./haul";
 import { travelSeconds } from "./motion";
 import { canMine, shipSize, shipStats, speedFactor, unloadingSeconds } from "./ship";
 import {
   depart, GATE_COST, gateRoute, HOME_SECTOR, miningSite, nearestWithOre, type Asteroid, type DefaultBehaviour, type Order,
-  type Sector, type Ship, type SimState, type Vec,
+  type HaulRoute, type Sector, type Ship, type SimState, type Vec,
 } from "./state";
 
 const SPACING = 2 * 3 * 4.5;
@@ -60,6 +61,11 @@ function resume(ship: Ship, dock: Vec, asteroids: Asteroid[], sectors: Sector[],
   const rock = nearestWithOre(dock, asteroids.filter((a) => a.sectorId === HOME_SECTOR));
   if (!rock || !canMine(ship.design)) return { ...ship, state: "idle", timer: 0, leg: null, target: null };
   return startMining(ship, rock, dock, sectors, gateProjects);
+}
+
+function resumeInState(state: SimState, ship: Ship): Ship {
+  return ship.defaultBehaviour === "haul" ? resumeHaulShip(state, ship)
+    : resume(ship, state.station.dock.position, state.asteroids, state.sectors, state.gateProjects);
 }
 
 export function afterOrder(ship: Ship, dock: Vec, asteroids: Asteroid[], sectors: Sector[], gateProjects: SimState["gateProjects"]): Ship {
@@ -161,13 +167,26 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
 
 export function resumeDefault(state: SimState, ids: number[]): SimState {
   return { ...state, ships: state.ships.map((ship) => ids.includes(ship.id) && ship.order
-    ? resume({ ...ship, order: null }, state.station.dock.position, state.asteroids, state.sectors, state.gateProjects) : ship) };
+    ? resumeInState(state, { ...ship, order: null }) : ship) };
 }
 
 export function setDefaultBehaviour(state: SimState, ids: number[], behaviour: DefaultBehaviour): SimState {
+  if (behaviour === "haul" && haulStations(state).length < 2) return state;
   return { ...state, ships: state.ships.map((ship) => {
     if (!ids.includes(ship.id)) return ship;
-    const next = { ...ship, defaultBehaviour: behaviour };
-    return next.state === "holding" && !next.order ? resume(next, state.station.dock.position, state.asteroids, state.sectors, state.gateProjects) : next;
+    const stations = haulStations(state);
+    const haulRoute = ship.haulRoute ?? (stations[1] ? { from: stations[0]!.id, to: stations[1].id, material: "Metal" as const } : undefined);
+    const next = { ...ship, defaultBehaviour: behaviour, haulRoute };
+    const wasHauling = ship.state.startsWith("haul");
+    if (!next.order && (behaviour === "haul" || wasHauling || next.state === "holding")) return resumeInState(state, next);
+    return next;
   }) };
 }
+
+export function configureHaul(state: SimState, ids: number[], route: HaulRoute): SimState {
+  if (!validHaulRoute(state, route)) return state;
+  return { ...state, ships: state.ships.map((ship) => ids.includes(ship.id)
+    ? resumeHaulShip(state, { ...ship, defaultBehaviour: "haul", haulRoute: { ...route } }) : ship) };
+}
+
+export { haulStations };

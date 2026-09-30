@@ -1,5 +1,6 @@
-import { claimSiteBuilt, type DefaultBehaviour, type OrderTarget, type SimState, type Vec } from "sim";
+import { claimSiteBuilt, haulStations, type DefaultBehaviour, type HaulRoute, type HaulStation, type OrderTarget, type SimState, type Vec } from "sim";
 import { screenToWorld, type Camera, type Hovered, type Viewport } from "./camera";
+import { shipStatus } from "./ships";
 
 const DRAG_THRESHOLD = 4;
 export const ORDER_LINE_SECONDS = 1;
@@ -33,12 +34,23 @@ export function keyPan(keys: ReadonlySet<string>, dt: number): Vec {
     y: (held("w", "ArrowUp") ? speed : 0) - (held("s", "ArrowDown") ? speed : 0) };
 }
 export function orderLineAlpha(elapsed: number): number { return Math.max(0, 1 - elapsed / ORDER_LINE_SECONDS); }
-export interface SelectionPanel { rows: { id: number; name: string; status: string }[]; defaultBehaviour: DefaultBehaviour | "mixed"; canResume: boolean }
+export interface SelectionPanel {
+  rows: { id: number; name: string; status: string }[];
+  defaultBehaviour: DefaultBehaviour | "mixed";
+  canResume: boolean;
+  canHaul: boolean;
+  haulDisabledReason: string | null;
+  stations: HaulStation[];
+  haulRoute: HaulRoute | null;
+}
 export function selectionPanel(state: SimState, ids: number[]): SelectionPanel | null {
   const ships = ids.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship] : []; });
   if (!ships.length) return null;
   const defaults = new Set(ships.map((ship) => ship.defaultBehaviour));
-  return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order
-    ? `Order: ${ship.order.kind}${ship.state === "holding" ? " (holding)" : ""}` : ship.state })),
-    defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed", canResume: ships.some((ship) => ship.order !== null) };
+  const stations = haulStations(state);
+  const routes = new Set(ships.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
+  return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: shipStatus(state, ship) })),
+    defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed", canResume: ships.some((ship) => ship.order !== null),
+    canHaul: stations.length >= 2, haulDisabledReason: stations.length >= 2 ? null : "Needs two stations", stations,
+    haulRoute: routes.size === 1 ? ships[0]!.haulRoute ?? null : null };
 }
