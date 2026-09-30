@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, tick, type Ship, type ShipDesign, type SimState } from "sim";
+import { createInitialState, tick, type GateProject, type Ship, type ShipDesign, type SimState } from "sim";
 import { hoveredBody, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
 import { shipBlocks, shipPanel } from "./ships";
@@ -50,6 +50,36 @@ describe("hovering a ship shows its state", () => {
   it("can hover a ship sitting idle at the Dock", () => {
     const state = tick(withShips([{ state: "idle", design: noLaser, target: null }]), 0);
     const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+    expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
+  });
+
+  it("lets a ship at the Dock win over the station underneath it", () => {
+    const state = withShips([{ state: "unloading", position: { ...createInitialState(7).station.dock.position } }]);
+    const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+
+    expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
+  });
+
+  it("keeps a ship selectable during its outbound transition from the Dock", () => {
+    const state = createInitialState(7);
+    const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+
+    expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
+  });
+
+  it("lets a ship at a gate win over the gate underneath it", () => {
+    const position = { x: 80, y: 0 };
+    const state = {
+      ...withShips([{ state: "gateHauling", position }]),
+      gateProjects: [{
+        id: 0,
+        ends: [{ sectorId: 0, position }, { sectorId: 1, position: { x: 200, y: 0 } }],
+        delivered: { Metal: 0, Ice: 0 },
+        complete: false,
+      } as GateProject],
+    };
+    const pointer = worldToScreen(camera, viewport, position);
+
     expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
   });
 });
