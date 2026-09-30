@@ -176,16 +176,19 @@ describe("RTS ship orders", () => {
     });
   });
 
-  it("departs for mining after a rock respawns if resumed while the field is empty", () => {
-    const start = fleet(1);
+  it("keeps a Default: None ship idle when ore respawns", () => {
+    const start = setDefaultBehaviour(fleet(1), [0], "none");
     const empty = { ...start, asteroids: start.asteroids.map((rock) => ({ ...rock, ore: 0 })) };
-    const ordered = giveOrder(empty, [0], { kind: "move", point: { x: 20, y: 20 } });
-    const held = until(ordered, (s) => s.ships[0]!.state === "holding");
-    const resumed = resumeDefault(held, [0]);
-    const restored = { ...resumed, asteroids: start.asteroids };
-    const departed = tick(restored, 1 / 30);
-    expect(departed.ships[0]!.state).toBe("outbound");
-    expect(departed.ships[0]!.target).not.toBeNull();
+    const idle = tick({ ...empty, ships: [{ ...empty.ships[0]!, state: "idle", position: empty.station.dock.position,
+      timer: 0, target: null, leg: null }] }, 1 / 30);
+    expect(idle.ships[0]!.state).toBe("idle");
+
+    const restored = { ...idle, asteroids: start.asteroids };
+    const stayed = tick(restored, 1 / 30);
+    expect(stayed.ships[0]).toMatchObject({ state: "idle", defaultBehaviour: "none", target: null });
+
+    const ordered = giveOrder(stayed, [0], { kind: "move", point: { x: 20, y: 20 } });
+    expect(ordered.ships[0]!.state).toBe("moving");
   });
 
   it("routes a home order from sector 1 to that sector's gate before jumping", () => {

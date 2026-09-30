@@ -1,13 +1,11 @@
 import {
   MATERIALS,
-  SHIP_SLOT_SIZE,
   canMine,
   shipStats,
   type ShipDesign,
   type ShipModule,
   type Ship,
   type SimState,
-  type Vec,
 } from "sim";
 import { LASER_COLOR } from "./laser";
 import { statsView } from "./shipyard";
@@ -16,30 +14,43 @@ export const MODULE_COLORS: Record<ShipModule, string> = {
   Engine: "#f97316",
   Laser: LASER_COLOR,
   Storage: "#94a3b8",
+  Hull: "#475569",
 };
-// An empty slot still shows as hull.
-export const EMPTY_SLOT_COLOR = "#334155";
 
-export function slotColor(slot: ShipModule | null): string {
-  return slot ? MODULE_COLORS[slot] : EMPTY_SLOT_COLOR;
+export function slotColor(slot: ShipModule): string {
+  return MODULE_COLORS[slot];
 }
 
-export interface Block {
-  // World-space centre of one slot.
-  position: Vec;
-  color: string;
+function rgb(hex: string): [number, number, number] {
+  const value = Number.parseInt(hex.slice(1), 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
 }
 
-// One block per slot, laid out row by row around the ship's centre.
-export function shipBlocks(ship: Ship): Block[] {
-  const { width, height, slots } = ship.design;
-  return slots.map((slot, index) => ({
-    position: {
-      x: ship.position.x + ((index % width) - (width - 1) / 2) * SHIP_SLOT_SIZE,
-      y: ship.position.y + (Math.floor(index / width) - (height - 1) / 2) * SHIP_SLOT_SIZE,
-    },
-    color: slotColor(slot),
-  }));
+// RGBA bytes of the ship at one image pixel per design pixel, transparent
+// where nothing is painted.
+export function spritePixels(design: ShipDesign): Uint8ClampedArray<ArrayBuffer> {
+  const bytes = new Uint8ClampedArray(new ArrayBuffer(design.slots.length * 4));
+  design.slots.forEach((slot, index) => {
+    if (slot) bytes.set([...rgb(MODULE_COLORS[slot]), 255], index * 4);
+  });
+  return bytes;
+}
+
+// A ship is drawn as one small image scaled up, so a capital ship of tens of
+// thousands of pixels costs the same to draw as a two-pixel one. Designs are
+// never edited once built, so the image is made once per design.
+const sprites = new WeakMap<ShipDesign, HTMLCanvasElement>();
+
+export function shipSprite(design: ShipDesign): HTMLCanvasElement {
+  let sprite = sprites.get(design);
+  if (!sprite) {
+    sprite = document.createElement("canvas");
+    sprite.width = design.width;
+    sprite.height = design.height;
+    sprite.getContext("2d")!.putImageData(new ImageData(spritePixels(design), design.width, design.height), 0, 0);
+    sprites.set(design, sprite);
+  }
+  return sprite;
 }
 
 function missing(design: ShipDesign): string {

@@ -4,9 +4,6 @@ import { shipSize } from "./ship";
 const ONE_STORAGE_SIZE = shipSize(ONE_STORAGE);
 import { tick } from "./tick";
 import {
-  ASTEROID_COUNT,
-  ASTEROID_MAX_DISTANCE,
-  ASTEROID_MIN_DISTANCE,
   ASTEROID_ORE,
   ASTEROID_SIZE,
   CARGO_PER_TRIP,
@@ -48,6 +45,10 @@ function nearestWithOre(state: SimState): Asteroid {
     (a, b) => distance(dock, a.position) - distance(dock, b.position),
   );
   return candidates[0]!;
+}
+
+function homeCount(state: SimState): number {
+  return state.asteroids.filter((asteroid) => asteroid.sectorId === 0).length;
 }
 
 function legSeconds(state: SimState): number {
@@ -202,18 +203,15 @@ describe("asteroid field", () => {
     return 2 * cycleSeconds(start) + legSeconds(start) + WORKING_SECONDS;
   }
 
-  it("starts with 4 asteroids of 30 ore each, 200 to 400 units from the Dock", () => {
+  it("starts with the same number of asteroids in every sector, 30 ore each", () => {
     for (let seed = 0; seed < 50; seed += 1) {
       const state = oneStorageStart(seed);
-      const home = state.asteroids.filter((asteroid) => asteroid.sectorId === 0);
-      expect(home).toHaveLength(ASTEROID_COUNT);
-      expect(ASTEROID_COUNT).toBe(4);
-      for (const asteroid of home) {
-        expect(asteroid.ore).toBe(30);
-        const d = distance(state.station.dock.position, asteroid.position);
-        expect(d).toBeGreaterThanOrEqual(ASTEROID_MIN_DISTANCE);
-        expect(d).toBeLessThanOrEqual(ASTEROID_MAX_DISTANCE);
+      const homeCount = state.asteroids.filter((asteroid) => asteroid.sectorId === 0).length;
+      expect(homeCount).toBeGreaterThan(4);
+      for (const sector of state.sectors) {
+        expect(state.asteroids.filter((asteroid) => asteroid.sectorId === sector.id)).toHaveLength(homeCount);
       }
+      for (const asteroid of state.asteroids) expect(asteroid.ore).toBe(30);
     }
   });
 
@@ -247,7 +245,7 @@ describe("asteroid field", () => {
 
     const gone = run(start, emptied + 0.01);
     expect(gone.asteroids.map((a) => a.id)).not.toContain(first.id);
-    expect(gone.asteroids.filter((asteroid) => asteroid.sectorId === 0)).toHaveLength(ASTEROID_COUNT - 1);
+    expect(gone.asteroids.filter((asteroid) => asteroid.sectorId === 0)).toHaveLength(homeCount(start) - 1);
     expect(ship(gone).state).toBe("homebound");
     expect(ship(gone).cargo).toBe(CARGO_PER_TRIP);
 
@@ -265,18 +263,16 @@ describe("asteroid field", () => {
     const emptied = emptiedAt(start);
 
     const before = run(start, emptied + RESPAWN_SECONDS - 0.1);
-    expect(before.asteroids.filter((asteroid) => asteroid.sectorId === 0)).toHaveLength(ASTEROID_COUNT - 1);
+    expect(before.asteroids.filter((asteroid) => asteroid.sectorId === 0)).toHaveLength(homeCount(start) - 1);
 
     const after = run(start, emptied + RESPAWN_SECONDS + 0.1);
-    expect(after.asteroids.filter((asteroid) => asteroid.sectorId === 0)).toHaveLength(ASTEROID_COUNT);
+    expect(after.asteroids.filter((asteroid) => asteroid.sectorId === 0)).toHaveLength(homeCount(start));
     const known = new Set(start.asteroids.filter((a) => a.sectorId === 0).map((a) => a.id));
     const fresh = after.asteroids.filter((a) => a.sectorId === 0 && !known.has(a.id));
     expect(fresh).toHaveLength(1);
     expect(fresh[0]!.ore).toBe(ASTEROID_ORE);
     expect(fresh[0]!.position).not.toEqual(first.position);
-    const d = distance(start.station.dock.position, fresh[0]!.position);
-    expect(d).toBeGreaterThanOrEqual(ASTEROID_MIN_DISTANCE);
-    expect(d).toBeLessThanOrEqual(ASTEROID_MAX_DISTANCE);
+    expect(fresh[0]!.fieldId).toBe(first.fieldId);
   });
 
   it("waits at the Dock when nothing has ore, and leaves as soon as an asteroid appears", () => {
@@ -286,7 +282,7 @@ describe("asteroid field", () => {
     const barren: SimState = {
       ...unloading,
       asteroids: [],
-      respawns: [{ sectorId: 0, timer: UNLOADING_SECONDS + 10, lastPosition: target(start).position }],
+      respawns: [{ sectorId: 0, fieldId: target(start).fieldId, timer: UNLOADING_SECONDS + 10, lastPosition: target(start).position }],
     };
 
     const waiting = run(barren, UNLOADING_SECONDS + 9.9);
@@ -303,11 +299,12 @@ describe("asteroid field", () => {
 
   it("replays the same asteroids and respawn spots for the same seed", () => {
     const positions = (state: SimState) => state.asteroids.map((a) => a.position);
-    const a = run(oneStorageStart(42), 900, 0.1);
+    const start0 = oneStorageStart(42);
+    const a = run(start0, 900, 0.1);
     const b = run(oneStorageStart(42), 900, 0.1);
 
     // Ids count up from 0, so this means at least two respawns have happened.
-    expect(Math.max(...a.asteroids.map((x) => x.id))).toBeGreaterThanOrEqual(ASTEROID_COUNT + 1);
+    expect(Math.max(...a.asteroids.map((x) => x.id))).toBeGreaterThanOrEqual(start0.asteroids.length + 1);
     expect(positions(a)).toEqual(positions(b));
     expect(positions(oneStorageStart(1))).not.toEqual(positions(oneStorageStart(2)));
   });
