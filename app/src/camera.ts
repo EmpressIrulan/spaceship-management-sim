@@ -1,4 +1,4 @@
-import { SHIP_SIZE, type SimState, type Size, type Vec } from "sim";
+import { shipSize, type SimState, type Size, type Vec } from "sim";
 
 // Placeholder limits. Revisit when sectors get bigger than one station and
 // a handful of asteroids and the client wants to see more of them at once.
@@ -116,16 +116,18 @@ export function hoveredBody(
   const shipFloor = MIN_SHIP_HOVER_PX / camera.zoom;
   const overShip = (index: number): boolean => {
     const ship = state.ships[index]!;
+    const size = shipSize(ship.design);
     return insideRect(world, ship.position, {
-      width: Math.max(SHIP_SIZE.width, shipFloor),
-      height: Math.max(SHIP_SIZE.height, shipFloor),
+      width: Math.max(size.width, shipFloor),
+      height: Math.max(size.height, shipFloor),
     });
   };
+  // Ships parked at the Dock have their own useful status, so they win over
+  // the Dock beneath them.
+  const parked = (index: number) => ["waiting", "idle"].includes(state.ships[index]!.state);
 
-  // A waiting ship has its own useful status, so it wins over the Dock beneath it.
   for (let index = 0; index < state.ships.length; index += 1) {
-    const ship = state.ships[index]!;
-    if (ship.state === "waiting" && overShip(index)) return { kind: "ship", index };
+    if (parked(index) && overShip(index)) return { kind: "ship", index };
   }
   if (insideRect(world, state.station.dock.position, state.station.dock.size)) return { kind: "dock" };
   if (insideRect(world, state.station.storage.position, state.station.storage.size)) {
@@ -149,10 +151,10 @@ export function hoveredBody(
       return { kind: "asteroid", id: asteroid.id };
     }
   }
-  // Other ship states have no hover text yet and must not hide the body they
-  // are using when zoomed out.
+  // Moving and working ships must not hide the body they are using when
+  // zoomed out, so they come last.
   for (let index = 0; index < state.ships.length; index += 1) {
-    if (state.ships[index]!.state !== "waiting" && overShip(index)) return { kind: "ship", index };
+    if (!parked(index) && overShip(index)) return { kind: "ship", index };
   }
   return null;
 }
@@ -168,7 +170,7 @@ export function bodyOf(
   if (hovered.kind === "module") return state.station.modules[hovered.index] ?? null;
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
-    return ship ? { position: ship.position, size: SHIP_SIZE } : null;
+    return ship ? { position: ship.position, size: shipSize(ship.design) } : null;
   }
   return state.asteroids.find((a) => a.id === hovered.id) ?? null;
 }

@@ -1,5 +1,7 @@
-import { CARGO_PER_TRIP, MATERIALS, UNLOADING_SECONDS, WORKING_SECONDS, type Ship, type SimState } from "sim";
+import { MATERIALS, shipStats, unloadingSeconds, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
+import { shipStatus } from "./ships";
+import { formatDuration } from "./shipyard";
 
 export interface Gauge {
   // 0 to 1. Follows the timer so the bar moves smoothly between whole units.
@@ -10,19 +12,20 @@ export interface Gauge {
 // An empty ship heading out or waiting at the station has nothing worth
 // reading, so it gets no gauge.
 export function cargoGauge(ship: Ship): Gauge | null {
-  const text = `${ship.cargo}/${CARGO_PER_TRIP}`;
+  const { hold, miningSeconds } = shipStats(ship.design);
+  const text = `${ship.cargo}/${hold}`;
   switch (ship.state) {
     case "idle":
     case "outbound":
       return null;
     case "waiting":
-      return { fill: ship.cargo / CARGO_PER_TRIP, text };
+      return { fill: ship.cargo / hold, text };
     case "working":
-      return { fill: 1 - ship.timer / WORKING_SECONDS, text };
+      return { fill: miningSeconds ? 1 - ship.timer / miningSeconds : 0, text };
     case "homebound":
       return { fill: 1, text };
     case "unloading":
-      return { fill: ship.timer / UNLOADING_SECONDS, text };
+      return { fill: ship.timer / unloadingSeconds(ship.design), text };
   }
 }
 
@@ -62,7 +65,12 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   if (hovered.kind === "module") {
     const module = state.station.modules[hovered.index];
     if (!module) return null;
-    if (module.type === "Builder") return { title: "Builder", line: "Idle" };
+    if (module.type === "Builder") {
+      const job = state.station.shipBuilds.find((candidate) => candidate.builder === hovered.index);
+      if (!job) return { title: "Builder", line: "Idle" };
+      const size = `${job.design.width}x${job.design.height}`;
+      return { title: "Builder", line: `Building ${size}: ${formatDuration(Math.ceil(job.timer))}` };
+    }
     if (module.type === "Dock") {
       const unloading = state.ships.filter((ship) => ship.state === "unloading").length;
       return { title: "Dock", line: `Unloading ${unloading} / ${state.station.dock.capacity}` };
@@ -71,12 +79,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   }
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
-    if (!ship) return null;
-    if (ship.state === "waiting") return { title: "Ship", line: "Waiting: storage full" };
-    if (ship.state === "working" && ship.cargoMaterial) {
-      return { title: "Ship", line: `Mining ${ship.cargoMaterial}` };
-    }
-    return null;
+    return ship ? { title: "Ship", line: shipStatus(state, ship) } : null;
   }
   const asteroid = state.asteroids.find((a) => a.id === hovered.id);
   return asteroid ? { title: "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;

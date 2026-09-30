@@ -91,12 +91,51 @@
         background: #1e293b;
         cursor: not-allowed;
       }
+      #ship-menu, #ship-panel {
+        position: absolute;
+        z-index: 2;
+        box-sizing: border-box;
+        padding: 10px;
+        border: 1px solid #64748b;
+        background: #1f2937;
+        color: #e5e7eb;
+        font: 12px monospace;
+        --slot: 28px;
+      }
+      #ship-menu { width: 300px; display: grid; gap: 8px; }
+      #ship-panel { top: 12px; right: 12px; width: 200px; --slot: 18px; }
+      #ship-menu[hidden], #ship-panel[hidden] { display: none; }
+      #ship-menu h2, #ship-panel h2 { margin: 0; font-size: 14px; }
+      #ship-menu .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+      #ship-menu button {
+        padding: 4px 7px;
+        border: 1px solid #64748b;
+        background: #334155;
+        color: #f8fafc;
+        font: 12px monospace;
+        cursor: pointer;
+      }
+      #ship-menu button.pressed { outline: 2px solid #facc15; }
+      #ship-menu button:disabled { color: #64748b; background: #1e293b; cursor: not-allowed; }
+      .ship-grid { display: grid; gap: 2px; margin: 4px 0; }
+      .ship-grid .slot {
+        width: var(--slot);
+        height: var(--slot);
+        padding: 0;
+        border: 1px solid #0f172a;
+      }
+      #ship-menu .stats { white-space: pre-line; }
+      #ship-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 8px 0 0; }
+      #ship-panel dt { color: #94a3b8; }
+      #ship-panel dd { margin: 0; }
     </style>
   </head>
   <body>
     <canvas id="screen" width="800" height="600"></canvas>
     <div id="build-controls" hidden></div>
     <div id="build-menu" hidden></div>
+    <div id="ship-menu" hidden></div>
+    <aside id="ship-panel" hidden></aside>
     <div id="info" hidden>
       <h2 id="info-title"></h2>
       <div id="info-line"></div>
