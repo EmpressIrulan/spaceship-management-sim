@@ -18,6 +18,7 @@ import {
   type Ship,
   type ShipDesign,
   type Size,
+  type StationModule,
   type Vec,
 } from "sim";
 import {
@@ -64,6 +65,7 @@ import {
   zoomView,
   type ShipDraft,
 } from "./shipyard";
+import { moduleAppearance, stationConnectors } from "./station-appearance";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -517,10 +519,84 @@ function strokeWorldRect(center: Vec, size: Size, color: string): void {
   ctx.restore();
 }
 
-function moduleColor(type: ModuleType): string {
-  if (type === "Dock") return "#64748b";
-  if (type === "Storage") return "#475569";
-  return "#7c3aed";
+function drawStationConnector(from: Vec, to: Vec): void {
+  const start = worldToScreen(camera, viewport, from);
+  const end = worldToScreen(camera, viewport, to);
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#1e293b";
+  ctx.lineWidth = Math.max(4, 7 * camera.zoom);
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+  ctx.strokeStyle = "#64748b";
+  ctx.lineWidth = Math.max(1, 2 * camera.zoom);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawStationModule(module: StationModule): void {
+  const center = worldToScreen(camera, viewport, module.position);
+  const width = module.size.width * camera.zoom;
+  const height = module.size.height * camera.zoom;
+  const appearance = moduleAppearance(module.type);
+  const detailWidth = Math.max(1.5, 2 * camera.zoom);
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.fillStyle = "#1e293b";
+  ctx.strokeStyle = appearance.accent;
+  ctx.lineWidth = Math.max(1.5, 2 * camera.zoom);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, width * 0.47, height * 0.46, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  if (appearance.silhouette === "open-bay") {
+    ctx.fillStyle = "#020617";
+    ctx.fillRect(-width * 0.23, -height * 0.17, width * 0.46, height * 0.42);
+    ctx.strokeStyle = appearance.accent;
+    ctx.lineWidth = detailWidth;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-width * 0.32, height * 0.28);
+    ctx.lineTo(-width * 0.32, -height * 0.1);
+    ctx.lineTo(-width * 0.18, -height * 0.3);
+    ctx.moveTo(width * 0.32, height * 0.28);
+    ctx.lineTo(width * 0.32, -height * 0.1);
+    ctx.lineTo(width * 0.18, -height * 0.3);
+    ctx.stroke();
+  } else if (appearance.silhouette === "tank-cluster") {
+    for (const x of [-0.22, 0, 0.22]) {
+      ctx.fillStyle = x === 0 ? appearance.accent : "#475569";
+      ctx.strokeStyle = appearance.accent;
+      ctx.lineWidth = Math.max(1, camera.zoom);
+      ctx.beginPath();
+      ctx.ellipse(width * x, 0, width * 0.14, height * 0.29, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else {
+    ctx.strokeStyle = appearance.accent;
+    ctx.lineWidth = detailWidth;
+    ctx.lineCap = "square";
+    ctx.beginPath();
+    ctx.moveTo(-width * 0.28, height * 0.28);
+    ctx.lineTo(-width * 0.28, -height * 0.28);
+    ctx.lineTo(width * 0.24, -height * 0.28);
+    ctx.lineTo(width * 0.24, -height * 0.14);
+    ctx.moveTo(-width * 0.28, -height * 0.08);
+    ctx.lineTo(width * 0.2, height * 0.28);
+    ctx.moveTo(width * 0.24, -height * 0.14);
+    ctx.lineTo(width * 0.34, -height * 0.02);
+    ctx.stroke();
+    ctx.fillStyle = appearance.accent;
+    ctx.beginPath();
+    ctx.arc(width * 0.34, height * 0.04, Math.max(1.5, width * 0.07), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 // Edges are rounded so the image lands on whole screen pixels at any zoom.
@@ -754,8 +830,11 @@ function draw(seconds: number): void {
   for (const asteroid of sectorRocks) {
     fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material));
   }
+  for (const connector of currentSector === 0 ? stationConnectors(state.station.modules) : []) {
+    drawStationConnector(connector.from, connector.to);
+  }
   for (const module of currentSector === 0 ? state.station.modules : []) {
-    fillWorldRect(module.position, module.size, moduleColor(module.type));
+    drawStationModule(module);
   }
   if (currentSector === 0 && state.station.construction) {
     strokeWorldRect(state.station.construction.position, state.station.construction.size, "#cbd5e1");
