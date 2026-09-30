@@ -5,6 +5,9 @@ import {
   availableModuleBuildSites,
   createInitialState,
   laserBeam,
+  giveOrder,
+  setDefaultBehaviour,
+  resumeDefault,
   shipSize,
   startModuleBuild,
   startShipBuild,
@@ -40,6 +43,7 @@ import {
   pointerInBuildArea,
 } from "./building";
 import { shipBlocks, shipPanel, slotColor } from "./ships";
+import { isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 import {
   designOf,
   emptyDraft,
@@ -93,7 +97,12 @@ let selectedBuildSite: Vec | null = null;
 let shipMenuBuilder: number | null = null;
 let draft: ShipDraft = emptyDraft();
 let selectedShip: number | null = null;
+let selectedShips: number[] = [];
 let renderedPanel = "";
+const heldKeys = new Set<string>();
+let pan: { last: Vec } | null = null;
+let dragBox: { start: Vec; end: Vec; additive: boolean } | null = null;
+let orderLines: { from: Vec[]; to: Vec; start: number } | null = null;
 
 function closeBuildMenu(): void {
   buildMenuOpen = false;
@@ -139,7 +148,11 @@ document.addEventListener("click", (event) => {
 window.addEventListener("keydown", (event) => {
   if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
   if (shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
+  if (!(event.target instanceof HTMLSelectElement)) heldKeys.add(event.key);
+  if (event.key.startsWith("Arrow")) event.preventDefault();
 });
+window.addEventListener("keyup", (event) => { heldKeys.delete(event.key); heldKeys.delete(event.key.toLowerCase()); });
+window.addEventListener("blur", () => heldKeys.clear());
 
 function button(text: string, data: Record<string, string>, pressed = false): HTMLButtonElement {
   const element = document.createElement("button");
@@ -223,25 +236,6 @@ shipMenu.addEventListener("click", (event) => {
   renderShipMenu();
 });
 
-// A press that barely moves is a click; anything more is a pan.
-const CLICK_SLOP_PX = 4;
-
-function clickCanvas(point: Vec): void {
-  const hovered = hoveredBody(state, camera, viewport, point);
-  if (hovered?.kind === "ship") {
-    selectedShip = state.ships[hovered.index]?.id ?? null;
-    closeShipMenu();
-    return;
-  }
-  selectedShip = null;
-  const module = hovered?.kind === "module" ? state.station.modules[hovered.index] : undefined;
-  if (hovered?.kind === "module" && module?.type === "Builder") {
-    openShipMenu(hovered.index);
-    return;
-  }
-  closeShipMenu();
-}
-
 function resize(): void {
   const ratio = window.devicePixelRatio || 1;
   viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
@@ -271,11 +265,10 @@ canvas.addEventListener(
   { passive: false },
 );
 
-let drag: { last: Vec; start: Vec } | null = null;
-
 canvas.addEventListener("mousedown", (event) => {
   const point = mousePoint(event);
-  drag = { last: point, start: point };
+  if (event.button === 1) { event.preventDefault(); pan = { last: point }; }
+  else if (event.button === 0) dragBox = { start: point, end: point, additive: event.shiftKey };
 });
 
 canvas.addEventListener("mousemove", (event) => {
@@ -287,18 +280,45 @@ canvas.addEventListener("mouseleave", () => {
 });
 
 window.addEventListener("mousemove", (event) => {
-  if (!drag) return;
   const point = mousePoint(event);
-  camera = panBy(camera, point.x - drag.last.x, point.y - drag.last.y);
-  drag.last = point;
+  if (pan) { camera = panBy(camera, point.x - pan.last.x, point.y - pan.last.y); pan.last = point; }
+  if (dragBox) dragBox.end = point;
 });
 
 window.addEventListener("mouseup", (event) => {
-  if (drag && event.target === canvas) {
-    const point = mousePoint(event);
-    if (Math.hypot(point.x - drag.start.x, point.y - drag.start.y) < CLICK_SLOP_PX) clickCanvas(point);
+  if (event.button === 1) pan = null;
+  if (event.button === 0 && dragBox) {
+    const { start, end, additive } = dragBox; dragBox = null;
+    if (isBoxDrag(start, end)) {
+      const picked = shipsInBox(state, camera, viewport, start, end);
+      selectedShips = additive ? [...new Set([...selectedShips, ...picked])] : picked;
+      selectedShip = selectedShips[0] ?? null;
+    } else if (event.target === canvas) {
+      const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point);
+      if (hovered?.kind === "ship") selectedShips = additive ? toggleShip(selectedShips, state.ships[hovered.index]!.id) : [state.ships[hovered.index]!.id];
+      else if (!additive) selectedShips = [];
+      selectedShip = selectedShips[0] ?? null;
+      if (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Builder") openShipMenu(hovered.index);
+    }
   }
-  drag = null;
+});
+
+canvas.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+  if (!selectedShips.length) return;
+  const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point);
+  const world = screenToWorld(camera, viewport, point); const target = orderTargetAt(state, hovered, world);
+  const to = target.kind === "move" ? target.point : target.kind === "home" ? state.station.dock.position
+    : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
+  orderLines = { from: selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
+  state = giveOrder(state, selectedShips, target);
+});
+
+shipPanelBox.addEventListener("change", (event) => {
+  if ((event.target as HTMLSelectElement).name === "default") state = setDefaultBehaviour(state, selectedShips, (event.target as HTMLSelectElement).value as "mine" | "none");
+});
+shipPanelBox.addEventListener("click", (event) => {
+  if ((event.target as HTMLElement).closest("button[data-resume]")) state = resumeDefault(state, selectedShips);
 });
 
 function fillWorldRect(center: Vec, size: Size, color: string): void {
@@ -348,7 +368,7 @@ function drawSelectionRing(center: Vec, size: Size): void {
   const screen = worldToScreen(camera, viewport, center);
   const radius = Math.hypot(size.width, size.height) / 2 * camera.zoom + 5;
   ctx.save();
-  ctx.strokeStyle = "#facc15";
+  ctx.strokeStyle = "#4ade80";
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(screen.x, screen.y, radius, 0, 2 * Math.PI);
@@ -357,16 +377,22 @@ function drawSelectionRing(center: Vec, size: Size): void {
 }
 
 function renderShipPanel(): void {
+  selectedShips = selectedShips.filter((id) => state.ships.some((ship) => ship.id === id));
+  selectedShip = selectedShips[0] ?? null;
   const panel = selectedShip === null ? null : shipPanel(state, selectedShip);
-  if (!panel) selectedShip = null;
-  shipPanelBox.hidden = panel === null;
-  const key = JSON.stringify(panel);
-  if (!panel || key === renderedPanel) return;
+  const list = selectionPanel(state, selectedShips);
+  shipPanelBox.hidden = !panel || !list;
+  const key = JSON.stringify({ panel, list });
+  if (!panel || !list || key === renderedPanel) return;
   renderedPanel = key;
   const title = document.createElement("h2");
-  title.textContent = `Ship ${panel.size}`;
+  title.textContent = selectedShips.length > 1 ? `${selectedShips.length} ships selected` : `Ship ${panel.size}`;
   const rows = document.createElement("dl");
-  for (const [label, value] of panel.rows) {
+  for (const row of list.rows) {
+    const term = document.createElement("dt"); term.textContent = row.name;
+    const detail = document.createElement("dd"); detail.textContent = row.status; rows.append(term, detail);
+  }
+  for (const [label, value] of selectedShips.length === 1 ? panel.rows : []) {
     const term = document.createElement("dt");
     term.textContent = label;
     const detail = document.createElement("dd");
@@ -374,7 +400,14 @@ function renderShipPanel(): void {
     detail.dataset.row = label;
     rows.append(term, detail);
   }
-  shipPanelBox.replaceChildren(title, gridElement(panel.design, false), rows);
+  const select = document.createElement("select"); select.name = "default";
+  for (const [value, label] of [["mine", "Default: Mine for Station"], ["none", "Default: None"]] as const) {
+    const option = document.createElement("option"); option.value = value; option.textContent = label;
+    option.selected = list.defaultBehaviour === value; select.append(option);
+  }
+  if (list.defaultBehaviour === "mixed") { const mixed = document.createElement("option"); mixed.textContent = "Default: Mixed"; mixed.selected = true; select.prepend(mixed); }
+  const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
+  shipPanelBox.replaceChildren(title, rows, select, resume, ...(selectedShips.length === 1 ? [gridElement(panel.design, false)] : []));
 }
 
 // Screen-space so the numbers stay readable at any zoom.
@@ -426,8 +459,31 @@ function drawLaser(beam: Beam, seconds: number): void {
   }
 }
 
+function drawOrderFeedback(seconds: number): void {
+  if (orderLines) {
+    const alpha = orderLineAlpha(seconds - orderLines.start);
+    if (alpha <= 0) orderLines = null;
+    else {
+      const to = worldToScreen(camera, viewport, orderLines.to);
+      ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = "#86efac"; ctx.setLineDash([5, 4]);
+      for (const from of orderLines.from) {
+        const start = worldToScreen(camera, viewport, from);
+        ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  if (dragBox) {
+    ctx.save(); ctx.strokeStyle = "#4ade80"; ctx.fillStyle = "rgba(74,222,128,.12)";
+    const x = Math.min(dragBox.start.x, dragBox.end.x); const y = Math.min(dragBox.start.y, dragBox.end.y);
+    const w = Math.abs(dragBox.start.x - dragBox.end.x); const h = Math.abs(dragBox.start.y - dragBox.end.y);
+    ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); ctx.restore();
+  }
+}
+
 function draw(seconds: number): void {
   ctx.clearRect(0, 0, viewport.width, viewport.height);
+  drawOrderFeedback(seconds);
 
   for (const asteroid of state.asteroids) {
     fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material));
@@ -446,7 +502,7 @@ function draw(seconds: number): void {
 
   for (const ship of state.ships) {
     drawShip(ship);
-    if (ship.id === selectedShip) drawSelectionRing(ship.position, shipSize(ship.design));
+    if (selectedShips.includes(ship.id)) drawSelectionRing(ship.position, shipSize(ship.design));
 
     const gauge = cargoGauge(ship);
     if (gauge) drawGauge(ship.position, gauge, shipSize(ship.design));
@@ -541,6 +597,8 @@ let lastTimeMs = performance.now();
 function frame(nowMs: number): void {
   const dt = Math.max(0, (nowMs - lastTimeMs) / 1000);
   lastTimeMs = nowMs;
+  const movement = keyPan(heldKeys, dt);
+  if (movement.x || movement.y) camera = panBy(camera, movement.x, movement.y);
   state = tick(state, dt);
   draw(nowMs / 1000);
   requestAnimationFrame(frame);

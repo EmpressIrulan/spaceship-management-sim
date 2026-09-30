@@ -1,4 +1,5 @@
 import { distanceAlong, travelSeconds } from "./motion";
+import { afterOrder } from "./orders";
 import { nextRandom } from "./prng";
 import { shipStats, speedFactor, unloadingSeconds } from "./ship";
 import {
@@ -114,23 +115,23 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
   switch (ship.state) {
     case "idle":
     case "waiting":
+    case "holding":
       return ship;
     case "outbound":
-      return {
-        ...ship,
-        timer,
-        position: route
-          ? pointAlong(route.dock, route.site, route, route.legSeconds - timer)
-          : ship.position,
-      };
     case "homebound":
+    case "moving": {
+      if (ship.leg) {
+        const length = Math.hypot(ship.leg.to.x - ship.leg.from.x, ship.leg.to.y - ship.leg.from.y);
+        const total = travelSeconds(length, speedFactor(ship.design));
+        const fraction = total === 0 ? 1 : distanceAlong(length, total - timer, speedFactor(ship.design)) / length;
+        return { ...ship, timer, position: { x: ship.leg.from.x + (ship.leg.to.x - ship.leg.from.x) * fraction, y: ship.leg.from.y + (ship.leg.to.y - ship.leg.from.y) * fraction } };
+      }
       return {
         ...ship,
         timer,
-        position: route
-          ? pointAlong(route.site, route.dock, route, route.legSeconds - timer)
-          : ship.position,
+        position: route ? pointAlong(ship.state === "homebound" ? route.site : route.dock, ship.state === "homebound" ? route.dock : route.site, route, route.legSeconds - timer) : ship.position,
       };
+    }
     case "working": {
       const { hold } = shipStats(ship.design);
       const cargo = ship.cargo + mine(draft, ship, unitsDone(timer, miningSeconds(ship), hold) - ship.cargo);
@@ -155,6 +156,10 @@ function finish(draft: Draft, ship: Ship): Ship {
   switch (ship.state) {
     case "idle":
       return depart(ship, draft.dock, draft.asteroids, draft.ships);
+    case "holding":
+      return ship;
+    case "moving":
+      return { ...ship, state: "holding", position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null, timer: 0 };
     case "waiting":
       // Room can appear without any ship moving, when a Storage module
       // completes, and a berth frees up when another ship finishes unloading.
@@ -163,31 +168,37 @@ function finish(draft: Draft, ship: Ship): Ship {
       }
       return ship;
     case "outbound":
+      const { hold } = shipStats(ship.design);
+      const remainingMining = miningSeconds(ship) * (hold > 0 ? (hold - ship.cargo) / hold : 0);
       return {
         ...ship,
         state: "working",
-        position: route ? { ...route.site } : ship.position,
-        timer: miningSeconds(ship),
-        cargo: 0,
+        position: ship.leg ? { ...ship.leg.to } : route ? { ...route.site } : ship.position,
+        leg: null,
+        timer: remainingMining,
       };
     case "working":
       return {
         ...ship,
         state: "homebound",
         timer: route ? route.legSeconds : 0,
+        leg: null,
         cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo),
+        order: ship.order?.kind === "mine" ? { ...ship.order, loaded: true } : ship.order,
       };
     case "homebound":
       if (ship.cargo > 0 && (storageRemaining(draft) === 0 || !berthFree(draft))) {
         return { ...ship, state: "waiting", position: { ...draft.dock }, timer: 0 };
       }
-      return { ...ship, state: "unloading", position: { ...draft.dock }, timer: unloadingSeconds(ship.design) };
+      return { ...ship, state: "unloading", position: { ...draft.dock }, leg: null, timer: unloadingSeconds(ship.design) };
     case "unloading":
       const unloaded = unload(draft, ship, ship.cargo);
       if (unloaded < ship.cargo) {
         return { ...ship, state: "waiting", timer: 0, cargo: ship.cargo - unloaded };
       }
-      return depart({ ...ship, cargo: 0 }, draft.dock, draft.asteroids, draft.ships);
+      return ship.order ? afterOrder({ ...ship, cargo: 0 }, draft.dock, draft.asteroids)
+        : ship.defaultBehaviour === "none" ? { ...ship, state: "holding", cargo: 0, order: null, leg: null, timer: 0 }
+          : depart({ ...ship, cargo: 0 }, draft.dock, draft.asteroids, draft.ships);
   }
 }
 
@@ -195,7 +206,7 @@ function finish(draft: Draft, ship: Ship): Ship {
 function nextEvent(draft: Draft): number {
   let soonest = Infinity;
   for (const ship of draft.ships) {
-    if (ship.state !== "idle" && ship.state !== "waiting") soonest = Math.min(soonest, ship.timer);
+    if (ship.state !== "idle" && ship.state !== "waiting" && ship.state !== "holding") soonest = Math.min(soonest, ship.timer);
   }
   for (const respawn of draft.respawns) soonest = Math.min(soonest, respawn.timer);
   if (draft.construction) soonest = Math.min(soonest, draft.construction.timer);
@@ -253,6 +264,9 @@ function settle(draft: Draft): void {
       cargo: 0,
       cargoMaterial: null,
       target: null,
+      defaultBehaviour: "mine",
+      order: null,
+      leg: null,
     }];
     draft.nextShipId += 1;
   }

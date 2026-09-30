@@ -52,7 +52,13 @@ export interface Size {
 
 // "idle" means sitting at the Dock, because no asteroid has ore or the ship
 // can't mine. "waiting" means home with cargo and no room or no free berth.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting";
+export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting" | "moving" | "holding";
+export type DefaultBehaviour = "mine" | "none";
+export type Order =
+  | { kind: "mine"; asteroidId: number; loaded: boolean }
+  | { kind: "move"; point: Vec }
+  | { kind: "home" };
+export interface Leg { from: Vec; to: Vec }
 
 export interface Target {
   asteroidId: number;
@@ -71,6 +77,9 @@ export interface Ship {
   cargo: number;
   cargoMaterial: Material | null;
   target: Target | null;
+  defaultBehaviour: DefaultBehaviour;
+  order: Order | null;
+  leg: Leg | null;
 }
 
 export interface Station {
@@ -225,7 +234,7 @@ export function nearestWithOre(dock: Vec, asteroids: Asteroid[], others: Ship[] 
 export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Ship[] = []): Ship {
   const asteroid = canMine(ship.design) ? nearestWithOre(dock, asteroids, others) : null;
   if (!asteroid) {
-    return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null };
+    return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null };
   }
   const site = miningSite(dock, asteroid, shipSize(ship.design));
   return {
@@ -236,6 +245,7 @@ export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Shi
     cargo: 0,
     cargoMaterial: asteroid.material,
     target: { asteroidId: asteroid.id, site },
+    leg: null,
   };
 }
 
@@ -272,6 +282,9 @@ export function createInitialState(seed: number): SimState {
     cargo: 0,
     cargoMaterial: null,
     target: null,
+    defaultBehaviour: "mine",
+    order: null,
+    leg: null,
   };
   return {
     tickCount: 0,

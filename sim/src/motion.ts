@@ -22,6 +22,7 @@ function profile(
 }
 
 export function travelSeconds(distance: number, factor = 1): number {
+  if (distance <= 0) return 0;
   const { rampSeconds, rampDistance, peak } = profile(distance, factor);
   return 2 * rampSeconds + (distance - 2 * rampDistance) / peak;
 }

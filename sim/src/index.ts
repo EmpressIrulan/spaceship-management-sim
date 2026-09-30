@@ -30,6 +30,8 @@ export {
   type Ship,
   type ShipBuild,
   type ShipState,
+  type DefaultBehaviour,
+  type Order,
   type SimState,
   type Size,
   type Station,
@@ -54,3 +56,4 @@ export {
   type ShipStats,
 } from "./ship";
 export { tick } from "./tick";
+export { formation, giveOrder, resumeDefault, setDefaultBehaviour, type OrderTarget } from "./orders";
