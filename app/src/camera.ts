@@ -109,6 +109,7 @@ export function hoveredBody(
   camera: Camera,
   viewport: Viewport,
   pointer: Vec | null,
+  currentSector = 0,
 ): Hovered | null {
   if (pointer === null) return null;
   const world = screenToWorld(camera, viewport, pointer);
@@ -125,24 +126,27 @@ export function hoveredBody(
   // Ships parked at the Dock have their own useful status, so they win over
   // the Dock beneath them.
   const parked = (index: number) => ["waiting", "idle"].includes(state.ships[index]!.state);
+  const ships = state.ships.map((ship, index) => ({ ship, index })).filter(({ ship }) => ship.sectorId === currentSector);
+  const stationVisible = state.station.sectorId === currentSector;
 
-  for (let index = 0; index < state.ships.length; index += 1) {
+  for (const { index } of ships) {
     if (parked(index) && overShip(index)) return { kind: "ship", index };
   }
-  if (insideRect(world, state.station.dock.position, state.station.dock.size)) return { kind: "dock" };
-  if (insideRect(world, state.station.storage.position, state.station.storage.size)) {
+  if (stationVisible && insideRect(world, state.station.dock.position, state.station.dock.size)) return { kind: "dock" };
+  if (stationVisible && insideRect(world, state.station.storage.position, state.station.storage.size)) {
     return { kind: "storage" };
   }
-  if (state.station.construction && insideRect(
+  if (stationVisible && state.station.construction && insideRect(
     world,
     state.station.construction.position,
     state.station.construction.size,
   )) return { kind: "construction" };
-  for (let index = 2; index < state.station.modules.length; index += 1) {
+  for (let index = 2; stationVisible && index < state.station.modules.length; index += 1) {
     const module = state.station.modules[index]!;
     if (insideRect(world, module.position, module.size)) return { kind: "module", index };
   }
   for (const asteroid of state.asteroids) {
+    if (asteroid.sectorId !== currentSector) continue;
     const area = {
       width: Math.max(asteroid.size.width, floor),
       height: Math.max(asteroid.size.height, floor),
@@ -153,7 +157,7 @@ export function hoveredBody(
   }
   // Moving and working ships must not hide the body they are using when
   // zoomed out, so they come last.
-  for (let index = 0; index < state.ships.length; index += 1) {
+  for (const { index } of ships) {
     if (!parked(index) && overShip(index)) return { kind: "ship", index };
   }
   return null;

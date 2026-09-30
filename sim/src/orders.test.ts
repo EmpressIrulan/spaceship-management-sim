@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, type SimState } from "./state";
+import { createInitialState, JUMP_SECONDS, type SimState } from "./state";
 import { tick } from "./tick";
 import { giveOrder, formation, resumeDefault, setDefaultBehaviour } from "./orders";
 
@@ -22,6 +22,15 @@ function until(state: SimState, done: (state: SimState) => boolean): SimState {
     next = tick(next, 1 / 30);
   }
   throw new Error("condition never held");
+}
+
+function farSector(state: SimState, changes: Partial<SimState["ships"][number]> = {}): SimState {
+  const ship = state.ships[0]!;
+  return {
+    ...state,
+    ships: [{ ...ship, sectorId: 1, state: "holding", position: { ...state.sectors[1]!.gate.position }, timer: 0,
+      target: null, leg: null, order: null, ...changes }],
+  };
 }
 
 describe("RTS ship orders", () => {
@@ -49,7 +58,7 @@ describe("RTS ship orders", () => {
     const state = fleet(1);
     const loaded = { ...state, ships: [{ ...state.ships[0]!, cargo: 7, cargoMaterial: "Metal" as const }] };
     const ordered = giveOrder(loaded, [0], { kind: "move", point: { x: 40, y: 30 } });
-    expect(ordered.ships[0]).toMatchObject({ cargo: 7, cargoMaterial: "Metal", order: { kind: "move" } });
+    expect(ordered.ships[0]).toMatchObject({ cargo: 7, cargoMaterial: "Metal", order: { kind: "move", sectorId: 0 } });
   });
 
   it("mines one selected rock load and returns to the default", () => {
@@ -84,7 +93,7 @@ describe("RTS ship orders", () => {
     const start = setDefaultBehaviour(fleet(1), [0], "none");
     const ordered = giveOrder(start, [0], { kind: "move", point: { x: 20, y: 20 } });
     expect(until(ordered, (s) => s.ships[0]!.state === "holding").ships[0]!.order).toEqual({
-      kind: "move", point: { x: 20, y: 20 },
+      kind: "move", point: { x: 20, y: 20 }, sectorId: 0,
     });
   });
 
@@ -98,5 +107,80 @@ describe("RTS ship orders", () => {
     const departed = tick(restored, 1 / 30);
     expect(departed.ships[0]!.state).toBe("outbound");
     expect(departed.ships[0]!.target).not.toBeNull();
+  });
+
+  it("routes a home order from sector 1 to that sector's gate before jumping", () => {
+    const start = farSector(fleet(1));
+    const ordered = giveOrder(start, [0], { kind: "home" });
+
+    expect(ordered.ships[0]).toMatchObject({
+      sectorId: 1,
+      state: "homebound",
+      leg: { to: start.sectors[1]!.gate.position },
+      order: { kind: "home" },
+    });
+    expect(run(ordered, 1 / 30).ships[0]).toMatchObject({ state: "jumpingHome", position: start.sectors[1]!.gate.position });
+    expect(run(ordered, 1 / 30).ships[0]!.timer).toBeLessThan(JUMP_SECONDS);
+  });
+
+  it("routes a resume with cargo from sector 1 through its gate", () => {
+    const start = farSector(fleet(1), {
+      cargo: 3,
+      cargoMaterial: "Metal",
+      order: { kind: "home" },
+    });
+    const resumed = resumeDefault(start, [0]);
+
+    expect(resumed.ships[0]).toMatchObject({
+      sectorId: 1,
+      state: "homebound",
+      leg: { to: start.sectors[1]!.gate.position },
+      cargo: 3,
+      order: null,
+    });
+    expect(run(resumed, 1 / 30).ships[0]).toMatchObject({ state: "jumpingHome", position: start.sectors[1]!.gate.position, cargo: 3 });
+    expect(run(resumed, 1 / 30).ships[0]!.timer).toBeLessThan(JUMP_SECONDS);
+  });
+
+  it("routes a loaded ship to the far-sector gate before unloading for a different-material mine order", () => {
+    const initial = fleet(1);
+    const rock = initial.asteroids.find((candidate) => candidate.sectorId === 1)!;
+    const loaded = farSector(initial, {
+      cargo: 3,
+      cargoMaterial: rock.material === "Metal" ? "Ice" : "Metal",
+    });
+    const ordered = giveOrder(loaded, [0], { kind: "mine", asteroidId: rock.id });
+
+    expect(ordered.ships[0]).toMatchObject({
+      sectorId: 1,
+      state: "homebound",
+      leg: { to: loaded.sectors[1]!.gate.position },
+      cargo: 3,
+      order: { kind: "mine", asteroidId: rock.id, loaded: false },
+    });
+    expect(run(ordered, 1 / 30).ships[0]).toMatchObject({ state: "jumpingHome", position: loaded.sectors[1]!.gate.position, cargo: 3 });
+    expect(run(ordered, 1 / 30).ships[0]!.timer).toBeLessThan(JUMP_SECONDS);
+  });
+
+  it("moves from sector 1 through its gate before moving to a point in sector 0", () => {
+    const start = farSector(fleet(1));
+    const point = { x: 123, y: -45 };
+    const ordered = giveOrder(start, [0], { kind: "move", point, sectorId: 0 });
+
+    expect(ordered.ships[0]).toMatchObject({
+      sectorId: 1,
+      state: "moving",
+      leg: { to: start.sectors[1]!.gate.position },
+      order: { kind: "move", point, sectorId: 0 },
+    });
+    const atGate = until(ordered, (s) => s.ships[0]!.state === "jumpingOut");
+    expect(atGate.ships[0]!.position).toEqual(start.sectors[1]!.gate.position);
+    const arrived = run(atGate, JUMP_SECONDS + 0.1);
+    expect(arrived.ships[0]).toMatchObject({
+      sectorId: 0,
+      state: "moving",
+      leg: { to: point },
+      order: { kind: "move", point, sectorId: 0 },
+    });
   });
 });

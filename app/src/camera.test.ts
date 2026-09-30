@@ -12,6 +12,7 @@ import {
   zoomAt,
   type Camera,
 } from "./camera";
+import { orderTargetAt } from "./selection";
 
 const viewport = { width: 800, height: 600 };
 const home: Camera = { center: { x: 0, y: 0 }, zoom: 1 };
@@ -168,5 +169,17 @@ describe("hovering", () => {
   it("points at nothing over empty space or once the pointer has left the canvas", () => {
     expect(hoveredBody(state, home, viewport, { x: 5, y: 5 })).toBeNull();
     expect(hoveredBody(state, home, viewport, null)).toBeNull();
+  });
+
+  it("does not hover home bodies when viewing sector 1", () => {
+    const seeded = createInitialState(19);
+    const homeRock = seeded.asteroids.find((rock) => rock.sectorId === 0)!;
+    const emptyCentre = worldToScreen(home, viewport, { x: 0, y: 0 });
+    const homeRockPoint = worldToScreen(home, viewport, homeRock.position);
+
+    expect(hoveredBody(seeded, home, viewport, emptyCentre, 1)).toBeNull();
+    const hovered = hoveredBody(seeded, home, viewport, homeRockPoint, 1);
+    expect(hovered).toBeNull();
+    expect(orderTargetAt(seeded, hovered, homeRock.position, 1)).toEqual({ kind: "move", point: homeRock.position, sectorId: 1 });
   });
 });

@@ -286,7 +286,7 @@ describe("asteroid field", () => {
     const barren: SimState = {
       ...unloading,
       asteroids: [],
-      respawns: [{ timer: UNLOADING_SECONDS + 10, lastPosition: target(start).position }],
+      respawns: [{ sectorId: 0, timer: UNLOADING_SECONDS + 10, lastPosition: target(start).position }],
     };
 
     const waiting = run(barren, UNLOADING_SECONDS + 9.9);
@@ -332,11 +332,12 @@ describe("ore is conserved", () => {
       id,
       design: ONE_STORAGE,
       state: "working" as const,
+      sectorId: asteroid.sectorId,
       position: site,
       timer: WORKING_SECONDS,
       cargo: 0,
       cargoMaterial: asteroid.material,
-      target: { asteroidId: asteroid.id, site },
+      target: { asteroidId: asteroid.id, sectorId: asteroid.sectorId, site },
       defaultBehaviour: "mine" as const,
       order: null,
       leg: null,

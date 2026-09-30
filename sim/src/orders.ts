@@ -2,7 +2,7 @@ import { travelSeconds } from "./motion";
 import { canMine, shipSize, shipStats } from "./ship";
 import {
   depart, miningSite, nearestWithOre, type Asteroid, type DefaultBehaviour, type Order,
-  type Ship, type SimState, type Vec,
+  type Sector, type Ship, type SimState, type Vec,
 } from "./state";
 
 const SPACING = 2 * 3 * 4.5;
@@ -30,44 +30,58 @@ function hold(ship: Ship): Ship {
   return { ...ship, state: "holding", timer: 0, leg: null, target: null };
 }
 
-function resume(ship: Ship, dock: Vec, asteroids: Asteroid[]): Ship {
-  if (ship.defaultBehaviour === "none") return hold(ship);
-  if (ship.cargo > 0) return fly({ ...ship, target: null }, "homebound", dock);
-  const rock = nearestWithOre(dock, asteroids.filter((a) => a.sectorId === 0));
-  if (!rock || !canMine(ship.design)) return { ...ship, state: "idle", timer: 0, leg: null, target: null };
-  const site = miningSite(dock, rock, shipSize(ship.design));
-  return fly({ ...ship, target: { asteroidId: rock.id, sectorId: rock.sectorId, site }, cargoMaterial: rock.material }, "outbound", site);
+function routeHome(ship: Ship, dock: Vec, sectors: Sector[]): Ship {
+  const destination = ship.sectorId === 0 ? dock : sectors[ship.sectorId]!.gate.position;
+  return fly(ship, "homebound", destination);
 }
 
-export function afterOrder(ship: Ship, dock: Vec, asteroids: Asteroid[]): Ship {
+function startMining(ship: Ship, rock: Asteroid, dock: Vec, sectors: Sector[]): Ship {
+  const rockSector = rock.sectorId;
+  const approach = rockSector === 0 ? dock : sectors[rockSector]!.gate.position;
+  const site = miningSite(approach, rock, shipSize(ship.design));
+  const shipTarget = {
+    ...ship,
+    target: { asteroidId: rock.id, sectorId: rockSector, site },
+    cargoMaterial: rock.material,
+  };
+  const destination = rockSector === ship.sectorId ? site : sectors[ship.sectorId]!.gate.position;
+  return fly(shipTarget, "outbound", destination);
+}
+
+function resume(ship: Ship, dock: Vec, asteroids: Asteroid[], sectors: Sector[]): Ship {
+  if (ship.defaultBehaviour === "none") return hold(ship);
+  if (ship.cargo > 0) return routeHome({ ...ship, target: null }, dock, sectors);
+  const rock = nearestWithOre(dock, asteroids.filter((a) => a.sectorId === 0));
+  if (!rock || !canMine(ship.design)) return { ...ship, state: "idle", timer: 0, leg: null, target: null };
+  return startMining(ship, rock, dock, sectors);
+}
+
+export function afterOrder(ship: Ship, dock: Vec, asteroids: Asteroid[], sectors: Sector[]): Ship {
   const order = ship.order;
   if (order?.kind === "mine" && !order.loaded) {
     const rock = asteroids.find((a) => a.id === order.asteroidId);
-    if (rock) {
-      const site = miningSite(dock, rock, shipSize(ship.design));
-      return fly({ ...ship, target: { asteroidId: rock.id, sectorId: rock.sectorId, site }, cargoMaterial: rock.material }, "outbound", site);
-    }
+    if (rock) return startMining(ship, rock, dock, sectors);
   }
-  return resume({ ...ship, order: null }, dock, asteroids);
+  return resume({ ...ship, order: null }, dock, asteroids, sectors);
 }
 
-export type OrderTarget = { kind: "mine"; asteroidId: number } | { kind: "move"; point: Vec } | { kind: "home" };
+export type OrderTarget = { kind: "mine"; asteroidId: number } | { kind: "move"; point: Vec; sectorId?: number } | { kind: "home" };
 
 function apply(ship: Ship, target: OrderTarget, point: Vec, state: SimState): Ship {
-  if (target.kind === "move") return fly({ ...ship, target: null, order: { kind: "move", point: target.point } }, "moving", point);
-  if (target.kind === "home") return fly({ ...ship, target: null, order: { kind: "home" } }, "homebound", state.station.dock.position);
+  if (target.kind === "move") {
+    const sectorId = target.sectorId ?? ship.sectorId;
+    const order = { kind: "move" as const, point: target.point, sectorId };
+    const destination = sectorId === ship.sectorId ? point : state.sectors[ship.sectorId]!.gate.position;
+    return fly({ ...ship, target: null, order }, "moving", destination);
+  }
+  if (target.kind === "home") return routeHome({ ...ship, target: null, order: { kind: "home" } }, state.station.dock.position, state.sectors);
   if (!canMine(ship.design)) return ship;
   const rock = state.asteroids.find((a) => a.id === target.asteroidId);
   if (!rock) return ship;
   if (ship.cargo > 0 && (ship.cargoMaterial !== rock.material || ship.cargo >= shipStats(ship.design).hold)) {
-    return fly({ ...ship, target: null, order: { kind: "mine", asteroidId: rock.id, loaded: false } }, "homebound", state.station.dock.position);
+    return routeHome({ ...ship, target: null, order: { kind: "mine", asteroidId: rock.id, loaded: false } }, state.station.dock.position, state.sectors);
   }
-  const rockSector = rock.sectorId ?? 0;
-  const approach = rockSector === 0 ? state.station.dock.position : state.sectors[rockSector]!.gate.position;
-  const site = miningSite(approach, rock, shipSize(ship.design));
-  const shipTarget = { ...ship, target: { asteroidId: rock.id, sectorId: rock.sectorId, site }, cargoMaterial: rock.material, order: { kind: "mine" as const, asteroidId: rock.id, loaded: false } };
-  if (rockSector !== (ship.sectorId ?? 0)) return fly(shipTarget, "outbound", state.sectors[ship.sectorId ?? 0]!.gate.position);
-  return fly(shipTarget, "outbound", point);
+  return startMining({ ...ship, order: { kind: "mine", asteroidId: rock.id, loaded: false } }, rock, state.station.dock.position, state.sectors);
 }
 
 export function giveOrder(state: SimState, ids: number[], target: OrderTarget): SimState {
@@ -86,13 +100,13 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
 
 export function resumeDefault(state: SimState, ids: number[]): SimState {
   return { ...state, ships: state.ships.map((ship) => ids.includes(ship.id) && ship.order
-    ? resume({ ...ship, order: null }, state.station.dock.position, state.asteroids) : ship) };
+    ? resume({ ...ship, order: null }, state.station.dock.position, state.asteroids, state.sectors) : ship) };
 }
 
 export function setDefaultBehaviour(state: SimState, ids: number[], behaviour: DefaultBehaviour): SimState {
   return { ...state, ships: state.ships.map((ship) => {
     if (!ids.includes(ship.id)) return ship;
     const next = { ...ship, defaultBehaviour: behaviour };
-    return next.state === "holding" && !next.order ? resume(next, state.station.dock.position, state.asteroids) : next;
+    return next.state === "holding" && !next.order ? resume(next, state.station.dock.position, state.asteroids, state.sectors) : next;
   }) };
 }

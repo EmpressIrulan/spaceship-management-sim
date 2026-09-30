@@ -13,7 +13,7 @@ export function mapLayout(state: SimState, viewport: Viewport): { circles: { id:
     id: sector.id, name: sector.name,
     center: { x: viewport.width * (index + 1) / (state.sectors.length + 1), y: viewport.height / 2 },
     radius,
-    ships: state.ships.filter((ship) => (ship.sectorId ?? 0) === sector.id).length,
+    ships: state.ships.filter((ship) => ship.sectorId === sector.id).length,
   }));
   return { circles, links: [{ from: circles[0]!.center, to: circles[1]!.center }] };
 }

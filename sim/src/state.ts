@@ -60,13 +60,13 @@ export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloadi
 export type DefaultBehaviour = "mine" | "none";
 export type Order =
   | { kind: "mine"; asteroidId: number; loaded: boolean }
-  | { kind: "move"; point: Vec }
+  | { kind: "move"; point: Vec; sectorId: number }
   | { kind: "home" };
 export interface Leg { from: Vec; to: Vec }
 
 export interface Target {
   asteroidId: number;
-  sectorId?: number;
+  sectorId: number;
   // Where the ship mines from. Kept on the ship so it can fly home after the
   // asteroid has been mined out and removed.
   site: Vec;
@@ -76,7 +76,7 @@ export interface Ship {
   id: number;
   design: ShipDesign;
   state: ShipState;
-  sectorId?: number;
+  sectorId: number;
   position: Vec;
   // Seconds left in the current state. Unused while idle.
   timer: number;
@@ -89,7 +89,7 @@ export interface Ship {
 }
 
 export interface Station {
-  sectorId?: number;
+  sectorId: number;
   // The Dock is the station's home point: the position ships route to and
   // from, and the one the asteroid band is measured out from.
   dock: { position: Vec; size: Size; capacity: number };
@@ -119,7 +119,7 @@ export interface ModuleConstruction extends StationModule {
 
 export interface Asteroid {
   id: number;
-  sectorId?: number;
+  sectorId: number;
   position: Vec;
   size: Size;
   ore: number;
@@ -127,7 +127,7 @@ export interface Asteroid {
 }
 
 export interface Respawn {
-  sectorId?: number;
+  sectorId: number;
   // Seconds until a new asteroid appears.
   timer: number;
   // Where the emptied asteroid was, so the new one lands somewhere else.

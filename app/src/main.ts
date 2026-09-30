@@ -44,7 +44,7 @@ import {
   pointerInBuildArea,
 } from "./building";
 import { shipBlocks, shipPanel, slotColor } from "./ships";
-import { isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
+import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 import {
   designOf,
   emptyDraft,
@@ -295,7 +295,7 @@ window.addEventListener("mouseup", (event) => {
   if (event.button === 0 && dragBox) {
     const { start, end, additive } = dragBox; dragBox = null;
     if (isBoxDrag(start, end)) {
-      const picked = shipsInBox(state, camera, viewport, start, end);
+      const picked = shipsInBox(state, camera, viewport, currentSector, start, end);
       selectedShips = additive ? [...new Set([...selectedShips, ...picked])] : picked;
       selectedShip = selectedShips[0] ?? null;
     } else if (event.target === canvas && mapOpen) {
@@ -308,7 +308,7 @@ window.addEventListener("mouseup", (event) => {
         mapOpen = false;
       }
     } else if (event.target === canvas) {
-      const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point);
+      const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
       if (hovered?.kind === "ship") selectedShips = additive ? toggleShip(selectedShips, state.ships[hovered.index]!.id) : [state.ships[hovered.index]!.id];
       else if (!additive) selectedShips = [];
       selectedShip = selectedShips[0] ?? null;
@@ -319,9 +319,9 @@ window.addEventListener("mouseup", (event) => {
 
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
-  if (!selectedShips.length) return;
-  const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point);
-  const world = screenToWorld(camera, viewport, point); const target = orderTargetAt(state, hovered, world);
+  if (!contextOrderAllowed(mapOpen) || !selectedShips.length) return;
+  const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
+  const world = screenToWorld(camera, viewport, point); const target = orderTargetAt(state, hovered, world, currentSector);
   const to = target.kind === "move" ? target.point : target.kind === "home" ? state.station.dock.position
     : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
   orderLines = { from: selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
@@ -499,8 +499,8 @@ function draw(seconds: number): void {
   ctx.clearRect(0, 0, viewport.width, viewport.height);
   drawOrderFeedback(seconds);
 
-  const sectorRocks = state.asteroids.filter((asteroid) => (asteroid.sectorId ?? 0) === currentSector);
-  const sectorShips = state.ships.filter((ship) => (ship.sectorId ?? 0) === currentSector && ship.state !== "jumpingOut" && ship.state !== "jumpingHome");
+  const sectorRocks = state.asteroids.filter((asteroid) => asteroid.sectorId === currentSector);
+  const sectorShips = state.ships.filter((ship) => ship.sectorId === currentSector && ship.state !== "jumpingOut" && ship.state !== "jumpingHome");
   const gate = state.sectors[currentSector]!.gate;
   const gateScreen = worldToScreen(camera, viewport, gate.position);
   ctx.fillStyle = "#22d3ee";
@@ -535,7 +535,7 @@ function draw(seconds: number): void {
     : `Sector ${state.sectors[currentSector]!.name}: ${sectorRocks.length} asteroids, ${currentSector === 0 ? "station present" : "no station"}, gate to ${state.sectors[gate.to]!.name}`);
   // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
-  const hovered = hoveredBody(state, camera, viewport, pointer);
+  const hovered = hoveredBody(state, camera, viewport, pointer, currentSector);
   const info = infoBox(state, hovered);
   box.hidden = info === null;
   const body = hovered && bodyOf(state, hovered);
@@ -550,7 +550,7 @@ function draw(seconds: number): void {
     boxLine.textContent = info.line;
   }
   if (pointer && Math.hypot(pointer.x - gateScreen.x, pointer.y - gateScreen.y) < Math.max(14, gate.size.width * camera.zoom / 2)) {
-    const jumping = state.ships.some((ship) => (ship.sectorId ?? 0) === currentSector && (ship.state === "jumpingOut" || ship.state === "jumpingHome"));
+    const jumping = state.ships.some((ship) => ship.sectorId === currentSector && (ship.state === "jumpingOut" || ship.state === "jumpingHome"));
     box.hidden = false; boxTitle.textContent = "Gate"; boxLine.textContent = jumping ? "Jumping" : `Gate to ${state.sectors[gate.to]!.name}`;
     box.style.left = `${gateScreen.x + 16}px`; box.style.top = `${gateScreen.y}px`;
   }
