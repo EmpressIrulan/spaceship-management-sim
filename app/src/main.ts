@@ -344,7 +344,7 @@ window.addEventListener("mouseup", (event) => {
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
   if (!contextOrderAllowed(mapOpen)) return;
-  const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
+  const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector, { includeShips: false });
   if (!selectedShips.length && !hovered && currentSector === HOME_SECTOR) {
     pendingGate = { sectorId: currentSector, position: screenToWorld(camera, viewport, point) };
     gateMenu.style.left = `${point.x}px`; gateMenu.style.top = `${point.y}px`; gateMenu.hidden = false;

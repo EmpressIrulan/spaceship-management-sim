@@ -8,7 +8,7 @@ const camera: Camera = { center: { x: 0, y: 0 }, zoom: 1 };
 
 describe("station module hover", () => {
   it.each([1, 0.5, MIN_ZOOM])(
-    "shows the Dock at its centre while a ship unloads there at zoom %s",
+    "shows the ship at the Dock centre while it unloads there at zoom %s",
     (zoom) => {
       const initial = createInitialState(7);
       const unloading: SimState = {
@@ -27,13 +27,13 @@ describe("station module hover", () => {
       const hovered = hoveredBody(unloading, zoomed, viewport, pointer);
 
       expect({ hovered, info: infoBox(unloading, hovered) }).toEqual({
-        hovered: { kind: "dock" },
-        info: { title: "Dock", line: "Unloading 1 / 6" },
+        hovered: { kind: "ship", index: 0 },
+        info: { title: "Ship", line: "Unloading" },
       });
     },
   );
 
-  it("can hover the Dock and Storage as separate sprites", () => {
+  it("can hover the ship at the Dock and Storage as separate sprites", () => {
     const state = createInitialState(7);
 
     expect(
@@ -43,7 +43,7 @@ describe("station module hover", () => {
         viewport,
         worldToScreen(camera, viewport, state.station.dock.position),
       ),
-    ).toEqual({ kind: "dock" });
+    ).toEqual({ kind: "ship", index: 0 });
     expect(
       hoveredBody(
         state,
@@ -52,6 +52,24 @@ describe("station module hover", () => {
         worldToScreen(camera, viewport, state.station.storage.position),
       ),
     ).toEqual({ kind: "storage" });
+  });
+
+  it("still selects the Dock beside a ship unloading there", () => {
+    const initial = createInitialState(7);
+    const unloading: SimState = {
+      ...initial,
+      ships: [{
+        ...initial.ships[0]!,
+        state: "unloading",
+        position: { ...initial.station.dock.position },
+      }],
+    };
+    const dockEdge = {
+      x: unloading.station.dock.position.x + 12,
+      y: unloading.station.dock.position.y,
+    };
+
+    expect(hoveredBody(unloading, camera, viewport, worldToScreen(camera, viewport, dockEdge))).toEqual({ kind: "dock" });
   });
 
   it("shows Dock berth use increasing from zero to one out of six", () => {

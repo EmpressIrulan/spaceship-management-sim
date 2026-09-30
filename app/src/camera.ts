@@ -111,6 +111,7 @@ export function hoveredBody(
   viewport: Viewport,
   pointer: Vec | null,
   currentSector = 0,
+  { includeShips = true }: { includeShips?: boolean } = {},
 ): Hovered | null {
   if (pointer === null) return null;
   const world = screenToWorld(camera, viewport, pointer);
@@ -129,13 +130,28 @@ export function hoveredBody(
   const parked = (index: number) => ["waiting", "idle"].includes(state.ships[index]!.state);
   const ships = state.ships.map((ship, index) => ({ ship, index })).filter(({ ship }) => ship.sectorId === currentSector);
   const stationVisible = state.station.sectorId === currentSector;
+  const atStationOrGate = (index: number): boolean => {
+    const position = state.ships[index]!.position;
+    if (stationVisible && [state.station.dock, state.station.storage, ...state.station.modules,
+      ...(state.station.construction ? [state.station.construction] : [])]
+      .some((body) => insideRect(position, body.position, body.size))) return true;
+    return state.gateProjects.some((project) => project.ends.some((end) =>
+      end.sectorId === currentSector && insideRect(position, end.position, { width: 24, height: 24 }),
+    ));
+  };
+  // A ship physically at a station or gate remains individually selectable,
+  // including during its transition into or out of the structure.
+  if (includeShips) {
+    for (const { index } of ships) {
+      if (atStationOrGate(index) && overShip(index)) return { kind: "ship", index };
+    }
+    for (const { index } of ships) {
+      if (parked(index) && overShip(index)) return { kind: "ship", index };
+    }
+  }
   for (const project of state.gateProjects) {
     const end = project.ends.findIndex((candidate) => candidate.sectorId === currentSector);
     if (end >= 0 && insideRect(world, project.ends[end]!.position, { width: 24, height: 24 })) return { kind: "gateProject", id: project.id, end };
-  }
-
-  for (const { index } of ships) {
-    if (parked(index) && overShip(index)) return { kind: "ship", index };
   }
   if (stationVisible && insideRect(world, state.station.dock.position, state.station.dock.size)) return { kind: "dock" };
   if (stationVisible && insideRect(world, state.station.storage.position, state.station.storage.size)) {
@@ -162,8 +178,10 @@ export function hoveredBody(
   }
   // Moving and working ships must not hide the body they are using when
   // zoomed out, so they come last.
-  for (const { index } of ships) {
-    if (!parked(index) && overShip(index)) return { kind: "ship", index };
+  if (includeShips) {
+    for (const { index } of ships) {
+      if (!parked(index) && overShip(index)) return { kind: "ship", index };
+    }
   }
   return null;
 }
