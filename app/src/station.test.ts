@@ -100,7 +100,7 @@ describe("station module hover", () => {
 
     expect(infoBox(initial, { kind: "storage" })).toEqual({
       title: "Storage",
-      line: "Stored 40 / 100\nMetal: 20\nIce: 20",
+      line: "Stored 40 / 100\nMetal: 20\nIce: 20\nIncome: Metal +0/min, Ice +0/min",
     });
   });
 

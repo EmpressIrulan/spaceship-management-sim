@@ -115,9 +115,18 @@ export interface Station {
   dock: { position: Vec; size: Size; capacity: number };
   storage: { position: Vec; size: Size; capacity: number };
   inventory: Record<Material, number>;
+  // Ore that ships unloaded into storage within the last INCOME_WINDOW_SECONDS.
+  deliveries: Delivery[];
   modules: StationModule[];
   construction: ModuleConstruction | null;
   shipBuilds: ShipBuild[];
+}
+
+export interface Delivery {
+  // Game seconds since the start, so the figure follows game speed.
+  at: number;
+  material: Material;
+  amount: number;
 }
 
 export interface ShipBuild {
@@ -165,6 +174,8 @@ export interface Respawn {
 
 export interface SimState {
   tickCount: number;
+  // Game seconds ticked so far. Paused or slowed time does not advance it.
+  time: number;
   // PRNG state, carried here so respawn spots replay exactly from the seed.
   rng: number;
   nextAsteroidId: number;
@@ -421,6 +432,7 @@ export function createInitialState(seed: number): SimState {
   };
   return {
     tickCount: 0,
+    time: 0,
     rng,
     nextAsteroidId: asteroids.length,
     sectors,
@@ -433,6 +445,7 @@ export function createInitialState(seed: number): SimState {
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
       inventory: { Metal: 20, Ice: 20 },
+      deliveries: [],
       modules: [
         { type: "Dock", position: dockPosition, size: DOCK_SIZE },
         { type: "Storage", position: storagePosition, size: STORAGE_SIZE },
@@ -574,4 +587,17 @@ export function laserBeam(state: SimState, ship: Ship): Beam | null {
   const asteroid = state.asteroids.find((a) => a.id === id);
   if (!asteroid) return null;
   return { from: { ...ship.position }, to: edgeToward(asteroid, ship.position) };
+}
+
+export const INCOME_WINDOW_SECONDS = 60;
+
+// Ore unloaded into storage over the last game minute, per material. Only
+// what storage accepted counts, so a full station reads zero, and spending
+// ore on builds or gates does not lower it.
+export function stationIncome(state: SimState): Record<Material, number> {
+  const income = Object.fromEntries(MATERIALS.map((material) => [material, 0])) as Record<Material, number>;
+  for (const delivery of state.station.deliveries) {
+    if (delivery.at > state.time - INCOME_WINDOW_SECONDS) income[delivery.material] += delivery.amount;
+  }
+  return income;
 }

@@ -23,14 +23,14 @@ describe("material display", () => {
     const hovered = { kind: "storage" as const };
     expect(infoBox(state, hovered)).toEqual({
       title: "Storage",
-      line: "Stored 40 / 100\nMetal: 20\nIce: 20",
+      line: "Stored 40 / 100\nMetal: 20\nIce: 20\nIncome: Metal +0/min, Ice +0/min",
     });
     const one = { ...state, station: { ...state.station, inventory: { Metal: 10, Ice: 0 } } };
-    expect(infoBox(one, hovered)).toEqual({ title: "Storage", line: "Stored 10 / 100\nMetal: 10" });
+    expect(infoBox(one, hovered)).toEqual({ title: "Storage", line: "Stored 10 / 100\nMetal: 10\nIncome: Metal +0/min, Ice +0/min" });
     const both = { ...state, station: { ...state.station, inventory: { Metal: 10, Ice: 10 } } };
     expect(infoBox(both, hovered)).toEqual({
       title: "Storage",
-      line: "Stored 20 / 100\nMetal: 10\nIce: 10",
+      line: "Stored 20 / 100\nMetal: 10\nIce: 10\nIncome: Metal +0/min, Ice +0/min",
     });
   });
 });
