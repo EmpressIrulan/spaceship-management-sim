@@ -111,6 +111,7 @@ export function hoveredBody(
   viewport: Viewport,
   pointer: Vec | null,
   currentSector = 0,
+  { includeShips = true }: { includeShips?: boolean } = {},
 ): Hovered | null {
   if (pointer === null) return null;
   const world = screenToWorld(camera, viewport, pointer);
@@ -140,11 +141,13 @@ export function hoveredBody(
   };
   // A ship physically at a station or gate remains individually selectable,
   // including during its transition into or out of the structure.
-  for (const { index } of ships) {
-    if (atStationOrGate(index) && overShip(index)) return { kind: "ship", index };
-  }
-  for (const { index } of ships) {
-    if (parked(index) && overShip(index)) return { kind: "ship", index };
+  if (includeShips) {
+    for (const { index } of ships) {
+      if (atStationOrGate(index) && overShip(index)) return { kind: "ship", index };
+    }
+    for (const { index } of ships) {
+      if (parked(index) && overShip(index)) return { kind: "ship", index };
+    }
   }
   for (const project of state.gateProjects) {
     const end = project.ends.findIndex((candidate) => candidate.sectorId === currentSector);
@@ -175,8 +178,10 @@ export function hoveredBody(
   }
   // Moving and working ships must not hide the body they are using when
   // zoomed out, so they come last.
-  for (const { index } of ships) {
-    if (!parked(index) && overShip(index)) return { kind: "ship", index };
+  if (includeShips) {
+    for (const { index } of ships) {
+      if (!parked(index) && overShip(index)) return { kind: "ship", index };
+    }
   }
   return null;
 }

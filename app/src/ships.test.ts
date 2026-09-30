@@ -82,6 +82,22 @@ describe("hovering a ship shows its state", () => {
 
     expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
   });
+
+  it("lets a ship at the other gate end win when viewing that sector", () => {
+    const position = { x: 200, y: 0 };
+    const state = {
+      ...withShips([{ state: "gateHauling", sectorId: 1, position }]),
+      gateProjects: [{
+        id: 0,
+        ends: [{ sectorId: 0, position: { x: 80, y: 0 } }, { sectorId: 1, position }],
+        delivered: { Metal: 0, Ice: 0 },
+        complete: false,
+      } as GateProject],
+    };
+    const pointer = worldToScreen(camera, viewport, position);
+
+    expect(hoveredBody(state, camera, viewport, pointer, 1)).toEqual({ kind: "ship", index: 0 });
+  });
 });
 
 describe("ships drawn from their grid", () => {
