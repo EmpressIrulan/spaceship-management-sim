@@ -71,7 +71,7 @@ import {
   type ShipDraft,
 } from "./shipyard";
 import { moduleAppearance, stationConnectors } from "./station-appearance";
-import { deleteButtonAction, storagePanelRows } from "./storage";
+import { deleteButtonAction, storagePanelOpenAfterClick, storagePanelRows, type DeleteConfirmation } from "./storage";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -147,7 +147,7 @@ let orderLines: { from: Vec[]; to: Vec; start: number } | null = null;
 let pendingGate: PendingGate | null = null;
 let clock = INITIAL_CLOCK;
 let storagePanelOpen = false;
-const deleteConfirmUntil = new Map<Material, number>();
+const deleteConfirmations = new Map<Material, DeleteConfirmation>();
 
 function openStoragePanel(): void {
   storagePanelOpen = true;
@@ -173,7 +173,7 @@ function openStoragePanel(): void {
 function closeStoragePanel(): void {
   storagePanelOpen = false;
   storagePanel.hidden = true;
-  deleteConfirmUntil.clear();
+  deleteConfirmations.clear();
 }
 
 function renderStoragePanel(now: number): void {
@@ -183,10 +183,10 @@ function renderStoragePanel(now: number): void {
     element.querySelector<HTMLElement>(".amount")!.textContent = String(row.amount);
     const limit = element.querySelector<HTMLInputElement>("input[data-limit]")!;
     if (document.activeElement !== limit) limit.value = row.limit;
-    const confirmUntil = deleteConfirmUntil.get(row.material);
+    const confirmation = deleteConfirmations.get(row.material);
     const remove = element.querySelector<HTMLButtonElement>("button[data-delete]")!;
-    remove.textContent = confirmUntil !== undefined && now <= confirmUntil ? "Confirm" : "Delete";
-    if (confirmUntil !== undefined && now > confirmUntil) deleteConfirmUntil.delete(row.material);
+    remove.textContent = confirmation !== undefined && now <= confirmation.until ? "Confirm" : "Delete";
+    if (confirmation !== undefined && now > confirmation.until) deleteConfirmations.delete(row.material);
   }
 }
 
@@ -202,14 +202,14 @@ storagePanel.addEventListener("click", (event) => {
   const remove = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-delete]");
   if (!remove) return;
   const material = remove.dataset.delete as Material;
-  const action = deleteButtonAction(deleteConfirmUntil.get(material) ?? null, performance.now());
-  if (action.deleteNow) {
-    const quantity = storagePanel.querySelector<HTMLInputElement>(`input[data-delete-amount="${material}"]`)!;
-    const amount = Number(quantity.value);
-    if (quantity.value !== "" && Number.isFinite(amount) && amount > 0) state = deleteStock(state, material, amount);
+  const quantity = storagePanel.querySelector<HTMLInputElement>(`input[data-delete-amount="${material}"]`)!;
+  const action = deleteButtonAction(deleteConfirmations.get(material) ?? null, material, quantity.value, performance.now());
+  if (action.deleteAmount !== null) {
+    state = deleteStock(state, material, action.deleteAmount);
     quantity.value = "";
-    deleteConfirmUntil.delete(material);
-  } else deleteConfirmUntil.set(material, action.confirmUntil!);
+  }
+  if (action.confirmation) deleteConfirmations.set(material, action.confirmation);
+  else deleteConfirmations.delete(material);
   renderStoragePanel(performance.now());
 });
 
@@ -555,8 +555,9 @@ window.addEventListener("mouseup", (event) => {
       const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
       const clickedStorage = hovered?.kind === "storage"
         || (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Storage");
-      if (clickedStorage) openStoragePanel();
-      else if (!hovered) closeStoragePanel();
+      const storageOpen = storagePanelOpenAfterClick(storagePanelOpen, clickedStorage ? "storage" : hovered ? "other" : "empty");
+      if (storageOpen && !storagePanelOpen) openStoragePanel();
+      else if (!storageOpen && storagePanelOpen) closeStoragePanel();
       if (hovered?.kind === "ship") selectedShips = additive ? toggleShip(selectedShips, state.ships[hovered.index]!.id) : [state.ships[hovered.index]!.id];
       else if (!additive) selectedShips = [];
       selectedShip = selectedShips[0] ?? null;
