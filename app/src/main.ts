@@ -18,6 +18,7 @@ import {
   type Ship,
   type ShipDesign,
   type Size,
+  type StationModule,
   type Vec,
 } from "sim";
 import {
@@ -52,6 +53,8 @@ import {
   applyTool,
   cellAt,
   designOf,
+  designPartAt,
+  draftPartAt,
   emptyDraft,
   emptyView,
   lineCells,
@@ -64,6 +67,7 @@ import {
   zoomView,
   type ShipDraft,
 } from "./shipyard";
+import { moduleAppearance, stationConnectors } from "./station-appearance";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -73,14 +77,16 @@ const buildControlsEl = document.querySelector<HTMLElement>("#build-controls");
 const buildMenuEl = document.querySelector<HTMLElement>("#build-menu");
 const shipMenuEl = document.querySelector<HTMLElement>("#ship-menu");
 const shipPanelEl = document.querySelector<HTMLElement>("#ship-panel");
+const partTipEl = document.querySelector<HTMLElement>("#part-tip");
 const sectorNameEl = document.querySelector<HTMLElement>("#sector-name");
 const gateMenuEl = document.querySelector<HTMLElement>("#gate-menu");
 const speedControlsEl = document.querySelector<HTMLElement>("#speed-controls");
-if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !gateMenuEl) {
+if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !partTipEl || !gateMenuEl) {
   throw new Error("missing #screen canvas or #info box");
 }
 const shipMenu: HTMLElement = shipMenuEl;
 const shipPanelBox: HTMLElement = shipPanelEl;
+const partTip: HTMLElement = partTipEl;
 const canvas: HTMLCanvasElement = canvasEl;
 const box: HTMLElement = boxEl;
 const boxTitle: HTMLElement = titleEl;
@@ -119,6 +125,10 @@ let draft: ShipDraft = emptyDraft();
 let paintView: Camera = emptyView();
 let paintCanvas: HTMLCanvasElement | null = null;
 let paintPointer: Vec | null = null;
+// Where the mouse is over a ship's design, on the paint grid or the selected
+// ship's thumbnail, in window pixels. Kept as a position and looked up every
+// frame, so the name follows a pixel painted under a still mouse.
+let partHover: { at: Vec; source: "paint" | "thumb" } | null = null;
 let stroking: Vec | null = null;
 let paintPan: Vec | null = null;
 let selectedShip: number | null = null;
@@ -312,6 +322,7 @@ function closeShipMenu(): void {
   shipMenu.hidden = true;
   stroking = null;
   paintPan = null;
+  partHover = null;
 }
 
 shipMenu.addEventListener("click", (event) => {
@@ -329,12 +340,16 @@ shipMenu.addEventListener("click", (event) => {
   syncShipMenuButtons();
 });
 
-function paintPoint(event: MouseEvent): Vec {
+function paintPointAt(client: Vec): Vec {
   const bounds = paintCanvas!.getBoundingClientRect();
   return {
-    x: (event.clientX - bounds.left) * (paintCanvas!.width / bounds.width),
-    y: (event.clientY - bounds.top) * (paintCanvas!.height / bounds.height),
+    x: (client.x - bounds.left) * (paintCanvas!.width / bounds.width),
+    y: (client.y - bounds.top) * (paintCanvas!.height / bounds.height),
   };
+}
+
+function paintPoint(event: MouseEvent): Vec {
+  return paintPointAt({ x: event.clientX, y: event.clientY });
 }
 
 function paintViewport(): Viewport {
@@ -361,9 +376,18 @@ shipMenu.addEventListener("wheel", (event) => {
 }, { passive: false });
 shipMenu.addEventListener("mousemove", (event) => {
   paintPointer = event.target === paintCanvas ? paintPoint(event) : null;
+  partHover = paintPointer ? { at: { x: event.clientX, y: event.clientY }, source: "paint" } : null;
 });
 shipMenu.addEventListener("mouseleave", () => {
   paintPointer = null;
+  partHover = null;
+});
+shipPanelBox.addEventListener("mousemove", (event) => {
+  const onThumb = (event.target as HTMLElement).closest(".ship-thumb") !== null;
+  partHover = onThumb ? { at: { x: event.clientX, y: event.clientY }, source: "thumb" } : null;
+});
+shipPanelBox.addEventListener("mouseleave", () => {
+  partHover = null;
 });
 window.addEventListener("mousemove", (event) => {
   if (!paintCanvas || shipMenuBuilder === null) return;
@@ -517,10 +541,84 @@ function strokeWorldRect(center: Vec, size: Size, color: string): void {
   ctx.restore();
 }
 
-function moduleColor(type: ModuleType): string {
-  if (type === "Dock") return "#64748b";
-  if (type === "Storage") return "#475569";
-  return "#7c3aed";
+function drawStationConnector(from: Vec, to: Vec): void {
+  const start = worldToScreen(camera, viewport, from);
+  const end = worldToScreen(camera, viewport, to);
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#1e293b";
+  ctx.lineWidth = Math.max(4, 7 * camera.zoom);
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+  ctx.strokeStyle = "#64748b";
+  ctx.lineWidth = Math.max(1, 2 * camera.zoom);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawStationModule(module: StationModule): void {
+  const center = worldToScreen(camera, viewport, module.position);
+  const width = module.size.width * camera.zoom;
+  const height = module.size.height * camera.zoom;
+  const appearance = moduleAppearance(module.type);
+  const detailWidth = Math.max(1.5, 2 * camera.zoom);
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.fillStyle = "#1e293b";
+  ctx.strokeStyle = appearance.accent;
+  ctx.lineWidth = Math.max(1.5, 2 * camera.zoom);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, width * 0.47, height * 0.46, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  if (appearance.silhouette === "open-bay") {
+    ctx.fillStyle = "#020617";
+    ctx.fillRect(-width * 0.23, -height * 0.17, width * 0.46, height * 0.42);
+    ctx.strokeStyle = appearance.accent;
+    ctx.lineWidth = detailWidth;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-width * 0.32, height * 0.28);
+    ctx.lineTo(-width * 0.32, -height * 0.1);
+    ctx.lineTo(-width * 0.18, -height * 0.3);
+    ctx.moveTo(width * 0.32, height * 0.28);
+    ctx.lineTo(width * 0.32, -height * 0.1);
+    ctx.lineTo(width * 0.18, -height * 0.3);
+    ctx.stroke();
+  } else if (appearance.silhouette === "tank-cluster") {
+    for (const x of [-0.22, 0, 0.22]) {
+      ctx.fillStyle = x === 0 ? appearance.accent : "#475569";
+      ctx.strokeStyle = appearance.accent;
+      ctx.lineWidth = Math.max(1, camera.zoom);
+      ctx.beginPath();
+      ctx.ellipse(width * x, 0, width * 0.14, height * 0.29, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else {
+    ctx.strokeStyle = appearance.accent;
+    ctx.lineWidth = detailWidth;
+    ctx.lineCap = "square";
+    ctx.beginPath();
+    ctx.moveTo(-width * 0.28, height * 0.28);
+    ctx.lineTo(-width * 0.28, -height * 0.28);
+    ctx.lineTo(width * 0.24, -height * 0.28);
+    ctx.lineTo(width * 0.24, -height * 0.14);
+    ctx.moveTo(-width * 0.28, -height * 0.08);
+    ctx.lineTo(width * 0.2, height * 0.28);
+    ctx.moveTo(width * 0.24, -height * 0.14);
+    ctx.lineTo(width * 0.34, -height * 0.02);
+    ctx.stroke();
+    ctx.fillStyle = appearance.accent;
+    ctx.beginPath();
+    ctx.arc(width * 0.34, height * 0.04, Math.max(1.5, width * 0.07), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 // Edges are rounded so the image lands on whole screen pixels at any zoom.
@@ -591,6 +689,31 @@ function drawPaintCanvas(): void {
     g.lineWidth = 2;
     g.strokeRect(corner.x, corner.y, span, span);
   }
+}
+
+// The name of the part under the mouse, or null when it is not over a design.
+function hoveredPart(hover: NonNullable<typeof partHover>): string | null {
+  if (hover.source === "paint") {
+    if (!paintCanvas || shipMenuBuilder === null) return null;
+    return draftPartAt(draft, cellAt(paintView, paintViewport(), paintPointAt(hover.at)));
+  }
+  const thumb = shipPanelBox.querySelector<HTMLElement>(".ship-thumb");
+  const ship = state.ships.find((candidate) => candidate.id === selectedShip);
+  if (!thumb || !ship || shipPanelBox.hidden) return null;
+  const bounds = thumb.getBoundingClientRect();
+  return designPartAt(ship.design, {
+    x: (hover.at.x - bounds.left) / bounds.width,
+    y: (hover.at.y - bounds.top) / bounds.height,
+  });
+}
+
+function renderPartTip(): void {
+  const name = partHover && hoveredPart(partHover);
+  partTip.hidden = !partHover || name === null;
+  if (!partHover || name === null) return;
+  partTip.textContent = name;
+  partTip.style.left = `${partHover.at.x + 14}px`;
+  partTip.style.top = `${partHover.at.y + 14}px`;
 }
 
 function renderShipPanel(): void {
@@ -754,8 +877,11 @@ function draw(seconds: number): void {
   for (const asteroid of sectorRocks) {
     fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material, asteroid.rich));
   }
+  for (const connector of currentSector === 0 ? stationConnectors(state.station.modules) : []) {
+    drawStationConnector(connector.from, connector.to);
+  }
   for (const module of currentSector === 0 ? state.station.modules : []) {
-    fillWorldRect(module.position, module.size, moduleColor(module.type));
+    drawStationModule(module);
   }
   if (currentSector === 0 && state.station.construction) {
     strokeWorldRect(state.station.construction.position, state.station.construction.size, "#cbd5e1");
@@ -774,6 +900,7 @@ function draw(seconds: number): void {
     if (gauge) drawGauge(ship.position, gauge, shipSize(ship.design));
   }
   renderShipPanel();
+  renderPartTip();
 
   if (sectorNameEl) sectorNameEl.textContent = state.sectors[currentSector]!.name;
   const builtDestination = state.gateProjects.find((project) => project.complete && project.ends.some((end) => end.sectorId === currentSector))
