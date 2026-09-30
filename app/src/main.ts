@@ -52,6 +52,8 @@ import {
   applyTool,
   cellAt,
   designOf,
+  designPartAt,
+  draftPartAt,
   emptyDraft,
   emptyView,
   lineCells,
@@ -73,14 +75,16 @@ const buildControlsEl = document.querySelector<HTMLElement>("#build-controls");
 const buildMenuEl = document.querySelector<HTMLElement>("#build-menu");
 const shipMenuEl = document.querySelector<HTMLElement>("#ship-menu");
 const shipPanelEl = document.querySelector<HTMLElement>("#ship-panel");
+const partTipEl = document.querySelector<HTMLElement>("#part-tip");
 const sectorNameEl = document.querySelector<HTMLElement>("#sector-name");
 const gateMenuEl = document.querySelector<HTMLElement>("#gate-menu");
 const speedControlsEl = document.querySelector<HTMLElement>("#speed-controls");
-if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !gateMenuEl) {
+if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !partTipEl || !gateMenuEl) {
   throw new Error("missing #screen canvas or #info box");
 }
 const shipMenu: HTMLElement = shipMenuEl;
 const shipPanelBox: HTMLElement = shipPanelEl;
+const partTip: HTMLElement = partTipEl;
 const canvas: HTMLCanvasElement = canvasEl;
 const box: HTMLElement = boxEl;
 const boxTitle: HTMLElement = titleEl;
@@ -119,6 +123,10 @@ let draft: ShipDraft = emptyDraft();
 let paintView: Camera = emptyView();
 let paintCanvas: HTMLCanvasElement | null = null;
 let paintPointer: Vec | null = null;
+// Where the mouse is over a ship's design, on the paint grid or the selected
+// ship's thumbnail, in window pixels. Kept as a position and looked up every
+// frame, so the name follows a pixel painted under a still mouse.
+let partHover: { at: Vec; source: "paint" | "thumb" } | null = null;
 let stroking: Vec | null = null;
 let paintPan: Vec | null = null;
 let selectedShip: number | null = null;
@@ -312,6 +320,7 @@ function closeShipMenu(): void {
   shipMenu.hidden = true;
   stroking = null;
   paintPan = null;
+  partHover = null;
 }
 
 shipMenu.addEventListener("click", (event) => {
@@ -329,12 +338,16 @@ shipMenu.addEventListener("click", (event) => {
   syncShipMenuButtons();
 });
 
-function paintPoint(event: MouseEvent): Vec {
+function paintPointAt(client: Vec): Vec {
   const bounds = paintCanvas!.getBoundingClientRect();
   return {
-    x: (event.clientX - bounds.left) * (paintCanvas!.width / bounds.width),
-    y: (event.clientY - bounds.top) * (paintCanvas!.height / bounds.height),
+    x: (client.x - bounds.left) * (paintCanvas!.width / bounds.width),
+    y: (client.y - bounds.top) * (paintCanvas!.height / bounds.height),
   };
+}
+
+function paintPoint(event: MouseEvent): Vec {
+  return paintPointAt({ x: event.clientX, y: event.clientY });
 }
 
 function paintViewport(): Viewport {
@@ -361,9 +374,18 @@ shipMenu.addEventListener("wheel", (event) => {
 }, { passive: false });
 shipMenu.addEventListener("mousemove", (event) => {
   paintPointer = event.target === paintCanvas ? paintPoint(event) : null;
+  partHover = paintPointer ? { at: { x: event.clientX, y: event.clientY }, source: "paint" } : null;
 });
 shipMenu.addEventListener("mouseleave", () => {
   paintPointer = null;
+  partHover = null;
+});
+shipPanelBox.addEventListener("mousemove", (event) => {
+  const onThumb = (event.target as HTMLElement).closest(".ship-thumb") !== null;
+  partHover = onThumb ? { at: { x: event.clientX, y: event.clientY }, source: "thumb" } : null;
+});
+shipPanelBox.addEventListener("mouseleave", () => {
+  partHover = null;
 });
 window.addEventListener("mousemove", (event) => {
   if (!paintCanvas || shipMenuBuilder === null) return;
@@ -593,6 +615,31 @@ function drawPaintCanvas(): void {
   }
 }
 
+// The name of the part under the mouse, or null when it is not over a design.
+function hoveredPart(hover: NonNullable<typeof partHover>): string | null {
+  if (hover.source === "paint") {
+    if (!paintCanvas || shipMenuBuilder === null) return null;
+    return draftPartAt(draft, cellAt(paintView, paintViewport(), paintPointAt(hover.at)));
+  }
+  const thumb = shipPanelBox.querySelector<HTMLElement>(".ship-thumb");
+  const ship = state.ships.find((candidate) => candidate.id === selectedShip);
+  if (!thumb || !ship || shipPanelBox.hidden) return null;
+  const bounds = thumb.getBoundingClientRect();
+  return designPartAt(ship.design, {
+    x: (hover.at.x - bounds.left) / bounds.width,
+    y: (hover.at.y - bounds.top) / bounds.height,
+  });
+}
+
+function renderPartTip(): void {
+  const name = partHover && hoveredPart(partHover);
+  partTip.hidden = !partHover || name === null;
+  if (!partHover || name === null) return;
+  partTip.textContent = name;
+  partTip.style.left = `${partHover.at.x + 14}px`;
+  partTip.style.top = `${partHover.at.y + 14}px`;
+}
+
 function renderShipPanel(): void {
   selectedShips = selectedShips.filter((id) => state.ships.some((ship) => ship.id === id));
   selectedShip = selectedShips[0] ?? null;
@@ -774,6 +821,7 @@ function draw(seconds: number): void {
     if (gauge) drawGauge(ship.position, gauge, shipSize(ship.design));
   }
   renderShipPanel();
+  renderPartTip();
 
   if (sectorNameEl) sectorNameEl.textContent = state.sectors[currentSector]!.name;
   const builtDestination = state.gateProjects.find((project) => project.complete && project.ends.some((end) => end.sectorId === currentSector))
