@@ -51,6 +51,7 @@ function missing(design: ShipDesign): string {
 
 // One line saying what the ship is doing, for its hover box and panel.
 export function shipStatus(state: SimState, ship: Ship): string {
+  if (ship.order) return `Order: ${ship.order.kind}`;
   switch (ship.state) {
     case "idle":
       return canMine(ship.design) ? "Idle: no ore" : `Idle: ${missing(ship.design)}`;
@@ -66,6 +67,10 @@ export function shipStatus(state: SimState, ship: Ship): string {
       const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
       return stored >= state.station.storage.capacity ? "Waiting: storage full" : "Waiting: dock busy";
     }
+    case "moving":
+      return "Moving";
+    case "holding":
+      return "Holding";
   }
 }
 

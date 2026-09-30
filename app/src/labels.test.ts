@@ -19,6 +19,9 @@ const ship = (state: Ship["state"], cargo: number, timer = 1): Ship => ({
   timer,
   position: { x: 0, y: 0 },
   target: null,
+  defaultBehaviour: "mine",
+  order: null,
+  leg: null,
 });
 
 describe("cargo gauge", () => {
