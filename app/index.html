@@ -104,7 +104,7 @@
         --slot: 28px;
       }
       #ship-menu { width: 300px; display: grid; gap: 8px; }
-      #ship-panel { top: 12px; right: 12px; width: 200px; --slot: 18px; }
+      #ship-panel { top: 56px; right: 12px; width: 200px; --slot: 18px; }
       #ship-menu[hidden], #ship-panel[hidden] { display: none; }
       #ship-menu h2, #ship-panel h2 { margin: 0; font-size: 14px; }
       #ship-menu .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
@@ -129,6 +129,9 @@
       #ship-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 8px 0 0; }
       #ship-panel dt { color: #94a3b8; }
       #ship-panel dd { margin: 0; }
+      #speed-controls { position: absolute; z-index: 2; top: 12px; right: 12px; display: flex; gap: 4px; }
+      #speed-controls button { padding: 6px 10px; border: 1px solid #64748b; background: #334155; color: #f8fafc; font: 12px monospace; cursor: pointer; }
+      #speed-controls button.active { background: #facc15; border-color: #facc15; color: #111827; }
       #gate-menu { position: absolute; z-index: 3; padding: 6px; border: 1px solid #64748b; background: #1f2937; }
       #gate-menu[hidden] { display: none; }
       #gate-menu button { padding: 7px 10px; border: 1px solid #64748b; background: #334155; color: #f8fafc; font: 12px monospace; cursor: pointer; }
@@ -141,6 +144,7 @@
     <div id="build-menu" hidden></div>
     <div id="ship-menu" hidden></div>
     <div id="gate-menu" hidden><button>Build gate here</button></div>
+    <div id="speed-controls"></div>
     <aside id="ship-panel" hidden></aside>
     <div id="info" hidden>
       <h2 id="info-title"></h2>
