@@ -1,6 +1,14 @@
 import {
+  CLAIM_MODULE_COST,
+  CLAIM_SITE_SIZE,
+  DOCK_SIZE,
   MAX_HULL,
   HOME_SECTOR,
+  STORAGE_SIZE,
+  claimSiteSlots,
+  removeClaimSite,
+  renameSector,
+  startClaimSite,
   SHIP_MODULES,
   SHIP_SLOT_SIZE,
   availableModuleBuildSites,
@@ -36,7 +44,7 @@ import {
 } from "./camera";
 import { cargoGauge, infoBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
-import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, type PendingGate } from "./sectors";
+import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, renameHit, renameLabel, type PendingGate } from "./sectors";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
 import {
   buildControlSize,
@@ -68,6 +76,15 @@ const shipMenuEl = document.querySelector<HTMLElement>("#ship-menu");
 const shipPanelEl = document.querySelector<HTMLElement>("#ship-panel");
 const sectorNameEl = document.querySelector<HTMLElement>("#sector-name");
 const gateMenuEl = document.querySelector<HTMLElement>("#gate-menu");
+const claimButtonEl = document.querySelector<HTMLButtonElement>("#claim-button");
+const hintEl = document.querySelector<HTMLElement>("#hint");
+const renameBoxEl = document.querySelector<HTMLInputElement>("#rename-box");
+const infoActionEl = document.querySelector<HTMLButtonElement>("#info-action");
+if (!claimButtonEl || !hintEl || !renameBoxEl || !infoActionEl) throw new Error("missing claim station controls");
+const claimButton: HTMLButtonElement = claimButtonEl;
+const hint: HTMLElement = hintEl;
+const renameBox: HTMLInputElement = renameBoxEl;
+const infoAction: HTMLButtonElement = infoActionEl;
 if (!canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !gateMenuEl) {
   throw new Error("missing #screen canvas or #info box");
 }
@@ -113,6 +130,14 @@ let pan: { last: Vec } | null = null;
 let dragBox: { start: Vec; end: Vec; additive: boolean } | null = null;
 let orderLines: { from: Vec[]; to: Vec; start: number } | null = null;
 let pendingGate: PendingGate | null = null;
+// "Build claim station" was pressed and the next click on the canvas, once a
+// sector is showing, places the construction site.
+let pendingClaim = false;
+let renamingSector: number | null = null;
+// The pointer can travel from a claim site onto its hover box to press
+// Remove site, so the box keeps its site while the pointer is on it.
+let stickySite: number | null = null;
+let infoHovered = false;
 
 function closeGateMenu(): void {
   gateMenu.hidden = true;
@@ -167,7 +192,38 @@ window.addEventListener("mousedown", (event) => {
   if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
 }, true);
 
+claimButton.addEventListener("click", () => {
+  pendingClaim = true;
+  closeGateMenu();
+});
+infoAction.addEventListener("click", () => {
+  const siteId = Number(infoAction.dataset.site);
+  state = removeClaimSite(state, siteId);
+  stickySite = null;
+  infoHovered = false;
+});
+box.addEventListener("pointerenter", () => { infoHovered = true; });
+box.addEventListener("pointerleave", () => { infoHovered = false; });
+
+function startRename(sectorId: number): void {
+  renamingSector = sectorId;
+  renameBox.value = state.sectors[sectorId]!.name;
+  renameBox.hidden = false;
+  renameBox.focus();
+  renameBox.select();
+}
+
+// Keys typed into the name box are not map or camera keys.
+renameBox.addEventListener("keydown", (event) => {
+  event.stopPropagation();
+  if (event.key === "Enter" && renamingSector !== null) {
+    state = renameSector(state, renamingSector, renameBox.value);
+    renamingSector = null;
+  } else if (event.key === "Escape") renamingSector = null;
+});
+
 window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") pendingClaim = false;
   if (event.key.toLowerCase() === "m" || event.key === "Escape") mapOpen = mapToggled(mapOpen, event.key);
   if (event.key === "Escape") closeGateMenu();
   if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
@@ -313,7 +369,10 @@ window.addEventListener("mouseup", (event) => {
   if (event.button === 1) pan = null;
   if (event.button === 0 && dragBox) {
     const { start, end, additive } = dragBox; dragBox = null;
-    if (!isBoxDrag(start, end) && event.target === canvas && pendingGate?.targetSector === currentSector) {
+    if (!isBoxDrag(start, end) && event.target === canvas && pendingClaim && !mapOpen) {
+      const placed = startClaimSite(state, currentSector, screenToWorld(camera, viewport, mousePoint(event)));
+      if (placed !== state) { state = placed; pendingClaim = false; }
+    } else if (!isBoxDrag(start, end) && event.target === canvas && pendingGate?.targetSector === currentSector) {
       state = startGateBuild(state, pendingGate.sectorId, pendingGate.position, currentSector, screenToWorld(camera, viewport, mousePoint(event)));
       pendingGate = null;
     } else if (isBoxDrag(start, end)) {
@@ -321,12 +380,16 @@ window.addEventListener("mouseup", (event) => {
       selectedShips = additive ? [...new Set([...selectedShips, ...picked])] : picked;
       selectedShip = selectedShips[0] ?? null;
     } else if (event.target === canvas && mapOpen) {
-      const id = mapHit(mapLayout(state, viewport), mousePoint(event));
-      if (id !== null) {
+      const layout = mapLayout(state, viewport);
+      const renameId = renameHit(layout, mousePoint(event));
+      const id = renameId === null ? mapHit(layout, mousePoint(event)) : null;
+      if (renameId !== null) startRename(renameId);
+      else if (id !== null) {
         if (!gateTargetAllowed(pendingGate, id)) return;
         currentSector = id;
         const sectorRocks = state.asteroids.filter((rock) => rock.sectorId === id);
-        const bodies = [...sectorRocks, ...(id === 0 ? [state.station.dock, state.station.storage, ...state.station.modules] : []), state.sectors[id]!.gate];
+        const sectorSites = state.claimSites.filter((site) => site.sectorId === id).map((site) => ({ position: site.position, size: CLAIM_SITE_SIZE }));
+        const bodies = [...sectorRocks, ...sectorSites, ...(id === 0 ? [state.station.dock, state.station.storage, ...state.station.modules] : []), state.sectors[id]!.gate];
         camera = fitCamera(viewport, bodies);
         mapOpen = false;
         if (pendingGate) pendingGate.targetSector = id;
@@ -353,7 +416,7 @@ canvas.addEventListener("contextmenu", (event) => {
   if (!selectedShips.length) return;
   const world = screenToWorld(camera, viewport, point); const target = orderTargetAt(state, hovered, world, currentSector);
   const to = target.kind === "move" ? target.point : target.kind === "home" ? state.station.dock.position
-    : target.kind === "haulGate" ? world : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
+    : target.kind === "haulGate" ? world : target.kind === "supplySite" ? state.claimSites.find((site) => site.id === target.siteId)?.position ?? world : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
   orderLines = { from: selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
   state = giveOrder(state, selectedShips, target);
 });
@@ -391,6 +454,24 @@ function strokeWorldRect(center: Vec, size: Size, color: string): void {
   ctx.lineWidth = 2;
   ctx.strokeRect(topLeft.x, topLeft.y, size.width * camera.zoom, size.height * camera.zoom);
   ctx.restore();
+}
+
+// The slot being supplied fills as materials arrive, and is solid while it builds.
+function supplyFraction(site: (typeof state.claimSites)[number]): number {
+  if (site.timer !== null) return 1;
+  const cost = CLAIM_MODULE_COST.Metal + CLAIM_MODULE_COST.Ice;
+  return (site.delivered.Metal + site.delivered.Ice) / cost;
+}
+
+function drawClaimSite(site: (typeof state.claimSites)[number]): void {
+  const size = { Dock: DOCK_SIZE, Storage: STORAGE_SIZE, Builder: DOCK_SIZE };
+  claimSiteSlots(site).forEach((slot, index) => {
+    if (slot.built) { fillWorldRect(slot.position, size[slot.type], moduleColor(slot.type)); return; }
+    strokeWorldRect(slot.position, size[slot.type], "#cbd5e1");
+    if (index !== site.stage) return;
+    const height = size[slot.type].height * supplyFraction(site);
+    fillWorldRect({ x: slot.position.x, y: slot.position.y + (size[slot.type].height - height) / 2 }, { width: size[slot.type].width, height }, "rgba(148,163,184,.55)");
+  });
 }
 
 function moduleColor(type: ModuleType): string {
@@ -558,6 +639,9 @@ function draw(seconds: number): void {
   if (currentSector === 0 && state.station.construction) {
     strokeWorldRect(state.station.construction.position, state.station.construction.size, "#cbd5e1");
   }
+  for (const site of state.claimSites) {
+    if (site.sectorId === currentSector) drawClaimSite(site);
+  }
 
   for (const ship of sectorShips) {
     const beam = laserBeam(state, ship);
@@ -582,16 +666,23 @@ function draw(seconds: number): void {
     : `Sector ${state.sectors[currentSector]!.name}: ${sectorRocks.length} asteroids, ${currentSector === 0 ? "station present" : "no station"}${gateDestination === null ? "" : `, gate to ${state.sectors[gateDestination]!.name}`}`);
   // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
-  const hovered = hoveredBody(state, camera, viewport, pointer, currentSector);
+  let hovered = hoveredBody(state, camera, viewport, pointer, currentSector);
+  if (hovered?.kind === "claimSite") stickySite = hovered.id;
+  else if (infoHovered && stickySite !== null) hovered = { kind: "claimSite", id: stickySite };
+  else stickySite = null;
   const info = infoBox(state, hovered);
   box.hidden = info === null;
+  if (info === null) infoHovered = false;
+  box.style.pointerEvents = info?.action ? "auto" : "none";
+  infoAction.hidden = !info?.action;
+  if (info?.action) { infoAction.textContent = info.action.label; infoAction.dataset.site = String(info.action.siteId); }
   const body = hovered && bodyOf(state, hovered);
   if (body && info) {
     const anchor = worldToScreen(camera, viewport, {
       x: body.position.x + body.size.width / 2,
       y: body.position.y - body.size.height / 2,
     });
-    box.style.left = `${anchor.x + 8}px`;
+    box.style.left = `${anchor.x + (info.action ? 0 : 8)}px`;
     box.style.top = `${anchor.y}px`;
     boxTitle.textContent = info.title;
     boxLine.textContent = info.line;
@@ -667,6 +758,12 @@ function draw(seconds: number): void {
     }));
   }
 
+  claimButton.hidden = !mapOpen;
+  hint.hidden = !pendingClaim;
+  hint.textContent = mapOpen ? "Pick the sector for the claim station" : "Click a spot for the construction site. Esc cancels.";
+  renameBox.hidden = renamingSector === null || !mapOpen;
+  if (renameBox.hidden) renamingSector = null;
+
   if (mapOpen) {
     const layout = mapLayout(state, viewport);
     ctx.save(); ctx.fillStyle = "rgba(15,23,42,.94)"; ctx.fillRect(0, 0, viewport.width, viewport.height);
@@ -681,6 +778,16 @@ function draw(seconds: number): void {
       ctx.fillStyle = "#f8fafc"; ctx.textAlign = "center"; ctx.font = "14px monospace";
       ctx.fillText(circle.name, circle.center.x, circle.center.y - 4);
       ctx.fillText(`${circle.ships} ships`, circle.center.x, circle.center.y + 18);
+      if (circle.claimed) {
+        const label = renameLabel(circle);
+        ctx.font = "11px monospace"; ctx.strokeStyle = "#94a3b8"; ctx.strokeRect(label.x, label.y, label.width, label.height);
+        ctx.fillText("Rename", circle.center.x, label.y + 12);
+        ctx.font = "14px monospace";
+      }
+      if (renamingSector === circle.id) {
+        renameBox.style.left = `${Math.round(circle.center.x - 60)}px`;
+        renameBox.style.top = `${Math.round(circle.center.y - 22)}px`;
+      }
     }
     ctx.globalAlpha = 1;
     ctx.restore();

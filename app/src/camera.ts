@@ -1,4 +1,4 @@
-import { shipSize, type SimState, type Size, type Vec } from "sim";
+import { CLAIM_SITE_SIZE, shipSize, type SimState, type Size, type Vec } from "sim";
 
 // Placeholder limits. Revisit when sectors get bigger than one station and
 // a handful of asteroids and the client wants to see more of them at once.
@@ -95,6 +95,7 @@ export type Hovered =
   | { kind: "construction" }
   | { kind: "ship"; index: number }
   | { kind: "gateProject"; id: number; end?: number }
+  | { kind: "claimSite"; id: number }
   | { kind: "asteroid"; id: number };
 
 function insideRect(point: Vec, center: Vec, size: Size): boolean {
@@ -135,6 +136,7 @@ export function hoveredBody(
     if (stationVisible && [state.station.dock, state.station.storage, ...state.station.modules,
       ...(state.station.construction ? [state.station.construction] : [])]
       .some((body) => insideRect(position, body.position, body.size))) return true;
+    if (state.claimSites.some((site) => site.sectorId === currentSector && insideRect(position, site.position, CLAIM_SITE_SIZE))) return true;
     return state.gateProjects.some((project) => project.ends.some((end) =>
       end.sectorId === currentSector && insideRect(position, end.position, { width: 24, height: 24 }),
     ));
@@ -152,6 +154,9 @@ export function hoveredBody(
   for (const project of state.gateProjects) {
     const end = project.ends.findIndex((candidate) => candidate.sectorId === currentSector);
     if (end >= 0 && insideRect(world, project.ends[end]!.position, { width: 24, height: 24 })) return { kind: "gateProject", id: project.id, end };
+  }
+  for (const site of state.claimSites) {
+    if (site.sectorId === currentSector && insideRect(world, site.position, CLAIM_SITE_SIZE)) return { kind: "claimSite", id: site.id };
   }
   if (stationVisible && insideRect(world, state.station.dock.position, state.station.dock.size)) return { kind: "dock" };
   if (stationVisible && insideRect(world, state.station.storage.position, state.station.storage.size)) {
@@ -203,6 +208,10 @@ export function bodyOf(
     const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
     const end = project?.ends[hovered.end ?? 0];
     return end ? { position: end.position, size: { width: 24, height: 24 } } : null;
+  }
+  if (hovered.kind === "claimSite") {
+    const site = state.claimSites.find((candidate) => candidate.id === hovered.id);
+    return site ? { position: site.position, size: CLAIM_SITE_SIZE } : null;
   }
   return state.asteroids.find((a) => a.id === hovered.id) ?? null;
 }

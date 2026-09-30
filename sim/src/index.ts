@@ -66,5 +66,20 @@ export {
   type ShipModule,
   type ShipStats,
 } from "./ship";
+export {
+  CLAIM_BUILD_ORDER,
+  CLAIM_BUILD_SECONDS,
+  CLAIM_MODULE_COST,
+  CLAIM_SITE_SIZE,
+  claimSiteBuilt,
+  claimSiteNeeds,
+  claimSiteSlots,
+  removeClaimSite,
+  renameSector,
+  sectorClaimed,
+  startClaimSite,
+  type ClaimSite,
+  type ClaimSiteNeeds,
+} from "./claim";
 export { tick } from "./tick";
 export { formation, giveOrder, resumeDefault, setDefaultBehaviour, type OrderTarget } from "./orders";
