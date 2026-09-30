@@ -32,6 +32,7 @@ export {
   gateRoute,
   sectorInGateRange,
   type Asteroid,
+  type AsteroidField,
   type Delivery,
   type Sector,
   type Beam,

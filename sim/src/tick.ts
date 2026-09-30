@@ -15,7 +15,7 @@ import {
   STORAGE_CAPACITY,
   depart,
   gateRoute,
-  placeAsteroid,
+  placeInField,
   type Asteroid,
   type Ship,
   type SimState,
@@ -68,6 +68,7 @@ interface Draft {
   inventory: SimState["station"]["inventory"];
   asteroids: Asteroid[];
   respawns: SimState["respawns"];
+  fields: SimState["fields"];
   ships: Ship[];
   modules: Station["modules"];
   construction: Station["construction"];
@@ -93,7 +94,7 @@ function mine(draft: Draft, ship: Ship, units: number): number {
     return taken;
   }
   draft.asteroids = draft.asteroids.filter((a) => a.id !== id);
-  draft.respawns = [...draft.respawns, { sectorId: asteroid.sectorId, timer: RESPAWN_SECONDS, lastPosition: asteroid.position }];
+  draft.respawns = [...draft.respawns, { sectorId: asteroid.sectorId, fieldId: asteroid.fieldId, timer: RESPAWN_SECONDS, lastPosition: asteroid.position }];
   return taken;
 }
 
@@ -237,7 +238,7 @@ function finish(draft: Draft, ship: Ship): Ship {
   const route = routeOf(ship, draft.dock);
   switch (ship.state) {
     case "idle":
-      return depart(ship, draft.dock, draft.asteroids, draft.ships);
+      return ship.defaultBehaviour === "none" ? ship : depart(ship, draft.dock, draft.asteroids, draft.ships);
     case "holding":
       if (ship.order?.kind === "haulGate") return loadGateHauler(draft, ship);
       return ship;
@@ -374,21 +375,31 @@ function settle(draft: Draft): void {
   const due = draft.respawns.filter((r) => r.timer <= 0);
   draft.respawns = draft.respawns.filter((r) => r.timer > 0);
   for (const respawn of due) {
-    const respawnSector = respawn.sectorId;
-    const centre = respawnSector === 0 ? draft.dock : { x: 0, y: 0 };
-    const placed = placeAsteroid(draft.rng, centre, [
-      respawn.lastPosition,
-      ...draft.asteroids.filter((a) => a.sectorId === respawnSector).map((a) => a.position),
-      ...draft.modules.map((module) => module.position),
-      ...(draft.construction ? [draft.construction.position] : []),
-      ...draft.claimSites.filter((site) => site.sectorId === respawnSector).flatMap((site) => [site.position, ...claimSiteSlots(site).map((slot) => slot.position)]),
-    ]);
+    const field = draft.fields.find((candidate) => candidate.id === respawn.fieldId)!;
+    const placed = placeInField(
+      draft.rng,
+      field,
+      [respawn.lastPosition, ...draft.asteroids.filter((a) => a.sectorId === respawn.sectorId).map((a) => a.position)],
+      [
+        ...(respawn.sectorId === HOME_SECTOR
+          ? [...draft.modules.map((module) => module.position), ...(draft.construction ? [draft.construction.position] : [])]
+          : []),
+        ...draft.claimSites.filter((site) => site.sectorId === respawn.sectorId)
+          .flatMap((site) => [site.position, ...claimSiteSlots(site).map((slot) => slot.position)]),
+      ],
+    );
+    if (!placed) {
+      // The station covers the field. Ask again later instead of putting the
+      // rock outside its belt or cluster.
+      draft.respawns = [...draft.respawns, { ...respawn, timer: RESPAWN_SECONDS }];
+      continue;
+    }
     draft.rng = placed.rng;
     const material = nextRandom(draft.rng);
     draft.rng = material.state;
     draft.asteroids = [
       ...draft.asteroids,
-      { id: draft.nextAsteroidId, sectorId: respawn.sectorId, position: placed.position, size: ASTEROID_SIZE, ore: ASTEROID_ORE,
+      { id: draft.nextAsteroidId, sectorId: respawn.sectorId, fieldId: respawn.fieldId, position: placed.position, size: ASTEROID_SIZE, ore: ASTEROID_ORE,
         material: material.value < 0.5 ? "Metal" : "Ice" },
     ];
     draft.nextAsteroidId += 1;
@@ -437,6 +448,7 @@ export function tick(state: SimState, dt: number): SimState {
     inventory: state.station.inventory,
     asteroids: state.asteroids,
     respawns: state.respawns,
+    fields: state.fields,
     ships: state.ships,
     modules: state.station.modules,
     construction: state.station.construction,
