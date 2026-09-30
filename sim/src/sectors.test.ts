@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, HOME_SECTOR, JUMP_SECONDS, startGateBuild } from "./state";
+import { createInitialState, HOME_SECTOR, JUMP_SECONDS, sectorInGateRange, startGateBuild } from "./state";
 import { tick } from "./tick";
 import { giveOrder } from "./orders";
 
@@ -28,6 +28,14 @@ describe("two linked sectors", () => {
       delivered: { Metal: 0, Ice: 0 },
       complete: false,
     }]);
+  });
+
+  it("only starts an in-range project with one end at Home", () => {
+    const start = createInitialState(11);
+    expect(startGateBuild(start, 1, { x: 0, y: 0 }, 3, { x: 0, y: 0 })).toBe(start);
+    expect(startGateBuild(start, HOME_SECTOR, { x: 0, y: 0 }, 2, { x: 0, y: 0 })).toBe(start);
+    expect(sectorInGateRange(HOME_SECTOR, 1)).toBe(true);
+    expect(sectorInGateRange(HOME_SECTOR, 2)).toBe(false);
   });
 
   it("sends an ID-selected ship through gates to mine a distant-sector rock", () => {

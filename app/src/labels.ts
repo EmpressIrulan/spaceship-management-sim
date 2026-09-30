@@ -1,4 +1,4 @@
-import { MATERIALS, shipStats, unloadingSeconds, type Ship, type SimState } from "sim";
+import { GATE_COST, MATERIALS, shipStats, unloadingSeconds, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -91,7 +91,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   }
   if (hovered.kind === "gateProject") {
     const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
-    return project ? { title: "Gate", line: `Gate ${project.delivered.Metal} / 200 Metal, ${project.delivered.Ice} / 200 Ice` } : null;
+    return project ? { title: "Gate", line: `Gate ${project.delivered.Metal} / ${GATE_COST.Metal} Metal, ${project.delivered.Ice} / ${GATE_COST.Ice} Ice` } : null;
   }
   const asteroid = state.asteroids.find((a) => a.id === hovered.id);
   return asteroid ? { title: "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;

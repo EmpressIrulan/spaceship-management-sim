@@ -1,4 +1,4 @@
-import type { SimState, Vec } from "sim";
+import { SECTOR_MAP_POINTS, sectorInGateRange, type SimState, type Vec } from "sim";
 import type { Viewport } from "./camera";
 
 export function mapToggled(open: boolean, key: string): boolean {
@@ -9,10 +9,9 @@ export function mapToggled(open: boolean, key: string): boolean {
 
 export function mapLayout(state: SimState, viewport: Viewport): { circles: { id: number; name: string; center: Vec; radius: number; ships: number }[]; links: { from: Vec; to: Vec }[] } {
   const radius = Math.max(36, Math.min(70, viewport.width / 6));
-  const points = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 1 }];
   const circles = state.sectors.map((sector, index) => ({
     id: sector.id, name: sector.name,
-    center: { x: viewport.width * (0.2 + (points[index]?.x ?? 0) * 0.25), y: viewport.height * (0.25 + (points[index]?.y ?? 0) * 0.25) },
+    center: { x: viewport.width * (0.2 + (SECTOR_MAP_POINTS[index]?.x ?? 0) * 0.25), y: viewport.height * (0.25 + (SECTOR_MAP_POINTS[index]?.y ?? 0) * 0.25) },
     radius,
     ships: state.ships.filter((ship) => ship.sectorId === sector.id).length,
   }));
@@ -25,11 +24,10 @@ export function mapLayout(state: SimState, viewport: Viewport): { circles: { id:
   return { circles, links };
 }
 
-// Fixed map-space layout distance; nearby sectors are buildable, distant ones are not.
-export function sectorInGateRange(a: number, b: number): boolean {
-  const points = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 1 }];
-  const left = points[a]; const right = points[b];
-  return !!left && !!right && Math.hypot(left.x - right.x, left.y - right.y) <= 1.5;
+export interface PendingGate { sectorId: number; position: Vec; targetSector?: number }
+export function dismissGatePlacement(_pending: PendingGate | null): null { return null; }
+export function gateTargetAllowed(pending: PendingGate | null, sectorId: number): boolean {
+  return !pending || (sectorId !== pending.sectorId && sectorInGateRange(pending.sectorId, sectorId));
 }
 
 export function mapHit(layout: ReturnType<typeof mapLayout>, point: Vec): number | null {

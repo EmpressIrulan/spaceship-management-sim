@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "sim";
-import { mapHit, mapLayout, mapToggled, sectorInGateRange } from "./sectors";
+import { createInitialState, sectorInGateRange } from "sim";
+import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled } from "./sectors";
 
 describe("sector map", () => {
   it("toggles with M, closes with Escape, and otherwise stays open", () => {
@@ -31,5 +31,11 @@ describe("sector map", () => {
       delivered: { Metal: 200, Ice: 200 }, complete: true };
     expect(mapLayout({ ...state, gateProjects: [project] }, { width: 1000, height: 640 }).links).toHaveLength(2);
     expect(mapLayout({ ...state, gateProjects: [{ ...project, complete: false }] }, { width: 1000, height: 640 }).links).toHaveLength(1);
+  });
+
+  it("clears a dismissed placement so ordinary map clicks are unrestricted", () => {
+    const pending = { sectorId: 0, position: { x: 10, y: 20 } };
+    expect(dismissGatePlacement(pending)).toBeNull();
+    expect(gateTargetAllowed(null, 2)).toBe(true);
   });
 });

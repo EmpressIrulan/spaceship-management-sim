@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "sim";
+import { createInitialState, startGateBuild } from "sim";
 import { fitCamera } from "./camera";
-import { contextOrderAllowed, orderLineAlpha, selectionPanel, shipsInBox, toggleShip } from "./selection";
+import { contextOrderAllowed, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 
 describe("RTS selection helpers", () => {
   it("box-selects by ship id and shift selection toggles by id", () => {
@@ -42,5 +42,13 @@ describe("RTS selection helpers", () => {
   it("ignores context orders while the map is open", () => {
     expect(contextOrderAllowed(true)).toBe(false);
     expect(contextOrderAllowed(false)).toBe(true);
+  });
+
+  it("hauls to an unfinished gate but moves onto a completed gate", () => {
+    const building = startGateBuild(createInitialState(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    const hovered = { kind: "gateProject" as const, id: 0 };
+    expect(orderTargetAt(building, hovered, { x: 80, y: 0 }, 0)).toEqual({ kind: "haulGate", gateId: 0 });
+    const complete = { ...building, gateProjects: [{ ...building.gateProjects[0]!, complete: true }] };
+    expect(orderTargetAt(complete, hovered, { x: 80, y: 0 }, 0)).toEqual({ kind: "move", point: { x: 80, y: 0 }, sectorId: 0 });
   });
 });

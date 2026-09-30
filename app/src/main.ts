@@ -1,5 +1,6 @@
 import {
   MAX_HULL,
+  HOME_SECTOR,
   SHIP_MODULES,
   SHIP_SLOT_SIZE,
   availableModuleBuildSites,
@@ -12,6 +13,7 @@ import {
   startModuleBuild,
   startShipBuild,
   startGateBuild,
+  sectorInGateRange,
   tick,
   type Beam,
   type ModuleType,
@@ -34,7 +36,7 @@ import {
 } from "./camera";
 import { cargoGauge, infoBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
-import { mapHit, mapLayout, mapToggled, sectorInGateRange } from "./sectors";
+import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, type PendingGate } from "./sectors";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
 import {
   buildControlSize,
@@ -110,7 +112,12 @@ const heldKeys = new Set<string>();
 let pan: { last: Vec } | null = null;
 let dragBox: { start: Vec; end: Vec; additive: boolean } | null = null;
 let orderLines: { from: Vec[]; to: Vec; start: number } | null = null;
-let pendingGate: { sectorId: number; position: Vec; targetSector?: number } | null = null;
+let pendingGate: PendingGate | null = null;
+
+function closeGateMenu(): void {
+  gateMenu.hidden = true;
+  pendingGate = dismissGatePlacement(pendingGate);
+}
 
 function closeBuildMenu(): void {
   buildMenuOpen = false;
@@ -153,8 +160,16 @@ document.addEventListener("click", (event) => {
   }
 });
 
+document.addEventListener("click", (event) => {
+  if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
+});
+window.addEventListener("mousedown", (event) => {
+  if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
+}, true);
+
 window.addEventListener("keydown", (event) => {
   if (event.key.toLowerCase() === "m" || event.key === "Escape") mapOpen = mapToggled(mapOpen, event.key);
+  if (event.key === "Escape") closeGateMenu();
   if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
   if (shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
   if (!(event.target instanceof HTMLSelectElement)) heldKeys.add(event.key);
@@ -308,7 +323,7 @@ window.addEventListener("mouseup", (event) => {
     } else if (event.target === canvas && mapOpen) {
       const id = mapHit(mapLayout(state, viewport), mousePoint(event));
       if (id !== null) {
-        if (pendingGate && (!sectorInGateRange(pendingGate.sectorId, id) || id === pendingGate.sectorId)) return;
+        if (!gateTargetAllowed(pendingGate, id)) return;
         currentSector = id;
         const sectorRocks = state.asteroids.filter((rock) => rock.sectorId === id);
         const bodies = [...sectorRocks, ...(id === 0 ? [state.station.dock, state.station.storage, ...state.station.modules] : []), state.sectors[id]!.gate];
@@ -330,7 +345,7 @@ canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
   if (!contextOrderAllowed(mapOpen)) return;
   const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
-  if (!selectedShips.length && !hovered) {
+  if (!selectedShips.length && !hovered && currentSector === HOME_SECTOR) {
     pendingGate = { sectorId: currentSector, position: screenToWorld(camera, viewport, point) };
     gateMenu.style.left = `${point.x}px`; gateMenu.style.top = `${point.y}px`; gateMenu.hidden = false;
     return;
@@ -563,7 +578,7 @@ function draw(seconds: number): void {
     ?.ends.find((end) => end.sectorId !== currentSector)?.sectorId;
   const gateDestination = builtDestination ?? (legacyGateVisible ? gate.to : null);
   canvas.setAttribute("aria-label", mapOpen
-    ? mapLayout(state, viewport).circles.map((circle) => `${circle.name}: ${circle.ships} ships, ${circle.id === currentSector ? "current sector" : sectorInGateRange(currentSector, circle.id) ? "in gate range" : "out of gate range"}`).join("; ")
+    ? mapLayout(state, viewport).circles.map((circle) => `${circle.name}: ${circle.ships} ships${pendingGate ? `, ${circle.id === pendingGate.sectorId ? "current sector" : sectorInGateRange(pendingGate.sectorId, circle.id) ? "in gate range" : "out of gate range"}` : ""}`).join("; ")
     : `Sector ${state.sectors[currentSector]!.name}: ${sectorRocks.length} asteroids, ${currentSector === 0 ? "station present" : "no station"}${gateDestination === null ? "" : `, gate to ${state.sectors[gateDestination]!.name}`}`);
   // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
@@ -658,10 +673,11 @@ function draw(seconds: number): void {
     ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = 3;
     for (const link of layout.links) { ctx.beginPath(); ctx.moveTo(link.from.x, link.from.y); ctx.lineTo(link.to.x, link.to.y); ctx.stroke(); }
     for (const circle of layout.circles) {
+      const available = !pendingGate || circle.id === pendingGate.sectorId || sectorInGateRange(pendingGate.sectorId, circle.id);
       ctx.beginPath(); ctx.arc(circle.center.x, circle.center.y, circle.radius, 0, Math.PI * 2);
-      ctx.fillStyle = sectorInGateRange(currentSector, circle.id) ? "#1e293b" : "#334155";
-      ctx.globalAlpha = sectorInGateRange(currentSector, circle.id) ? 1 : 0.55;
-      ctx.fill(); ctx.strokeStyle = sectorInGateRange(currentSector, circle.id) ? "#67e8f9" : "#64748b"; ctx.stroke();
+      ctx.fillStyle = available ? "#1e293b" : "#334155";
+      ctx.globalAlpha = available ? 1 : 0.55;
+      ctx.fill(); ctx.strokeStyle = available ? "#67e8f9" : "#64748b"; ctx.stroke();
       ctx.fillStyle = "#f8fafc"; ctx.textAlign = "center"; ctx.font = "14px monospace";
       ctx.fillText(circle.name, circle.center.x, circle.center.y - 4);
       ctx.fillText(`${circle.ships} ships`, circle.center.x, circle.center.y + 18);

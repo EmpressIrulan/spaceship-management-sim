@@ -1,7 +1,7 @@
 import { travelSeconds } from "./motion";
-import { canMine, shipSize, shipStats } from "./ship";
+import { canMine, shipSize, shipStats, unloadingSeconds } from "./ship";
 import {
-  depart, gateRoute, HOME_SECTOR, miningSite, nearestWithOre, type Asteroid, type DefaultBehaviour, type Order,
+  depart, GATE_COST, gateRoute, HOME_SECTOR, miningSite, nearestWithOre, type Asteroid, type DefaultBehaviour, type Order,
   type Sector, type Ship, type SimState, type Vec,
 } from "./state";
 
@@ -100,19 +100,36 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
     const end = project?.ends.find((candidate) => candidate.sectorId === state.station.sectorId);
     if (!project || !end) return state;
     let inventory = { ...state.station.inventory };
-    const ships = state.ships.map((ship) => {
-      if (!ids.includes(ship.id) || shipStats(ship.design).hold <= 0) return ship;
+    const ships = [...state.ships];
+    for (let index = 0; index < ships.length; index += 1) {
+      const ship = ships[index]!;
+      if (!ids.includes(ship.id) || shipStats(ship.design).hold <= 0) continue;
       const order = { kind: "haulGate" as const, gateId: project.id };
       const atStorage = ship.sectorId === state.station.sectorId
         && ship.position.x === state.station.dock.position.x && ship.position.y === state.station.dock.position.y;
-      if (!atStorage) return { ...fly({ ...ship, cargo: 0, cargoMaterial: null, target: null, order }, "moving", state.station.dock.position), state: "gateReturning" as const };
-      const material = (["Metal", "Ice"] as const).find((item) => project.delivered[item] < 200 && inventory[item] > 0);
-      if (!material) return { ...ship, state: "holding" as const, order, timer: 0, leg: null };
-      const cargo = Math.min(shipStats(ship.design).hold, inventory[material], 200 - project.delivered[material]);
+      if (ship.cargo > 0) {
+        ships[index] = atStorage
+          ? { ...ship, state: "unloading", order, target: null, leg: null, timer: unloadingSeconds(ship.design) }
+          : { ...fly({ ...ship, target: null, order }, "moving", state.station.dock.position), state: "gateReturning" as const };
+        continue;
+      }
+      if (!atStorage) {
+        ships[index] = { ...fly({ ...ship, target: null, order }, "moving", state.station.dock.position), state: "gateReturning" as const };
+        continue;
+      }
+      const outstanding = (material: "Metal" | "Ice") => GATE_COST[material] - project.delivered[material]
+        - ships.reduce((sum, other) => sum + (other.id !== ship.id && other.state === "gateHauling" && other.order?.kind === "haulGate"
+          && other.order.gateId === project.id && other.cargoMaterial === material ? other.cargo : 0), 0);
+      const material = (["Metal", "Ice"] as const).find((item) => outstanding(item) > 0 && inventory[item] > 0);
+      if (!material) {
+        ships[index] = { ...ship, state: "holding", order, timer: 0, leg: null };
+        continue;
+      }
+      const cargo = Math.min(shipStats(ship.design).hold, inventory[material], outstanding(material));
       inventory[material] -= cargo;
       const loaded = { ...ship, cargo, cargoMaterial: material, order, target: null };
-      return { ...fly(loaded, "moving", end.position), state: "gateHauling" as const };
-    });
+      ships[index] = { ...fly(loaded, "moving", end.position), state: "gateHauling" as const };
+    }
     return { ...state, station: { ...state.station, inventory }, ships };
   }
   const point = target.kind === "move" ? target.point : target.kind === "home"

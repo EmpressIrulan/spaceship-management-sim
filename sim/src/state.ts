@@ -45,6 +45,7 @@ export const GATE_SIZE = { width: 24, height: 24 };
 export const GATE_DISTANCE = 480;
 export const SECTOR_COUNT = 4;
 export const GATE_COST: Record<Material, number> = { Metal: 200, Ice: 200 };
+export const SECTOR_MAP_POINTS = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 1 }] as const;
 
 export interface Vec {
   x: number;
@@ -161,8 +162,14 @@ export interface GateProject {
   complete: boolean;
 }
 
+export function sectorInGateRange(a: number, b: number): boolean {
+  const left = SECTOR_MAP_POINTS[a]; const right = SECTOR_MAP_POINTS[b];
+  return !!left && !!right && Math.hypot(left.x - right.x, left.y - right.y) <= 1.5;
+}
+
 export function startGateBuild(state: SimState, fromSector: number, from: Vec, toSector: number, to: Vec): SimState {
-  if (fromSector === toSector || !state.sectors[fromSector] || !state.sectors[toSector]) return state;
+  if (fromSector === toSector || !state.sectors[fromSector] || !state.sectors[toSector]
+    || (fromSector !== HOME_SECTOR && toSector !== HOME_SECTOR) || !sectorInGateRange(fromSector, toSector)) return state;
   const project: GateProject = {
     id: state.nextGateId,
     ends: [{ sectorId: fromSector, position: { ...from } }, { sectorId: toSector, position: { ...to } }],
