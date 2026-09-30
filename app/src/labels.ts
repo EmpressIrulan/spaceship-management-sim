@@ -1,4 +1,4 @@
-import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, shipStats, unloadingSeconds, type Ship, type SimState } from "sim";
+import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, shipStats, stationIncome, unloadingSeconds, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -62,9 +62,11 @@ function storageBox(state: SimState): InfoBox {
   const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
   const lines = MATERIALS.filter((material) => state.station.inventory[material] > 0)
     .map((material) => `${material}: ${state.station.inventory[material]}`);
+  const income = stationIncome(state);
+  const rates = MATERIALS.map((material) => `${material} +${income[material]}/min`).join(", ");
   return {
     title: "Storage",
-    line: [`Stored ${stored} / ${state.station.storage.capacity}`, ...lines].join("\n"),
+    line: [`Stored ${stored} / ${state.station.storage.capacity}`, ...lines, `Income: ${rates}`].join("\n"),
   };
 }
 

@@ -34,8 +34,19 @@ export function screenToWorld(camera: Camera, viewport: Viewport, point: Vec): V
   };
 }
 
-export function zoomAt(camera: Camera, viewport: Viewport, cursor: Vec, factor: number): Camera {
-  const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, camera.zoom * factor));
+export interface ZoomLimits {
+  min: number;
+  max: number;
+}
+
+export function zoomAt(
+  camera: Camera,
+  viewport: Viewport,
+  cursor: Vec,
+  factor: number,
+  limits: ZoomLimits = { min: MIN_ZOOM, max: MAX_ZOOM },
+): Camera {
+  const zoom = Math.min(limits.max, Math.max(limits.min, camera.zoom * factor));
   const anchor = screenToWorld(camera, viewport, cursor);
   return {
     zoom,

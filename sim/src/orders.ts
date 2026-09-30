@@ -1,6 +1,6 @@
 import { claimSiteBuilt } from "./claim";
 import { travelSeconds } from "./motion";
-import { canMine, shipSize, shipStats, unloadingSeconds } from "./ship";
+import { canMine, shipSize, shipStats, speedFactor, unloadingSeconds } from "./ship";
 import {
   depart, GATE_COST, gateRoute, HOME_SECTOR, miningSite, nearestWithOre, type Asteroid, type DefaultBehaviour, type Order,
   type Sector, type Ship, type SimState, type Vec,
@@ -23,7 +23,7 @@ export function formation(point: Vec, count: number): Vec[] {
 function fly(ship: Ship, state: "moving" | "outbound" | "homebound", to: Vec): Ship {
   const from = { ...ship.position };
   const length = Math.hypot(to.x - from.x, to.y - from.y);
-  const speed = Math.max(0.01, ship.design.slots.filter((part) => part === "Engine").length / (ship.design.width * ship.design.height) * 4);
+  const speed = Math.max(0.01, speedFactor(ship.design));
   return { ...ship, state, leg: { from, to: { ...to } }, timer: travelSeconds(length, speed) };
 }
 
