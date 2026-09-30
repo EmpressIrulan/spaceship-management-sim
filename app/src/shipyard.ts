@@ -192,6 +192,24 @@ export function cellAt(view: Camera, viewport: Viewport, screen: Vec): Vec {
   return { x: Math.floor(world.x), y: Math.floor(world.y) };
 }
 
+const EMPTY_SLOT = "Empty slot";
+
+// The part on a pixel of the paint grid. Every canvas pixel has a name, since
+// the canvas has no edge and a square with nothing painted is an empty slot.
+export function draftPartAt(draft: ShipDraft, cell: Vec): string {
+  return draft.cells.get(key(cell.x, cell.y)) ?? EMPTY_SLOT;
+}
+
+// The part under a point on a drawn design, given as how far across the
+// picture it sits, 0 to 1 on each axis, so any thumbnail size works. Null off
+// the picture.
+export function designPartAt(design: ShipDesign, fraction: Vec): string | null {
+  const x = Math.floor(fraction.x * design.width);
+  const y = Math.floor(fraction.y * design.height);
+  if (x < 0 || y < 0 || x >= design.width || y >= design.height) return null;
+  return design.slots[y * design.width + x] ?? EMPTY_SLOT;
+}
+
 // Whole seconds under a minute, then minutes with any seconds left over.
 export function formatDuration(seconds: number): string {
   const whole = Math.round(seconds);
