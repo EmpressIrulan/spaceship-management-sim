@@ -14,8 +14,10 @@ export function gameSeconds(clock: Clock, realSeconds: number): number {
   return clock.paused ? 0 : realSeconds * clock.speed;
 }
 
-// Picking a speed while paused also unpauses.
-export function clockAfterKey(clock: Clock, key: string): Clock {
+// Picking a speed while paused also unpauses. Auto-repeat from a held key is
+// ignored, or holding Space would flip pause on and off.
+export function clockAfterKey(clock: Clock, key: string, repeat = false): Clock {
+  if (repeat) return clock;
   if (key === " ") return { ...clock, paused: !clock.paused };
   const speed = SPEED_KEYS[key];
   return speed === undefined ? clock : { speed, paused: false };

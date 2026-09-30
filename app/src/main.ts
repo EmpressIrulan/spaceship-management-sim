@@ -178,8 +178,8 @@ window.addEventListener("keydown", (event) => {
   if (shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
   if (!(event.target instanceof HTMLSelectElement)) {
     heldKeys.add(event.key);
-    const next = clockAfterKey(clock, event.key);
-    if (next !== clock) { clock = next; event.preventDefault(); }
+    const next = clockAfterKey(clock, event.key, event.repeat);
+    if (next !== clock || event.key === " ") { clock = next; event.preventDefault(); }
   }
   if (event.key.startsWith("Arrow")) event.preventDefault();
 });

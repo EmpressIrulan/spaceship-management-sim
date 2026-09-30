@@ -32,6 +32,12 @@ describe("keys", () => {
     expect(clockAfterKey(paused, " ")).toEqual(at(4));
   });
 
+  it("ignores auto-repeat, so holding space pauses once", () => {
+    const paused = clockAfterKey(at(2), " ");
+    expect(clockAfterKey(paused, " ", true)).toBe(paused);
+    expect(clockAfterKey(at(2), " ", true)).toEqual(at(2));
+  });
+
   it("unpauses when a speed key is pressed while paused", () => {
     expect(clockAfterKey(at(1, true), "3")).toEqual(at(4));
   });
