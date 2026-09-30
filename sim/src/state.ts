@@ -233,16 +233,25 @@ function distance(a: Vec, b: Vec): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function insideField(field: AsteroidField, position: Vec): boolean {
+  const d = distance(field.centre, position);
+  if (field.kind === "cluster") return d <= field.radius;
+  if (Math.abs(d - field.radius) > field.width / 2) return false;
+  const turn = Math.atan2(position.y - field.centre.y, position.x - field.centre.x) - field.from;
+  return ((turn % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) <= field.sweep;
+}
+
 // A random spot inside a belt or cluster, re-rolled if it lands too close to
 // another rock (`rocks`) or to anything the station occupies (`blocked`). If
-// a station has filled the field, the fallback walks rings outward from it so
-// a growing station can never trap future rocks underneath itself.
+// random tries fail, a sweep of the whole field finds any spot left. A field
+// the station has fully covered gets null, because a rock outside its field
+// would not be in its belt or cluster; the caller tries again later.
 export function placeInField(
   rng: number,
   field: AsteroidField,
   rocks: Vec[],
   blocked: Vec[],
-): { position: Vec; rng: number } {
+): { position: Vec; rng: number } | null {
   const free = (position: Vec) =>
     rocks.every((other) => distance(other, position) >= ROCK_SPACING)
     && blocked.every((other) => distance(other, position) >= ASTEROID_MIN_SPACING);
@@ -257,17 +266,15 @@ export function placeInField(
     const position = { x: field.centre.x + Math.cos(angle) * d, y: field.centre.y + Math.sin(angle) * d };
     if (free(position)) return { position, rng };
   }
-  const edge = field.radius + (field.kind === "belt" ? field.width / 2 : 0);
-  for (let ring = 1; ; ring += 1) {
-    for (let step = 0; step < 36; step += 1) {
-      const angle = step * 2 * Math.PI / 36;
-      const position = {
-        x: field.centre.x + Math.cos(angle) * (edge + ring * ROCK_SPACING),
-        y: field.centre.y + Math.sin(angle) * (edge + ring * ROCK_SPACING),
-      };
-      if (free(position)) return { position, rng };
+  const reach = field.radius + (field.kind === "belt" ? field.width / 2 : 0);
+  const step = ROCK_SPACING / 2;
+  for (let x = -reach; x <= reach; x += step) {
+    for (let y = -reach; y <= reach; y += step) {
+      const position = { x: field.centre.x + x, y: field.centre.y + y };
+      if (insideField(field, position) && free(position)) return { position, rng };
     }
   }
+  return null;
 }
 
 // The sector's belts and clusters, each at a point of its own that keeps clear
@@ -397,8 +404,9 @@ export function createInitialState(seed: number): SimState {
       const count = field.kind === "belt" ? BELT_ROCKS : CLUSTER_ROCKS;
       for (let i = 0; i < count; i += 1) {
         const spot = placeInField(rng, field, placed.map((rock) => rock.position), blocked);
-        rng = spot.rng;
-        placed.push({ field, position: spot.position });
+        // Starting fields are wide open, so there is always room.
+        rng = spot!.rng;
+        placed.push({ field, position: spot!.position });
       }
     }
     // An even mix shuffled independently of where the rocks are, so either

@@ -6,6 +6,7 @@ import {
   RESPAWN_SECONDS,
   createInitialState,
   nearestWithOre,
+  placeInField,
   type Asteroid,
   type AsteroidField,
   type SimState,
@@ -140,6 +141,67 @@ describe("asteroid belts and clusters", () => {
       expect(state.ships[0]!.target!.asteroidId).toBe(expected.id);
       for (const rock of homeRocks(state)) {
         expect(distance(dock, expected.position)).toBeLessThanOrEqual(distance(dock, rock.position));
+      }
+    }
+  });
+
+  // Modules on a 40-unit lattice across the field's bounding box, which keeps
+  // every point of the field within 40 of one, so nothing can be placed.
+  function coverField(state: SimState, field: AsteroidField, skip: (p: Vec) => boolean = () => false): SimState {
+    const extent = field.radius + (field.kind === "belt" ? field.width / 2 : 0) + 40;
+    const modules = [];
+    for (let x = -extent; x <= extent; x += 40) {
+      for (let y = -extent; y <= extent; y += 40) {
+        const position = { x: Math.round(field.centre.x / 40) * 40 + x, y: Math.round(field.centre.y / 40) * 40 + y };
+        if (!skip(position)) modules.push({ type: "Storage" as const, position, size: state.station.storage.size });
+      }
+    }
+    return { ...state, station: { ...state.station, modules: [...state.station.modules, ...modules] } };
+  }
+
+  function waitingFor(state: SimState, field: AsteroidField): SimState {
+    return {
+      ...state,
+      asteroids: [],
+      respawns: [{ sectorId: field.sectorId, fieldId: field.id, timer: 0, lastPosition: field.centre }],
+      ships: [{ ...state.ships[0]!, state: "idle", timer: 0, cargo: 0, target: null }],
+    };
+  }
+
+  it("never puts a respawn outside its field, even when a grown station has covered it", () => {
+    for (const seed of [3, 7, 11]) {
+      const base = createInitialState(seed);
+      for (const field of base.fields.filter((candidate) => candidate.sectorId === 0)) {
+        const blocked = tick(waitingFor(coverField(base, field), field), 0);
+        expect(blocked.asteroids).toHaveLength(0);
+        // Still owed, so it comes back once there is room.
+        expect(blocked.respawns).toHaveLength(1);
+        expect(blocked.respawns[0]!.fieldId).toBe(field.id);
+        expect(blocked.respawns[0]!.timer).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("brings a deferred respawn back inside its field once the space is free", () => {
+    const base = createInitialState(7);
+    const field = base.fields.find((candidate) => candidate.sectorId === 0 && candidate.kind === "belt")!;
+    const blocked = tick(waitingFor(coverField(base, field), field), 0);
+    const freed: SimState = { ...blocked, station: base.station };
+    const later = tick(freed, blocked.respawns[0]!.timer + 0.1);
+    expect(later.respawns).toHaveLength(0);
+    expect(later.asteroids).toHaveLength(1);
+    expect(later.asteroids[0]!.fieldId).toBe(field.id);
+    expect(inside(field, later.asteroids[0]!.position)).toBe(true);
+  });
+
+  it("finds the last free spot in a nearly covered field, or reports none, but never a spot outside it", () => {
+    const base = createInitialState(5);
+    for (const field of base.fields.filter((candidate) => candidate.sectorId === 0)) {
+      for (const keep of [0, 1, 2, 3]) {
+        const covered = coverField(base, field, (p) => distance(p, field.centre) < keep * 30);
+        const blocked = covered.station.modules.map((module) => module.position);
+        const placed = placeInField(12345 + keep, field, [], blocked);
+        if (placed) expect(inside(field, placed.position)).toBe(true);
       }
     }
   });

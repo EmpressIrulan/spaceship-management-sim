@@ -348,6 +348,12 @@ function settle(draft: Draft): void {
         ? [...draft.modules.map((module) => module.position), ...(draft.construction ? [draft.construction.position] : [])]
         : [],
     );
+    if (!placed) {
+      // The station covers the field. Ask again later instead of putting the
+      // rock outside its belt or cluster.
+      draft.respawns = [...draft.respawns, { ...respawn, timer: RESPAWN_SECONDS }];
+      continue;
+    }
     draft.rng = placed.rng;
     const material = nextRandom(draft.rng);
     draft.rng = material.state;
