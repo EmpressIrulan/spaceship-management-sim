@@ -1,4 +1,5 @@
-import { createInitialState, type SimState } from "./state";
+import { travelSeconds } from "./motion";
+import { createInitialState, dockBerths, type SimState } from "./state";
 import type { ShipDesign } from "./ship";
 
 // The starting ship's size and speed with half the Storage swapped for Hull,
@@ -18,4 +19,12 @@ export const ONE_STORAGE: ShipDesign = {
 export function oneStorageStart(seed: number): SimState {
   const state = createInitialState(seed);
   return { ...state, ships: state.ships.map((ship) => ({ ...ship, design: ONE_STORAGE })) };
+}
+
+// Seconds a lone ship takes to fly from the Dock's middle to the first pad,
+// which is where the first ship home unloads.
+export function padHopSeconds(state: SimState): number {
+  const dock = state.station.dock.position;
+  const pad = dockBerths(dock)[0]!;
+  return travelSeconds(Math.hypot(pad.x - dock.x, pad.y - dock.y));
 }

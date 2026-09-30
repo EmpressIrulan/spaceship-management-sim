@@ -11,10 +11,15 @@ import {
   INCOME_WINDOW_SECONDS,
   RESPAWN_SECONDS,
   STORAGE_CAPACITY,
+  arrived,
   depart,
+  freeBerth,
   gateRoute,
   newAsteroid,
   placeInField,
+  toBerth,
+  toParking,
+  type BerthLayout,
   type Asteroid,
   type Ship,
   type SimState,
@@ -106,8 +111,13 @@ function storageRemaining(draft: Draft): number {
   return Math.max(0, draft.storageCapacity - stored);
 }
 
-function berthFree(draft: Draft): boolean {
-  return draft.ships.filter((ship) => ship.state === "unloading").length < draft.dockCapacity;
+function layoutOf(draft: Draft): BerthLayout {
+  return { dock: draft.dock, modules: draft.modules, capacity: draft.dockCapacity };
+}
+
+// Puts a ship home with cargo on a free pad, or parks it to wait for one.
+function berth(draft: Draft, ship: Ship): Ship {
+  return toBerth(layoutOf(draft), draft.ships, ship) ?? toParking(layoutOf(draft), draft.ships, ship);
 }
 
 function unload(draft: Draft, ship: Ship, units: number): number {
@@ -142,6 +152,7 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
       return { ...ship, timer };
     case "outbound":
     case "homebound":
+    case "berthing":
     case "moving":
     case "gateHauling":
     case "gateReturning": {
@@ -198,7 +209,7 @@ function loadGateHauler(draft: Draft, ship: Ship): Ship {
   const project = draft.gateProjects.find((candidate) => candidate.id === gateId && !candidate.complete);
   const end = project?.ends.find((candidate) => candidate.sectorId === HOME_SECTOR);
   if (!project || !end) return { ...ship, state: "holding", order: null, timer: 0, leg: null };
-  if (ship.cargo > 0) return carryCargoToGate(draft, ship) ?? { ...ship, state: "waiting", timer: 0, leg: null };
+  if (ship.cargo > 0) return carryCargoToGate(draft, ship) ?? toParking(layoutOf(draft), draft.ships, ship);
   const outstanding = (material: "Metal" | "Ice") => gateOutstanding(draft, gateId, material, ship.id);
   const material = (["Metal", "Ice"] as const).find((item) => outstanding(item) > 0 && draft.inventory[item] > 0);
   if (!material) {
@@ -258,13 +269,15 @@ function finish(draft: Draft, ship: Ship): Ship {
     }
     case "gateReturning":
       return ship.cargo > 0
-        ? { ...ship, state: "unloading", position: { ...draft.dock }, leg: null, timer: unloadingSeconds(ship.design) }
+        ? berth(draft, { ...ship, position: { ...draft.dock }, leg: null })
         : loadGateHauler(draft, { ...ship, position: { ...draft.dock }, leg: null });
+    case "berthing":
+      return arrived(ship);
     case "waiting":
       // Room can appear without any ship moving, when a Storage module
       // completes, and a berth frees up when another ship finishes unloading.
-      if (ship.cargo > 0 && canProcessCargo(draft, ship) && berthFree(draft)) {
-        return { ...ship, state: "unloading", timer: unloadingSeconds(ship.design) };
+      if (ship.cargo > 0 && canProcessCargo(draft, ship)) {
+        return toBerth(layoutOf(draft), draft.ships, ship) ?? ship;
       }
       return ship;
     case "outbound":
@@ -296,22 +309,35 @@ function finish(draft: Draft, ship: Ship): Ship {
       };
     case "homebound":
       if (ship.sectorId !== HOME_SECTOR) return { ...ship, state: "jumpingHome", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
-      if (ship.cargo > 0 && (!canProcessCargo(draft, ship) || !berthFree(draft))) {
-        return { ...ship, state: "waiting", position: { ...draft.dock }, timer: 0 };
+      if (ship.cargo > 0 && !canProcessCargo(draft, ship)) {
+        return toParking(layoutOf(draft), draft.ships, { ...ship, position: { ...draft.dock }, leg: null });
       }
-      return { ...ship, state: "unloading", position: { ...draft.dock }, leg: null, timer: unloadingSeconds(ship.design) };
-    case "unloading":
-      const unloaded = unload(draft, ship, ship.cargo);
-      if (unloaded < ship.cargo) {
-        const remaining = { ...ship, cargo: ship.cargo - unloaded };
-        if (ship.order?.kind === "haulGate") return carryCargoToGate(draft, remaining) ?? { ...remaining, state: "waiting", timer: 0 };
-        return { ...remaining, state: "waiting", timer: 0 };
-      }
-      if (ship.order?.kind === "haulGate") return loadGateHauler(draft, { ...ship, cargo: 0, cargoMaterial: null });
-      return ship.order ? afterOrder({ ...ship, cargo: 0 }, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects)
-        : ship.defaultBehaviour === "none" ? { ...ship, state: "holding", cargo: 0, order: null, leg: null, timer: 0 }
-          : depart({ ...ship, cargo: 0 }, draft.dock, draft.asteroids, draft.ships);
+      const docked = { ...ship, position: { ...draft.dock }, leg: null };
+      // An empty ship sent home has nothing to wait for, so with no pad free
+      // it unloads at the Dock's middle rather than wait forever.
+      return ship.cargo > 0 ? berth(draft, docked)
+        : toBerth(layoutOf(draft), draft.ships, docked) ?? { ...docked, state: "unloading", berth: null, timer: unloadingSeconds(ship.design) };
+    case "unloading": {
+      const left = afterUnloading(draft, ship);
+      // The pad is free from here on. A ship with nowhere to go stays at the
+      // Dock's middle, where it would have been before there were pads.
+      const stays = left.state === "holding" || left.state === "idle";
+      return { ...left, berth: left.state === "berthing" ? left.berth : null, position: stays ? { ...draft.dock } : left.position };
+    }
   }
+}
+
+function afterUnloading(draft: Draft, ship: Ship): Ship {
+  const unloaded = unload(draft, ship, ship.cargo);
+  if (unloaded < ship.cargo) {
+    const remaining = { ...ship, cargo: ship.cargo - unloaded };
+    if (ship.order?.kind === "haulGate") return carryCargoToGate(draft, remaining) ?? toParking(layoutOf(draft), draft.ships, remaining);
+    return toParking(layoutOf(draft), draft.ships, remaining);
+  }
+  if (ship.order?.kind === "haulGate") return loadGateHauler(draft, { ...ship, cargo: 0, cargoMaterial: null });
+  return ship.order ? afterOrder({ ...ship, cargo: 0 }, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects)
+    : ship.defaultBehaviour === "none" ? { ...ship, state: "holding", cargo: 0, order: null, leg: null, timer: 0 }
+      : depart({ ...ship, cargo: 0 }, draft.dock, draft.asteroids, draft.ships);
 }
 
 // Seconds until the next timer anywhere in the sector runs out.
@@ -392,6 +418,7 @@ function settle(draft: Draft): void {
       defaultBehaviour: "mine",
       order: null,
       leg: null,
+      berth: null,
     }];
     draft.nextShipId += 1;
   }

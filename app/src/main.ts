@@ -4,6 +4,8 @@ import {
   availableModuleBuildSites,
   createInitialState,
   deleteStock,
+  BERTH_PAD_SIZE,
+  dockBerths,
   laserBeam,
   giveOrder,
   setDefaultBehaviour,
@@ -634,6 +636,21 @@ function drawStationConnector(from: Vec, to: Vec): void {
   ctx.restore();
 }
 
+// The Dock's pads, marked whether or not a ship is on them. Called with the
+// canvas already translated to the Dock's centre.
+function drawBerthPads(dock: Vec): void {
+  const side = BERTH_PAD_SIZE * camera.zoom;
+  ctx.save();
+  ctx.strokeStyle = moduleAppearance("Dock").accent;
+  ctx.globalAlpha = 0.7;
+  ctx.lineWidth = Math.max(1, camera.zoom);
+  ctx.setLineDash([Math.max(2, 3 * camera.zoom), Math.max(2, 2 * camera.zoom)]);
+  for (const pad of dockBerths(dock)) {
+    ctx.strokeRect((pad.x - dock.x) * camera.zoom - side / 2, (pad.y - dock.y) * camera.zoom - side / 2, side, side);
+  }
+  ctx.restore();
+}
+
 function drawStationModule(module: StationModule): void {
   const center = worldToScreen(camera, viewport, module.position);
   const width = module.size.width * camera.zoom;
@@ -643,6 +660,7 @@ function drawStationModule(module: StationModule): void {
 
   ctx.save();
   ctx.translate(center.x, center.y);
+  if (module.type === "Dock") drawBerthPads(module.position);
   ctx.fillStyle = "#1e293b";
   ctx.strokeStyle = appearance.accent;
   ctx.lineWidth = Math.max(1.5, 2 * camera.zoom);
@@ -989,6 +1007,9 @@ function draw(seconds: number): void {
   // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
   const hovered = mapOpen ? null : hoveredBody(state, camera, viewport, pointer, currentSector);
+  // A + cell sits above the canvas, so a ship beside it would never hear the
+  // click. While the pointer is on a ship, the cells let clicks through.
+  buildControls.classList.toggle("over-ship", hovered?.kind === "ship");
   const info = infoBox(state, hovered);
   box.hidden = info === null;
   const body = hovered && bodyOf(state, hovered);

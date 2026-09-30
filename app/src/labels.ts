@@ -26,6 +26,7 @@ export function cargoGauge(ship: Ship): Gauge | null {
       return null;
     case "gateHauling":
     case "waiting":
+    case "berthing":
     case "homebound":
       return { fill: hold ? ship.cargo / hold : 0, text };
     case "working":

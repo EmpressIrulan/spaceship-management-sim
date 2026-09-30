@@ -83,8 +83,10 @@ export interface Size {
 }
 
 // "idle" means sitting at the Dock, because no asteroid has ore or the ship
-// can't mine. "waiting" means home with cargo and no room or no free berth.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning";
+// can't mine. "waiting" means home with cargo and no room or no free berth,
+// parked just off the Dock. "berthing" is the short hop from the Dock to a pad
+// or a parking spot.
+export type ShipState = "idle" | "outbound" | "working" | "homebound" | "berthing" | "unloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning";
 export type DefaultBehaviour = "mine" | "none";
 export type Order =
   | { kind: "mine"; asteroidId: number; loaded: boolean }
@@ -115,6 +117,9 @@ export interface Ship {
   defaultBehaviour: DefaultBehaviour;
   order: Order | null;
   leg: Leg | null;
+  // The pad this ship is unloading on or flying to, or null. Only meaningful
+  // while it is unloading or berthing.
+  berth: number | null;
 }
 
 export interface Station {
@@ -386,21 +391,23 @@ export function nearestWithOre(dock: Vec, asteroids: Asteroid[], others: Ship[] 
 
 // Sends a ship sitting at the Dock to the nearest asteroid with ore, or
 // leaves it idle if there is none or it can't mine.
+// A ship leaving a pad flies out from the pad, not from the Dock's middle.
 export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Ship[] = []): Ship {
   const asteroid = canMine(ship.design) ? nearestWithOre(dock, asteroids.filter((rock) => rock.sectorId === HOME_SECTOR), others) : null;
   if (!asteroid) {
     return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null };
   }
   const site = miningSite(dock, asteroid, shipSize(ship.design));
+  const from = ship.berth === null ? dock : ship.position;
   return {
     ...ship,
     state: "outbound",
-    position: { ...dock },
-    timer: travelSeconds(distance(dock, site), speedFactor(ship.design)),
+    position: { ...from },
+    timer: travelSeconds(distance(from, site), speedFactor(ship.design)),
     cargo: 0,
     cargoMaterial: asteroid.material,
     target: { asteroidId: asteroid.id, sectorId: HOME_SECTOR, site },
-    leg: null,
+    leg: ship.berth === null ? null : { from: { ...from }, to: site },
   };
 }
 
@@ -501,6 +508,7 @@ export function createInitialState(seed: number): SimState {
     defaultBehaviour: "mine",
     order: null,
     leg: null,
+    berth: null,
   };
   return {
     tickCount: 0,
@@ -603,25 +611,119 @@ function storedTotal(inventory: Record<Material, number>): number {
   return MATERIALS.reduce((total, material) => total + inventory[material], 0);
 }
 
+// Everything that decides where ships sit at the Dock lives here: the pads,
+// the parking spots and who holds which. The tick and the station operations
+// both go through these, so there is one count of free berths.
+export const BERTHS_PER_DOCK = DOCK_CAPACITY;
+// How big a pad is drawn: a little bigger than the starting ship.
+export const BERTH_PAD_SIZE = 13;
+// Pads sit on an ellipse around the Dock's centre, two on each long side and
+// one above and below. None lands on the Storage module beside the Dock.
+const PAD_REACH = { x: 34, y: 38 };
+// Parking spots fan out west of the Dock, six to an arc, one arc further out
+// for each six ships waiting.
+const PARKING_RADIUS = 70;
+const PARKING_ARC_STEP = 22;
+const PARKING_ARC_SLOTS = 6;
+
+export interface BerthLayout {
+  // The Dock ships route to. Parking spots are measured from here.
+  dock: Vec;
+  modules: StationModule[];
+  capacity: number;
+}
+
+export function berthLayout(station: Station): BerthLayout {
+  return { dock: station.dock.position, modules: station.modules, capacity: station.dock.capacity };
+}
+
+// The pads around a Dock whose centre is at `dock`, in the order ships take them.
+export function dockBerths(dock: Vec): Vec[] {
+  return Array.from({ length: BERTHS_PER_DOCK }, (_, k) => {
+    const angle = ((k * 360) / BERTHS_PER_DOCK + 30) * (Math.PI / 180);
+    return { x: dock.x + Math.cos(angle) * PAD_REACH.x, y: dock.y + Math.sin(angle) * PAD_REACH.y };
+  });
+}
+
+// Berths count up through each Dock module in the order they were built.
+export function berthPoint(layout: BerthLayout, index: number): Vec {
+  const docks = layout.modules.filter((module) => module.type === "Dock").map((module) => module.position);
+  const owner = docks.length > 0 ? docks[Math.floor(index / BERTHS_PER_DOCK) % docks.length]! : layout.dock;
+  return dockBerths(owner)[index % BERTHS_PER_DOCK]!;
+}
+
+function parkingPoint(dock: Vec, index: number): Vec {
+  const arc = Math.floor(index / PARKING_ARC_SLOTS);
+  const slot = index % PARKING_ARC_SLOTS;
+  const angle = Math.PI + (slot - (PARKING_ARC_SLOTS - 1) / 2) * (Math.PI / 6);
+  const radius = PARKING_RADIUS + arc * PARKING_ARC_STEP;
+  return { x: dock.x + Math.cos(angle) * radius, y: dock.y + Math.sin(angle) * radius };
+}
+
+function holdsBerth(ship: Ship): boolean {
+  return ship.state === "unloading" || (ship.state === "berthing" && ship.berth !== null);
+}
+
+// The lowest free pad, or null when every berth is taken. A ship unloading
+// without a pad of its own (an empty ship sent home) still uses up a berth.
+export function freeBerth(layout: BerthLayout, ships: Ship[]): number | null {
+  const holders = ships.filter(holdsBerth);
+  if (holders.length >= layout.capacity) return null;
+  const taken = new Set(holders.map((ship) => ship.berth));
+  for (let index = 0; index < layout.capacity; index += 1) {
+    if (!taken.has(index)) return index;
+  }
+  return null;
+}
+
+function hop(ship: Ship, to: Vec, berth: number | null): Ship {
+  const from = { ...ship.position };
+  const speed = Math.max(0.01, speedFactor(ship.design));
+  return { ...ship, state: "berthing", berth, leg: { from, to: { ...to } }, timer: travelSeconds(distance(from, to), speed) };
+}
+
+// Sends a ship from where it is to the lowest free pad, or null if there is none.
+export function toBerth(layout: BerthLayout, ships: Ship[], ship: Ship): Ship | null {
+  const index = freeBerth(layout, ships);
+  return index === null ? null : hop(ship, berthPoint(layout, index), index);
+}
+
+// Sends a ship to the first parking spot nobody is on or flying to.
+export function toParking(layout: BerthLayout, ships: Ship[], ship: Ship): Ship {
+  const claimed = ships
+    .filter((other) => other.id !== ship.id)
+    .flatMap((other) => other.state === "waiting" ? [other.position]
+      : other.state === "berthing" && other.berth === null && other.leg ? [other.leg.to] : []);
+  let index = 0;
+  while (claimed.some((spot) => distance(spot, parkingPoint(layout.dock, index)) < 1)) index += 1;
+  return hop(ship, parkingPoint(layout.dock, index), null);
+}
+
+// A ship that has reached its parking spot or pad.
+export function arrived(ship: Ship): Ship {
+  const position = ship.leg ? { ...ship.leg.to } : ship.position;
+  return ship.berth === null
+    ? { ...ship, state: "waiting", position, leg: null, timer: 0 }
+    : { ...ship, state: "unloading", position, leg: null, timer: unloadingSeconds(ship.design) };
+}
+
 // Whether a ship home with cargo can start unloading now: Storage has room
 // and the Dock has a free berth.
 export function canUnload(station: Station, ships: Ship[], material: Material | null = null): boolean {
-  const unloading = ships.filter((ship) => ship.state === "unloading").length;
   const hasRoom = storedTotal(station.inventory) < station.storage.capacity;
   const canDiscard = material !== null
     && station.storageLimits[material] !== null
     && station.inventory[material] >= station.storageLimits[material]!;
-  return (hasRoom || canDiscard)
-    && unloading < station.dock.capacity;
+  return (hasRoom || canDiscard) && freeBerth(berthLayout(station), ships) !== null;
 }
 
-// Moves waiting ships into free berths in fleet order, so they take their turn.
+// Moves waiting ships onto free pads in fleet order, so they take their turn.
 export function dockWaitingShips(station: Station, ships: Ship[]): Ship[] {
   const next = [...ships];
   for (let i = 0; i < next.length; i += 1) {
     const ship = next[i]!;
     if (ship.state === "waiting" && ship.cargo > 0 && canUnload(station, next, ship.cargoMaterial)) {
-      next[i] = { ...ship, state: "unloading", timer: unloadingSeconds(ship.design) };
+      next[i] = toBerth(berthLayout(station), next, ship) ?? ship;
     }
   }
   return next;

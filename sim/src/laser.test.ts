@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ONE_STORAGE, oneStorageStart } from "./test-ships";
+import { ONE_STORAGE, oneStorageStart, padHopSeconds } from "./test-ships";
 import { shipSize } from "./ship";
 const ONE_STORAGE_SIZE = shipSize(ONE_STORAGE);
 import { tick } from "./tick";
@@ -153,7 +153,7 @@ describe("the laser", () => {
     // Three trips, so the last one empties the asteroid and the ship flies
     // home after its rock is gone.
     let state = oneStorageStart(7);
-    const end = 3 * cycleSeconds(state) + 5;
+    const end = 3 * (cycleSeconds(state) + padHopSeconds(state)) + 5;
     const seen = new Set<string>();
     for (let t = 0; t < end; t += 0.1) {
       state = tick(state, 0.1);
@@ -161,7 +161,7 @@ describe("the laser", () => {
       seen.add(s.state);
       expect(laserBeam(state, s) !== null).toBe(s.state === "working");
     }
-    expect([...seen].sort()).toEqual(["homebound", "outbound", "unloading", "working"]);
+    expect([...seen].sort()).toEqual(["berthing", "homebound", "outbound", "unloading", "working"]);
   });
 
   it("is off for a ship waiting at the station with nothing to mine", () => {

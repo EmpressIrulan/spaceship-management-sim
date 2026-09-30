@@ -85,7 +85,7 @@ describe("building station modules", () => {
     const building = startModuleBuild(waiting, "Builder", east);
 
     expect(building.station.inventory).toEqual({ Metal: 50, Ice: 0 });
-    expect(building.ships[0]).toMatchObject({ state: "unloading", cargo: 10 });
+    expect(building.ships[0]).toMatchObject({ state: "berthing", cargo: 10 });
   });
 
   it("lets a ship waiting on full Storage leave once a Storage module completes", () => {
@@ -98,9 +98,12 @@ describe("building station modules", () => {
 
     const completed = tick(full, BUILD_SECONDS);
     expect(completed.station.storage.capacity).toBe(200);
-    expect(completed.ships[0]).toMatchObject({ state: "unloading", cargo: 10 });
+    expect(completed.ships[0]).toMatchObject({ state: "berthing", cargo: 10 });
 
-    const unloaded = tick(completed, completed.ships[0]!.timer);
+    const docked = tick(completed, completed.ships[0]!.timer);
+    expect(docked.ships[0]).toMatchObject({ state: "unloading", cargo: 10 });
+
+    const unloaded = tick(docked, docked.ships[0]!.timer);
     expect(unloaded.station.inventory).toEqual({ Metal: 85, Ice: 25 });
     expect(unloaded.ships[0]).toMatchObject({ state: "outbound", cargo: 0 });
   });

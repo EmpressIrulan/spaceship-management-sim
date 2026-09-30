@@ -63,6 +63,6 @@ describe("Storage stock controls", () => {
     const freed = deleteStock(blocked, "Ice", 30);
 
     expect(freed.station.inventory).toEqual({ Metal: 20, Ice: 50 });
-    expect(freed.ships[0]).toMatchObject({ state: "unloading", cargo: 10 });
+    expect(freed.ships[0]).toMatchObject({ state: "berthing", cargo: 10 });
   });
 });

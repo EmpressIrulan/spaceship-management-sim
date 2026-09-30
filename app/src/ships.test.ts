@@ -37,7 +37,7 @@ describe("hovering a ship shows its state", () => {
     const fleet = withShips(Array.from({ length: 7 }, () => home), {
       storage: { ...createInitialState(7).station.storage, capacity: 1000 },
     });
-    const arrived = tick(fleet, 0);
+    const arrived = tick(tick(fleet, 0), 8);
     const index = arrived.ships.findIndex((ship) => ship.state === "waiting");
 
     expect(infoBox(arrived, { kind: "ship", index })?.line).toBe("Waiting: dock busy");
@@ -54,6 +54,35 @@ describe("hovering a ship shows its state", () => {
     const pointer = worldToScreen(camera, viewport, state.station.dock.position);
 
     expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
+  });
+
+  it.each([1, 0.5, 0.2])("picks out each ship when nine crowd the Dock, at zoom %s", (zoom) => {
+    const home = { state: "homebound" as const, timer: 0, cargo: 10, cargoMaterial: "Metal" as const };
+    const fleet = withShips(Array.from({ length: 9 }, () => home), {
+      storage: { ...createInitialState(7).station.storage, capacity: 1000 },
+    });
+    // Long enough for every ship to reach a pad or a parking spot.
+    const settled = tick(tick(fleet, 0), 8);
+    const zoomed: Camera = { center: { x: 0, y: 0 }, zoom };
+
+    expect(settled.ships.filter((ship) => ship.state === "unloading")).toHaveLength(6);
+    expect(settled.ships.filter((ship) => ship.state === "waiting")).toHaveLength(3);
+    settled.ships.forEach((ship, index) => {
+      const pointer = worldToScreen(zoomed, viewport, ship.position);
+      expect(hoveredBody(settled, zoomed, viewport, pointer)).toEqual({ kind: "ship", index });
+    });
+  });
+
+  it("reads a ship flying to its pad as docking, and one flying to park as waiting", () => {
+    const home = { state: "homebound" as const, timer: 0, cargo: 10, cargoMaterial: "Metal" as const };
+    const fleet = withShips(Array.from({ length: 7 }, () => home), {
+      storage: { ...createInitialState(7).station.storage, capacity: 1000 },
+    });
+    const arrived = tick(fleet, 0);
+    const lines = arrived.ships.map((_, index) => infoBox(arrived, { kind: "ship", index })?.line);
+
+    expect(lines.slice(0, 6)).toEqual(Array(6).fill("Docking"));
+    expect(lines[6]).toBe("Waiting: dock busy");
   });
 
   it("keeps a ship selectable during its outbound transition from the Dock", () => {

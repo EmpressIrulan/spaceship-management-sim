@@ -60,6 +60,11 @@ function missing(design: ShipDesign): string {
   return "no storage";
 }
 
+function waitingStatus(state: SimState): string {
+  const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
+  return stored >= state.station.storage.capacity ? "Waiting: storage full" : "Waiting: dock busy";
+}
+
 // One line saying what the ship is doing, for its hover box and panel.
 export function shipStatus(state: SimState, ship: Ship): string {
   if (ship.order) return `Order: ${ship.order.kind}`;
@@ -74,10 +79,10 @@ export function shipStatus(state: SimState, ship: Ship): string {
       return `Flying home with ${ship.cargo} ${ship.cargoMaterial ?? "ore"}`;
     case "unloading":
       return "Unloading";
-    case "waiting": {
-      const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
-      return stored >= state.station.storage.capacity ? "Waiting: storage full" : "Waiting: dock busy";
-    }
+    case "berthing":
+      return ship.berth === null ? waitingStatus(state) : "Docking";
+    case "waiting":
+      return waitingStatus(state);
     case "moving":
       return "Moving";
     case "holding":
