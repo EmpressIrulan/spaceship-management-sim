@@ -32,7 +32,7 @@ import {
   type Camera,
   type Viewport,
 } from "./camera";
-import { cargoGauge, infoBox, type Gauge } from "./labels";
+import { cargoGauge, infoBox, sectorBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
 import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, sectorBackdrop, type PendingGate } from "./sectors";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
@@ -752,7 +752,7 @@ function draw(seconds: number): void {
     else strokeWorldRect(end.position, { width: 24, height: 24 }, "#22d3ee");
   }
   for (const asteroid of sectorRocks) {
-    fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material));
+    fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material, asteroid.rich));
   }
   for (const module of currentSector === 0 ? state.station.modules : []) {
     fillWorldRect(module.position, module.size, moduleColor(module.type));
@@ -784,7 +784,7 @@ function draw(seconds: number): void {
     : `Sector ${state.sectors[currentSector]!.name}: ${sectorRocks.length} asteroids, ${currentSector === 0 ? "station present" : "no station"}${gateDestination === null ? "" : `, gate to ${state.sectors[gateDestination]!.name}`}`);
   // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
-  const hovered = hoveredBody(state, camera, viewport, pointer, currentSector);
+  const hovered = mapOpen ? null : hoveredBody(state, camera, viewport, pointer, currentSector);
   const info = infoBox(state, hovered);
   box.hidden = info === null;
   const body = hovered && bodyOf(state, hovered);
@@ -802,6 +802,20 @@ function draw(seconds: number): void {
     const jumping = state.ships.some((ship) => ship.sectorId === currentSector && (ship.state === "jumpingOut" || ship.state === "jumpingHome"));
     box.hidden = false; boxTitle.textContent = "Gate"; boxLine.textContent = jumping ? "Jumping" : `Gate to ${state.sectors[gate.to]!.name}`;
     box.style.left = `${gateScreen.x + 16}px`; box.style.top = `${gateScreen.y}px`;
+  }
+  if (mapOpen) {
+    // The map covers the sector, so only its circles have anything to show.
+    const layout = mapLayout(state, viewport);
+    const id = pointer ? mapHit(layout, pointer) : null;
+    const sectorInfo = id === null ? null : sectorBox(state, id);
+    box.hidden = sectorInfo === null;
+    if (sectorInfo && id !== null) {
+      const circle = layout.circles[id]!;
+      box.style.left = `${circle.center.x + circle.radius + 8}px`;
+      box.style.top = `${circle.center.y - circle.radius}px`;
+      boxTitle.textContent = sectorInfo.title;
+      boxLine.textContent = sectorInfo.line;
+    }
   }
 
   const sites = availableModuleBuildSites(state);
