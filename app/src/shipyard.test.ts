@@ -5,6 +5,7 @@ import {
   shipBuildSeconds,
   startShipBuild,
   tick,
+  type ShipDesign,
   type ShipModule,
   type SimState,
   type StationModule,
@@ -13,6 +14,8 @@ import {
   applyTool,
   cellAt,
   designOf,
+  designPartAt,
+  draftPartAt,
   emptyDraft,
   emptyView,
   formatDuration,
@@ -30,7 +33,7 @@ import { infoBox } from "./labels";
 
 const BUILDER = 2;
 
-function withBuilder(inventory = { Metal: 400, Ice: 400 }): SimState {
+function withBuilder(inventory = { Metal: 2000, Ice: 2000 }): SimState {
   const state = createInitialState(7);
   const builder: StationModule = { type: "Builder", position: { x: 0, y: -40 }, size: { width: 30, height: 40 } };
   return {
@@ -167,22 +170,46 @@ describe("Build ship canvas", () => {
     expect(rows(draft)).toBe("L./.H");
   });
 
-  it("shows the pixel count, build time and cost as pixels are painted", () => {
+  it("shows a part breakdown, build time and material totals as pixels are painted", () => {
     const state = withBuilder();
     let draft = emptyDraft();
-    expect(shipMenuView(state, BUILDER, draft)).toMatchObject({ pixels: "0", buildTime: "0 s", cost: "0 Metal 0 Ice" });
+    expect(shipMenuView(state, BUILDER, draft)).toMatchObject({
+      pixels: "0",
+      parts: "Hull 0 px, Engine 0 px, Laser 0 px, Storage 0 px",
+      buildTime: "0 s",
+      materials: [
+        { material: "Metal", amount: 0, short: false },
+        { material: "Ice", amount: 0, short: false },
+      ],
+    });
 
     draft = withSize(withModule(draft, "Hull"), 3);
     applyTool(draft, { x: 0, y: 0 });
     expect(shipMenuView(state, BUILDER, draft)).toMatchObject({
       pixels: "9",
+      parts: "Hull 9 px, Engine 0 px, Laser 0 px, Storage 0 px",
       buildTime: "9 s",
-      cost: "45 Metal 45 Ice",
+      materials: [
+        { material: "Metal", amount: 45, short: false },
+        { material: "Ice", amount: 45, short: false },
+      ],
     });
 
     draft = withSize(withModule(emptyDraft(), "Hull"), 5);
     for (let n = 0; n < 5; n += 1) applyTool(draft, { x: n * 5, y: 0 });
     expect(shipMenuView(state, BUILDER, draft)).toMatchObject({ pixels: "125", buildTime: "2 min 5 s" });
+  });
+
+  it("marks only the material Storage cannot pay in red and greys out Build", () => {
+    let draft = stroke(emptyDraft(), "Engine", [0, 0]);
+    draft = stroke(draft, "Storage", [1, 0]);
+    expect(shipMenuView(withBuilder({ Metal: 34, Ice: 20 }), BUILDER, draft)).toMatchObject({
+      materials: [
+        { material: "Metal", amount: 35, short: true },
+        { material: "Ice", amount: 20, short: false },
+      ],
+      canBuild: false,
+    });
   });
 
   it("updates Speed, Hold and Mining time from what was painted", () => {
@@ -203,7 +230,7 @@ describe("Build ship canvas", () => {
     applyTool(draft, { x: 5, y: 0 });
     expect(pixelCount(designOf(draft))).toBe(50);
     expect(shipMenuView(withBuilder(), BUILDER, draft).canBuild).toBe(true);
-    expect(shipMenuView(withBuilder({ Metal: 249, Ice: 400 }), BUILDER, draft).canBuild).toBe(false);
+    expect(shipMenuView(withBuilder({ Metal: 1499, Ice: 400 }), BUILDER, draft).canBuild).toBe(false);
 
     const busy = startShipBuild(withBuilder(), BUILDER, designOf(draft));
     expect(shipMenuView(busy, BUILDER, draft).canBuild).toBe(false);
@@ -278,5 +305,40 @@ describe("Builder hover", () => {
     expect(formatDuration(120.4)).toBe("2 min");
     expect(formatDuration(98.8)).toBe("1 min 39 s");
     expect(formatDuration(30.8)).toBe("31 s");
+  });
+});
+
+describe("Part hover", () => {
+  const design: ShipDesign = { width: 3, height: 2, slots: ["Engine", "Laser", null, "Storage", "Hull", null] };
+  // The thumbnail is drawn at a size of its own, so the lookup works on where
+  // the cursor sits across it, 0 to 1 on each axis.
+  const at = (x: number, y: number) => designPartAt(design, { x, y });
+
+  it("names the part under the cursor on a ship's design", () => {
+    expect(at(0.1, 0.1)).toBe("Engine");
+    expect(at(0.5, 0.2)).toBe("Laser");
+    expect(at(0.1, 0.9)).toBe("Storage");
+    expect(at(0.5, 0.9)).toBe("Hull");
+  });
+
+  it("calls an unfitted square an empty slot", () => {
+    expect(at(0.9, 0.1)).toBe("Empty slot");
+    expect(at(0.9, 0.9)).toBe("Empty slot");
+  });
+
+  it("shows nothing once the cursor is off the design", () => {
+    expect(at(-0.01, 0.5)).toBeNull();
+    expect(at(0.5, 1)).toBeNull();
+    expect(at(1, 0.5)).toBeNull();
+  });
+
+  it("names pixels on the paint grid, including ones just painted or erased", () => {
+    let draft = stroke(emptyDraft(), "Laser", [4, -2]);
+    expect(draftPartAt(draft, { x: 4, y: -2 })).toBe("Laser");
+    expect(draftPartAt(draft, { x: 5, y: -2 })).toBe("Empty slot");
+    draft = stroke(draft, "Engine", [4, -2]);
+    expect(draftPartAt(draft, { x: 4, y: -2 })).toBe("Engine");
+    applyTool(withTool(draft, "erase"), { x: 4, y: -2 });
+    expect(draftPartAt(draft, { x: 4, y: -2 })).toBe("Empty slot");
   });
 });

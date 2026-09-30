@@ -1,6 +1,9 @@
 export { createPrng, type Prng } from "./prng";
 export {
   ASTEROID_ORE,
+  ASTEROID_SIZE,
+  RICH_ASTEROID_SIZE,
+  RICH_ORE,
   HOME_SECTOR,
   INCOME_WINDOW_SECONDS,
   JUMP_SECONDS,
@@ -34,6 +37,8 @@ export {
   type Asteroid,
   type AsteroidField,
   type Delivery,
+  type Density,
+  type SectorCharacter,
   type Sector,
   type Beam,
   type Material,
@@ -56,14 +61,15 @@ export {
 } from "./state";
 export {
   PIXEL_SIZE,
-  SHIP_BUILD_SECONDS_PER_PIXEL,
-  SHIP_COST_PER_PIXEL,
+  SHIP_BUILD_SECONDS_PER_RESOURCE,
+  SHIP_MODULE_COST,
   SHIP_MODULES,
   STARTING_SHIP,
   canMine,
   pixelCount,
   shipBuildCost,
   shipBuildSeconds,
+  shipModuleCounts,
   shipSize,
   shipStats,
   unloadingSeconds,

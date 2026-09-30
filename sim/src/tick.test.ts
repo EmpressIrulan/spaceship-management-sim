@@ -203,15 +203,16 @@ describe("asteroid field", () => {
     return 2 * cycleSeconds(start) + legSeconds(start) + WORKING_SECONDS;
   }
 
-  it("starts with the same number of asteroids in every sector, 30 ore each", () => {
+  it("starts every sector with the rocks its density calls for, 30 ore each and 120 for a rich rock", () => {
     for (let seed = 0; seed < 50; seed += 1) {
       const state = oneStorageStart(seed);
       const homeCount = state.asteroids.filter((asteroid) => asteroid.sectorId === 0).length;
       expect(homeCount).toBeGreaterThan(4);
       for (const sector of state.sectors) {
-        expect(state.asteroids.filter((asteroid) => asteroid.sectorId === sector.id)).toHaveLength(homeCount);
+        expect(state.asteroids.filter((asteroid) => asteroid.sectorId === sector.id))
+          .toHaveLength(sector.character.density === "dense" ? 18 : 12);
       }
-      for (const asteroid of state.asteroids) expect(asteroid.ore).toBe(30);
+      for (const asteroid of state.asteroids) expect(asteroid.ore).toBe(asteroid.rich ? 120 : 30);
     }
   });
 
@@ -282,7 +283,7 @@ describe("asteroid field", () => {
     const barren: SimState = {
       ...unloading,
       asteroids: [],
-      respawns: [{ sectorId: 0, fieldId: target(start).fieldId, timer: UNLOADING_SECONDS + 10, lastPosition: target(start).position }],
+      respawns: [{ sectorId: 0, fieldId: target(start).fieldId, timer: UNLOADING_SECONDS + 10, lastPosition: target(start).position, rich: false }],
     };
 
     const waiting = run(barren, UNLOADING_SECONDS + 9.9);
