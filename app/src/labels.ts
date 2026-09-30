@@ -118,5 +118,16 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     return { title: "Gate", line: `Gate ${project.delivered.Metal} / ${GATE_COST.Metal} Metal, ${project.delivered.Ice} / ${GATE_COST.Ice} Ice` };
   }
   const asteroid = state.asteroids.find((a) => a.id === hovered.id);
-  return asteroid ? { title: "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;
+  return asteroid ? { title: asteroid.rich ? "Rich asteroid" : "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;
+}
+
+// What hovering a sector on the map shows. The rich rock count is what is
+// there now, so it drops while one is mined out and waiting to respawn.
+export function sectorBox(state: SimState, sectorId: number): InfoBox | null {
+  const sector = state.sectors[sectorId];
+  if (!sector) return null;
+  const rich = state.asteroids.filter((rock) => rock.sectorId === sectorId && rock.rich).length;
+  const parts = [`${sector.character.abundant}-rich`, sector.character.density];
+  if (rich > 0) parts.push(`Rich rocks: ${rich}`);
+  return { title: sector.name, line: parts.join(" · ") };
 }

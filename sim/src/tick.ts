@@ -4,8 +4,7 @@ import { afterOrder, travelOrder } from "./orders";
 import { nextRandom } from "./prng";
 import { shipStats, speedFactor, unloadingSeconds } from "./ship";
 import {
-  ASTEROID_ORE,
-  ASTEROID_SIZE,
+  ABUNDANT_SHARE,
   DOCK_CAPACITY,
   GATE_COST,
   JUMP_SECONDS,
@@ -15,6 +14,7 @@ import {
   STORAGE_CAPACITY,
   depart,
   gateRoute,
+  newAsteroid,
   placeInField,
   type Asteroid,
   type Ship,
@@ -94,7 +94,7 @@ function mine(draft: Draft, ship: Ship, units: number): number {
     return taken;
   }
   draft.asteroids = draft.asteroids.filter((a) => a.id !== id);
-  draft.respawns = [...draft.respawns, { sectorId: asteroid.sectorId, fieldId: asteroid.fieldId, timer: RESPAWN_SECONDS, lastPosition: asteroid.position }];
+  draft.respawns = [...draft.respawns, { sectorId: asteroid.sectorId, fieldId: asteroid.fieldId, timer: RESPAWN_SECONDS, lastPosition: asteroid.position, rich: asteroid.rich }];
   return taken;
 }
 
@@ -397,10 +397,12 @@ function settle(draft: Draft): void {
     draft.rng = placed.rng;
     const material = nextRandom(draft.rng);
     draft.rng = material.state;
+    const { abundant } = draft.sectors[respawn.sectorId]!.character;
+    const other = abundant === "Metal" ? "Ice" : "Metal";
     draft.asteroids = [
       ...draft.asteroids,
-      { id: draft.nextAsteroidId, sectorId: respawn.sectorId, fieldId: respawn.fieldId, position: placed.position, size: ASTEROID_SIZE, ore: ASTEROID_ORE,
-        material: material.value < 0.5 ? "Metal" : "Ice" },
+      newAsteroid(draft.nextAsteroidId, respawn.sectorId, respawn.fieldId, placed.position,
+        material.value < ABUNDANT_SHARE ? abundant : other, respawn.rich),
     ];
     draft.nextAsteroidId += 1;
   }

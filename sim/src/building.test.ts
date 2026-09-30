@@ -130,6 +130,7 @@ describe("building station modules", () => {
         fieldId: index % 4,
         timer: 0,
         lastPosition: { x: 200 + index * 10, y: 0 },
+        rich: false,
       })),
       ships: [{ ...initial.ships[0]!, state: "idle", timer: 0, cargo: 0, target: null }],
     };

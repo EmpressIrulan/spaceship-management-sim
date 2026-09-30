@@ -180,7 +180,7 @@ describe("claim station sites", () => {
     const { state, position } = place(createInitialState(7), 1);
     const rocks = state.asteroids.filter((rock) => rock.sectorId === 1);
     const emptied = { ...state, asteroids: state.asteroids.filter((rock) => rock.id !== rocks[0]!.id),
-      respawns: [{ sectorId: 1, fieldId: rocks[0]!.fieldId, timer: 0.1, lastPosition: rocks[0]!.position }] };
+      respawns: [{ sectorId: 1, fieldId: rocks[0]!.fieldId, rich: rocks[0]!.rich, timer: 0.1, lastPosition: rocks[0]!.position }] };
     const after = tick(emptied, 1);
     const fresh = after.asteroids.find((rock) => rock.sectorId === 1 && !rocks.some((old) => old.id === rock.id))!;
     expect(Math.abs(fresh.position.x - position.x) > 45 || Math.abs(fresh.position.y - position.y) > 30).toBe(true);
