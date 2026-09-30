@@ -40,6 +40,17 @@ describe("cargo gauge", () => {
     });
   });
 
+  it("shows a half-full bar on the way home with half a hold aboard", () => {
+    const gauge = cargoGauge(ship("homebound", CARGO_PER_TRIP / 2));
+    expect(gauge?.fill).toBeCloseTo(0.5);
+    expect(gauge?.text).toBe(`${CARGO_PER_TRIP / 2}/${CARGO_PER_TRIP}`);
+  });
+
+  it("starts unloading a partial load at the fraction aboard, not full", () => {
+    const gauge = cargoGauge(ship("unloading", CARGO_PER_TRIP / 2, UNLOADING_SECONDS));
+    expect(gauge?.fill).toBeCloseTo(0.5);
+  });
+
   it("drains smoothly while unloading", () => {
     const gauge = cargoGauge(ship("unloading", 7, UNLOADING_SECONDS * 0.7));
     expect(gauge?.fill).toBeCloseTo(0.7);
