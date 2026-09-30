@@ -49,6 +49,7 @@ import {
 import { shipBlocks, shipPanel, slotColor } from "./ships";
 import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 import {
+  dismissShipMenuForClick,
   designOf,
   emptyDraft,
   paintSlot,
@@ -163,6 +164,13 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
 });
+
+document.addEventListener("click", (event) => {
+  if (shipMenuBuilder !== null && dismissShipMenuForClick(shipMenu.contains(event.target as Node | null))) {
+    closeShipMenu();
+  }
+});
+
 window.addEventListener("mousedown", (event) => {
   if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
 }, true);

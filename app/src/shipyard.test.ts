@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, startShipBuild, tick, type SimState, type StationModule } from "sim";
-import { emptyDraft, formatDuration, paintSlot, resizeDraft, shipMenuView, withBrush } from "./shipyard";
+import { dismissShipMenuForClick, emptyDraft, formatDuration, paintSlot, resizeDraft, shipMenuView, withBrush } from "./shipyard";
 import { infoBox } from "./labels";
 
 const BUILDER = 2;
@@ -26,6 +26,11 @@ function paint(draft: ReturnType<typeof emptyDraft>, module: "Engine" | "Laser" 
 }
 
 describe("Build ship menu", () => {
+  it("dismisses when clicking outside the menu and keeps clicks inside", () => {
+    expect(dismissShipMenuForClick(false)).toBe(true);
+    expect(dismissShipMenuForClick(true)).toBe(false);
+  });
+
   it("opens on an empty grid with sizes from 1 to 3", () => {
     const draft = emptyDraft();
     expect(draft.slots.every((slot) => slot === null)).toBe(true);

@@ -22,6 +22,10 @@ export function emptyDraft(): ShipDraft {
   return { width: 2, height: 2, slots: [null, null, null, null], brush: "Engine" };
 }
 
+export function dismissShipMenuForClick(insideMenu: boolean): boolean {
+  return !insideMenu;
+}
+
 function clampSide(n: number): number {
   return Math.min(MAX_HULL, Math.max(1, Math.round(n)));
 }
