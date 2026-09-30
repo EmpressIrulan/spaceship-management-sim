@@ -68,6 +68,14 @@ import {
   type ShipDraft,
 } from "./shipyard";
 import { moduleAppearance, stationConnectors } from "./station-appearance";
+import {
+  deleteBlueprint,
+  draftFromDesign,
+  loadBlueprints,
+  saveBlueprint,
+  viewCentredOn,
+  type Blueprint,
+} from "./blueprints";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -120,6 +128,7 @@ let selectedBuildSite: Vec | null = null;
 // The Builder whose Build ship menu is open, by module index.
 let shipMenuBuilder: number | null = null;
 let draft: ShipDraft = emptyDraft();
+let blueprints: Blueprint[] = loadBlueprints(localStorage);
 // The Build ship canvas: which canvas pixel is at its middle and how big one
 // is on screen, plus the mouse state of a stroke or a pan in progress.
 let paintView: Camera = emptyView();
@@ -206,7 +215,7 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeGateMenu();
   if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
   if (shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
-  if (!(event.target instanceof HTMLSelectElement)) {
+  if (!(event.target instanceof HTMLSelectElement) && !(event.target instanceof HTMLInputElement)) {
     heldKeys.add(event.key);
     const next = clockAfterKey(clock, event.key, event.repeat);
     if (next !== clock || event.key === " ") { clock = next; event.preventDefault(); }
@@ -264,6 +273,31 @@ function thumbnailElement(design: ShipDesign): HTMLElement {
 
 const TOOL_BUTTONS = [["erase", "Eraser"], ["fill", "Fill"]] as const;
 
+function renderBlueprints(): void {
+  const list = shipMenu.querySelector<HTMLElement>(".blueprints")!;
+  if (blueprints.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "hint";
+    empty.textContent = "No saved blueprints";
+    list.replaceChildren(empty);
+    return;
+  }
+  list.replaceChildren(...blueprints.map((blueprint, index) => {
+    const row = document.createElement("div");
+    row.className = "blueprint";
+    const name = document.createElement("span");
+    name.textContent = blueprint.name;
+    const actions = document.createElement("span");
+    actions.className = "row";
+    actions.append(
+      button("Load", { blueprintLoad: String(index) }),
+      button("Delete", { blueprintDelete: String(index) }),
+    );
+    row.append(name, actions);
+    return row;
+  }));
+}
+
 // Built once when the menu opens. The buttons only change which one is
 // pressed afterwards, so the paint canvas and its listeners stay put. The
 // stats, cost and Build button are refreshed every frame in draw(), since
@@ -291,9 +325,21 @@ function renderShipMenu(): void {
   stats.className = "stats";
   const cost = document.createElement("div");
   cost.className = "cost";
+  const save = document.createElement("div");
+  save.className = "row blueprint-save";
+  const blueprintName = document.createElement("input");
+  blueprintName.className = "blueprint-name";
+  blueprintName.placeholder = "Blueprint name";
+  blueprintName.setAttribute("aria-label", "Blueprint name");
+  const saveBlueprintButton = button("Save blueprint", { blueprintSave: "" });
+  saveBlueprintButton.disabled = true;
+  save.append(blueprintName, saveBlueprintButton);
+  const blueprintList = document.createElement("div");
+  blueprintList.className = "blueprints";
   const build = button("Build", { build: "" });
   build.className = "build";
-  shipMenu.replaceChildren(title, modules, tools, paintCanvas, hint, stats, cost, build);
+  shipMenu.replaceChildren(title, modules, tools, paintCanvas, hint, stats, cost, save, blueprintList, build);
+  renderBlueprints();
   syncShipMenuButtons();
 }
 
@@ -332,12 +378,38 @@ shipMenu.addEventListener("click", (event) => {
   if (data.module) draft = withModule(withTool(draft, "paint"), data.module as ShipDraft["module"]);
   else if (data.size) draft = withSize(draft.tool === "fill" ? withTool(draft, "paint") : draft, Number(data.size) as ShipDraft["size"]);
   else if (data.tool) draft = withTool(draft, data.tool as ShipDraft["tool"]);
+  else if (data.blueprintSave !== undefined) {
+    const input = shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
+    blueprints = saveBlueprint(localStorage, input.value, designOf(draft));
+    input.value = "";
+    target.disabled = true;
+    renderBlueprints();
+  }
+  else if (data.blueprintLoad !== undefined) {
+    const blueprint = blueprints[Number(data.blueprintLoad)];
+    if (!blueprint) return;
+    draft = draftFromDesign(draft, blueprint.design);
+    paintView = viewCentredOn(paintView, blueprint.design);
+  }
+  else if (data.blueprintDelete !== undefined) {
+    const blueprint = blueprints[Number(data.blueprintDelete)];
+    if (!blueprint) return;
+    blueprints = deleteBlueprint(localStorage, blueprint.name);
+    renderBlueprints();
+  }
   else if (data.build !== undefined) {
     state = startShipBuild(state, shipMenuBuilder, designOf(draft));
     closeShipMenu();
     return;
   }
   syncShipMenuButtons();
+});
+
+shipMenu.addEventListener("input", (event) => {
+  const input = (event.target as HTMLElement).closest<HTMLInputElement>(".blueprint-name");
+  if (!input) return;
+  const save = shipMenu.querySelector<HTMLButtonElement>("button[data-blueprint-save]")!;
+  save.disabled = input.value.trim() === "" || designOf(draft).width === 0;
 });
 
 function paintPointAt(client: Vec): Vec {
@@ -1000,6 +1072,9 @@ function draw(seconds: number): void {
       });
     }
     shipMenu.querySelector<HTMLButtonElement>(".build")!.disabled = !view.canBuild;
+    const blueprintName = shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
+    shipMenu.querySelector<HTMLButtonElement>("button[data-blueprint-save]")!.disabled =
+      blueprintName.value.trim() === "" || designOf(draft).width === 0;
   }
   const menuItems = buildMenuItems(state);
   const menuKey = JSON.stringify(menuItems);
