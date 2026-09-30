@@ -163,7 +163,7 @@ describe("asteroid belts and clusters", () => {
     return {
       ...state,
       asteroids: [],
-      respawns: [{ sectorId: field.sectorId, fieldId: field.id, timer: 0, lastPosition: field.centre }],
+      respawns: [{ sectorId: field.sectorId, fieldId: field.id, timer: 0, lastPosition: field.centre, rich: false }],
       ships: [{ ...state.ships[0]!, state: "idle", timer: 0, cargo: 0, target: null }],
     };
   }

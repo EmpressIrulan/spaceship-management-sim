@@ -32,6 +32,9 @@ export const ROCK_SPACING = 25;
 export const FIELD_LAYOUT = ["belt", "cluster", "belt", "cluster"] as const;
 export const BELT_ROCKS = 5;
 export const CLUSTER_ROCKS = 4;
+// A sparse sector has fewer rocks in every field than a dense one.
+export const SPARSE_BELT_ROCKS = 3;
+export const SPARSE_CLUSTER_ROCKS = 3;
 export const BELT_RADIUS = 100;
 export const BELT_SWEEP = 1.8;
 export const BELT_WIDTH = 24;
@@ -56,6 +59,12 @@ export const MODULE_COST: Record<Material, number> = { Metal: 25, Ice: 25 };
 export const MODULE_TYPES = ["Dock", "Storage", "Builder"] as const;
 export type ModuleType = (typeof MODULE_TYPES)[number];
 export const ASTEROID_SIZE = { width: 13, height: 10 };
+// A rich rock is bigger and holds four times the ore of a plain one.
+export const RICH_ORE_FACTOR = 4;
+export const RICH_ORE = ASTEROID_ORE * RICH_ORE_FACTOR;
+export const RICH_ASTEROID_SIZE = { width: 21, height: 16 };
+// Share of a sector's rocks in its abundant material.
+export const ABUNDANT_SHARE = 0.75;
 export const HOME_SECTOR = 0;
 export const JUMP_SECONDS = 2;
 export const GATE_SIZE = { width: 24, height: 24 };
@@ -155,6 +164,7 @@ export interface ModuleConstruction extends StationModule {
 export interface Asteroid {
   id: number;
   sectorId: number;
+  rich: boolean;
   // The belt or cluster this rock belongs to, and comes back to when mined out.
   fieldId: number;
   position: Vec;
@@ -174,6 +184,8 @@ export interface Respawn {
   fieldId: number;
   // Seconds until a new asteroid appears.
   timer: number;
+  // A rich rock comes back as a rich rock, so a sector keeps its rich count.
+  rich: boolean;
   // Where the emptied asteroid was, so the new one lands somewhere else.
   lastPosition: Vec;
 }
@@ -198,7 +210,26 @@ export interface SimState {
   ships: Ship[];
 }
 
-export interface Sector { id: number; name: string; gate: { position: Vec; size: Size; to: number } }
+export type Density = "sparse" | "dense";
+// What a sector is good for. Fixed when the sector is made.
+export interface SectorCharacter {
+  // The material most of the sector's rocks are made of.
+  abundant: Material;
+  density: Density;
+  // How many rich rocks the sector starts with.
+  richRocks: number;
+}
+export interface Sector { id: number; name: string; gate: { position: Vec; size: Size; to: number }; character: SectorCharacter }
+
+// The home sector takes the first entry. It has no rich rocks, so the first
+// mining trips are the same on every seed. The other sectors get the rest in
+// an order picked from the seed, so a map always offers every kind of sector.
+const SECTOR_CHARACTERS: readonly SectorCharacter[] = [
+  { abundant: "Metal", density: "dense", richRocks: 0 },
+  { abundant: "Ice", density: "sparse", richRocks: 2 },
+  { abundant: "Metal", density: "sparse", richRocks: 3 },
+  { abundant: "Ice", density: "dense", richRocks: 0 },
+];
 export interface GateEnd { sectorId: number; position: Vec }
 export interface GateProject {
   id: number;
@@ -380,6 +411,19 @@ export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Shi
   };
 }
 
+function rocksInField(kind: AsteroidField["kind"], density: Density): number {
+  if (density === "dense") return kind === "belt" ? BELT_ROCKS : CLUSTER_ROCKS;
+  return kind === "belt" ? SPARSE_BELT_ROCKS : SPARSE_CLUSTER_ROCKS;
+}
+
+export function newAsteroid(id: number, sectorId: number, fieldId: number, position: Vec, material: Material, rich: boolean): Asteroid {
+  return {
+    id, sectorId, fieldId, position, material, rich,
+    size: rich ? RICH_ASTEROID_SIZE : ASTEROID_SIZE,
+    ore: rich ? RICH_ORE : ASTEROID_ORE,
+  };
+}
+
 export function createInitialState(seed: number): SimState {
   const dockPosition = { x: 0, y: 0 };
   const storagePosition = { x: 40, y: 0 };
@@ -392,11 +436,21 @@ export function createInitialState(seed: number): SimState {
     const name = nameChoices[Math.floor(roll.value * nameChoices.length)]!;
     if (!sectorNames.includes(name)) sectorNames.push(name);
   }
+  // Character and rich rocks draw from a stream of their own, so the layout
+  // the main stream gives a seed does not move when they change.
+  let traits = (seed ^ 0x9e3779b9) >>> 0;
+  const characters = [...SECTOR_CHARACTERS];
+  for (let i = characters.length - 1; i > 1; i -= 1) {
+    const choice = nextRandom(traits); traits = choice.state;
+    const j = 1 + Math.floor(choice.value * i);
+    [characters[i], characters[j]] = [characters[j]!, characters[i]!];
+  }
   const sectors: Sector[] = Array.from({ length: SECTOR_COUNT }, (_, id) => {
     const roll = nextRandom(rng); rng = roll.state;
     const angle = roll.value * Math.PI * 2;
     return { id, name: sectorNames[id]!,
-      gate: { position: { x: Math.cos(angle) * GATE_DISTANCE, y: Math.sin(angle) * GATE_DISTANCE }, size: GATE_SIZE, to: id < 2 ? 1 - id : id } };
+      gate: { position: { x: Math.cos(angle) * GATE_DISTANCE, y: Math.sin(angle) * GATE_DISTANCE }, size: GATE_SIZE, to: id < 2 ? 1 - id : id },
+      character: characters[id]! };
   });
 
   const fields: AsteroidField[] = [];
@@ -409,7 +463,7 @@ export function createInitialState(seed: number): SimState {
     const blocked = sector.id === HOME_SECTOR ? [dockPosition, storagePosition] : [];
     const placed: { field: AsteroidField; position: Vec }[] = [];
     for (const field of made.fields) {
-      const count = field.kind === "belt" ? BELT_ROCKS : CLUSTER_ROCKS;
+      const count = rocksInField(field.kind, sector.character.density);
       for (let i = 0; i < count; i += 1) {
         const spot = placeInField(rng, field, placed.map((rock) => rock.position), blocked);
         // Starting fields are wide open, so there is always room.
@@ -417,19 +471,28 @@ export function createInitialState(seed: number): SimState {
         placed.push({ field, position: spot!.position });
       }
     }
-    // An even mix shuffled independently of where the rocks are, so either
-    // material can be the closest while every sector contains both.
-    const materials: Material[] = placed.map((_, i) => (i < placed.length / 2 ? "Metal" : "Ice"));
-    for (let i = materials.length - 1; i > 0; i -= 1) {
+    // The sector's mix shuffled independently of where the rocks are, so either
+    // material can be the closest. Both always appear, so every sector has
+    // something of each.
+    const abundantCount = Math.min(placed.length - 1, Math.max(1, Math.round(placed.length * ABUNDANT_SHARE)));
+    const other: Material = sector.character.abundant === "Metal" ? "Ice" : "Metal";
+    const materials: Material[] = placed.map((_, i) => (i < abundantCount ? sector.character.abundant : other));
+    const richFlags = placed.map((_, i) => i < sector.character.richRocks);
+    for (let i = placed.length - 1; i > 0; i -= 1) {
       const choice = nextRandom(rng);
       rng = choice.state;
       const j = Math.floor(choice.value * (i + 1));
       [materials[i], materials[j]] = [materials[j]!, materials[i]!];
     }
-    asteroids.push(...placed.map(({ field, position }, i) => ({
-      id: asteroids.length + i, sectorId: sector.id, fieldId: field.id, position, size: ASTEROID_SIZE, ore: ASTEROID_ORE,
-      material: materials[i]!,
-    })));
+    for (let i = richFlags.length - 1; i > 0; i -= 1) {
+      const pick = nextRandom(traits);
+      traits = pick.state;
+      const k = Math.floor(pick.value * (i + 1));
+      [richFlags[i], richFlags[k]] = [richFlags[k]!, richFlags[i]!];
+    }
+    asteroids.push(...placed.map(({ field, position }, i) => newAsteroid(
+      asteroids.length + i, sector.id, field.id, position, materials[i]!, richFlags[i]!,
+    )));
   }
 
   const idle: Ship = {
