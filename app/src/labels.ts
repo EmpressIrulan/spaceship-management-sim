@@ -91,7 +91,13 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   }
   if (hovered.kind === "gateProject") {
     const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
-    return project ? { title: "Gate", line: `Gate ${project.delivered.Metal} / ${GATE_COST.Metal} Metal, ${project.delivered.Ice} / ${GATE_COST.Ice} Ice` } : null;
+    if (!project) return null;
+    if (project.complete) {
+      const here = project.ends[hovered.end ?? 0];
+      const other = project.ends.find((end) => end !== here);
+      return other ? { title: "Gate", line: `Gate to ${state.sectors[other.sectorId]!.name}` } : null;
+    }
+    return { title: "Gate", line: `Gate ${project.delivered.Metal} / ${GATE_COST.Metal} Metal, ${project.delivered.Ice} / ${GATE_COST.Ice} Ice` };
   }
   const asteroid = state.asteroids.find((a) => a.id === hovered.id);
   return asteroid ? { title: "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;

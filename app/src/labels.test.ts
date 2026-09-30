@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CARGO_PER_TRIP,
+  GATE_COST,
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
@@ -109,5 +110,15 @@ describe("hover box", () => {
       title: "Gate",
       line: "Gate 30 / 200 Metal, 10 / 200 Ice",
     });
+  });
+
+  it("shows the destination name instead of materials once a gate is complete", () => {
+    const completed = {
+      ...state,
+      gateProjects: [{ id: 5, ends: [{ sectorId: 0, position: { x: 80, y: 0 } }, { sectorId: 3, position: { x: 0, y: 80 } }],
+        delivered: { Metal: GATE_COST.Metal, Ice: GATE_COST.Ice }, complete: true }],
+    } as typeof state;
+    expect(infoBox(completed, { kind: "gateProject", id: 5, end: 0 })).toEqual({ title: "Gate", line: "Gate to " + completed.sectors[3]!.name });
+    expect(infoBox(completed, { kind: "gateProject", id: 5, end: 1 })).toEqual({ title: "Gate", line: "Gate to " + completed.sectors[0]!.name });
   });
 });
