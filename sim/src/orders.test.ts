@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, JUMP_SECONDS, startGateBuild, type SimState } from "./state";
+import { miningStart } from "./test-ships";
+import { JUMP_SECONDS, startGateBuild, type SimState } from "./state";
 import { tick } from "./tick";
 import { giveOrder, formation, resumeDefault, setDefaultBehaviour } from "./orders";
 
 function fleet(count: number): SimState {
-  const state = createInitialState(7);
+  const state = miningStart(7);
   const first = state.ships[0]!;
   return { ...state, ships: Array.from({ length: count }, (_, id) => ({ ...first, id })) };
 }
@@ -41,7 +42,7 @@ function farSector(state: SimState, changes: Partial<SimState["ships"][number]> 
 
 describe("RTS ship orders", () => {
   it("loads Storage ships and loops deliveries to a gate project", () => {
-    let start = startGateBuild(createInitialState(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    let start = startGateBuild(miningStart(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
     start = { ...start, station: { ...start.station, inventory: { Metal: 200, Ice: 200 } },
       ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
     const ordered = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
@@ -53,7 +54,7 @@ describe("RTS ship orders", () => {
   });
 
   it("unloads existing cargo before beginning a haul order without losing material", () => {
-    let start = startGateBuild(createInitialState(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    let start = startGateBuild(miningStart(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
     start = { ...start, station: { ...start.station, inventory: { Metal: 60, Ice: 40 } },
       ships: [{ ...start.ships[0]!, state: "homebound", cargo: 20, cargoMaterial: "Metal",
       position: { x: 120, y: 0 }, timer: 2, leg: { from: { x: 200, y: 0 }, to: start.station.dock.position }, target: null }] };
@@ -65,7 +66,7 @@ describe("RTS ship orders", () => {
   });
 
   it("reserves in-flight loads and returns cargo left when another hauler completes the gate", () => {
-    let start = startGateBuild(createInitialState(7), 0, { x: 1, y: 0 }, 3, { x: -1, y: 0 });
+    let start = startGateBuild(miningStart(7), 0, { x: 1, y: 0 }, 3, { x: -1, y: 0 });
     const base = start.ships[0]!;
     start = { ...start,
       gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 180, Ice: 200 } }],
@@ -82,7 +83,7 @@ describe("RTS ship orders", () => {
   });
 
   it("does not load more than the gate needs across simultaneous haulers", () => {
-    let start = startGateBuild(createInitialState(7), 0, { x: 1, y: 0 }, 3, { x: -1, y: 0 });
+    let start = startGateBuild(miningStart(7), 0, { x: 1, y: 0 }, 3, { x: -1, y: 0 });
     const base = start.ships[0]!;
     start = { ...start,
       gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 180, Ice: 200 } }],
@@ -96,7 +97,7 @@ describe("RTS ship orders", () => {
   });
 
   it("activates a paid gate and moves a ship through its player-placed ends", () => {
-    let start = startGateBuild(createInitialState(7), 0, { x: 1, y: 2 }, 3, { x: 30, y: 40 });
+    let start = startGateBuild(miningStart(7), 0, { x: 1, y: 2 }, 3, { x: 30, y: 40 });
     start = { ...start,
       gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 200, Ice: 180 } }],
       station: { ...start.station, inventory: { Metal: 0, Ice: 20 } },

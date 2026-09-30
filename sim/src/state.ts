@@ -113,6 +113,9 @@ export interface Ship {
   cargoMaterial: Material | null;
   target: Target | null;
   defaultBehaviour: DefaultBehaviour;
+  // What "Mine for Station" is allowed to mine. Empty means nothing, so a
+  // new ship sits idle until someone ticks a material.
+  mineMaterials: Material[];
   order: Order | null;
   leg: Leg | null;
 }
@@ -357,6 +360,13 @@ export function miningSite(dock: Vec, asteroid: Asteroid, ship: Size = shipSize(
   return { x: edge.x + ux * (MINING_GAP + nose), y: edge.y + uy * (MINING_GAP + nose) };
 }
 
+// The home sector's rocks this ship may pick on its own. Every default
+// behaviour that mines picks its rock from here.
+export function minableRocks(ship: Ship, asteroids: Asteroid[]): Asteroid[] {
+  return asteroids.filter((rock) => rock.sectorId === HOME_SECTOR
+    && (ship.defaultBehaviour !== "mine" || ship.mineMaterials.includes(rock.material)));
+}
+
 // The asteroid with ore left that is closest to the Dock, or null. Rocks no
 // other ship is heading for or mining come first, so a fleet spreads out
 // while there are rocks to go round.
@@ -386,7 +396,7 @@ export function nearestWithOre(dock: Vec, asteroids: Asteroid[], others: Ship[] 
 // Sends a ship sitting at the Dock to the nearest asteroid with ore, or
 // leaves it idle if there is none or it can't mine.
 export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Ship[] = []): Ship {
-  const asteroid = canMine(ship.design) ? nearestWithOre(dock, asteroids.filter((rock) => rock.sectorId === HOME_SECTOR), others) : null;
+  const asteroid = canMine(ship.design) ? nearestWithOre(dock, minableRocks(ship, asteroids), others) : null;
   if (!asteroid) {
     return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null };
   }
@@ -498,6 +508,7 @@ export function createInitialState(seed: number): SimState {
     cargoMaterial: null,
     target: null,
     defaultBehaviour: "mine",
+    mineMaterials: [],
     order: null,
     leg: null,
   };

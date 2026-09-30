@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, HOME_SECTOR, JUMP_SECONDS, sectorInGateRange, startGateBuild } from "./state";
+import { miningStart } from "./test-ships";
+import { HOME_SECTOR, JUMP_SECONDS, sectorInGateRange, startGateBuild } from "./state";
 import { tick } from "./tick";
 import { giveOrder } from "./orders";
 
 describe("two linked sectors", () => {
   it("creates two reproducibly named sectors with paired gates and rocks", () => {
-    const a = createInitialState(11);
-    const b = createInitialState(11);
+    const a = miningStart(11);
+    const b = miningStart(11);
     expect(a.sectors).toHaveLength(4);
     expect(a.sectors.map((s) => s.name)).toEqual(b.sectors.map((s) => s.name));
     expect(a.sectors[0]!.name).not.toBe(a.sectors[1]!.name);
@@ -20,7 +21,7 @@ describe("two linked sectors", () => {
   });
 
   it("places paired incomplete gate ends at player-picked positions", () => {
-    const start = createInitialState(11);
+    const start = miningStart(11);
     const built = startGateBuild(start, HOME_SECTOR, { x: 90, y: 40 }, 3, { x: -70, y: 120 });
     expect(built.gateProjects).toEqual([{
       id: 0,
@@ -31,7 +32,7 @@ describe("two linked sectors", () => {
   });
 
   it("only starts an in-range project with one end at Home", () => {
-    const start = createInitialState(11);
+    const start = miningStart(11);
     expect(startGateBuild(start, 1, { x: 0, y: 0 }, 3, { x: 0, y: 0 })).toBe(start);
     expect(startGateBuild(start, HOME_SECTOR, { x: 0, y: 0 }, 2, { x: 0, y: 0 })).toBe(start);
     expect(sectorInGateRange(HOME_SECTOR, 1)).toBe(true);
@@ -39,7 +40,7 @@ describe("two linked sectors", () => {
   });
 
   it("sends an ID-selected ship through gates to mine a distant-sector rock", () => {
-    const start = createInitialState(11);
+    const start = miningStart(11);
     const rock = start.asteroids.find((item) => item.sectorId !== HOME_SECTOR)!;
     const state = giveOrder(start, [start.ships[0]!.id], { kind: "mine", asteroidId: rock.id });
     expect(state.ships[0]!.target?.sectorId).toBe(rock.sectorId);
@@ -51,7 +52,7 @@ describe("two linked sectors", () => {
   });
 
   it("jumps out, mines, returns through the gate, and unloads at home", () => {
-    let state = createInitialState(19);
+    let state = miningStart(19);
     const rock = state.asteroids.find((item) => item.sectorId === 1)!;
     state = giveOrder(state, [state.ships[0]!.id], { kind: "mine", asteroidId: rock.id });
     const until = (done: (s: typeof state) => boolean, limit = 1000) => {

@@ -1,7 +1,7 @@
 import { travelSeconds } from "./motion";
 import { canMine, shipSize, shipStats, speedFactor, unloadingSeconds } from "./ship";
 import {
-  depart, GATE_COST, gateRoute, HOME_SECTOR, miningSite, nearestWithOre, type Asteroid, type DefaultBehaviour, type Order,
+  depart, GATE_COST, MATERIALS, gateRoute, HOME_SECTOR, minableRocks, miningSite, nearestWithOre, type Asteroid, type DefaultBehaviour, type Material, type Order,
   type Sector, type Ship, type SimState, type Vec,
 } from "./state";
 
@@ -56,8 +56,12 @@ function startMining(ship: Ship, rock: Asteroid, dock: Vec, sectors: Sector[], g
 function resume(ship: Ship, dock: Vec, asteroids: Asteroid[], sectors: Sector[], gateProjects: SimState["gateProjects"]): Ship {
   if (ship.defaultBehaviour === "none") return hold(ship);
   if (ship.cargo > 0) return routeHome({ ...ship, target: null }, dock, sectors, gateProjects);
-  const rock = nearestWithOre(dock, asteroids.filter((a) => a.sectorId === HOME_SECTOR));
-  if (!rock || !canMine(ship.design)) return { ...ship, state: "idle", timer: 0, leg: null, target: null };
+  const rock = nearestWithOre(dock, minableRocks(ship, asteroids));
+  if (!rock || !canMine(ship.design)) {
+    // Idle means sitting at the Dock, so a ship elsewhere flies home first.
+    const atDock = ship.sectorId === HOME_SECTOR && ship.position.x === dock.x && ship.position.y === dock.y;
+    return atDock ? { ...ship, state: "idle", timer: 0, leg: null, target: null } : routeHome({ ...ship, target: null }, dock, sectors, gateProjects);
+  }
   return startMining(ship, rock, dock, sectors, gateProjects);
 }
 
@@ -153,5 +157,21 @@ export function setDefaultBehaviour(state: SimState, ids: number[], behaviour: D
     if (!ids.includes(ship.id)) return ship;
     const next = { ...ship, defaultBehaviour: behaviour };
     return next.state === "holding" && !next.order ? resume(next, state.station.dock.position, state.asteroids, state.sectors, state.gateProjects) : next;
+  }) };
+}
+
+// Ticks or unticks a material for each named ship. A ship on its own default
+// that is flying to or mining a rock it may no longer take drops it, and
+// picks another or heads home.
+export function setMineMaterial(state: SimState, ids: number[], material: Material, on: boolean): SimState {
+  return { ...state, ships: state.ships.map((ship) => {
+    if (!ids.includes(ship.id) || ship.mineMaterials.includes(material) === on) return ship;
+    const mineMaterials = MATERIALS.filter((item) => item === material ? on : ship.mineMaterials.includes(item));
+    const next = { ...ship, mineMaterials };
+    if (next.defaultBehaviour !== "mine" || next.order) return next;
+    const droppedRock = (next.state === "outbound" || next.state === "working") && next.cargoMaterial && !mineMaterials.includes(next.cargoMaterial);
+    const stuck = next.state === "holding";
+    return droppedRock || stuck
+      ? resume({ ...next, target: null }, state.station.dock.position, state.asteroids, state.sectors, state.gateProjects) : next;
   }) };
 }
