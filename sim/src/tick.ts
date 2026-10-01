@@ -1,5 +1,6 @@
 import { advanceSites, deliverToSite, nextSiteEvent, settleSites, claimSiteSlots } from "./claim";
 import { haulCargoDestination } from "./haul";
+import { gateOutstanding } from "./gate-hauling";
 import { asteroidGone, mine, miningSeconds, type Draft } from "./tick-mining";
 import { beginHaulLoading, beginHaulUnloading, flyHaul, haulEnd, loadHauler, unloadHauler } from "./tick-hauling";
 import { addCargo, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
@@ -100,6 +101,7 @@ function canProcessCargo(draft: Draft, ship: Ship): boolean {
     && draft.storageLimits[material] !== null && draft.inventory[material] >= draft.storageLimits[material]!);
 }
 
+// Moves a ship partway through its current state, leaving `timer` seconds.
 function progress(draft: Draft, ship: Ship, timer: number): Ship {
   const route = routeOf(ship, draft.dock);
   switch (ship.state) {
@@ -175,18 +177,6 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     case "haulWaitingFull":
       return { ...ship, timer };
   }
-}
-
-function gateOutstanding(draft: Draft, gateId: number, material: "Metal" | "Ice", shipId: number): number {
-  const project = draft.gateProjects.find((candidate) => candidate.id === gateId);
-  if (!project) return 0;
-  return GATE_COST[material] - project.delivered[material]
-    - draft.ships.reduce((sum, other) => {
-      if (other.id === shipId || other.order?.kind !== "haulGate" || other.order.gateId !== gateId) return sum;
-      if ((other.state === "berthing" || other.state === "waiting" || other.state === "loading")
-        && other.transfer?.startingCargo === 0) return other.cargoMaterial === material ? sum + other.transfer.amount : sum;
-      return other.state === "gateHauling" || other.state === "gateUnloading" ? sum + cargoByMaterial(other)[material] : sum;
-    }, 0);
 }
 
 function carryCargoToGate(draft: Draft, ship: Ship): Ship | null {

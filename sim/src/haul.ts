@@ -5,6 +5,17 @@ import { STORAGE_CAPACITY, berthLayout, gateRoute, toBerth, toParking, type Haul
 
 export interface HaulStation { id: HaulStationId; name: string }
 
+export interface HaulState {
+  sectors: SimState["sectors"];
+  claimSites: SimState["claimSites"];
+  gateProjects: SimState["gateProjects"];
+  station?: SimState["station"];
+  stationSector?: number;
+  dock?: Vec;
+  inventory?: SimState["station"]["inventory"];
+  storageCapacity?: number;
+}
+
 export function haulStations(state: Pick<SimState, "station" | "claimSites" | "sectors">): HaulStation[] {
   const home = state.sectors[state.station.sectorId];
   return [
@@ -16,11 +27,15 @@ export function haulStations(state: Pick<SimState, "station" | "claimSites" | "s
   ];
 }
 
-export function haulStationDetails(state: Pick<SimState, "station" | "claimSites" | "sectors">, id: HaulStationId) {
-  if (id === "home") return {
-    id, sectorId: state.station.sectorId, position: state.station.dock.position,
-    inventory: state.station.inventory, capacity: state.station.storage.capacity,
-  };
+export function haulStationDetails(state: HaulState, id: HaulStationId) {
+  if (id === "home") {
+    const station = state.station;
+    const sectorId = station?.sectorId ?? state.stationSector!;
+    const position = station?.dock.position ?? state.dock!;
+    const inventory = station?.inventory ?? state.inventory!;
+    const capacity = station?.storage.capacity ?? state.storageCapacity!;
+    return { id, sectorId, position, inventory, capacity };
+  }
   const site = state.claimSites.find((candidate) => `claim:${candidate.id}` === id && claimSiteBuilt(candidate));
   return site ? { id, sectorId: site.sectorId, position: site.position, inventory: site.delivered, capacity: STORAGE_CAPACITY } : null;
 }
@@ -29,7 +44,7 @@ function stored(station: NonNullable<ReturnType<typeof haulStationDetails>>): nu
   return station.inventory.Metal + station.inventory.Ice;
 }
 
-function fly(ship: Ship, state: SimState, stationId: HaulStationId, kind: "outbound" | "returning"): Ship {
+export function flyHaul(ship: Ship, state: HaulState, stationId: HaulStationId, kind: "outbound" | "returning" | "haulOutbound" | "haulReturning"): Ship {
   const station = haulStationDetails(state, stationId);
   if (!station) return { ...ship, state: "holding", timer: 0, leg: null };
   let to: Vec;
@@ -40,7 +55,7 @@ function fly(ship: Ship, state: SimState, stationId: HaulStationId, kind: "outbo
     to = route.from;
   }
   const from = { ...ship.position };
-  return { ...ship, state: kind === "outbound" ? "haulOutbound" : "haulReturning", berth: null, transfer: null, leg: { from, to: { ...to } },
+  return { ...ship, state: kind === "outbound" || kind === "haulOutbound" ? "haulOutbound" : "haulReturning", berth: null, transfer: null, leg: { from, to: { ...to } },
     timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
 }
 
@@ -81,11 +96,11 @@ export function resumeHaulShip(state: SimState, ship: Ship): Ship {
     const destination = destinationId === route.from ? from : to;
     const atDestination = ship.sectorId === destination.sectorId
       && ship.position.x === destination.position.x && ship.position.y === destination.position.y;
-    if (!atDestination) return fly(clean, state, destinationId, destinationId === route.from ? "returning" : "outbound");
+    if (!atDestination) return flyHaul(clean, state, destinationId, destinationId === route.from ? "returning" : "outbound");
     return stored(destination) >= destination.capacity ? { ...clean, state: "haulWaitingFull", timer: 0, leg: null }
       : transferAt(state, clean, destinationId, false);
   }
-  if (!atFrom) return fly(clean, state, route.from, "returning");
+  if (!atFrom) return flyHaul(clean, state, route.from, "returning");
   if (stored(to) >= to.capacity) return { ...clean, state: "haulWaitingFull", timer: 0, leg: null, cargoMaterial: null };
   if (from.inventory[route.material] < shipStats(ship.design).hold) return { ...clean, state: "haulWaitingSource", timer: 0, leg: null, cargoMaterial: null };
   return transferAt(state, clean, route.from, true);

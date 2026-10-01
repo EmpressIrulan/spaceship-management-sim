@@ -1,5 +1,6 @@
 import type { ClaimSite } from "./claim";
-import { distance, makeFields, placeInField, rocksInField } from "./fields";
+import { ASTEROID_MIN_SPACING, ROCK_SPACING, distance, makeFields, placeInField, rocksInField } from "./fields";
+export { ASTEROID_MIN_SPACING, ROCK_SPACING } from "./fields";
 export { availableModuleBuildSites, availableModuleBuilds, startModuleBuild, MODULE_SPACING, type ModuleBuildOption } from "./station-building";
 export { FIELD_LAYOUT, BELT_ROCKS, CLUSTER_ROCKS, SPARSE_BELT_ROCKS, SPARSE_CLUSTER_ROCKS, BELT_RADIUS, BELT_SWEEP, BELT_WIDTH, CLUSTER_RADIUS, FIELD_MIN_REACH, FIELD_MAX_REACH, FIELD_SEPARATION, FIELD_GATE_CLEARANCE } from "./fields";
 export { placeInField } from "./fields";
@@ -24,16 +25,6 @@ export { CARGO_PER_TRIP, MINING_GAP, UNLOADING_SECONDS, WORKING_SECONDS } from "
 export const ASTEROID_ORE = 30;
 // Placeholder, to tune at the demo.
 export const RESPAWN_SECONDS = 30;
-// Keeps asteroids from landing on top of each other, or a respawn from landing
-// where the last one ran out. About three asteroid widths.
-export const ASTEROID_MIN_SPACING = 40;
-// Rocks in the same belt or cluster may sit closer than that, or a belt would
-// have no room to fill a gap once one rock is mined out.
-export const ROCK_SPACING = 25;
-
-// Each sector has these fields, at points picked from its own seed. A belt is
-// an arc of a circle around its point, a cluster a disc.
-
 export const MATERIALS = ["Metal", "Ice"] as const;
 export type Material = (typeof MATERIALS)[number];
 

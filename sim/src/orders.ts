@@ -1,9 +1,10 @@
 import { claimSiteBuilt } from "./claim";
 import { haulStations, resumeHaulShip, validHaulRoute } from "./haul";
+import { gateOutstanding } from "./gate-hauling";
 import { travelSeconds } from "./motion";
 import { canMine, cargoTransferSeconds, shipSize, shipStats, speedFactor } from "./ship";
 import {
-  berthLayout, cargoByMaterial, GATE_COST, MATERIALS, gateRoute, HOME_SECTOR, miningSite, nearestMineableRock, toBerth, toParking,
+  berthLayout, MATERIALS, gateRoute, HOME_SECTOR, miningSite, nearestMineableRock, toBerth, toParking,
   type Asteroid, type DefaultBehaviour, type HaulRoute, type Material, type Order,
   type Sector, type Ship, type SimState, type Vec,
 } from "./state";
@@ -160,13 +161,7 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
         ships[index] = { ...fly({ ...ship, target: null, order }, "moving", state.station.dock.position), state: "gateReturning" as const };
         continue;
       }
-      const outstanding = (material: "Metal" | "Ice") => GATE_COST[material] - project.delivered[material]
-        - ships.reduce((sum, other) => {
-          if (other.id === ship.id || other.order?.kind !== "haulGate" || other.order.gateId !== project.id) return sum;
-          if ((other.state === "berthing" || other.state === "waiting" || other.state === "loading")
-            && other.transfer?.startingCargo === 0) return other.cargoMaterial === material ? sum + other.transfer.amount : sum;
-          return other.state === "gateHauling" || other.state === "gateUnloading" ? sum + cargoByMaterial(other)[material] : sum;
-        }, 0);
+      const outstanding = (material: "Metal" | "Ice") => gateOutstanding({ ...state, ships }, project.id, material, ship.id);
       const available = (material: "Metal" | "Ice") => inventory[material] - ships.reduce((sum, other) =>
         sum + (other.id !== ship.id && other.cargoMaterial === material && other.transfer?.startingCargo === 0
           && (other.state === "berthing" || other.state === "waiting" || other.state === "loading")
