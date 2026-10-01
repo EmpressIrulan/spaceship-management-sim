@@ -126,6 +126,7 @@ export interface Station {
   dock: { position: Vec; size: Size; capacity: number };
   storage: { position: Vec; size: Size; capacity: number };
   inventory: Record<Material, number>;
+  storageLimits: Record<Material, number | null>;
   // Ore that ships unloaded into storage within the last INCOME_WINDOW_SECONDS.
   deliveries: Delivery[];
   modules: StationModule[];
@@ -522,6 +523,7 @@ export function createInitialState(seed: number): SimState {
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
       inventory: { Metal: 20, Ice: 20 },
+      storageLimits: { Metal: null, Ice: null },
       deliveries: [],
       modules: [
         { type: "Dock", position: dockPosition, size: DOCK_SIZE },
@@ -609,9 +611,13 @@ function storedTotal(inventory: Record<Material, number>): number {
 
 // Whether a ship home with cargo can start unloading now: Storage has room
 // and the Dock has a free berth.
-export function canUnload(station: Station, ships: Ship[]): boolean {
+export function canUnload(station: Station, ships: Ship[], material: Material | null = null): boolean {
   const unloading = ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length;
-  return storedTotal(station.inventory) < station.storage.capacity
+  const hasRoom = storedTotal(station.inventory) < station.storage.capacity;
+  const canDiscard = material !== null
+    && station.storageLimits[material] !== null
+    && station.inventory[material] >= station.storageLimits[material]!;
+  return (hasRoom || canDiscard)
     && unloading < station.dock.capacity;
 }
 
@@ -620,11 +626,36 @@ export function dockWaitingShips(station: Station, ships: Ship[]): Ship[] {
   const next = [...ships];
   for (let i = 0; i < next.length; i += 1) {
     const ship = next[i]!;
-    if (ship.state === "waiting" && ship.cargo > 0 && canUnload(station, next)) {
+    if (ship.state === "waiting" && ship.cargo > 0 && canUnload(station, next, ship.cargoMaterial)) {
       next[i] = { ...ship, state: "unloading", timer: unloadingSeconds(ship.design) };
     }
   }
   return next;
+}
+
+export function setStorageLimit(state: SimState, material: Material, limit: number | null): SimState {
+  const normalized = limit === null ? null : Math.max(0, Math.floor(limit));
+  const inventory = normalized === null || state.station.inventory[material] <= normalized
+    ? state.station.inventory
+    : { ...state.station.inventory, [material]: normalized };
+  const station = {
+    ...state.station,
+    inventory,
+    storageLimits: { ...state.station.storageLimits, [material]: normalized },
+  };
+  return { ...state, station, ships: dockWaitingShips(station, state.ships) };
+}
+
+export function deleteStock(state: SimState, material: Material, amount: number): SimState {
+  const removed = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
+  const station = {
+    ...state.station,
+    inventory: {
+      ...state.station.inventory,
+      [material]: Math.max(0, state.station.inventory[material] - removed),
+    },
+  };
+  return { ...state, station, ships: dockWaitingShips(station, state.ships) };
 }
 
 // A Builder can take a job when it is built, idle, and Storage can pay.
