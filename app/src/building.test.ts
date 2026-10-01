@@ -32,7 +32,7 @@ describe("station building controls", () => {
       ...initial,
       station: { ...initial.station, inventory: { Metal: 50, Ice: 50 } },
     };
-    const building = tick(startModuleBuild(funded, "Builder", { x: 0, y: -40 }), 3);
+    const building = tick(startModuleBuild(funded, "Builder", { x: -40, y: 0 }), 3);
     expect(infoBox(building, { kind: "construction" })).toEqual({
       title: "Building Builder",
       line: "12 s",

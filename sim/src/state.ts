@@ -583,16 +583,23 @@ function samePosition(a: Vec, b: Vec): boolean {
   return a.x === b.x && a.y === b.y;
 }
 
+// A site is offered before the module type is picked, so it has to fit the
+// largest module, the Dock.
+function overlapsFootprint(site: Vec, footprint: { position: Vec; size: Size }): boolean {
+  return Math.abs(site.x - footprint.position.x) < (DOCK_SIZE.width + footprint.size.width) / 2
+    && Math.abs(site.y - footprint.position.y) < (DOCK_SIZE.height + footprint.size.height) / 2;
+}
+
 export function availableModuleBuildSites(state: SimState): Vec[] {
-  const occupied = [
-    ...state.station.modules.map((module) => module.position),
-    ...(state.station.construction ? [state.station.construction.position] : []),
+  const footprints = [
+    ...state.station.modules,
+    ...(state.station.construction ? [state.station.construction] : []),
   ];
   const sites: Vec[] = [];
   for (const module of state.station.modules) {
     for (const direction of BUILD_DIRECTIONS) {
       const site = { x: module.position.x + direction.x, y: module.position.y + direction.y };
-      const blocked = occupied.some((position) => samePosition(position, site))
+      const blocked = footprints.some((footprint) => overlapsFootprint(site, footprint))
         || state.asteroids.some((asteroid) => distance(asteroid.position, site) < ASTEROID_MIN_SPACING);
       if (!blocked && !sites.some((position) => samePosition(position, site))) sites.push(site);
     }

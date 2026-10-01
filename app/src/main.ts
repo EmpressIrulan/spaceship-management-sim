@@ -1,4 +1,5 @@
 import {
+  BUILDER_SIZE,
   CLAIM_MODULE_COST,
   CLAIM_SITE_SIZE,
   DOCK_SIZE,
@@ -866,7 +867,7 @@ function supplyFraction(site: (typeof state.claimSites)[number]): number {
 }
 
 function drawClaimSite(site: (typeof state.claimSites)[number]): void {
-  const size = { Dock: DOCK_SIZE, Storage: STORAGE_SIZE, Builder: DOCK_SIZE };
+  const size = { Dock: DOCK_SIZE, Storage: STORAGE_SIZE, Builder: BUILDER_SIZE };
   claimSiteSlots(site).forEach((slot, index) => {
     if (slot.built) { drawStationModule({ type: slot.type, position: slot.position, size: size[slot.type] }); return; }
     strokeWorldRect(slot.position, size[slot.type], "#cbd5e1");
