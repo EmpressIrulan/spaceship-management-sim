@@ -51,7 +51,7 @@ export type Material = (typeof MATERIALS)[number];
 
 export const DOCK_CAPACITY = 6;
 export const STORAGE_CAPACITY = 100;
-export const DOCK_SIZE = { width: 30, height: 40 };
+export const DOCK_SIZE = { width: 40, height: 70 };
 export const STORAGE_SIZE = { width: 30, height: 40 };
 export const BUILDER_SIZE = { width: 30, height: 40 };
 export const BUILD_SECONDS = 15;
@@ -117,6 +117,9 @@ export interface Ship {
   cargoMaterial: Material | null;
   target: Target | null;
   defaultBehaviour: DefaultBehaviour;
+  // What "Mine for Station" is allowed to mine. Empty means nothing, so a
+  // new ship sits idle until someone ticks a material.
+  mineMaterials: Material[];
   order: Order | null;
   leg: Leg | null;
   // The pad this ship is unloading on or flying to, or null. Only meaningful
@@ -367,6 +370,13 @@ export function miningSite(dock: Vec, asteroid: Asteroid, ship: Size = shipSize(
   return { x: edge.x + ux * (MINING_GAP + nose), y: edge.y + uy * (MINING_GAP + nose) };
 }
 
+// The home sector's rocks this ship may pick on its own. Every default
+// behaviour that mines picks its rock from here.
+export function minableRocks(ship: Ship, asteroids: Asteroid[]): Asteroid[] {
+  return asteroids.filter((rock) => rock.sectorId === HOME_SECTOR
+    && (ship.defaultBehaviour !== "mine" || ship.mineMaterials.includes(rock.material)));
+}
+
 // The asteroid with ore left that is closest to the Dock, or null. Rocks no
 // other ship is heading for or mining come first, so a fleet spreads out
 // while there are rocks to go round.
@@ -397,7 +407,7 @@ export function nearestWithOre(dock: Vec, asteroids: Asteroid[], others: Ship[] 
 // leaves it idle if there is none or it can't mine.
 // A ship leaving a pad flies out from the pad, not from the Dock's middle.
 export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Ship[] = []): Ship {
-  const asteroid = canMine(ship.design) ? nearestWithOre(dock, asteroids.filter((rock) => rock.sectorId === HOME_SECTOR), others) : null;
+  const asteroid = canMine(ship.design) ? nearestWithOre(dock, minableRocks(ship, asteroids), others) : null;
   if (!asteroid) {
     return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null };
   }
@@ -510,6 +520,7 @@ export function createInitialState(seed: number): SimState {
     cargoMaterial: null,
     target: null,
     defaultBehaviour: "mine",
+    mineMaterials: [],
     order: null,
     leg: null,
     berth: null,
@@ -623,9 +634,10 @@ function storedTotal(inventory: Record<Material, number>): number {
 export const BERTHS_PER_DOCK = DOCK_CAPACITY;
 // How big a pad is drawn: a little bigger than the starting ship.
 export const BERTH_PAD_SIZE = 13;
-// Pads sit on an ellipse around the Dock's centre, two on each long side and
-// one above and below. None lands on the Storage module beside the Dock.
-const PAD_REACH = { x: 34, y: 38 };
+// Six pads sit in three rows of two on the Dock itself. The Dock is sized so
+// the marked pads fit inside its hull with room between berth centers.
+const PAD_COLUMNS = [-10, 10] as const;
+const PAD_ROWS = [-24, 0, 24] as const;
 // Parking spots fan out west of the Dock, six to an arc, one arc further out
 // for each six ships waiting.
 const PARKING_RADIUS = 70;
@@ -645,10 +657,7 @@ export function berthLayout(station: Station): BerthLayout {
 
 // The pads around a Dock whose centre is at `dock`, in the order ships take them.
 export function dockBerths(dock: Vec): Vec[] {
-  return Array.from({ length: BERTHS_PER_DOCK }, (_, k) => {
-    const angle = ((k * 360) / BERTHS_PER_DOCK + 30) * (Math.PI / 180);
-    return { x: dock.x + Math.cos(angle) * PAD_REACH.x, y: dock.y + Math.sin(angle) * PAD_REACH.y };
-  });
+  return PAD_ROWS.flatMap((y) => PAD_COLUMNS.map((x) => ({ x: dock.x + x, y: dock.y + y })));
 }
 
 // Berths count up through each Dock module in the order they were built.

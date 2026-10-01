@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, tick } from "sim";
+import { miningStart } from "./test-mining";
 import { asteroidColor } from "./asteroid";
 import { infoBox } from "./labels";
 
@@ -10,7 +11,7 @@ describe("material display", () => {
   });
 
   it("shows the material and live remaining amount on each rock", () => {
-    const start = createInitialState(7);
+    const start = miningStart(7);
     const rock = start.asteroids.find((a) => a.id === start.ships[0]!.target!.asteroidId)!;
     const hovered = { kind: "asteroid" as const, id: rock.id };
     expect(infoBox(start, hovered)).toEqual({ title: "Asteroid", line: `${rock.material}: 30` });

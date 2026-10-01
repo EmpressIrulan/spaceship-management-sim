@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { miningStart } from "./test-ships";
 import {
   BUILD_SECONDS,
   MODULE_COST,
   availableModuleBuildSites,
   availableModuleBuilds,
-  createInitialState,
   startModuleBuild,
   tick,
   type SimState,
@@ -13,7 +13,7 @@ import {
 
 describe("building station modules", () => {
   function funded(): SimState {
-    const state = createInitialState(7);
+    const state = miningStart(7);
     return {
       ...state,
       station: { ...state.station, inventory: { Metal: 50, Ice: 50 } },
@@ -23,7 +23,7 @@ describe("building station modules", () => {
   const east = { x: 80, y: 0 };
 
   it("lists every module at 25 Metal and 25 Ice and disables unaffordable choices", () => {
-    const state = createInitialState(7);
+    const state = miningStart(7);
 
     expect(MODULE_COST).toEqual({ Metal: 25, Ice: 25 });
     expect(availableModuleBuilds(state)).toEqual([
@@ -109,7 +109,7 @@ describe("building station modules", () => {
   });
 
   it("keeps respawned asteroids clear of a station grown in every direction and mineable", () => {
-    const initial = createInitialState(17);
+    const initial = miningStart(17);
     const positions: Vec[] = [];
     for (let offset = -400; offset <= 400; offset += 40) {
       positions.push({ x: offset, y: 0 }, { x: 0, y: offset });

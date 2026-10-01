@@ -1,5 +1,5 @@
 import { travelSeconds } from "./motion";
-import { createInitialState, dockBerths, type SimState } from "./state";
+import { createInitialState, depart, dockBerths, MATERIALS, type SimState } from "./state";
 import type { ShipDesign } from "./ship";
 
 // The starting ship's size and speed with half the Storage swapped for Hull,
@@ -16,8 +16,16 @@ export const ONE_STORAGE: ShipDesign = {
   ],
 };
 
-export function oneStorageStart(seed: number): SimState {
+// The game starts its ship with nothing ticked so it sits idle. Tests of the
+// mining cycle need one that mines whatever is nearest.
+export function miningStart(seed: number): SimState {
   const state = createInitialState(seed);
+  const dock = state.station.dock.position;
+  return { ...state, ships: state.ships.map((ship) => depart({ ...ship, mineMaterials: [...MATERIALS] }, dock, state.asteroids)) };
+}
+
+export function oneStorageStart(seed: number): SimState {
+  const state = miningStart(seed);
   return { ...state, ships: state.ships.map((ship) => ({ ...ship, design: ONE_STORAGE })) };
 }
 

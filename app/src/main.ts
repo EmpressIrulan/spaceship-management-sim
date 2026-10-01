@@ -17,6 +17,7 @@ import {
   laserBeam,
   giveOrder,
   setDefaultBehaviour,
+  setMineMaterial,
   resumeDefault,
   setStorageLimit,
   shipSize,
@@ -26,8 +27,8 @@ import {
   sectorInGateRange,
   tick,
   type Beam,
-  type ModuleType,
   type Material,
+  type ModuleType,
   type Ship,
   type ShipDesign,
   type Size,
@@ -60,7 +61,7 @@ import {
 } from "./building";
 import { INITIAL_CLOCK, clockAfterButton, clockAfterKey, gameSeconds, speedButtons, type SpeedButtonId } from "./speed";
 import { shipPanel, shipSprite, slotColor } from "./ships";
-import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
+import { type MaterialBox, contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 import {
   BRUSH_SIZES,
   applyTool,
@@ -730,6 +731,10 @@ gateMenu.addEventListener("click", () => {
 shipPanelBox.addEventListener("change", (event) => {
   if ((event.target as HTMLSelectElement).name === "default") state = setDefaultBehaviour(state, selectedShips, (event.target as HTMLSelectElement).value as "mine" | "none");
 });
+shipPanelBox.addEventListener("change", (event) => {
+  const box = event.target as HTMLInputElement;
+  if (box.name === "mine-material") state = setMineMaterial(state, selectedShips, box.value as Material, box.checked);
+});
 shipPanelBox.addEventListener("click", (event) => {
   if ((event.target as HTMLElement).closest("button[data-resume]")) state = resumeDefault(state, selectedShips);
 });
@@ -798,7 +803,6 @@ function drawStationModule(module: StationModule): void {
 
   ctx.save();
   ctx.translate(center.x, center.y);
-  if (module.type === "Dock") drawBerthPads(module.position);
   ctx.fillStyle = "#1e293b";
   ctx.strokeStyle = appearance.accent;
   ctx.lineWidth = Math.max(1.5, 2 * camera.zoom);
@@ -850,6 +854,7 @@ function drawStationModule(module: StationModule): void {
     ctx.arc(width * 0.34, height * 0.04, Math.max(1.5, width * 0.07), 0, Math.PI * 2);
     ctx.fill();
   }
+  if (module.type === "Dock") drawBerthPads(module.position);
   ctx.restore();
 }
 
@@ -999,7 +1004,20 @@ function renderShipPanel(): void {
   }
   if (list.defaultBehaviour === "mixed") { const mixed = document.createElement("option"); mixed.textContent = "Default: Mixed"; mixed.selected = true; select.prepend(mixed); }
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
-  shipPanelBox.replaceChildren(title, rows, select, resume, ...(selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
+  shipPanelBox.replaceChildren(title, rows, select, ...materialBoxes(list.materials), resume, ...(selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
+}
+
+// One tickbox per material for ships on Mine for Station. A box the selected
+// ships disagree on is half-ticked, and clicking it ticks it for all of them.
+function materialBoxes(boxes: MaterialBox[] | null): HTMLElement[] {
+  return (boxes ?? []).map(({ material, ticked }) => {
+    const input = document.createElement("input");
+    input.type = "checkbox"; input.name = "mine-material"; input.value = material;
+    input.checked = ticked === "on"; input.indeterminate = ticked === "mixed";
+    const label = document.createElement("label");
+    label.className = "mine-material"; label.append(input, ` ${material}`);
+    return label;
+  });
 }
 
 // Screen-space so the numbers stay readable at any zoom.
