@@ -1,6 +1,6 @@
 import { MATERIALS, claimSiteBuilt, haulStations, type DefaultBehaviour, type HaulRoute, type HaulStation, type Material, type OrderTarget, type SimState, type Vec } from "sim";
 import { screenToWorld, type Camera, type Hovered, type Viewport } from "./camera";
-import { shipStatus } from "./ships";
+import { orderLabel, shipStatus } from "./ships";
 
 const DRAG_THRESHOLD = 4;
 export const ORDER_LINE_SECONDS = 1;
@@ -22,6 +22,7 @@ export function orderTargetAt(state: SimState, hovered: Hovered | null, world: V
     const site = state.claimSites.find((candidate) => candidate.id === hovered.id);
     return site && !claimSiteBuilt(site) ? { kind: "supplySite", siteId: site.id } : { kind: "move", point: world, sectorId: currentSector };
   }
+  if (hovered?.kind === "constructionSite") return { kind: "supplyBuild" };
   if (hovered?.kind === "asteroid") return { kind: "mine", asteroidId: hovered.id };
   if (hovered?.kind === "dock" || (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Dock")) return { kind: "home" };
   return { kind: "move", point: world, sectorId: currentSector };
@@ -53,7 +54,7 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
   const stations = haulStations(state);
   const routes = new Set(ships.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
   return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order
-    ? `Order: ${ship.order.kind}${ship.state === "holding" ? " (holding)" : ""}` : shipStatus(state, ship) })),
+    ? `${orderLabel(ship.order)}${ship.state === "holding" ? " (holding)" : ""}` : shipStatus(state, ship) })),
     defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed",
     materials: defaults.size === 1 && ships[0]!.defaultBehaviour === "mine" ? MATERIALS.map((material) => {
       const count = ships.filter((ship) => ship.mineMaterials.includes(material)).length;

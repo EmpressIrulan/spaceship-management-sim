@@ -3,6 +3,7 @@ import {
   canMine,
   minableRocks,
   shipStats,
+  type Order,
   type ShipDesign,
   type ShipModule,
   type Ship,
@@ -83,6 +84,10 @@ function idleMiner(state: SimState, ship: Ship): string {
   return available ? "Idle" : `Waiting: no ${ship.mineMaterials.join(", ")}`;
 }
 
+export function orderLabel(order: Order): string {
+  return order.kind === "supplyBuild" ? "Order: supply construction site" : `Order: ${order.kind}`;
+}
+
 // One line saying what the ship is doing, for its hover box and panel.
 export function shipStatus(state: SimState, ship: Ship): string {
   const { hold } = shipStats(ship.design);
@@ -97,7 +102,7 @@ export function shipStatus(state: SimState, ship: Ship): string {
     return `Unloading ${starting - ship.cargo}/${amount}`;
   }
   if (ship.state === "waiting" || (ship.state === "berthing" && ship.berth === null)) return waitingStatus(state, ship);
-  if (ship.order) return `Order: ${ship.order.kind}`;
+  if (ship.order) return orderLabel(ship.order);
   const route = ship.haulRoute;
   const source = route ? state.sectors[route.from === "home" ? state.station.sectorId
     : state.claimSites.find((site) => `claim:${site.id}` === route.from)?.sectorId ?? -1]?.name : null;
@@ -113,9 +118,10 @@ export function shipStatus(state: SimState, ship: Ship): string {
     case "working":
       return `Mining${mineList(ship) ?? ` ${ship.cargoMaterial ?? "ore"}`}`;
     case "homebound":
+      if (ship.defaultBehaviour === "supply") return `Flying to the construction site${ship.cargo > 0 ? ` with ${ship.cargo} ${ship.cargoMaterial ?? "ore"}` : ""}`;
       return `Flying home with ${ship.cargo} ${ship.cargoMaterial ?? "ore"}`;
     case "unloading":
-      return "Unloading";
+      return ship.transfer?.destination === "constructionSite" ? "Unloading into the construction site" : "Unloading";
     case "berthing":
       return "Docking";
     case "moving":

@@ -82,15 +82,22 @@ export function afterOrder(ship: Ship, dock: Vec, asteroids: Asteroid[], sectors
   return resume({ ...ship, order: null }, dock, asteroids, sectors, gateProjects);
 }
 
-export type OrderTarget = { kind: "mine"; asteroidId: number } | { kind: "move"; point: Vec; sectorId?: number } | { kind: "home" } | { kind: "haulGate"; gateId: number } | { kind: "supplySite"; siteId: number };
+export type OrderTarget = { kind: "mine"; asteroidId: number } | { kind: "move"; point: Vec; sectorId?: number } | { kind: "home" } | { kind: "haulGate"; gateId: number } | { kind: "supplySite"; siteId: number } | { kind: "supplyBuild" };
 
 // Where a flying order ends, for the orders that cross a gate to get there.
 export function travelOrder(order: Order | null): { point: Vec; sectorId: number } | null {
-  return order?.kind === "move" || order?.kind === "supplySite" ? { point: order.point, sectorId: order.sectorId } : null;
+  return order?.kind === "move" || order?.kind === "supplySite" || order?.kind === "supplyBuild" ? { point: order.point, sectorId: order.sectorId } : null;
 }
 
 function apply(ship: Ship, target: OrderTarget, point: Vec, state: SimState): Ship {
   if (target.kind === "haulGate") return ship;
+  if (target.kind === "supplyBuild") {
+    if (ship.cargo <= 0 || !ship.cargoMaterial) return ship;
+    const route = gateRoute(state, ship.sectorId, state.station.sectorId);
+    if (state.station.sectorId !== ship.sectorId && !route) return ship;
+    const order = { kind: "supplyBuild" as const, point, sectorId: state.station.sectorId };
+    return fly({ ...ship, target: null, order }, "moving", state.station.sectorId === ship.sectorId ? point : route!.from);
+  }
   if (target.kind === "supplySite") {
     const site = state.claimSites.find((candidate) => candidate.id === target.siteId);
     if (!site || ship.cargo <= 0 || !ship.cargoMaterial) return ship;
@@ -168,7 +175,8 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
   }
   const site = target.kind === "supplySite" ? state.claimSites.find((candidate) => candidate.id === target.siteId) : null;
   if (target.kind === "supplySite" && (!site || claimSiteBuilt(site))) return state;
-  const point = target.kind === "move" ? target.point : target.kind === "supplySite" ? site!.position : target.kind === "home"
+  const point = target.kind === "move" ? target.point : target.kind === "supplySite" ? site!.position
+    : target.kind === "supplyBuild" ? state.station.constructionSite.position : target.kind === "home"
     ? state.station.dock.position
     : (() => { const rock = state.asteroids.find((a) => a.id === target.asteroidId); return rock ? miningSite(state.station.dock.position, rock, shipSize(selected[0]!.design)) : null; })();
   if (!point) return state;

@@ -78,7 +78,7 @@ export function startClaimSite(state: SimState, sectorId: number, position: Vec)
   const blockedByRock = state.asteroids.some((rock) => rock.sectorId === sectorId
     && overlaps(rock.position, position, CLAIM_SITE_SIZE, ASTEROID_MIN_SPACING / 2));
   const blockedByStation = sectorId === HOME_SECTOR
-    && state.station.modules.some((module) => overlaps(module.position, position, { width: CLAIM_SITE_SIZE.width + module.size.width, height: CLAIM_SITE_SIZE.height + module.size.height }, 0));
+    && [...state.station.modules, state.station.constructionSite].some((module) => overlaps(module.position, position, { width: CLAIM_SITE_SIZE.width + module.size.width, height: CLAIM_SITE_SIZE.height + module.size.height }, 0));
   if (blockedBySite || blockedByRock || blockedByStation) return state;
   const site: ClaimSite = {
     id: state.nextClaimSiteId,

@@ -104,6 +104,7 @@ export type Hovered =
   | { kind: "storage" }
   | { kind: "module"; index: number }
   | { kind: "construction" }
+  | { kind: "constructionSite" }
   | { kind: "ship"; index: number }
   | { kind: "gateProject"; id: number; end?: number }
   | { kind: "claimSite"; id: number }
@@ -157,7 +158,7 @@ export function hoveredBody(
   const atStationOrGate = (index: number): boolean => {
     const position = state.ships[index]!.position;
     if (stationVisible && [state.station.dock, state.station.storage, ...state.station.modules,
-      ...(state.station.construction ? [state.station.construction] : [])]
+      ...(state.station.construction ? [state.station.construction] : []), state.station.constructionSite]
       .some((body) => insideRect(position, body.position, body.size))) return true;
     if (state.claimSites.some((site) => site.sectorId === currentSector && insideRect(position, site.position, CLAIM_SITE_SIZE))) return true;
     return state.gateProjects.some((project) => project.ends.some((end) =>
@@ -188,6 +189,9 @@ export function hoveredBody(
     state.station.construction.position,
     state.station.construction.size,
   )) return { kind: "construction" };
+  if (stationVisible && insideRect(world, state.station.constructionSite.position, state.station.constructionSite.size)) {
+    return { kind: "constructionSite" };
+  }
   for (let index = 2; stationVisible && index < state.station.modules.length; index += 1) {
     const module = state.station.modules[index]!;
     if (insideRect(world, module.position, module.size)) return { kind: "module", index };
@@ -220,6 +224,7 @@ export function bodyOf(
   if (hovered.kind === "dock") return state.station.dock;
   if (hovered.kind === "storage") return state.station.storage;
   if (hovered.kind === "construction") return state.station.construction;
+  if (hovered.kind === "constructionSite") return state.station.constructionSite;
   if (hovered.kind === "module") return state.station.modules[hovered.index] ?? null;
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
