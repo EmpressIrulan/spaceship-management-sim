@@ -36,7 +36,7 @@ export interface UiState {
   pendingClaim: boolean;
   renamingSector: number | null;
   stickySite: number | null;
-  stickyQueuedBuild: number | null;
+  stickyQueuedBuild: Vec | null;
   infoHovered: boolean;
   clock: Clock;
   storagePanelOpen: boolean;

@@ -9,7 +9,7 @@ import { afterOrder, nextMiningRock, resumeMining, startMining, travelOrder } fr
 import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { completeDocking, syncDockedShips } from "./hangars";
-import { startNextQueuedModule } from "./station-build-queue";
+import { startNextQueuedModule, supplyQueueStatus } from "./station-build-queue";
 import {
   ABUNDANT_SHARE,
   DOCK_CAPACITY,
@@ -155,7 +155,7 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     }
     case "unloading": {
       if (ship.transfer?.destination === "constructionSite") {
-        if (ship.defaultBehaviour === "supply" && ship.order === null && draft.buildQueue.length === 0) {
+        if (supplyQueueStatus(ship, draft.buildQueue.length) === "waiting") {
           return flyTo({ ...ship, transfer: null }, ship.position, draft.dock);
         }
         const targetCargo = Math.max(0, ship.transfer.startingCargo - transferDone(ship, timer));
@@ -281,7 +281,7 @@ function resumeAfterBuildOrder(draft: Draft, ship: Ship): Ship {
 // A ship on Supply construction site, with no order of its own, takes what it
 // mines to the construction site instead of the Dock.
 function supplying(draft: Draft, ship: Ship): boolean {
-  return ship.defaultBehaviour === "supply" && ship.order === null && draft.buildQueue.length > 0;
+  return supplyQueueStatus(ship, draft.buildQueue.length) === "supplying";
 }
 
 function samePoint(a: Vec, b: Vec): boolean {
@@ -326,14 +326,14 @@ function finish(draft: Draft, ship: Ship): Ship {
   const route = routeOf(ship, draft.dock);
   switch (ship.state) {
     case "idle":
-      if (ship.defaultBehaviour === "supply" && draft.buildQueue.length === 0) {
+      if (supplyQueueStatus(ship, draft.buildQueue.length) === "waiting") {
         return { ...ship, state: "holding", timer: 0, leg: null, target: null };
       }
       return ship.defaultBehaviour === "none" ? ship
         : resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
     case "holding":
       if (ship.order?.kind === "haulGate") return loadGateHauler(draft, ship);
-      if (ship.defaultBehaviour === "supply" && draft.buildQueue.length > 0) {
+      if (supplyQueueStatus(ship, draft.buildQueue.length) === "supplying") {
         return resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
       }
       return ship;
@@ -491,7 +491,7 @@ function finish(draft: Draft, ship: Ship): Ship {
       }
       // Heading for the site on a default it has since lost: on to the Dock.
       if (headingForSite) return flyTo(ship, site, draft.dock);
-      if (ship.defaultBehaviour === "supply" && ship.order === null && draft.buildQueue.length === 0) {
+      if (supplyQueueStatus(ship, draft.buildQueue.length) === "waiting") {
         return { ...ship, state: "holding", position: { ...draft.dock }, timer: 0, leg: null, target: null, berth: null, transfer: null };
       }
       if (ship.cargo > 0 && !canProcessCargo(draft, ship)) {

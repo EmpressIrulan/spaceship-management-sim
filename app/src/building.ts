@@ -61,3 +61,7 @@ export function dismissBuildMenuForClick(insideMenu: boolean, insideControls: bo
 export function dismissBuildMenuForKey(key: string): boolean {
   return key === "Escape";
 }
+
+export function queuedBuildIndexAt(state: SimState, position: Vec): number {
+  return state.station.buildQueue.findIndex((queued) => queued.position.x === position.x && queued.position.y === position.y);
+}

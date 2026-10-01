@@ -15,6 +15,7 @@ import {
   pointerInBuildArea,
   dismissBuildMenuForClick,
   dismissBuildMenuForKey,
+  queuedBuildIndexAt,
 } from "./building";
 import { infoBox } from "./labels";
 import { hoveredBody, worldToScreen, type Camera } from "./camera";
@@ -41,6 +42,33 @@ describe("station building controls", () => {
       line: "Needs 25 Metal and 25 Ice",
       action: { label: "Cancel", queuedBuild: 1 },
     });
+  });
+
+  it("explains when a funded front ghost is waiting for current construction", () => {
+    let state = createInitialState(7);
+    state = { ...state, station: { ...state.station,
+      constructionSite: { ...state.station.constructionSite, inventory: { Metal: 50, Ice: 50 } } } };
+    state = queueModuleBuild(state, "Dock", { x: 80, y: 0 });
+    state = queueModuleBuild(state, "Storage", { x: -40, y: 0 });
+
+    expect(infoBox(state, { kind: "queuedBuild", index: 0 })).toEqual({
+      title: "Storage, queued",
+      line: "Waiting for the module under construction",
+      action: { label: "Cancel", queuedBuild: 0 },
+    });
+  });
+
+  it("finds the same ghost by position after an earlier queue item is promoted", () => {
+    const initial = createInitialState(7);
+    const secondPosition = { x: -40, y: 0 };
+    let state = queueModuleBuild(initial, "Dock", { x: 80, y: 0 });
+    state = queueModuleBuild(state, "Storage", secondPosition);
+    state = { ...state, station: { ...state.station,
+      constructionSite: { ...state.station.constructionSite, inventory: { Metal: 25, Ice: 25 } } } };
+    state = tick(state, 0);
+
+    expect(queuedBuildIndexAt(state, secondPosition)).toBe(0);
+    expect(queuedBuildIndexAt(state, { x: 80, y: 0 })).toBe(-1);
   });
 
   it("keeps every module choice enabled even when the site cannot pay", () => {

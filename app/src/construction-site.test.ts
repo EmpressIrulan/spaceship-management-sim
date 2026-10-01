@@ -105,6 +105,14 @@ describe("a ship supplying the site", () => {
     expect(shipStatus(state, state.ships[0]!)).toBe("Waiting at Home: nothing queued");
   });
 
+  it("does not call a supply ship at a Move point Home when its queue is empty", () => {
+    const base = createInitialState(7);
+    const ship = { ...base.ships[0]!, defaultBehaviour: "supply" as const, state: "holding" as const,
+      sectorId: 1, position: { x: 300, y: 300 }, order: null };
+    const state = { ...base, ships: [ship] };
+    expect(shipStatus(state, ship)).toBe("Holding");
+  });
+
   it("is on its own default in the panel", () => {
     expect(selectionPanel(withShip({ defaultBehaviour: "supply" }), [0])).toMatchObject({ defaultBehaviour: "supply" });
   });

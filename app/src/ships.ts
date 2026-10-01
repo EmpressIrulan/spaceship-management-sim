@@ -10,6 +10,7 @@ import {
   type Ship,
   type SimState,
 } from "sim";
+import { supplyQueueStatus } from "sim";
 import { LASER_COLOR } from "./laser";
 import { statsView } from "./shipyard";
 
@@ -144,7 +145,9 @@ export function shipStatus(state: SimState, ship: Ship): string {
     case "moving":
       return "Moving";
     case "holding":
-      if (ship.defaultBehaviour === "supply" && state.station.buildQueue.length === 0) return "Waiting at Home: nothing queued";
+      if (supplyQueueStatus(ship, state.station.buildQueue.length) === "waiting"
+        && ship.sectorId === state.station.sectorId
+        && ship.position.x === state.station.dock.position.x && ship.position.y === state.station.dock.position.y) return "Waiting at Home: nothing queued";
       return "Holding";
     case "docking":
       return "Docking with carrier";

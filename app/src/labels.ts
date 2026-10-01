@@ -107,6 +107,14 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   if (hovered.kind === "queuedBuild") {
     const queued = state.station.buildQueue[hovered.index];
     if (!queued) return null;
+    if (hovered.index === 0 && state.station.construction
+      && MATERIALS.every((material) => state.station.constructionSite.inventory[material] >= MODULE_COST[material])) {
+      return {
+        title: `${queued.type}, queued`,
+        line: "Waiting for the module under construction",
+        action: { label: "Cancel", queuedBuild: hovered.index },
+      };
+    }
     const needs = MATERIALS.map((material) => ({
       material,
       amount: hovered.index === 0

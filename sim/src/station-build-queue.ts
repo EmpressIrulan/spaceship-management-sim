@@ -1,18 +1,14 @@
-import { BUILD_SECONDS, BUILDER_SIZE, DOCK_SIZE, MODULE_COST, MODULE_SPACING, STORAGE_SIZE } from "./build-constants";
+import { BUILD_SECONDS, MODULE_COST, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
-import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Size, Station, Vec } from "./model";
+import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
 import { availableModuleBuildSites } from "./station-building";
+import { moduleSize, samePosition } from "./station-module-geometry";
 
 type QueueState = Pick<Station, "constructionSite" | "construction" | "buildQueue">;
 
-function samePosition(a: Vec, b: Vec): boolean {
-  return a.x === b.x && a.y === b.y;
-}
-
-function moduleSize(type: ModuleType): Size {
-  if (type === "Dock") return DOCK_SIZE;
-  if (type === "Storage") return STORAGE_SIZE;
-  return BUILDER_SIZE;
+export function supplyQueueStatus(ship: Pick<Ship, "defaultBehaviour" | "order">, queuedCount: number): "waiting" | "supplying" | null {
+  if (ship.defaultBehaviour !== "supply" || ship.order !== null) return null;
+  return queuedCount === 0 ? "waiting" : "supplying";
 }
 
 function canPay(inventory: Record<Material, number>): boolean {

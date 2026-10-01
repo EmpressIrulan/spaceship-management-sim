@@ -2,6 +2,7 @@ import { ASTEROID_MIN_SPACING, BUILD_SECONDS, BUILDER_SIZE, DOCK_SIZE, MODULE_CO
 import { MATERIALS, MODULE_TYPES } from "./model";
 import type { Material, ModuleType, SimState, Size, Vec } from "./model";
 import { distance } from "./fields";
+import { moduleSize, samePosition } from "./station-module-geometry";
 
 export interface ModuleBuildOption {
   type: ModuleType;
@@ -26,10 +27,6 @@ const BUILD_DIRECTIONS: Vec[] = [
   { x: 0, y: MODULE_SPACING },
   { x: MODULE_SPACING, y: 0 },
 ];
-
-function samePosition(a: Vec, b: Vec): boolean {
-  return a.x === b.x && a.y === b.y;
-}
 
 // A site is offered before the module type is picked, so it has to fit the
 // largest module, the Dock.
@@ -56,12 +53,6 @@ export function availableModuleBuildSites(state: SimState): Vec[] {
     }
   }
   return sites;
-}
-
-function moduleSize(type: ModuleType): Size {
-  if (type === "Dock") return DOCK_SIZE;
-  if (type === "Storage") return STORAGE_SIZE;
-  return BUILDER_SIZE;
 }
 
 export function startModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {

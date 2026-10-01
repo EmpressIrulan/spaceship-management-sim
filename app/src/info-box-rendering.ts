@@ -1,6 +1,7 @@
 import { bodyOf, hoveredBody, worldToScreen } from "./camera";
 import { infoBox, sectorBox } from "./labels";
 import { mapHit, mapLayout } from "./sectors";
+import { queuedBuildIndexAt } from "./building";
 import type { SimState, Vec } from "sim";
 import type { UiState } from "./ui-state";
 
@@ -23,7 +24,10 @@ export function renderHoverInfo(
   let hovered = ui.mapOpen ? null : hoveredBody(getState(), ui.camera, ui.viewport, ui.pointer, ui.currentSector);
   if (hovered?.kind === "claimSite") ui.stickySite = hovered.id;
   else if (ui.infoHovered && ui.stickySite !== null && !ui.mapOpen) hovered = { kind: "claimSite", id: ui.stickySite };
-  else if (ui.infoHovered && ui.stickyQueuedBuild !== null && !ui.mapOpen) hovered = { kind: "queuedBuild", index: ui.stickyQueuedBuild };
+  else if (ui.infoHovered && ui.stickyQueuedBuild !== null && !ui.mapOpen) {
+    const index = queuedBuildIndexAt(getState(), ui.stickyQueuedBuild);
+    hovered = index < 0 ? null : { kind: "queuedBuild", index };
+  }
   else {
     ui.stickySite = null;
     if (hovered?.kind !== "queuedBuild") ui.stickyQueuedBuild = null;

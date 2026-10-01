@@ -4,6 +4,7 @@ import {
   availableModuleBuildSites,
   cancelQueuedModuleBuild,
   createInitialState,
+  giveOrder,
   queueModuleBuild,
   setDefaultBehaviour,
   tick,
@@ -104,5 +105,15 @@ describe("the station build queue", () => {
     const waiting = tick(returning, returning.ships[0]!.timer);
     expect(waiting.ships[0]).toMatchObject({ state: "holding", cargo: 7 });
     expect(waiting.station.constructionSite.inventory).toEqual({ Metal: 0, Ice: 0 });
+  });
+
+  it("leaves a supply ship at its Move destination while a build is queued", () => {
+    const base = createInitialState(7);
+    const supply = setDefaultBehaviour(base, [0], "supply");
+    const queued = queueModuleBuild(supply, "Storage", east);
+    const moved = giveOrder(queued, [0], { kind: "move", point: { x: 300, y: 300 }, sectorId: 0 });
+    const arrived = tick(moved, 10000);
+
+    expect(arrived.ships[0]).toMatchObject({ state: "holding", position: { x: 300, y: 300 }, order: { kind: "move" } });
   });
 });
