@@ -24,7 +24,9 @@ export interface ClaimSite {
   timer: number | null;
 }
 
-export type ShipModule = "Engine" | "Laser" | "Storage" | "Hangar" | "Hull";
+// Hull is structure only. It costs, weighs (it dilutes the engine share) and draws, but does nothing.
+export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull"] as const;
+export type ShipModule = (typeof SHIP_MODULES)[number];
 export interface ShipDesign { width: number; height: number; slots: (ShipModule | null)[] }
 
 // "idle" means sitting at the Dock, because no asteroid has ore or the ship
@@ -149,7 +151,6 @@ export interface Asteroid {
   ore: number;
   material: Material;
 }
-
 
 export interface Respawn {
   sectorId: number;

@@ -1,5 +1,7 @@
 import { SHIP_CRUISE_SPEED } from "./motion";
+import { SHIP_MODULES } from "./model";
 import type { Material, ShipDesign, ShipModule, Size } from "./model";
+export { SHIP_MODULES };
 export type { ShipDesign, ShipModule } from "./model";
 
 // Placeholder tuning. The client asked for the first cut to run four times
@@ -8,10 +10,6 @@ export type { ShipDesign, ShipModule } from "./model";
 export const CARGO_PER_TRIP = 10;
 export const WORKING_SECONDS = 12;
 export const UNLOADING_SECONDS = 6;
-
-// Hull is structure only. It costs, weighs (it dilutes the engine share) and
-// draws, but does nothing.
-export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull"] as const;
 
 // A ship is painted pixels, each one a module cell. The design is their
 // bounding box, stored row by row, and a null slot is an empty pixel inside
