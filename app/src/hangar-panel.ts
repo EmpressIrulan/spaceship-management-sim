@@ -1,11 +1,17 @@
-import { hangarCapacity, hangarContents, hangarUsed, type SimState } from "sim";
+import { hangarCapacity, hangarContents, hangarIncoming, hangarReserved, type SimState } from "sim";
+
+function hangarCapacityText(state: SimState, shipId: number, capacity: number): string {
+  const incoming = hangarIncoming(state, shipId);
+  const suffix = incoming > 0 ? `, ${incoming} incoming` : "";
+  return `${hangarReserved(state, shipId)}/${capacity}${suffix}`;
+}
 
 export function hangarPanelRows(state: SimState, shipId: number): [string, string][] {
   const ship = state.ships.find((candidate) => candidate.id === shipId);
   const capacity = ship ? hangarCapacity(ship.design) : 0;
   if (!ship || capacity === 0) return [];
   return [
-    ["Hangar", `${hangarUsed(state, ship.id)}/${capacity}`],
+    ["Hangar", hangarCapacityText(state, ship.id, capacity)],
     ["Docked ships", String(hangarContents(state, ship.id).length)],
   ];
 }

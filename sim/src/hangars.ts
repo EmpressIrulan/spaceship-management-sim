@@ -20,6 +20,16 @@ function reserved(ships: Ship[], carrierId: number): number {
     .reduce((sum, ship) => sum + pixelCount(ship.design), 0);
 }
 
+// Capacity count shown to the player: matches the reservation total used when
+// accepting another docking order, including ships already on their way in.
+export function hangarReserved(state: SimState, carrierId: number): number {
+  return reserved(state.ships, carrierId);
+}
+
+export function hangarIncoming(state: SimState, carrierId: number): number {
+  return state.ships.filter((ship) => ship.order?.kind === "dock" && ship.order.carrierId === carrierId).length;
+}
+
 export function giveDockOrder(state: SimState, ids: number[], carrierId: number): SimState {
   const carrier = state.ships.find((ship) => ship.id === carrierId);
   if (!carrier || carrier.hangarId != null || hangarCapacity(carrier.design) === 0) return state;

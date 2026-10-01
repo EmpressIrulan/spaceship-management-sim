@@ -1,4 +1,4 @@
-import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, hangarCapacity, hangarContents, hangarUsed, shipStats, stationIncome, type Ship, type SimState } from "sim";
+import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, shipStats, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -120,7 +120,9 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const ship = state.ships[hovered.index];
     if (!ship) return null;
     const capacity = hangarCapacity(ship.design);
-    const hangar = capacity > 0 ? `\nHangar ${hangarUsed(state, ship.id)}/${capacity}\nDocked ships: ${hangarContents(state, ship.id).length}` : "";
+    const incoming = hangarIncoming(state, ship.id);
+    const hangarValue = `${hangarReserved(state, ship.id)}/${capacity}${incoming > 0 ? `, ${incoming} incoming` : ""}`;
+    const hangar = capacity > 0 ? `\nHangar ${hangarValue}\nDocked ships: ${hangarContents(state, ship.id).length}` : "";
     return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}`,
       ...(capacity > 0 ? { action: { label: "Launch all", carrierId: ship.id, disabled: hangarContents(state, ship.id).length === 0 } } : {}) };
   }
