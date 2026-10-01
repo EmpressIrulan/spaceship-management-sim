@@ -26,7 +26,9 @@ export {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  cargoByMaterial,
   minableRocks,
+  nearestMineableRock,
   availableModuleBuildSites,
   availableModuleBuilds,
   availableShipBuild,
@@ -104,5 +106,5 @@ export {
   type ClaimSiteNeeds,
 } from "./claim";
 export { tick } from "./tick";
-export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, type OrderTarget } from "./orders";
+export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, setMineOtherSectors, type OrderTarget } from "./orders";
 export { haulStationDetails, type HaulStation } from "./haul";

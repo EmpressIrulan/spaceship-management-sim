@@ -118,6 +118,9 @@ export interface Ship {
   // Seconds left in the current state. Unused while idle.
   timer: number;
   cargo: number;
+  // The contents of a mining hold. `cargo` remains the total so movement,
+  // capacity and the non-mining cargo jobs can share the same state machine.
+  cargoByMaterial?: Record<Material, number>;
   cargoMaterial: Material | null;
   target: Target | null;
   defaultBehaviour: DefaultBehaviour;
@@ -125,6 +128,7 @@ export interface Ship {
   // What "Mine for Station" is allowed to mine. Empty means nothing, so a
   // new ship sits idle until someone ticks a material.
   mineMaterials: Material[];
+  mineOtherSectors?: boolean;
   order: Order | null;
   leg: Leg | null;
   // The pad this ship is unloading on or flying to, or null. Only meaningful
@@ -378,11 +382,62 @@ export function miningSite(dock: Vec, asteroid: Asteroid, ship: Size = shipSize(
   return { x: edge.x + ux * (MINING_GAP + nose), y: edge.y + uy * (MINING_GAP + nose) };
 }
 
-// The home sector's rocks this ship may pick on its own. Every default
-// behaviour that mines picks its rock from here.
+// Rocks this ship may pick on its own. Other sectors are included only when
+// the ship has explicitly been allowed to cross gates for mining.
 export function minableRocks(ship: Ship, asteroids: Asteroid[]): Asteroid[] {
   return asteroids.filter((rock) => rock.sectorId === HOME_SECTOR
     && (ship.defaultBehaviour !== "mine" || ship.mineMaterials.includes(rock.material)));
+}
+
+// Older cargo-producing paths are deliberately still represented by a total
+// and one material. Normalising here lets mining use a manifest without making
+// hauling, gate supply and existing saved state dependent on it.
+export function cargoByMaterial(ship: Pick<Ship, "cargo" | "cargoMaterial" | "cargoByMaterial">): Record<Material, number> {
+  const listed = MATERIALS.reduce((total, material) => total + (ship.cargoByMaterial?.[material] ?? 0), 0);
+  if (listed === ship.cargo && ship.cargoByMaterial) return { Metal: ship.cargoByMaterial.Metal, Ice: ship.cargoByMaterial.Ice };
+  return {
+    Metal: ship.cargoMaterial === "Metal" ? ship.cargo : 0,
+    Ice: ship.cargoMaterial === "Ice" ? ship.cargo : 0,
+  };
+}
+
+export function mineRouteDistance(
+  ship: Ship,
+  asteroid: Asteroid,
+  sectors: Sector[],
+  gateProjects: GateProject[],
+): number {
+  if (ship.sectorId === asteroid.sectorId) return distance(ship.position, asteroid.position);
+  const route = gateRoute({ sectors, gateProjects }, ship.sectorId, asteroid.sectorId);
+  return route ? distance(ship.position, route.from) + distance(route.to, asteroid.position) : Infinity;
+}
+
+export function nearestMineableRock(
+  ship: Ship,
+  asteroids: Asteroid[],
+  sectors: Sector[],
+  gateProjects: GateProject[],
+  others: Ship[] = [],
+  anyMaterial = false,
+): Asteroid | null {
+  const taken = new Set(others.filter((other) => other.id !== ship.id && (other.state === "outbound" || other.state === "working"))
+    .map((other) => other.target?.asteroidId));
+  let best: Asteroid | null = null;
+  let bestTaken = true;
+  let bestDistance = Infinity;
+  for (const rock of asteroids) {
+    if (rock.ore <= 0 || (!ship.mineOtherSectors && rock.sectorId !== ship.sectorId)
+      || (!anyMaterial && !ship.mineMaterials.includes(rock.material))) continue;
+    const routeDistance = mineRouteDistance(ship, rock, sectors, gateProjects);
+    if (!Number.isFinite(routeDistance)) continue;
+    const isTaken = taken.has(rock.id);
+    if (!best || (bestTaken && !isTaken) || (bestTaken === isTaken && routeDistance < bestDistance)) {
+      best = rock;
+      bestTaken = isTaken;
+      bestDistance = routeDistance;
+    }
+  }
+  return best;
 }
 
 // The asteroid with ore left that is closest to the Dock, or null. Rocks no
@@ -417,7 +472,7 @@ export function nearestWithOre(dock: Vec, asteroids: Asteroid[], others: Ship[] 
 export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Ship[] = []): Ship {
   const asteroid = canMine(ship.design) ? nearestWithOre(dock, minableRocks(ship, asteroids), others) : null;
   if (!asteroid) {
-    return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null, transfer: null };
+    return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 }, cargoMaterial: null, target: null, leg: null, transfer: null };
   }
   const site = miningSite(dock, asteroid, shipSize(ship.design));
   const from = ship.berth === null ? dock : ship.position;
@@ -427,6 +482,7 @@ export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Shi
     position: { ...from },
     timer: travelSeconds(distance(from, site), speedFactor(ship.design)),
     cargo: 0,
+    cargoByMaterial: { Metal: 0, Ice: 0 },
     cargoMaterial: asteroid.material,
     target: { asteroidId: asteroid.id, sectorId: HOME_SECTOR, site },
     leg: ship.berth === null ? null : { from: { ...from }, to: site },
@@ -526,10 +582,12 @@ export function createInitialState(seed: number): SimState {
     position: { ...dockPosition },
     timer: 0,
     cargo: 0,
+    cargoByMaterial: { Metal: 0, Ice: 0 },
     cargoMaterial: null,
     target: null,
     defaultBehaviour: "mine",
     mineMaterials: [],
+    mineOtherSectors: false,
     order: null,
     leg: null,
     berth: null,

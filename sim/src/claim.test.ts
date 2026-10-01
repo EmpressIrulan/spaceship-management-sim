@@ -81,6 +81,26 @@ describe("claim station sites", () => {
     expect(done.station.inventory).toEqual(start.station.inventory);
   });
 
+  it("delivers every material in a mixed hold without changing either one", () => {
+    const { state: withSite } = place(createInitialState(7), 0);
+    const start = loaded(withSite, 20, "Ice", { cargoByMaterial: { Metal: 6, Ice: 14 } });
+    const done = until(giveOrder(start, [0], { kind: "supplySite", siteId: 0 }), (next) => next.ships[0]!.order === null);
+
+    expect(done.claimSites[0]!.delivered).toEqual({ Metal: 6, Ice: 14 });
+    expect(done.ships[0]).toMatchObject({ cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 } });
+  });
+
+  it("delivers Metal still aboard after an Ice rock becomes the mining target", () => {
+    const { state: withSite } = place(createInitialState(7), 0);
+    const ice = withSite.asteroids.find((rock) => rock.material === "Ice")!;
+    const metal = loaded(withSite, 5, "Metal", { cargoByMaterial: { Metal: 5, Ice: 0 } });
+    const headingToIce = giveOrder(metal, [0], { kind: "mine", asteroidId: ice.id });
+    expect(headingToIce.ships[0]).toMatchObject({ cargo: 5, cargoMaterial: "Ice", cargoByMaterial: { Metal: 5, Ice: 0 } });
+
+    const done = until(giveOrder(headingToIce, [0], { kind: "supplySite", siteId: 0 }), (next) => next.ships[0]!.order === null);
+    expect(done.claimSites[0]!.delivered).toEqual({ Metal: 5, Ice: 0 });
+  });
+
   it("unloads over the same time as at the Dock, one unit at a time", () => {
     const { state: withSite } = place(createInitialState(7), 0);
     const start = loaded(withSite, 20, "Metal");
