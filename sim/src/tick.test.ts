@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ONE_STORAGE, oneStorageStart } from "./test-ships";
+import { ONE_STORAGE, oneStorageStart, padHopSeconds } from "./test-ships";
 import { shipSize } from "./ship";
 const ONE_STORAGE_SIZE = shipSize(ONE_STORAGE);
 import { tick } from "./tick";
@@ -11,6 +11,7 @@ import {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  dockBerths,
   miningSite,
   type Asteroid,
   type SimState,
@@ -56,8 +57,22 @@ function legSeconds(state: SimState): number {
   return travelSeconds(distance(state.station.dock.position, ship(state).target!.site));
 }
 
-function cycleSeconds(state: SimState): number {
-  return 2 * legSeconds(state) + WORKING_SECONDS + UNLOADING_SECONDS;
+// A single ship unloads on the first pad, flies there from the Dock's middle
+// and leaves from it.
+function pad(state: SimState): Vec {
+  return dockBerths(state.station.dock.position)[0]!;
+}
+
+// The trip out after the first one starts on the pad instead of at the Dock's middle.
+function outFromPadSeconds(state: SimState): number {
+  return travelSeconds(distance(pad(state), ship(state).target!.site));
+}
+
+// Seconds until the ship has unloaded `cycles` loads and set off again. The
+// first trip out starts at the Dock's middle, every later one on the pad.
+function cycleSeconds(state: SimState, cycles = 1): number {
+  const tail = WORKING_SECONDS + legSeconds(state) + padHopSeconds(state) + UNLOADING_SECONDS;
+  return legSeconds(state) + tail + (cycles - 1) * (outFromPadSeconds(state) + tail);
 }
 
 // Steps at roughly 60fps, the way the renderer drives the sim.
@@ -145,11 +160,11 @@ describe("mining cycle", () => {
 
   it("takes time to unload, moving cargo into the station as it goes", () => {
     const start = oneStorageStart(7);
-    const docked = 2 * legSeconds(start) + WORKING_SECONDS;
+    const docked = 2 * legSeconds(start) + WORKING_SECONDS + padHopSeconds(start);
 
     const midUnload = run(start, docked + UNLOADING_SECONDS / 2 + 0.01);
     expect(ship(midUnload).state).toBe("unloading");
-    expect(ship(midUnload).position).toEqual(start.station.dock.position);
+    expect(ship(midUnload).position).toEqual(pad(start));
     expect(ship(midUnload).cargo).toBe(CARGO_PER_TRIP / 2);
     expect(stored(midUnload)).toBe(stored(start) + CARGO_PER_TRIP / 2);
   });
@@ -165,7 +180,7 @@ describe("mining cycle", () => {
 
   it("counts every completed cycle, however the time is sliced", () => {
     const start = oneStorageStart(7);
-    const seconds = 3 * cycleSeconds(start) + 0.1;
+    const seconds = cycleSeconds(start, 3) + 0.1;
 
     expect(stored(run(start, seconds))).toBe(stored(start) + 3 * CARGO_PER_TRIP);
     // One big step, as after a backgrounded tab resumes.
@@ -193,7 +208,7 @@ describe("mining cycle", () => {
   it("does not mutate the state it was given", () => {
     const start = oneStorageStart(7);
     const snapshot = JSON.parse(JSON.stringify(start)) as SimState;
-    tick(start, 10 * cycleSeconds(start));
+    tick(start, cycleSeconds(start, 10));
     expect(start).toEqual(snapshot);
   });
 });
@@ -201,7 +216,7 @@ describe("mining cycle", () => {
 describe("asteroid field", () => {
   // Seconds from load until the first asteroid's third load is mined out.
   function emptiedAt(start: SimState): number {
-    return 2 * cycleSeconds(start) + legSeconds(start) + WORKING_SECONDS;
+    return cycleSeconds(start, 2) + outFromPadSeconds(start) + WORKING_SECONDS;
   }
 
   it("starts every sector with the rocks its density calls for, 30 ore each and 120 for a rich rock", () => {
@@ -251,7 +266,7 @@ describe("asteroid field", () => {
     expect(ship(gone).state).toBe("homebound");
     expect(ship(gone).cargo).toBe(CARGO_PER_TRIP);
 
-    const nextTrip = run(start, 3 * cycleSeconds(start) + 0.1);
+    const nextTrip = run(start, cycleSeconds(start, 3) + 0.1);
     expect(ship(nextTrip).state).toBe("outbound");
     expect(target(nextTrip).id).not.toBe(first.id);
     expect(target(nextTrip).id).toBe(nearestWithOre(nextTrip).id);
@@ -279,7 +294,7 @@ describe("asteroid field", () => {
 
   it("waits at the Dock when nothing has ore, and leaves as soon as an asteroid appears", () => {
     const start = oneStorageStart(7);
-    const unloading = run(start, 2 * legSeconds(start) + WORKING_SECONDS + 0.01);
+    const unloading = run(start, 2 * legSeconds(start) + WORKING_SECONDS + padHopSeconds(start) + 0.01);
     expect(ship(unloading).state).toBe("unloading");
     const barren: SimState = {
       ...unloading,
@@ -341,6 +356,7 @@ describe("ore is conserved", () => {
       mineMaterials: ["Metal", "Ice"] as Material[],
       order: null,
       leg: null,
+      berth: null,
     };
   }
 

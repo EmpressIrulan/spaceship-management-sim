@@ -70,7 +70,8 @@ export function resumeMining(ship: Ship, dock: Vec, asteroids: Asteroid[], secto
   const rock = nextMiningRock(ship, asteroids, sectors, gateProjects, others);
   if (!rock || !canMine(ship.design)) {
     // Idle means sitting at the Dock, so a ship elsewhere flies home first.
-    const atDock = ship.sectorId === HOME_SECTOR && ship.position.x === dock.x && ship.position.y === dock.y;
+    const atDock = ship.sectorId === HOME_SECTOR && (ship.berth !== null
+      || (ship.position.x === dock.x && ship.position.y === dock.y));
     return atDock ? { ...ship, state: "idle", timer: 0, leg: null, target: null } : routeHome({ ...ship, target: null }, dock, sectors, gateProjects);
   }
   return startMining(ship, rock, dock, sectors, gateProjects);

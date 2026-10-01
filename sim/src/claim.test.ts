@@ -124,7 +124,10 @@ describe("claim station sites", () => {
     const arrived = until(giveOrder(start, [0], { kind: "supplySite", siteId: 0 }), (next) => next.ships[0]!.state === "unloading");
     const waiting = { ...arrived, ships: [...arrived.ships, { ...arrived.ships[0]!, id: 9, state: "waiting" as const, order: null, timer: 0 }] };
     const dockBusy = { ...waiting, station: { ...waiting.station, dock: { ...waiting.station.dock, capacity: 1 } } };
-    expect(tick(dockBusy, 0.01).ships[1]!.state).toBe("unloading");
+    // With dock berths the waiting ship flies to its pad first, then unloads.
+    const next = tick(dockBusy, 0.01).ships[1]!;
+    expect(next.state).toBe("berthing");
+    expect(next.berth).toBe(0);
   });
 
   it("takes cargo from a ship in another sector by way of the gate", () => {

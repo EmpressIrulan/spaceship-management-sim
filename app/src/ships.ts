@@ -62,6 +62,11 @@ function missing(design: ShipDesign): string {
   return "no storage";
 }
 
+function waitingStatus(state: SimState): string {
+  const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
+  return stored >= state.station.storage.capacity ? "Waiting: storage full" : "Waiting: dock busy";
+}
+
 // The materials ticked for a ship on Mine for Station, as a suffix for its
 // status. Everything ticked reads as plain "Mining", and nothing ticked has
 // nothing to list.
@@ -107,10 +112,10 @@ export function shipStatus(state: SimState, ship: Ship): string {
       return `Flying home with ${cargoLabel(ship)}`;
     case "unloading":
       return "Unloading";
-    case "waiting": {
-      const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
-      return stored >= state.station.storage.capacity ? "Waiting: storage full" : "Waiting: dock busy";
-    }
+    case "berthing":
+      return ship.berth === null ? waitingStatus(state) : "Docking";
+    case "waiting":
+      return waitingStatus(state);
     case "moving":
       return "Moving";
     case "holding":

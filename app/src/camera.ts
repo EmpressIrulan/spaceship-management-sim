@@ -139,7 +139,19 @@ export function hoveredBody(
   };
   // Ships parked at the Dock have their own useful status, so they win over
   // the Dock beneath them.
-  const parked = (index: number) => ["waiting", "idle"].includes(state.ships[index]!.state);
+  const parked = (index: number) => ["waiting", "idle", "berthing", "unloading"].includes(state.ships[index]!.state);
+  // Zoomed out, the hover boxes of neighbouring ships overlap, so the pointer
+  // goes to the ship whose centre is closest.
+  const closest = (candidates: { index: number }[]): { kind: "ship"; index: number } | null => {
+    let best: number | null = null;
+    let bestDistance = Infinity;
+    for (const { index } of candidates) {
+      const position = state.ships[index]!.position;
+      const d = Math.hypot(position.x - world.x, position.y - world.y);
+      if (d < bestDistance) { best = index; bestDistance = d; }
+    }
+    return best === null ? null : { kind: "ship", index: best };
+  };
   const ships = state.ships.map((ship, index) => ({ ship, index })).filter(({ ship }) => ship.sectorId === currentSector);
   const stationVisible = state.station.sectorId === currentSector;
   const atStationOrGate = (index: number): boolean => {
@@ -155,12 +167,10 @@ export function hoveredBody(
   // A ship physically at a station or gate remains individually selectable,
   // including during its transition into or out of the structure.
   if (includeShips) {
-    for (const { index } of ships) {
-      if (atStationOrGate(index) && overShip(index)) return { kind: "ship", index };
-    }
-    for (const { index } of ships) {
-      if (parked(index) && overShip(index)) return { kind: "ship", index };
-    }
+    const atStation = closest(ships.filter(({ index }) => atStationOrGate(index) && overShip(index)));
+    if (atStation) return atStation;
+    const atRest = closest(ships.filter(({ index }) => parked(index) && overShip(index)));
+    if (atRest) return atRest;
   }
   for (const project of state.gateProjects) {
     const end = project.ends.findIndex((candidate) => candidate.sectorId === currentSector);
