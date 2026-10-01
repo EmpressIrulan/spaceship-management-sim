@@ -1,17 +1,18 @@
 import { describe, expect, it } from "vitest";
+import { miningStart } from "./test-ships";
 import {
   PIXEL_SIZE,
   SHIP_MODULES,
   STARTING_SHIP,
   canMine,
   availableShipBuild,
-  createInitialState,
   pixelCount,
   shipBuildCost,
   shipBuildSeconds,
   shipModuleCounts,
   shipSize,
   shipStats,
+  setMineMaterial,
   startShipBuild,
   validDesign,
   tick,
@@ -42,7 +43,7 @@ const solid = (width: number, height: number, module: ShipDesign["slots"][number
 
 // Seed 7 with two finished Builders and plenty of ore.
 function shipyard(inventory = { Metal: 1000, Ice: 1000 }): SimState {
-  const state = createInitialState(7);
+  const state = miningStart(7);
   const builders: StationModule[] = [
     { type: "Builder", position: { x: 0, y: -40 }, size: { width: 30, height: 40 } },
     { type: "Builder", position: { x: 0, y: 40 }, size: { width: 30, height: 40 } },
@@ -63,7 +64,7 @@ const SECOND_BUILDER = 3;
 
 describe("the starting ship", () => {
   it("is a 4x4 pixel ship holding an engine, a laser and two storage blocks", () => {
-    const state = createInitialState(7);
+    const state = miningStart(7);
     expect(state.ships).toHaveLength(1);
     expect(STARTING_SHIP).toEqual(miner);
     expect(state.ships[0]!.design).toEqual(miner);
@@ -190,15 +191,18 @@ describe("building a ship", () => {
     expect(done.ships).toHaveLength(3);
   });
 
-  it("launches the new ship from the Dock and it starts mining on its own", () => {
+  it("launches the new ship from the Dock with nothing ticked, and it mines once a material is", () => {
     const state = startShipBuild(shipyard(), FIRST_BUILDER, miner);
     const done = tick(state, shipBuildSeconds(miner));
     const built = done.ships.at(-1)!;
 
     expect(built.design).toEqual(miner);
     expect(built.id).not.toBe(done.ships[0]!.id);
-    expect(built.state).toBe("outbound");
+    expect(built.state).toBe("idle");
     expect(built.position).toEqual(done.station.dock.position);
+
+    const ticked = tick(setMineMaterial(done, [built.id], "Metal", true), 1 / 30);
+    expect(ticked.ships.at(-1)!.state).toBe("outbound");
   });
 
   it.each([["no laser", noLaser], ["no engine", noEngine]])(
@@ -216,7 +220,7 @@ describe("building a ship", () => {
 
 describe("several ships", () => {
   function fleet(count: number): SimState {
-    const state = createInitialState(7);
+    const state = miningStart(7);
     const idle: Ship = { ...state.ships[0]!, state: "idle", timer: 0, target: null };
     return {
       ...state,
@@ -258,7 +262,7 @@ describe("several ships", () => {
 
 describe("the ship's own stats drive its cycle", () => {
   function miningShip(layout: ShipDesign): SimState {
-    const state = createInitialState(7);
+    const state = miningStart(7);
     const idle: Ship = { ...state.ships[0]!, design: layout, state: "idle", timer: 0, target: null };
     return tick({ ...state, ships: [idle] }, 0);
   }

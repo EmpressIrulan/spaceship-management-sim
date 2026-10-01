@@ -24,6 +24,7 @@ export {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  minableRocks,
   availableModuleBuildSites,
   availableModuleBuilds,
   availableShipBuild,
@@ -96,4 +97,4 @@ export {
   type ClaimSiteNeeds,
 } from "./claim";
 export { tick } from "./tick";
-export { formation, giveOrder, resumeDefault, setDefaultBehaviour, type OrderTarget } from "./orders";
+export { formation, giveOrder, resumeDefault, setDefaultBehaviour, setMineMaterial, type OrderTarget } from "./orders";
