@@ -43,10 +43,16 @@ export const STARTING_SHIP: ShipDesign = {
 // starting ship. Placeholder, to tune at the demo.
 export const MINING_GAP = 3 * STARTING_SHIP.width * PIXEL_SIZE;
 
-// Placeholders until the client has built a real capital ship. Metal and Ice
-// come in evenly, so the cost is even.
-export const SHIP_COST_PER_PIXEL: Record<Material, number> = { Metal: 5, Ice: 5 };
-export const SHIP_BUILD_SECONDS_PER_PIXEL = 1;
+// Placeholder prices. Hull is the 1x baseline, Storage is 1.5x, Laser is 3x
+// and Engine is 4x. Engines and Lasers lean Metal, Storage leans Ice, and
+// Hull uses both evenly.
+export const SHIP_MODULE_COST: Record<ShipModule, Record<Material, number>> = {
+  Engine: { Metal: 30, Ice: 10 },
+  Laser: { Metal: 20, Ice: 10 },
+  Storage: { Metal: 5, Ice: 10 },
+  Hull: { Metal: 5, Ice: 5 },
+};
+export const SHIP_BUILD_SECONDS_PER_RESOURCE = 0.1;
 // Engines per painted pixel that move a ship at SHIP_CRUISE_SPEED: one in four.
 const ENGINES_PER_PIXEL_AT_CRUISE = 1 / 4;
 
@@ -64,6 +70,10 @@ export function pixelCount(design: ShipDesign): number {
 
 function count(design: ShipDesign, module: ShipModule): number {
   return design.slots.filter((slot) => slot === module).length;
+}
+
+export function shipModuleCounts(design: ShipDesign): Record<ShipModule, number> {
+  return Object.fromEntries(SHIP_MODULES.map((module) => [module, count(design, module)])) as Record<ShipModule, number>;
 }
 
 // Multiplies the base cruise speed and acceleration.
@@ -99,14 +109,16 @@ export function shipSize(design: ShipDesign): Size {
 }
 
 export function shipBuildCost(design: ShipDesign): Record<Material, number> {
-  return {
-    Metal: SHIP_COST_PER_PIXEL.Metal * pixelCount(design),
-    Ice: SHIP_COST_PER_PIXEL.Ice * pixelCount(design),
-  };
+  const counts = shipModuleCounts(design);
+  return Object.fromEntries((["Metal", "Ice"] as const).map((material) => [
+    material,
+    SHIP_MODULES.reduce((total, module) => total + counts[module] * SHIP_MODULE_COST[module][material], 0),
+  ])) as Record<Material, number>;
 }
 
 export function shipBuildSeconds(design: ShipDesign): number {
-  return SHIP_BUILD_SECONDS_PER_PIXEL * pixelCount(design);
+  const cost = shipBuildCost(design);
+  return (cost.Metal + cost.Ice) * SHIP_BUILD_SECONDS_PER_RESOURCE;
 }
 
 export function validDesign(design: ShipDesign): boolean {

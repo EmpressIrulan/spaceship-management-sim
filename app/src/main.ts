@@ -1078,8 +1078,18 @@ function draw(seconds: number): void {
     const text = `Pixels ${view.pixels}\nSpeed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;
     if (stats.textContent !== text) stats.textContent = text;
     const cost = shipMenu.querySelector<HTMLElement>(".cost")!;
-    const costText = `Build time ${view.buildTime}\nCost ${view.cost}`;
-    if (cost.textContent !== costText) cost.textContent = costText;
+    const costKey = JSON.stringify([view.parts, view.buildTime, view.materials]);
+    if (cost.dataset.key !== costKey) {
+      cost.dataset.key = costKey;
+      cost.replaceChildren(document.createTextNode(`${view.parts}\nBuild time ${view.buildTime}\nCost `));
+      view.materials.forEach((material, index) => {
+        if (index > 0) cost.append(" ");
+        const total = document.createElement("span");
+        total.textContent = `${material.amount} ${material.material}`;
+        total.classList.toggle("short", material.short);
+        cost.append(total);
+      });
+    }
     shipMenu.querySelector<HTMLButtonElement>(".build")!.disabled = !view.canBuild;
   }
   const menuItems = buildMenuItems(state);

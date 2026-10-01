@@ -6,8 +6,10 @@ import {
   canMine,
   availableShipBuild,
   createInitialState,
+  pixelCount,
   shipBuildCost,
   shipBuildSeconds,
+  shipModuleCounts,
   shipSize,
   shipStats,
   startShipBuild,
@@ -39,7 +41,7 @@ const solid = (width: number, height: number, module: ShipDesign["slots"][number
   design(width, height, Array(width * height).fill(module));
 
 // Seed 7 with two finished Builders and plenty of ore.
-function shipyard(inventory = { Metal: 400, Ice: 400 }): SimState {
+function shipyard(inventory = { Metal: 1000, Ice: 1000 }): SimState {
   const state = createInitialState(7);
   const builders: StationModule[] = [
     { type: "Builder", position: { x: 0, y: -40 }, size: { width: 30, height: 40 } },
@@ -127,12 +129,30 @@ describe("design size", () => {
 });
 
 describe("building a ship", () => {
-  it("costs 5 Metal and 5 Ice per pixel and takes 1 s per pixel", () => {
-    expect(shipBuildCost(solid(4, 4))).toEqual({ Metal: 80, Ice: 80 });
-    expect(shipBuildCost(solid(1, 1))).toEqual({ Metal: 5, Ice: 5 });
-    expect(shipBuildSeconds(solid(1, 1))).toBe(1);
-    expect(shipBuildSeconds(miner)).toBe(16);
-    expect(shipBuildSeconds(solid(400, 200))).toBe(80000);
+  it("prices each part Engine > Laser > Storage > Hull with its own resource mix", () => {
+    expect(shipBuildCost(solid(1, 1, "Hull"))).toEqual({ Metal: 5, Ice: 5 });
+    expect(shipBuildCost(solid(1, 1, "Storage"))).toEqual({ Metal: 5, Ice: 10 });
+    expect(shipBuildCost(solid(1, 1, "Laser"))).toEqual({ Metal: 20, Ice: 10 });
+    expect(shipBuildCost(solid(1, 1, "Engine"))).toEqual({ Metal: 30, Ice: 10 });
+  });
+
+  it("counts each painted part for the menu breakdown", () => {
+    expect(shipModuleCounts(design(6, 1, ["Hull", "Hull", "Engine", "Laser", "Storage", null]))).toEqual({
+      Engine: 1,
+      Laser: 1,
+      Storage: 1,
+      Hull: 2,
+    });
+  });
+
+  it("takes one second per ten resources, so pricier equal-sized ships take longer", () => {
+    const cheap = solid(4, 1, "Hull");
+    const expensive = solid(4, 1, "Engine");
+    expect(pixelCount(cheap)).toBe(pixelCount(expensive));
+    expect(shipBuildCost(cheap)).toEqual({ Metal: 20, Ice: 20 });
+    expect(shipBuildCost(expensive)).toEqual({ Metal: 120, Ice: 40 });
+    expect(shipBuildSeconds(cheap)).toBe(4);
+    expect(shipBuildSeconds(expensive)).toBe(16);
   });
 
   it("counts painted pixels only, not the empty ones in the bounding box", () => {
@@ -144,7 +164,7 @@ describe("building a ship", () => {
   it("takes the ore straight away and marks that Builder busy", () => {
     const state = startShipBuild(shipyard(), FIRST_BUILDER, miner);
 
-    expect(state.station.inventory).toEqual({ Metal: 320, Ice: 320 });
+    expect(state.station.inventory).toEqual({ Metal: 760, Ice: 840 });
     expect(state.station.shipBuilds).toEqual([
       { builder: FIRST_BUILDER, design: miner, timer: shipBuildSeconds(miner) },
     ]);
@@ -154,7 +174,7 @@ describe("building a ship", () => {
   });
 
   it("refuses when Storage can't pay, or the module is not a Builder", () => {
-    const poor = shipyard({ Metal: 79, Ice: 400 });
+    const poor = shipyard({ Metal: 239, Ice: 400 });
     expect(availableShipBuild(poor, FIRST_BUILDER, miner)).toBe(false);
     expect(startShipBuild(poor, FIRST_BUILDER, miner)).toBe(poor);
     expect(availableShipBuild(shipyard(), 0, miner)).toBe(false);
