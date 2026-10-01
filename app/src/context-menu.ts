@@ -3,6 +3,7 @@ import { hoveredBody, screenToWorld } from "./camera";
 import { dismissGatePlacement } from "./sectors";
 import { contextOrderAllowed, orderTargetAt } from "./selection";
 import type { UiState } from "./ui-state";
+import { dockAtHoveredCarrier } from "./hangar-input";
 
 export function installContextMenu(
   ui: UiState,
@@ -36,6 +37,14 @@ export function installContextMenu(
     if (!contextOrderAllowed(ui.mapOpen)) return;
     const state = getState();
     const point = mousePoint(event);
+    const shipHovered = hoveredBody(state, ui.camera, ui.viewport, point, ui.currentSector);
+    const docked = dockAtHoveredCarrier(state, ui.selectedShips, shipHovered);
+    if (docked) {
+      const carrier = shipHovered?.kind === "ship" ? state.ships[shipHovered.index] : null;
+      if (carrier) ui.orderLines = { from: ui.selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to: carrier.position, start: performance.now() / 1000 };
+      setState(docked);
+      return;
+    }
     const hovered = hoveredBody(state, ui.camera, ui.viewport, point, ui.currentSector, { includeShips: false });
     if (!ui.selectedShips.length && !hovered && ui.currentSector === HOME_SECTOR) {
       ui.pendingGate = { sectorId: ui.currentSector, position: screenToWorld(ui.camera, ui.viewport, point) };

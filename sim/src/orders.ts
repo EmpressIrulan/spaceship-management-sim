@@ -79,7 +79,7 @@ export function resumeMining(ship: Ship, dock: Vec, asteroids: Asteroid[], secto
   return startMining(ship, rock, dock, sectors, gateProjects);
 }
 
-function resumeInState(state: SimState, ship: Ship): Ship {
+export function resumeDefaultShip(state: SimState, ship: Ship): Ship {
   return ship.defaultBehaviour === "haul" ? resumeHaulShip(state, ship)
     : resumeMining(ship, state.station.dock.position, state.asteroids, state.sectors, state.gateProjects, state.ships);
 }
@@ -136,7 +136,7 @@ function apply(ship: Ship, target: OrderTarget, point: Vec, state: SimState): Sh
 }
 
 export function giveOrder(state: SimState, ids: number[], target: OrderTarget): SimState {
-  const selected = state.ships.filter((ship) => ids.includes(ship.id));
+  const selected = state.ships.filter((ship) => ids.includes(ship.id) && ship.hangarId == null);
   if (!selected.length) return state;
   if (target.kind === "haulGate") {
     const project = state.gateProjects.find((candidate) => candidate.id === target.gateId && !candidate.complete);
@@ -146,7 +146,7 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
     const ships = [...state.ships];
     for (let index = 0; index < ships.length; index += 1) {
       const ship = ships[index]!;
-      if (!ids.includes(ship.id) || shipStats(ship.design).hold <= 0) continue;
+      if (!ids.includes(ship.id) || ship.hangarId != null || shipStats(ship.design).hold <= 0) continue;
       const order = { kind: "haulGate" as const, gateId: project.id };
       const atStorage = ship.sectorId === state.station.sectorId
         && ship.position.x === state.station.dock.position.x && ship.position.y === state.station.dock.position.y;
@@ -194,7 +194,7 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
 
 export function resumeDefault(state: SimState, ids: number[]): SimState {
   return { ...state, ships: state.ships.map((ship) => ids.includes(ship.id) && ship.order
-    ? resumeInState(state, { ...ship, order: null }) : ship) };
+     ? resumeDefaultShip(state, { ...ship, order: null }) : ship) };
 }
 
 export function setDefaultBehaviour(state: SimState, ids: number[], behaviour: DefaultBehaviour): SimState {
@@ -205,7 +205,7 @@ export function setDefaultBehaviour(state: SimState, ids: number[], behaviour: D
     const haulRoute = ship.haulRoute ?? (stations[1] ? { from: stations[0]!.id, to: stations[1].id, material: "Metal" as const } : undefined);
     const next = { ...ship, defaultBehaviour: behaviour, haulRoute };
     const wasHauling = ship.state.startsWith("haul");
-    if (!next.order && (behaviour === "haul" || wasHauling || next.state === "holding")) return resumeInState(state, next);
+    if (!next.order && (behaviour === "haul" || wasHauling || next.state === "holding")) return resumeDefaultShip(state, next);
     return next;
   }) };
 }

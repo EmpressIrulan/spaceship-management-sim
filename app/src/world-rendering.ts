@@ -28,7 +28,7 @@ export function createWorldDrawing(
     overlayDrawing.drawOrderFeedback(seconds);
 
     const sectorRocks = getState().asteroids.filter((asteroid) => asteroid.sectorId === ui.currentSector);
-    const sectorShips = getState().ships.filter((ship) => ship.sectorId === ui.currentSector && ship.state !== "jumpingOut" && ship.state !== "jumpingHome");
+    const sectorShips = getState().ships.filter((ship) => ship.sectorId === ui.currentSector && ship.state !== "jumpingOut" && ship.state !== "jumpingHome" && ship.state !== "docked");
     const gate = getState().sectors[ui.currentSector]!.gate;
     const legacyGateVisible = gate.to !== ui.currentSector;
     const gateScreen = worldToScreen(ui.camera, ui.viewport, gate.position);

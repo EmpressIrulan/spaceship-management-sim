@@ -10,7 +10,7 @@ export const UNLOADING_SECONDS = 6;
 
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and
 // draws, but does nothing.
-export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hull"] as const;
+export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull"] as const;
 export type ShipModule = (typeof SHIP_MODULES)[number];
 
 // A ship is painted pixels, each one a module cell. The design is their
@@ -50,6 +50,8 @@ export const SHIP_MODULE_COST: Record<ShipModule, Record<Material, number>> = {
   Engine: { Metal: 30, Ice: 10 },
   Laser: { Metal: 20, Ice: 10 },
   Storage: { Metal: 5, Ice: 10 },
+  // Placeholder: a Hangar costs the same total as Storage, but leans Metal.
+  Hangar: { Metal: 10, Ice: 5 },
   Hull: { Metal: 5, Ice: 5 },
 };
 export const SHIP_BUILD_SECONDS_PER_RESOURCE = 0.1;

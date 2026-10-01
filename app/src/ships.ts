@@ -17,6 +17,7 @@ export const MODULE_COLORS: Record<ShipModule, string> = {
   Engine: "#f97316",
   Laser: LASER_COLOR,
   Storage: "#94a3b8",
+  Hangar: "#38bdf8",
   Hull: "#475569",
 };
 
@@ -144,6 +145,10 @@ export function shipStatus(state: SimState, ship: Ship): string {
       return "Moving";
     case "holding":
       return "Holding";
+    case "docking":
+      return "Docking with carrier";
+    case "docked":
+      return "Inside carrier";
     case "jumpingOut":
     case "jumpingHome":
       return "Jumping";

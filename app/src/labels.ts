@@ -1,4 +1,4 @@
-import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, shipStats, stationIncome, type Ship, type SimState } from "sim";
+import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, shipStats, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -19,6 +19,8 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "outbound":
     case "moving":
     case "holding":
+    case "docking":
+    case "docked":
     case "jumpingOut":
     case "jumpingHome":
     case "haulReturning":
@@ -51,7 +53,7 @@ export interface InfoBox {
   title: string;
   line: string;
   // A button the box carries, for the hovers that can be acted on.
-  action?: { label: string; siteId: number };
+  action?: { label: string; siteId?: number; carrierId?: number; disabled?: boolean };
 }
 
 function claimSiteBox(state: SimState, id: number): InfoBox | null {
@@ -116,7 +118,13 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   }
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
-    return ship ? { title: "Ship", line: shipStatus(state, ship) } : null;
+    if (!ship) return null;
+    const capacity = hangarCapacity(ship.design);
+    const incoming = hangarIncoming(state, ship.id);
+    const hangarValue = `${hangarReserved(state, ship.id)}/${capacity}${incoming > 0 ? `, ${incoming} incoming` : ""}`;
+    const hangar = capacity > 0 ? `\nHangar ${hangarValue}\nDocked ships: ${hangarContents(state, ship.id).length}` : "";
+    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}`,
+      ...(capacity > 0 ? { action: { label: "Launch all", carrierId: ship.id, disabled: hangarContents(state, ship.id).length === 0 } } : {}) };
   }
   if (hovered.kind === "claimSite") return claimSiteBox(state, hovered.id);
   if (hovered.kind === "gateProject") {

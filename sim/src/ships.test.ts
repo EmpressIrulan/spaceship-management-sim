@@ -80,8 +80,8 @@ describe("the starting ship", () => {
 });
 
 describe("ship stats", () => {
-  it("offers Hull next to the three working modules", () => {
-    expect(SHIP_MODULES).toEqual(["Engine", "Laser", "Storage", "Hull"]);
+  it("offers Hull and Hangar next to the three working modules", () => {
+    expect(SHIP_MODULES).toEqual(["Engine", "Laser", "Storage", "Hangar", "Hull"]);
   });
 
   it("takes speed from the share of painted pixels that are engines, hull included", () => {
@@ -142,6 +142,7 @@ describe("building a ship", () => {
       Engine: 1,
       Laser: 1,
       Storage: 1,
+      Hangar: 0,
       Hull: 2,
     });
   });

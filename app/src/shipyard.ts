@@ -249,7 +249,7 @@ export function shipMenuView(state: SimState, builder: number, draft: ShipDraft)
   const design = designOf(draft);
   const cost = shipBuildCost(design);
   const counts = shipModuleCounts(design);
-  const partOrder: ShipModule[] = ["Hull", "Engine", "Laser", "Storage"];
+  const partOrder: ShipModule[] = ["Hull", "Engine", "Laser", "Storage", "Hangar"];
   return {
     stats: statsView(design),
     pixels: String(pixelCount(design)),

@@ -73,7 +73,7 @@ export interface Size {
 // can't mine. "waiting" means home with a transfer pending but no free berth,
 // parked just off the Dock. "berthing" is the short hop from the Dock to a pad
 // or a parking spot.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "berthing" | "loading" | "unloading" | "gateUnloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning"
+export type ShipState = "idle" | "outbound" | "working" | "homebound" | "berthing" | "loading" | "unloading" | "gateUnloading" | "waiting" | "moving" | "holding" | "docking" | "docked" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning"
   | "haulLoading" | "haulOutbound" | "haulJumpingOutbound" | "haulUnloading" | "haulReturning" | "haulJumpingReturning" | "haulWaitingSource" | "haulWaitingFull";
 export type DefaultBehaviour = "mine" | "haul" | "supply" | "none";
 export type HaulStationId = "home" | `claim:${number}`;
@@ -84,7 +84,8 @@ export type Order =
   | { kind: "home" }
   | { kind: "haulGate"; gateId: number }
   | { kind: "supplySite"; siteId: number; point: Vec; sectorId: number }
-  | { kind: "supplyBuild"; point: Vec; sectorId: number };
+  | { kind: "supplyBuild"; point: Vec; sectorId: number }
+  | { kind: "dock"; carrierId: number };
 export interface Leg { from: Vec; to: Vec }
 export interface CargoTransfer {
   startingCargo: number;
@@ -129,6 +130,8 @@ export interface Ship {
   // The cargo aboard when this transfer began and the total units it will move.
   // This makes partial transfers deterministic and safe to interrupt.
   transfer: CargoTransfer | null;
+  // Set while this ship is hidden inside another ship.
+  hangarId?: number | null;
 }
 
 export interface Station {

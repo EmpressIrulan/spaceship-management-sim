@@ -8,6 +8,7 @@ import { distanceAlong, travelSeconds } from "./motion";
 import { afterOrder, nextMiningRock, resumeMining, startMining, travelOrder } from "./orders";
 import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
+import { completeDocking, syncDockedShips } from "./hangars";
 import {
   ABUNDANT_SHARE,
   DOCK_CAPACITY,
@@ -113,10 +114,13 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     case "haulJumpingOutbound":
     case "haulJumpingReturning":
       return { ...ship, timer };
+    case "docked":
+      return { ...ship, timer: 0 };
     case "outbound":
     case "homebound":
     case "berthing":
     case "moving":
+    case "docking":
     case "gateHauling":
     case "gateReturning":
     case "haulOutbound":
@@ -323,6 +327,10 @@ function finish(draft: Draft, ship: Ship): Ship {
     case "holding":
       if (ship.order?.kind === "haulGate") return loadGateHauler(draft, ship);
       return ship;
+    case "docked":
+      return ship;
+    case "docking":
+      return completeDocking(draft.ships, ship);
     case "loading": {
       const loaded = { ...ship, berth: null, transfer: null };
       return loaded.cargo > 0 ? carryCargoToGate(draft, loaded) ?? loadGateHauler(draft, loaded) : loadGateHauler(draft, loaded);
@@ -511,7 +519,7 @@ function afterUnloading(draft: Draft, ship: Ship): Ship {
 function nextEvent(draft: Draft): number {
   let soonest = Infinity;
   for (const ship of draft.ships) {
-    if (ship.state !== "idle" && ship.state !== "waiting" && ship.state !== "holding"
+    if (ship.state !== "idle" && ship.state !== "waiting" && ship.state !== "holding" && ship.state !== "docked"
       && ship.state !== "haulWaitingSource" && ship.state !== "haulWaitingFull") soonest = Math.min(soonest, ship.timer);
   }
   for (const respawn of draft.respawns) soonest = Math.min(soonest, respawn.timer);
@@ -668,7 +676,7 @@ export function tick(state: SimState, dt: number): SimState {
     },
     asteroids: draft.asteroids,
     respawns: draft.respawns,
-    ships: draft.ships,
+    ships: syncDockedShips(draft.ships),
     gateProjects: draft.gateProjects,
     claimSites: draft.claimSites,
   };
