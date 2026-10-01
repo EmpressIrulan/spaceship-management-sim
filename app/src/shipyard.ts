@@ -4,8 +4,10 @@ import {
   pixelCount,
   shipBuildCost,
   shipBuildSeconds,
+  shipModuleCounts,
   shipStats,
   type ShipDesign,
+  type Material,
   type ShipModule,
   type SimState,
   type Vec,
@@ -237,19 +239,27 @@ export function statsView(design: ShipDesign): StatsView {
 export interface ShipMenuView {
   stats: StatsView;
   pixels: string;
+  parts: string;
   buildTime: string;
-  cost: string;
+  materials: { material: Material; amount: number; short: boolean }[];
   canBuild: boolean;
 }
 
 export function shipMenuView(state: SimState, builder: number, draft: ShipDraft): ShipMenuView {
   const design = designOf(draft);
   const cost = shipBuildCost(design);
+  const counts = shipModuleCounts(design);
+  const partOrder: ShipModule[] = ["Hull", "Engine", "Laser", "Storage"];
   return {
     stats: statsView(design),
     pixels: String(pixelCount(design)),
+    parts: partOrder.map((module) => `${module} ${counts[module]} px`).join(", "),
     buildTime: formatDuration(shipBuildSeconds(design)),
-    cost: MATERIALS.map((material) => `${cost[material]} ${material}`).join(" "),
+    materials: MATERIALS.map((material) => ({
+      material,
+      amount: cost[material],
+      short: state.station.inventory[material] < cost[material],
+    })),
     canBuild: availableShipBuild(state, builder, design),
   };
 }

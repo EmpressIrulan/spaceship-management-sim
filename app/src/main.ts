@@ -1,5 +1,13 @@
 import {
+  CLAIM_MODULE_COST,
+  CLAIM_SITE_SIZE,
+  DOCK_SIZE,
   HOME_SECTOR,
+  STORAGE_SIZE,
+  claimSiteSlots,
+  removeClaimSite,
+  renameSector,
+  startClaimSite,
   SHIP_MODULES,
   availableModuleBuildSites,
   createInitialState,
@@ -37,7 +45,7 @@ import {
 } from "./camera";
 import { cargoGauge, infoBox, sectorBox, type Gauge } from "./labels";
 import { asteroidColor } from "./asteroid";
-import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, sectorBackdrop, type PendingGate } from "./sectors";
+import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, renameHit, renameLabel, sectorBackdrop, type PendingGate } from "./sectors";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
 import {
   buildControlSize,
@@ -70,6 +78,15 @@ import {
   type ShipDraft,
 } from "./shipyard";
 import { moduleAppearance, stationConnectors } from "./station-appearance";
+import {
+  deleteBlueprint,
+  draftFromDesign,
+  loadBlueprints,
+  resolveBlueprintStore,
+  saveBlueprint,
+  viewCentredOn,
+  type Blueprint,
+} from "./blueprints";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -82,6 +99,15 @@ const shipPanelEl = document.querySelector<HTMLElement>("#ship-panel");
 const partTipEl = document.querySelector<HTMLElement>("#part-tip");
 const sectorNameEl = document.querySelector<HTMLElement>("#sector-name");
 const gateMenuEl = document.querySelector<HTMLElement>("#gate-menu");
+const claimButtonEl = document.querySelector<HTMLButtonElement>("#claim-button");
+const hintEl = document.querySelector<HTMLElement>("#hint");
+const renameBoxEl = document.querySelector<HTMLInputElement>("#rename-box");
+const infoActionEl = document.querySelector<HTMLButtonElement>("#info-action");
+if (!claimButtonEl || !hintEl || !renameBoxEl || !infoActionEl) throw new Error("missing claim station controls");
+const claimButton: HTMLButtonElement = claimButtonEl;
+const hint: HTMLElement = hintEl;
+const renameBox: HTMLInputElement = renameBoxEl;
+const infoAction: HTMLButtonElement = infoActionEl;
 const speedControlsEl = document.querySelector<HTMLElement>("#speed-controls");
 if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !partTipEl || !gateMenuEl) {
   throw new Error("missing #screen canvas or #info box");
@@ -122,6 +148,8 @@ let selectedBuildSite: Vec | null = null;
 // The Builder whose Build ship menu is open, by module index.
 let shipMenuBuilder: number | null = null;
 let draft: ShipDraft = emptyDraft();
+const blueprintStore = resolveBlueprintStore(window);
+let blueprints: Blueprint[] = loadBlueprints(blueprintStore);
 // The Build ship canvas: which canvas pixel is at its middle and how big one
 // is on screen, plus the mouse state of a stroke or a pan in progress.
 let paintView: Camera = emptyView();
@@ -141,6 +169,14 @@ let pan: { last: Vec } | null = null;
 let dragBox: { start: Vec; end: Vec; additive: boolean } | null = null;
 let orderLines: { from: Vec[]; to: Vec; start: number } | null = null;
 let pendingGate: PendingGate | null = null;
+// "Build claim station" was pressed and the next click on the canvas, once a
+// sector is showing, places the construction site.
+let pendingClaim = false;
+let renamingSector: number | null = null;
+// The pointer can travel from a claim site onto its hover box to press
+// Remove site, so the box keeps its site while the pointer is on it.
+let stickySite: number | null = null;
+let infoHovered = false;
 let clock = INITIAL_CLOCK;
 
 function closeGateMenu(): void {
@@ -203,12 +239,43 @@ window.addEventListener("mousedown", (event) => {
   if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
 }, true);
 
+claimButton.addEventListener("click", () => {
+  pendingClaim = true;
+  closeGateMenu();
+});
+infoAction.addEventListener("click", () => {
+  const siteId = Number(infoAction.dataset.site);
+  state = removeClaimSite(state, siteId);
+  stickySite = null;
+  infoHovered = false;
+});
+box.addEventListener("pointerenter", () => { infoHovered = true; });
+box.addEventListener("pointerleave", () => { infoHovered = false; });
+
+function startRename(sectorId: number): void {
+  renamingSector = sectorId;
+  renameBox.value = state.sectors[sectorId]!.name;
+  renameBox.hidden = false;
+  renameBox.focus();
+  renameBox.select();
+}
+
+// Keys typed into the name box are not map or camera keys.
+renameBox.addEventListener("keydown", (event) => {
+  event.stopPropagation();
+  if (event.key === "Enter" && renamingSector !== null) {
+    state = renameSector(state, renamingSector, renameBox.value);
+    renamingSector = null;
+  } else if (event.key === "Escape") renamingSector = null;
+});
+
 window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") pendingClaim = false;
   if (event.key.toLowerCase() === "m" || event.key === "Escape") mapOpen = mapToggled(mapOpen, event.key);
   if (event.key === "Escape") closeGateMenu();
   if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
   if (shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
-  if (!(event.target instanceof HTMLSelectElement)) {
+  if (!(event.target instanceof HTMLSelectElement) && !(event.target instanceof HTMLInputElement)) {
     heldKeys.add(event.key);
     const next = clockAfterKey(clock, event.key, event.repeat);
     if (next !== clock || event.key === " ") { clock = next; event.preventDefault(); }
@@ -266,6 +333,31 @@ function thumbnailElement(design: ShipDesign): HTMLElement {
 
 const TOOL_BUTTONS = [["erase", "Eraser"], ["fill", "Fill"]] as const;
 
+function renderBlueprints(): void {
+  const list = shipMenu.querySelector<HTMLElement>(".blueprints")!;
+  if (blueprints.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "hint";
+    empty.textContent = "No saved blueprints";
+    list.replaceChildren(empty);
+    return;
+  }
+  list.replaceChildren(...blueprints.map((blueprint, index) => {
+    const row = document.createElement("div");
+    row.className = "blueprint";
+    const name = document.createElement("span");
+    name.textContent = blueprint.name;
+    const actions = document.createElement("span");
+    actions.className = "row";
+    actions.append(
+      button("Load", { blueprintLoad: String(index) }),
+      button("Delete", { blueprintDelete: String(index) }),
+    );
+    row.append(name, actions);
+    return row;
+  }));
+}
+
 // Built once when the menu opens. The buttons only change which one is
 // pressed afterwards, so the paint canvas and its listeners stay put. The
 // stats, cost and Build button are refreshed every frame in draw(), since
@@ -293,9 +385,21 @@ function renderShipMenu(): void {
   stats.className = "stats";
   const cost = document.createElement("div");
   cost.className = "cost";
+  const save = document.createElement("div");
+  save.className = "row blueprint-save";
+  const blueprintName = document.createElement("input");
+  blueprintName.className = "blueprint-name";
+  blueprintName.placeholder = "Blueprint name";
+  blueprintName.setAttribute("aria-label", "Blueprint name");
+  const saveBlueprintButton = button("Save blueprint", { blueprintSave: "" });
+  saveBlueprintButton.disabled = true;
+  save.append(blueprintName, saveBlueprintButton);
+  const blueprintList = document.createElement("div");
+  blueprintList.className = "blueprints";
   const build = button("Build", { build: "" });
   build.className = "build";
-  shipMenu.replaceChildren(title, modules, tools, paintCanvas, hint, stats, cost, build);
+  shipMenu.replaceChildren(title, modules, tools, paintCanvas, hint, stats, cost, save, blueprintList, build);
+  renderBlueprints();
   syncShipMenuButtons();
 }
 
@@ -334,12 +438,38 @@ shipMenu.addEventListener("click", (event) => {
   if (data.module) draft = withModule(withTool(draft, "paint"), data.module as ShipDraft["module"]);
   else if (data.size) draft = withSize(draft.tool === "fill" ? withTool(draft, "paint") : draft, Number(data.size) as ShipDraft["size"]);
   else if (data.tool) draft = withTool(draft, data.tool as ShipDraft["tool"]);
+  else if (data.blueprintSave !== undefined) {
+    const input = shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
+    blueprints = saveBlueprint(blueprintStore, input.value, designOf(draft));
+    input.value = "";
+    target.disabled = true;
+    renderBlueprints();
+  }
+  else if (data.blueprintLoad !== undefined) {
+    const blueprint = blueprints[Number(data.blueprintLoad)];
+    if (!blueprint) return;
+    draft = draftFromDesign(draft, blueprint.design);
+    paintView = viewCentredOn(paintView, blueprint.design);
+  }
+  else if (data.blueprintDelete !== undefined) {
+    const blueprint = blueprints[Number(data.blueprintDelete)];
+    if (!blueprint) return;
+    blueprints = deleteBlueprint(blueprintStore, blueprint.name);
+    renderBlueprints();
+  }
   else if (data.build !== undefined) {
     state = startShipBuild(state, shipMenuBuilder, designOf(draft));
     closeShipMenu();
     return;
   }
   syncShipMenuButtons();
+});
+
+shipMenu.addEventListener("input", (event) => {
+  const input = (event.target as HTMLElement).closest<HTMLInputElement>(".blueprint-name");
+  if (!input) return;
+  const save = shipMenu.querySelector<HTMLButtonElement>("button[data-blueprint-save]")!;
+  save.disabled = input.value.trim() === "" || designOf(draft).width === 0;
 });
 
 function paintPointAt(client: Vec): Vec {
@@ -463,7 +593,10 @@ window.addEventListener("mouseup", (event) => {
   if (event.button === 1) pan = null;
   if (event.button === 0 && dragBox) {
     const { start, end, additive } = dragBox; dragBox = null;
-    if (!isBoxDrag(start, end) && event.target === canvas && pendingGate?.targetSector === currentSector) {
+    if (!isBoxDrag(start, end) && event.target === canvas && pendingClaim && !mapOpen) {
+      const placed = startClaimSite(state, currentSector, screenToWorld(camera, viewport, mousePoint(event)));
+      if (placed !== state) { state = placed; pendingClaim = false; }
+    } else if (!isBoxDrag(start, end) && event.target === canvas && pendingGate?.targetSector === currentSector) {
       state = startGateBuild(state, pendingGate.sectorId, pendingGate.position, currentSector, screenToWorld(camera, viewport, mousePoint(event)));
       pendingGate = null;
     } else if (isBoxDrag(start, end)) {
@@ -471,12 +604,16 @@ window.addEventListener("mouseup", (event) => {
       selectedShips = additive ? [...new Set([...selectedShips, ...picked])] : picked;
       selectedShip = selectedShips[0] ?? null;
     } else if (event.target === canvas && mapOpen) {
-      const id = mapHit(mapLayout(state, viewport), mousePoint(event));
-      if (id !== null) {
+      const layout = mapLayout(state, viewport);
+      const renameId = renameHit(layout, mousePoint(event));
+      const id = renameId === null ? mapHit(layout, mousePoint(event)) : null;
+      if (renameId !== null) startRename(renameId);
+      else if (id !== null) {
         if (!gateTargetAllowed(pendingGate, id)) return;
         currentSector = id;
         const sectorRocks = state.asteroids.filter((rock) => rock.sectorId === id);
-        const bodies = [...sectorRocks, ...(id === 0 ? [state.station.dock, state.station.storage, ...state.station.modules] : []), state.sectors[id]!.gate];
+        const sectorSites = state.claimSites.filter((site) => site.sectorId === id).map((site) => ({ position: site.position, size: CLAIM_SITE_SIZE }));
+        const bodies = [...sectorRocks, ...sectorSites, ...(id === 0 ? [state.station.dock, state.station.storage, ...state.station.modules] : []), state.sectors[id]!.gate];
         camera = fitCamera(viewport, bodies);
         mapOpen = false;
         if (pendingGate) pendingGate.targetSector = id;
@@ -503,7 +640,7 @@ canvas.addEventListener("contextmenu", (event) => {
   if (!selectedShips.length) return;
   const world = screenToWorld(camera, viewport, point); const target = orderTargetAt(state, hovered, world, currentSector);
   const to = target.kind === "move" ? target.point : target.kind === "home" ? state.station.dock.position
-    : target.kind === "haulGate" ? world : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
+    : target.kind === "haulGate" ? world : target.kind === "supplySite" ? state.claimSites.find((site) => site.id === target.siteId)?.position ?? world : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
   orderLines = { from: selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
   state = giveOrder(state, selectedShips, target);
 });
@@ -625,6 +762,24 @@ function drawStationModule(module: StationModule): void {
     ctx.fill();
   }
   ctx.restore();
+}
+
+// The slot being supplied fills as materials arrive, and is solid while it builds.
+function supplyFraction(site: (typeof state.claimSites)[number]): number {
+  if (site.timer !== null) return 1;
+  const cost = CLAIM_MODULE_COST.Metal + CLAIM_MODULE_COST.Ice;
+  return (site.delivered.Metal + site.delivered.Ice) / cost;
+}
+
+function drawClaimSite(site: (typeof state.claimSites)[number]): void {
+  const size = { Dock: DOCK_SIZE, Storage: STORAGE_SIZE, Builder: DOCK_SIZE };
+  claimSiteSlots(site).forEach((slot, index) => {
+    if (slot.built) { drawStationModule({ type: slot.type, position: slot.position, size: size[slot.type] }); return; }
+    strokeWorldRect(slot.position, size[slot.type], "#cbd5e1");
+    if (index !== site.stage) return;
+    const height = size[slot.type].height * supplyFraction(site);
+    fillWorldRect({ x: slot.position.x, y: slot.position.y + (size[slot.type].height - height) / 2 }, { width: size[slot.type].width, height }, "rgba(148,163,184,.55)");
+  });
 }
 
 // Edges are rounded so the image lands on whole screen pixels at any zoom.
@@ -905,6 +1060,9 @@ function draw(seconds: number): void {
   if (currentSector === 0 && state.station.construction) {
     strokeWorldRect(state.station.construction.position, state.station.construction.size, "#cbd5e1");
   }
+  for (const site of state.claimSites) {
+    if (site.sectorId === currentSector) drawClaimSite(site);
+  }
 
   for (const ship of sectorShips) {
     const beam = laserBeam(state, ship);
@@ -930,16 +1088,23 @@ function draw(seconds: number): void {
     : `Sector ${state.sectors[currentSector]!.name}: ${sectorRocks.length} asteroids, ${currentSector === 0 ? "station present" : "no station"}${gateDestination === null ? "" : `, gate to ${state.sectors[gateDestination]!.name}`}`);
   // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
-  const hovered = mapOpen ? null : hoveredBody(state, camera, viewport, pointer, currentSector);
+  let hovered = mapOpen ? null : hoveredBody(state, camera, viewport, pointer, currentSector);
+  if (hovered?.kind === "claimSite") stickySite = hovered.id;
+  else if (infoHovered && stickySite !== null && !mapOpen) hovered = { kind: "claimSite", id: stickySite };
+  else stickySite = null;
   const info = infoBox(state, hovered);
   box.hidden = info === null;
+  if (info === null) infoHovered = false;
+  box.style.pointerEvents = info?.action ? "auto" : "none";
+  infoAction.hidden = !info?.action;
+  if (info?.action) { infoAction.textContent = info.action.label; infoAction.dataset.site = String(info.action.siteId); }
   const body = hovered && bodyOf(state, hovered);
   if (body && info) {
     const anchor = worldToScreen(camera, viewport, {
       x: body.position.x + body.size.width / 2,
       y: body.position.y - body.size.height / 2,
     });
-    box.style.left = `${anchor.x + 8}px`;
+    box.style.left = `${anchor.x + (info.action ? 0 : 8)}px`;
     box.style.top = `${anchor.y}px`;
     boxTitle.textContent = info.title;
     boxLine.textContent = info.line;
@@ -1006,9 +1171,22 @@ function draw(seconds: number): void {
     const text = `Pixels ${view.pixels}\nSpeed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;
     if (stats.textContent !== text) stats.textContent = text;
     const cost = shipMenu.querySelector<HTMLElement>(".cost")!;
-    const costText = `Build time ${view.buildTime}\nCost ${view.cost}`;
-    if (cost.textContent !== costText) cost.textContent = costText;
+    const costKey = JSON.stringify([view.parts, view.buildTime, view.materials]);
+    if (cost.dataset.key !== costKey) {
+      cost.dataset.key = costKey;
+      cost.replaceChildren(document.createTextNode(`${view.parts}\nBuild time ${view.buildTime}\nCost `));
+      view.materials.forEach((material, index) => {
+        if (index > 0) cost.append(" ");
+        const total = document.createElement("span");
+        total.textContent = `${material.amount} ${material.material}`;
+        total.classList.toggle("short", material.short);
+        cost.append(total);
+      });
+    }
     shipMenu.querySelector<HTMLButtonElement>(".build")!.disabled = !view.canBuild;
+    const blueprintName = shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
+    shipMenu.querySelector<HTMLButtonElement>("button[data-blueprint-save]")!.disabled =
+      blueprintName.value.trim() === "" || designOf(draft).width === 0;
   }
   const menuItems = buildMenuItems(state);
   const menuKey = JSON.stringify(menuItems);
@@ -1027,6 +1205,12 @@ function draw(seconds: number): void {
     }));
   }
 
+  claimButton.hidden = !mapOpen;
+  hint.hidden = !pendingClaim;
+  hint.textContent = mapOpen ? "Pick the sector for the claim station" : "Click a spot for the construction site. Esc cancels.";
+  renameBox.hidden = renamingSector === null || !mapOpen;
+  if (renameBox.hidden) renamingSector = null;
+
   if (mapOpen) {
     const layout = mapLayout(state, viewport);
     ctx.save(); ctx.fillStyle = "rgba(15,23,42,.94)"; ctx.fillRect(0, 0, viewport.width, viewport.height);
@@ -1041,6 +1225,16 @@ function draw(seconds: number): void {
       ctx.fillStyle = "#f8fafc"; ctx.textAlign = "center"; ctx.font = "14px monospace";
       ctx.fillText(circle.name, circle.center.x, circle.center.y - 4);
       ctx.fillText(`${circle.ships} ships`, circle.center.x, circle.center.y + 18);
+      if (circle.claimed) {
+        const label = renameLabel(circle);
+        ctx.font = "11px monospace"; ctx.strokeStyle = "#94a3b8"; ctx.strokeRect(label.x, label.y, label.width, label.height);
+        ctx.fillText("Rename", circle.center.x, label.y + 12);
+        ctx.font = "14px monospace";
+      }
+      if (renamingSector === circle.id) {
+        renameBox.style.left = `${Math.round(circle.center.x - 60)}px`;
+        renameBox.style.top = `${Math.round(circle.center.y - 22)}px`;
+      }
     }
     ctx.globalAlpha = 1;
     ctx.restore();
