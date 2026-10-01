@@ -149,56 +149,48 @@ const seedParam = new URLSearchParams(location.search).get("seed");
 const seed = seedParam === null ? Date.now() % 2 ** 32 : Number(seedParam);
 
 let state = createInitialState(seed);
-let currentSector = 0;
-let mapOpen = false;
-let viewport: Viewport = { width: 0, height: 0 };
-// Last pointer position over the canvas, or null once it has left.
-let pointer: Vec | null = null;
-let buildMenuOpen = false;
-let renderedMenu = "";
-let renderedSites = "";
-let controlsHovered = false;
-let selectedBuildSite: Vec | null = null;
-// The Builder whose Build ship menu is open, by module index.
-let shipMenuBuilder: number | null = null;
-let draft: ShipDraft = emptyDraft();
 const blueprintStore = resolveBlueprintStore(window);
-let blueprints: Blueprint[] = loadBlueprints(blueprintStore);
-// The Build ship canvas: which canvas pixel is at its middle and how big one
-// is on screen, plus the mouse state of a stroke or a pan in progress.
-let paintView: Camera = emptyView();
-let paintCanvas: HTMLCanvasElement | null = null;
-let paintPointer: Vec | null = null;
-// Where the mouse is over a ship's design, on the paint grid or the selected
-// ship's thumbnail, in window pixels. Kept as a position and looked up every
-// frame, so the name follows a pixel painted under a still mouse.
-let partHover: { at: Vec; source: "paint" | "thumb" } | null = null;
-let stroking: Vec | null = null;
-let paintPan: Vec | null = null;
-let selectedShip: number | null = null;
-let selectedShips: number[] = [];
-let renderedPanel = "";
-const heldKeys = new Set<string>();
-let pan: { last: Vec } | null = null;
-let dragBox: { start: Vec; end: Vec; additive: boolean } | null = null;
-let orderLines: { from: Vec[]; to: Vec; start: number } | null = null;
-let pendingGate: PendingGate | null = null;
-// "Build claim station" was pressed and the next click on the canvas, once a
-// sector is showing, places the construction site.
-let pendingClaim = false;
-let renamingSector: number | null = null;
-// The pointer can travel from a claim site onto its hover box to press
-// Remove site, so the box keeps its site while the pointer is on it.
-let stickySite: number | null = null;
-let infoHovered = false;
-let clock = INITIAL_CLOCK;
-let storagePanelOpen = false;
-const deleteConfirmations = new Map<Material, DeleteConfirmation>();
-
+const ui = {
+  currentSector: 0,
+  mapOpen: false,
+  viewport: { width: 0, height: 0 } as Viewport,
+  pointer: null as Vec | null,
+  buildMenuOpen: false,
+  renderedMenu: "",
+  renderedSites: "",
+  controlsHovered: false,
+  selectedBuildSite: null as Vec | null,
+  shipMenuBuilder: null as number | null,
+  draft: emptyDraft() as ShipDraft,
+  blueprints: loadBlueprints(blueprintStore) as Blueprint[],
+  paintView: emptyView() as Camera,
+  paintCanvas: null as HTMLCanvasElement | null,
+  paintPointer: null as Vec | null,
+  partHover: null as { at: Vec; source: "paint" | "thumb" } | null,
+  stroking: null as Vec | null,
+  paintPan: null as Vec | null,
+  selectedShip: null as number | null,
+  selectedShips: [] as number[],
+  renderedPanel: "",
+  heldKeys: new Set<string>(),
+  pan: null as { last: Vec } | null,
+  dragBox: null as { start: Vec; end: Vec; additive: boolean } | null,
+  orderLines: null as { from: Vec[]; to: Vec; start: number } | null,
+  pendingGate: null as PendingGate | null,
+  pendingClaim: false,
+  renamingSector: null as number | null,
+  stickySite: null as number | null,
+  infoHovered: false,
+  clock: INITIAL_CLOCK,
+  storagePanelOpen: false,
+  deleteConfirmations: new Map<Material, DeleteConfirmation>(),
+  camera: fitCamera({ width: 0, height: 0 }, []),
+  lastTimeMs: performance.now()
+};
 function closeStoragePanel(): void {
-  storagePanelOpen = false;
+  ui.storagePanelOpen = false;
   storagePanel.hidden = true;
-  deleteConfirmations.clear();
+  ui.deleteConfirmations.clear();
 }
 
 
@@ -215,56 +207,56 @@ storagePanel.addEventListener("click", (event) => {
   if (!remove) return;
   const material = remove.dataset.delete as Material;
   const quantity = storagePanel.querySelector<HTMLInputElement>(`input[data-delete-amount="${material}"]`)!;
-  const action = deleteButtonAction(deleteConfirmations.get(material) ?? null, material, quantity.value, performance.now());
+  const action = deleteButtonAction(ui.deleteConfirmations.get(material) ?? null, material, quantity.value, performance.now());
   if (action.deleteAmount !== null) {
     state = deleteStock(state, material, action.deleteAmount);
     quantity.value = "";
   }
-  if (action.confirmation) deleteConfirmations.set(material, action.confirmation);
-  else deleteConfirmations.delete(material);
-  renderStoragePanel(storagePanel, state, storagePanelOpen, performance.now(), deleteConfirmations);
+  if (action.confirmation) ui.deleteConfirmations.set(material, action.confirmation);
+  else ui.deleteConfirmations.delete(material);
+  renderStoragePanel(storagePanel, state, ui.storagePanelOpen, performance.now(), ui.deleteConfirmations);
 });
 
 function closeGateMenu(): void {
   gateMenu.hidden = true;
-  pendingGate = dismissGatePlacement(pendingGate);
+  ui.pendingGate = dismissGatePlacement(ui.pendingGate);
 }
 
 function closeBuildMenu(): void {
-  buildMenuOpen = false;
+  ui.buildMenuOpen = false;
   buildMenu.hidden = true;
-  selectedBuildSite = null;
+  ui.selectedBuildSite = null;
 }
 
 buildControls.addEventListener("pointerover", () => {
-  controlsHovered = true;
+  ui.controlsHovered = true;
 });
-// The + cells sit above the canvas, so the canvas stops hearing the pointer
+// The + cells sit above the canvas, so the canvas stops hearing the ui.pointer
 // while it is over one.
 buildControls.addEventListener("pointermove", (event) => {
-  pointer = mousePoint(event);
+  ui.pointer = mousePoint(event);
 });
 buildControls.addEventListener("pointerout", (event) => {
-  if (!buildControls.contains(event.relatedTarget as Node | null)) controlsHovered = false;
+  if (!buildControls.contains(event.relatedTarget as Node | null)) ui.controlsHovered = false;
 });
 buildControls.addEventListener("click", (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-x]");
   if (!button) return;
-  selectedBuildSite = { x: Number(button.dataset.x), y: Number(button.dataset.y) };
-  buildMenuOpen = true;
+  ui.selectedBuildSite = { x: Number(button.dataset.x), y: Number(button.dataset.y) };
+  ui.buildMenuOpen = true;
   buildMenu.hidden = false;
 });
 
 buildMenu.addEventListener("click", (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-module]");
   if (!button || button.disabled) return;
-  if (!selectedBuildSite) return;
-  state = startModuleBuild(state, button.dataset.module as ModuleType, selectedBuildSite);
+  if (!ui.selectedBuildSite) return;
+  state = startModuleBuild(state, button.dataset.module as ModuleType, ui.selectedBuildSite);
   closeBuildMenu();
 });
 
 document.addEventListener("click", (event) => {
-  if (!buildMenuOpen) return;
+  if (!ui.buildMenuOpen) return;
   const target = event.target as Node | null;
   if (dismissBuildMenuForClick(buildMenu.contains(target), buildControls.contains(target))) {
     closeBuildMenu();
@@ -276,7 +268,7 @@ document.addEventListener("click", (event) => {
 });
 
 window.addEventListener("mousedown", (event) => {
-  if (shouldDismissShipMenuOnMouseDown(shipMenuBuilder !== null, shipMenu.contains(event.target as Node | null))) {
+  if (shouldDismissShipMenuOnMouseDown(ui.shipMenuBuilder !== null, shipMenu.contains(event.target as Node | null))) {
     closeShipMenu();
   }
 }, true);
@@ -286,61 +278,61 @@ window.addEventListener("mousedown", (event) => {
 }, true);
 
 claimButton.addEventListener("click", () => {
-  pendingClaim = true;
+  ui.pendingClaim = true;
   closeGateMenu();
 });
 infoAction.addEventListener("click", () => {
   const siteId = Number(infoAction.dataset.site);
   state = removeClaimSite(state, siteId);
-  stickySite = null;
-  infoHovered = false;
+  ui.stickySite = null;
+  ui.infoHovered = false;
 });
-box.addEventListener("pointerenter", () => { infoHovered = true; });
-box.addEventListener("pointerleave", () => { infoHovered = false; });
+box.addEventListener("pointerenter", () => { ui.infoHovered = true; });
+box.addEventListener("pointerleave", () => { ui.infoHovered = false; });
 
 function startRename(sectorId: number): void {
-  renamingSector = sectorId;
+  ui.renamingSector = sectorId;
   renameBox.value = state.sectors[sectorId]!.name;
   renameBox.hidden = false;
   renameBox.focus();
   renameBox.select();
 }
 
-// Keys typed into the name box are not map or camera keys.
+// Keys typed into the name box are not map or ui.camera keys.
 renameBox.addEventListener("keydown", (event) => {
   event.stopPropagation();
-  if (event.key === "Enter" && renamingSector !== null) {
-    state = renameSector(state, renamingSector, renameBox.value);
-    renamingSector = null;
-  } else if (event.key === "Escape") renamingSector = null;
+  if (event.key === "Enter" && ui.renamingSector !== null) {
+    state = renameSector(state, ui.renamingSector, renameBox.value);
+    ui.renamingSector = null;
+  } else if (event.key === "Escape") ui.renamingSector = null;
 });
 
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") pendingClaim = false;
-  if (event.key.toLowerCase() === "m" || event.key === "Escape") mapOpen = mapToggled(mapOpen, event.key);
+  if (event.key === "Escape") ui.pendingClaim = false;
+  if (event.key.toLowerCase() === "m" || event.key === "Escape") ui.mapOpen = mapToggled(ui.mapOpen, event.key);
   if (event.key === "Escape") closeGateMenu();
-  if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
-  if (shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
+  if (ui.buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
+  if (ui.shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
   if (!(event.target instanceof HTMLSelectElement) && !(event.target instanceof HTMLInputElement)) {
-    heldKeys.add(event.key);
-    const next = clockAfterKey(clock, event.key, event.repeat);
-    if (next !== clock || event.key === " ") { clock = next; event.preventDefault(); }
+    ui.heldKeys.add(event.key);
+    const next = clockAfterKey(ui.clock, event.key, event.repeat);
+    if (next !== ui.clock || event.key === " ") { ui.clock = next; event.preventDefault(); }
   }
   if (event.key.startsWith("Arrow")) event.preventDefault();
 });
-window.addEventListener("keyup", (event) => { heldKeys.delete(event.key); heldKeys.delete(event.key.toLowerCase()); });
-window.addEventListener("blur", () => heldKeys.clear());
+window.addEventListener("keyup", (event) => { ui.heldKeys.delete(event.key); ui.heldKeys.delete(event.key.toLowerCase()); });
+window.addEventListener("blur", () => ui.heldKeys.clear());
 
 speedControls.addEventListener("click", (event) => {
   const target = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-speed]");
   if (!target) return;
-  clock = clockAfterButton(clock, target.dataset.speed as SpeedButtonId);
+  ui.clock = clockAfterButton(ui.clock, target.dataset.speed as SpeedButtonId);
   // Focus would make a later Space press click this button as well.
   target.blur();
 });
 
 function renderSpeedControls(): void {
-  const buttons = speedButtons(clock);
+  const buttons = speedButtons(ui.clock);
   if (speedControls.children.length !== buttons.length) {
     speedControls.replaceChildren(...buttons.map((item) => {
       const element = document.createElement("button");
@@ -368,14 +360,14 @@ const TOOL_BUTTONS = [["erase", "Eraser"], ["fill", "Fill"]] as const;
 
 function renderBlueprints(): void {
   const list = shipMenu.querySelector<HTMLElement>(".blueprints")!;
-  if (blueprints.length === 0) {
+  if (ui.blueprints.length === 0) {
     const empty = document.createElement("span");
     empty.className = "hint";
     empty.textContent = "No saved blueprints";
     list.replaceChildren(empty);
     return;
   }
-  list.replaceChildren(...blueprints.map((blueprint, index) => {
+  list.replaceChildren(...ui.blueprints.map((blueprint, index) => {
     const row = document.createElement("div");
     row.className = "blueprint";
     const name = document.createElement("span");
@@ -409,11 +401,11 @@ function renderShipMenu(): void {
   tools.className = "row";
   for (const size of BRUSH_SIZES) tools.append(button(`${size} px`, { size: String(size) }));
   for (const [tool, label] of TOOL_BUTTONS) tools.append(button(label, { tool }));
-  paintCanvas = document.createElement("canvas");
-  paintCanvas.className = "paint";
+  ui.paintCanvas = document.createElement("canvas");
+  ui.paintCanvas.className = "paint";
   const hint = document.createElement("div");
   hint.className = "hint";
-  hint.textContent = "Drag to paint. Right-drag or middle-drag to pan, scroll to zoom.";
+  hint.textContent = "Drag to paint. Right-drag or middle-drag to ui.pan, scroll to zoom.";
   const stats = document.createElement("div");
   stats.className = "stats";
   const cost = document.createElement("div");
@@ -431,67 +423,67 @@ function renderShipMenu(): void {
   blueprintList.className = "blueprints";
   const build = button("Build", { build: "" });
   build.className = "build";
-  shipMenu.replaceChildren(title, modules, tools, paintCanvas, hint, stats, cost, save, blueprintList, build);
+  shipMenu.replaceChildren(title, modules, tools, ui.paintCanvas, hint, stats, cost, save, blueprintList, build);
   renderBlueprints();
   syncShipMenuButtons();
 }
 
 function syncShipMenuButtons(): void {
   for (const element of shipMenu.querySelectorAll<HTMLButtonElement>("button[data-module]")) {
-    element.classList.toggle("pressed", draft.tool === "paint" && draft.module === element.dataset.module);
+    element.classList.toggle("pressed", ui.draft.tool === "paint" && ui.draft.module === element.dataset.module);
   }
   for (const element of shipMenu.querySelectorAll<HTMLButtonElement>("button[data-size]")) {
-    element.classList.toggle("pressed", draft.tool !== "fill" && draft.size === Number(element.dataset.size));
+    element.classList.toggle("pressed", ui.draft.tool !== "fill" && ui.draft.size === Number(element.dataset.size));
   }
   for (const element of shipMenu.querySelectorAll<HTMLButtonElement>("button[data-tool]")) {
-    element.classList.toggle("pressed", draft.tool === element.dataset.tool);
+    element.classList.toggle("pressed", ui.draft.tool === element.dataset.tool);
   }
 }
 
 function openShipMenu(builder: number): void {
-  shipMenuBuilder = builder;
-  draft = emptyDraft();
-  paintView = emptyView();
+  ui.shipMenuBuilder = builder;
+  ui.draft = emptyDraft();
+  ui.paintView = emptyView();
   renderShipMenu();
   shipMenu.hidden = false;
 }
 
 function closeShipMenu(): void {
-  shipMenuBuilder = null;
+  ui.shipMenuBuilder = null;
   shipMenu.hidden = true;
-  stroking = null;
-  paintPan = null;
-  partHover = null;
+  ui.stroking = null;
+  ui.paintPan = null;
+  ui.partHover = null;
 }
 
 shipMenu.addEventListener("click", (event) => {
   const target = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
-  if (!target || target.disabled || shipMenuBuilder === null) return;
+  if (!target || target.disabled || ui.shipMenuBuilder === null) return;
   const data = target.dataset;
-  if (data.module) draft = withModule(withTool(draft, "paint"), data.module as ShipDraft["module"]);
-  else if (data.size) draft = withSize(draft.tool === "fill" ? withTool(draft, "paint") : draft, Number(data.size) as ShipDraft["size"]);
-  else if (data.tool) draft = withTool(draft, data.tool as ShipDraft["tool"]);
+  if (data.module) ui.draft = withModule(withTool(ui.draft, "paint"), data.module as ShipDraft["module"]);
+  else if (data.size) ui.draft = withSize(ui.draft.tool === "fill" ? withTool(ui.draft, "paint") : ui.draft, Number(data.size) as ShipDraft["size"]);
+  else if (data.tool) ui.draft = withTool(ui.draft, data.tool as ShipDraft["tool"]);
   else if (data.blueprintSave !== undefined) {
     const input = shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
-    blueprints = saveBlueprint(blueprintStore, input.value, designOf(draft));
+    ui.blueprints = saveBlueprint(blueprintStore, input.value, designOf(ui.draft));
     input.value = "";
     target.disabled = true;
     renderBlueprints();
   }
   else if (data.blueprintLoad !== undefined) {
-    const blueprint = blueprints[Number(data.blueprintLoad)];
+    const blueprint = ui.blueprints[Number(data.blueprintLoad)];
     if (!blueprint) return;
-    draft = draftFromDesign(draft, blueprint.design);
-    paintView = viewCentredOn(paintView, blueprint.design);
+    ui.draft = draftFromDesign(ui.draft, blueprint.design);
+    ui.paintView = viewCentredOn(ui.paintView, blueprint.design);
   }
   else if (data.blueprintDelete !== undefined) {
-    const blueprint = blueprints[Number(data.blueprintDelete)];
+    const blueprint = ui.blueprints[Number(data.blueprintDelete)];
     if (!blueprint) return;
-    blueprints = deleteBlueprint(blueprintStore, blueprint.name);
+    ui.blueprints = deleteBlueprint(blueprintStore, blueprint.name);
     renderBlueprints();
   }
   else if (data.build !== undefined) {
-    state = startShipBuild(state, shipMenuBuilder, designOf(draft));
+    state = startShipBuild(state, ui.shipMenuBuilder, designOf(ui.draft));
     closeShipMenu();
     return;
   }
@@ -502,14 +494,14 @@ shipMenu.addEventListener("input", (event) => {
   const input = (event.target as HTMLElement).closest<HTMLInputElement>(".blueprint-name");
   if (!input) return;
   const save = shipMenu.querySelector<HTMLButtonElement>("button[data-blueprint-save]")!;
-  save.disabled = input.value.trim() === "" || designOf(draft).width === 0;
+  save.disabled = input.value.trim() === "" || designOf(ui.draft).width === 0;
 });
 
 function paintPointAt(client: Vec): Vec {
-  const bounds = paintCanvas!.getBoundingClientRect();
+  const bounds = ui.paintCanvas!.getBoundingClientRect();
   return {
-    x: (client.x - bounds.left) * (paintCanvas!.width / bounds.width),
-    y: (client.y - bounds.top) * (paintCanvas!.height / bounds.height),
+    x: (client.x - bounds.left) * (ui.paintCanvas!.width / bounds.width),
+    y: (client.y - bounds.top) * (ui.paintCanvas!.height / bounds.height),
   };
 }
 
@@ -518,75 +510,75 @@ function paintPoint(event: MouseEvent): Vec {
 }
 
 function paintViewport(): Viewport {
-  return { width: paintCanvas!.width, height: paintCanvas!.height };
+  return { width: ui.paintCanvas!.width, height: ui.paintCanvas!.height };
 }
 
 shipMenu.addEventListener("mousedown", (event) => {
-  if (event.target !== paintCanvas) return;
+  if (event.target !== ui.paintCanvas) return;
   event.preventDefault();
   const point = paintPoint(event);
   if (event.button === 0) {
-    const cell = cellAt(paintView, paintViewport(), point);
-    applyTool(draft, cell);
-    stroking = cell;
-  } else if (event.button === 1 || event.button === 2) paintPan = point;
+    const cell = cellAt(ui.paintView, paintViewport(), point);
+    applyTool(ui.draft, cell);
+    ui.stroking = cell;
+  } else if (event.button === 1 || event.button === 2) ui.paintPan = point;
 });
 shipMenu.addEventListener("contextmenu", (event) => {
-  if (event.target === paintCanvas) event.preventDefault();
+  if (event.target === ui.paintCanvas) event.preventDefault();
 });
 shipMenu.addEventListener("wheel", (event) => {
-  if (event.target !== paintCanvas) return;
+  if (event.target !== ui.paintCanvas) return;
   event.preventDefault();
-  paintView = zoomView(paintView, paintViewport(), paintPoint(event), wheelZoomFactor(event.deltaY));
+  ui.paintView = zoomView(ui.paintView, paintViewport(), paintPoint(event), wheelZoomFactor(event.deltaY));
 }, { passive: false });
 shipMenu.addEventListener("mousemove", (event) => {
-  paintPointer = event.target === paintCanvas ? paintPoint(event) : null;
-  partHover = paintPointer ? { at: { x: event.clientX, y: event.clientY }, source: "paint" } : null;
+  ui.paintPointer = event.target === ui.paintCanvas ? paintPoint(event) : null;
+  ui.partHover = ui.paintPointer ? { at: { x: event.clientX, y: event.clientY }, source: "paint" } : null;
 });
 shipMenu.addEventListener("mouseleave", () => {
-  paintPointer = null;
-  partHover = null;
+  ui.paintPointer = null;
+  ui.partHover = null;
 });
 shipPanelBox.addEventListener("mousemove", (event) => {
   const onThumb = (event.target as HTMLElement).closest(".ship-thumb") !== null;
-  partHover = onThumb ? { at: { x: event.clientX, y: event.clientY }, source: "thumb" } : null;
+  ui.partHover = onThumb ? { at: { x: event.clientX, y: event.clientY }, source: "thumb" } : null;
 });
 shipPanelBox.addEventListener("mouseleave", () => {
-  partHover = null;
+  ui.partHover = null;
 });
 window.addEventListener("mousemove", (event) => {
-  if (!paintCanvas || shipMenuBuilder === null) return;
+  if (!ui.paintCanvas || ui.shipMenuBuilder === null) return;
   const point = paintPoint(event);
-  if (paintPan) {
-    paintView = panBy(paintView, (point.x - paintPan.x), (point.y - paintPan.y));
-    paintPan = point;
+  if (ui.paintPan) {
+    ui.paintView = panBy(ui.paintView, (point.x - ui.paintPan.x), (point.y - ui.paintPan.y));
+    ui.paintPan = point;
   }
   // Fill is a single click, so dragging with it does nothing more.
-  if (stroking && draft.tool !== "fill") {
-    const cell = cellAt(paintView, paintViewport(), point);
-    for (const step of lineCells(stroking, cell)) applyTool(draft, step);
-    stroking = cell;
+  if (ui.stroking && ui.draft.tool !== "fill") {
+    const cell = cellAt(ui.paintView, paintViewport(), point);
+    for (const step of lineCells(ui.stroking, cell)) applyTool(ui.draft, step);
+    ui.stroking = cell;
   }
 });
 window.addEventListener("mouseup", () => {
-  stroking = null;
-  paintPan = null;
+  ui.stroking = null;
+  ui.paintPan = null;
 });
 
 function resize(): void {
   const ratio = window.devicePixelRatio || 1;
-  viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
-  canvas.width = Math.round(viewport.width * ratio);
-  canvas.height = Math.round(viewport.height * ratio);
+  ui.viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
+  canvas.width = Math.round(ui.viewport.width * ratio);
+  canvas.height = Math.round(ui.viewport.height * ratio);
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.imageSmoothingEnabled = false;
 }
 window.addEventListener("resize", resize);
 resize();
 
-// Fits the starting field only. Respawns can land off screen; the camera does
+// Fits the starting field only. Respawns can land off screen; the ui.camera does
 // not follow them.
-let camera: Camera = fitCamera(viewport, [state.station.dock, state.station.storage, ...state.asteroids.filter((rock) => rock.sectorId === 0), state.sectors[0]!.gate]);
+ui.camera = fitCamera(ui.viewport, [state.station.dock, state.station.storage, ...state.asteroids.filter((rock) => rock.sectorId === 0), state.sectors[0]!.gate]);
 
 function mousePoint(event: MouseEvent): Vec {
   const bounds = canvas.getBoundingClientRect();
@@ -597,70 +589,70 @@ canvas.addEventListener(
   "wheel",
   (event) => {
     event.preventDefault();
-    camera = zoomAt(camera, viewport, mousePoint(event), wheelZoomFactor(event.deltaY));
+    ui.camera = zoomAt(ui.camera, ui.viewport, mousePoint(event), wheelZoomFactor(event.deltaY));
   },
   { passive: false },
 );
 
 canvas.addEventListener("mousedown", (event) => {
   const point = mousePoint(event);
-  if (event.button === 1) { event.preventDefault(); pan = { last: point }; }
-  else if (event.button === 0) dragBox = { start: point, end: point, additive: event.shiftKey };
+  if (event.button === 1) { event.preventDefault(); ui.pan = { last: point }; }
+  else if (event.button === 0) ui.dragBox = { start: point, end: point, additive: event.shiftKey };
 });
 
 canvas.addEventListener("mousemove", (event) => {
-  pointer = mousePoint(event);
+  ui.pointer = mousePoint(event);
 });
 
 canvas.addEventListener("mouseleave", () => {
-  pointer = null;
+  ui.pointer = null;
 });
 
 window.addEventListener("mousemove", (event) => {
   const point = mousePoint(event);
-  if (pan) { camera = panBy(camera, point.x - pan.last.x, point.y - pan.last.y); pan.last = point; }
-  if (dragBox) dragBox.end = point;
+  if (ui.pan) { ui.camera = panBy(ui.camera, point.x - ui.pan.last.x, point.y - ui.pan.last.y); ui.pan.last = point; }
+  if (ui.dragBox) ui.dragBox.end = point;
 });
 
 window.addEventListener("mouseup", (event) => {
-  if (event.button === 1) pan = null;
-  if (event.button === 0 && dragBox) {
-    const { start, end, additive } = dragBox; dragBox = null;
-    if (!isBoxDrag(start, end) && event.target === canvas && pendingClaim && !mapOpen) {
-      const placed = startClaimSite(state, currentSector, screenToWorld(camera, viewport, mousePoint(event)));
-      if (placed !== state) { state = placed; pendingClaim = false; }
-    } else if (!isBoxDrag(start, end) && event.target === canvas && pendingGate?.targetSector === currentSector) {
-      state = startGateBuild(state, pendingGate.sectorId, pendingGate.position, currentSector, screenToWorld(camera, viewport, mousePoint(event)));
-      pendingGate = null;
+  if (event.button === 1) ui.pan = null;
+  if (event.button === 0 && ui.dragBox) {
+    const { start, end, additive } = ui.dragBox; ui.dragBox = null;
+    if (!isBoxDrag(start, end) && event.target === canvas && ui.pendingClaim && !ui.mapOpen) {
+      const placed = startClaimSite(state, ui.currentSector, screenToWorld(ui.camera, ui.viewport, mousePoint(event)));
+      if (placed !== state) { state = placed; ui.pendingClaim = false; }
+    } else if (!isBoxDrag(start, end) && event.target === canvas && ui.pendingGate?.targetSector === ui.currentSector) {
+      state = startGateBuild(state, ui.pendingGate.sectorId, ui.pendingGate.position, ui.currentSector, screenToWorld(ui.camera, ui.viewport, mousePoint(event)));
+      ui.pendingGate = null;
     } else if (isBoxDrag(start, end)) {
-      const picked = shipsInBox(state, camera, viewport, currentSector, start, end);
-      selectedShips = additive ? [...new Set([...selectedShips, ...picked])] : picked;
-      selectedShip = selectedShips[0] ?? null;
-    } else if (event.target === canvas && mapOpen) {
-      const layout = mapLayout(state, viewport);
+      const picked = shipsInBox(state, ui.camera, ui.viewport, ui.currentSector, start, end);
+      ui.selectedShips = additive ? [...new Set([...ui.selectedShips, ...picked])] : picked;
+      ui.selectedShip = ui.selectedShips[0] ?? null;
+    } else if (event.target === canvas && ui.mapOpen) {
+      const layout = mapLayout(state, ui.viewport);
       const renameId = renameHit(layout, mousePoint(event));
       const id = renameId === null ? mapHit(layout, mousePoint(event)) : null;
       if (renameId !== null) startRename(renameId);
       else if (id !== null) {
-        if (!gateTargetAllowed(pendingGate, id)) return;
-        currentSector = id;
+        if (!gateTargetAllowed(ui.pendingGate, id)) return;
+        ui.currentSector = id;
         const sectorRocks = state.asteroids.filter((rock) => rock.sectorId === id);
         const sectorSites = state.claimSites.filter((site) => site.sectorId === id).map((site) => ({ position: site.position, size: CLAIM_SITE_SIZE }));
         const bodies = [...sectorRocks, ...sectorSites, ...(id === 0 ? [state.station.dock, state.station.storage, ...state.station.modules] : []), state.sectors[id]!.gate];
-        camera = fitCamera(viewport, bodies);
-        mapOpen = false;
-        if (pendingGate) pendingGate.targetSector = id;
+        ui.camera = fitCamera(ui.viewport, bodies);
+        ui.mapOpen = false;
+        if (ui.pendingGate) ui.pendingGate.targetSector = id;
       }
     } else if (event.target === canvas) {
-      const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
+      const point = mousePoint(event); const hovered = hoveredBody(state, ui.camera, ui.viewport, point, ui.currentSector);
       const clickedStorage = hovered?.kind === "storage"
         || (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Storage");
-      const storageOpen = storagePanelOpenAfterClick(storagePanelOpen, clickedStorage ? "storage" : hovered ? "other" : "empty");
-      if (storageOpen && !storagePanelOpen) openStoragePanel(storagePanel, state, () => { storagePanelOpen = true; });
-      else if (!storageOpen && storagePanelOpen) closeStoragePanel();
-      if (hovered?.kind === "ship") selectedShips = additive ? toggleShip(selectedShips, state.ships[hovered.index]!.id) : [state.ships[hovered.index]!.id];
-      else if (!additive) selectedShips = [];
-      selectedShip = selectedShips[0] ?? null;
+      const storageOpen = storagePanelOpenAfterClick(ui.storagePanelOpen, clickedStorage ? "storage" : hovered ? "other" : "empty");
+      if (storageOpen && !ui.storagePanelOpen) openStoragePanel(storagePanel, state, () => { ui.storagePanelOpen = true; });
+      else if (!storageOpen && ui.storagePanelOpen) closeStoragePanel();
+      if (hovered?.kind === "ship") ui.selectedShips = additive ? toggleShip(ui.selectedShips, state.ships[hovered.index]!.id) : [state.ships[hovered.index]!.id];
+      else if (!additive) ui.selectedShips = [];
+      ui.selectedShip = ui.selectedShips[0] ?? null;
       if (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Builder") openShipMenu(hovered.index);
     }
   }
@@ -668,34 +660,34 @@ window.addEventListener("mouseup", (event) => {
 
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
-  if (!contextOrderAllowed(mapOpen)) return;
-  const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector, { includeShips: false });
-  if (!selectedShips.length && !hovered && currentSector === HOME_SECTOR) {
-    pendingGate = { sectorId: currentSector, position: screenToWorld(camera, viewport, point) };
+  if (!contextOrderAllowed(ui.mapOpen)) return;
+  const point = mousePoint(event); const hovered = hoveredBody(state, ui.camera, ui.viewport, point, ui.currentSector, { includeShips: false });
+  if (!ui.selectedShips.length && !hovered && ui.currentSector === HOME_SECTOR) {
+    ui.pendingGate = { sectorId: ui.currentSector, position: screenToWorld(ui.camera, ui.viewport, point) };
     gateMenu.style.left = `${point.x}px`; gateMenu.style.top = `${point.y}px`; gateMenu.hidden = false;
     return;
   }
-  if (!selectedShips.length) return;
-  const world = screenToWorld(camera, viewport, point); const target = orderTargetAt(state, hovered, world, currentSector);
+  if (!ui.selectedShips.length) return;
+  const world = screenToWorld(ui.camera, ui.viewport, point); const target = orderTargetAt(state, hovered, world, ui.currentSector);
   const to = target.kind === "move" ? target.point : target.kind === "home" ? state.station.dock.position
     : target.kind === "haulGate" ? world : target.kind === "supplyBuild" ? state.station.constructionSite.position : target.kind === "supplySite" ? state.claimSites.find((site) => site.id === target.siteId)?.position ?? world : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
-  orderLines = { from: selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
-  state = giveOrder(state, selectedShips, target);
+  ui.orderLines = { from: ui.selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
+  state = giveOrder(state, ui.selectedShips, target);
 });
 
 gateMenu.addEventListener("click", () => {
   gateMenu.hidden = true;
-  mapOpen = pendingGate !== null;
+  ui.mapOpen = ui.pendingGate !== null;
 });
 
 shipPanelBox.addEventListener("change", (event) => {
   const select = event.target as HTMLSelectElement;
-  if (select.name === "default") state = setDefaultBehaviour(state, selectedShips, select.value as DefaultBehaviour);
+  if (select.name === "default") state = setDefaultBehaviour(state, ui.selectedShips, select.value as DefaultBehaviour);
   if (["haul-from", "haul-to", "haul-material"].includes(select.name)) {
-    const panel = selectionPanel(state, selectedShips);
+    const panel = selectionPanel(state, ui.selectedShips);
     const route = panel?.haulRoute;
     if (!route) return;
-    state = configureHaul(state, selectedShips, {
+    state = configureHaul(state, ui.selectedShips, {
       from: select.name === "haul-from" ? select.value as HaulStationId : route.from,
       to: select.name === "haul-to" ? select.value as HaulStationId : route.to,
       material: select.name === "haul-material" ? select.value as Material : route.material,
@@ -704,24 +696,24 @@ shipPanelBox.addEventListener("change", (event) => {
 });
 shipPanelBox.addEventListener("change", (event) => {
   const box = event.target as HTMLInputElement;
-  if (box.name === "mine-material") state = setMineMaterial(state, selectedShips, box.value as Material, box.checked);
-  if (box.name === "mine-other-sectors") state = setMineOtherSectors(state, selectedShips, box.checked);
+  if (box.name === "mine-material") state = setMineMaterial(state, ui.selectedShips, box.value as Material, box.checked);
+  if (box.name === "mine-other-sectors") state = setMineOtherSectors(state, ui.selectedShips, box.checked);
 });
 shipPanelBox.addEventListener("click", (event) => {
-  if ((event.target as HTMLElement).closest("button[data-resume]")) state = resumeDefault(state, selectedShips);
+  if ((event.target as HTMLElement).closest("button[data-resume]")) state = resumeDefault(state, ui.selectedShips);
 });
 
 function fillWorldRect(center: Vec, size: Size, color: string): void {
-  const topLeft = worldToScreen(camera, viewport, {
+  const topLeft = worldToScreen(ui.camera, ui.viewport, {
     x: center.x - size.width / 2,
     y: center.y - size.height / 2,
   });
   ctx.fillStyle = color;
-  ctx.fillRect(topLeft.x, topLeft.y, size.width * camera.zoom, size.height * camera.zoom);
+  ctx.fillRect(topLeft.x, topLeft.y, size.width * ui.camera.zoom, size.height * ui.camera.zoom);
 }
 
 function strokeWorldRect(center: Vec, size: Size, color: string): void {
-  const topLeft = worldToScreen(camera, viewport, {
+  const topLeft = worldToScreen(ui.camera, ui.viewport, {
     x: center.x - size.width / 2,
     y: center.y - size.height / 2,
   });
@@ -730,23 +722,23 @@ function strokeWorldRect(center: Vec, size: Size, color: string): void {
   ctx.strokeStyle = color;
   ctx.setLineDash([5, 4]);
   ctx.lineWidth = 2;
-  ctx.strokeRect(topLeft.x, topLeft.y, size.width * camera.zoom, size.height * camera.zoom);
+  ctx.strokeRect(topLeft.x, topLeft.y, size.width * ui.camera.zoom, size.height * ui.camera.zoom);
   ctx.restore();
 }
 
 function drawStationConnector(from: Vec, to: Vec): void {
-  const start = worldToScreen(camera, viewport, from);
-  const end = worldToScreen(camera, viewport, to);
+  const start = worldToScreen(ui.camera, ui.viewport, from);
+  const end = worldToScreen(ui.camera, ui.viewport, to);
   ctx.save();
   ctx.lineCap = "round";
   ctx.strokeStyle = "#1e293b";
-  ctx.lineWidth = Math.max(4, 7 * camera.zoom);
+  ctx.lineWidth = Math.max(4, 7 * ui.camera.zoom);
   ctx.beginPath();
   ctx.moveTo(start.x, start.y);
   ctx.lineTo(end.x, end.y);
   ctx.stroke();
   ctx.strokeStyle = "#64748b";
-  ctx.lineWidth = Math.max(1, 2 * camera.zoom);
+  ctx.lineWidth = Math.max(1, 2 * ui.camera.zoom);
   ctx.stroke();
   ctx.restore();
 }
@@ -754,30 +746,30 @@ function drawStationConnector(from: Vec, to: Vec): void {
 // The Dock's pads, marked whether or not a ship is on them. Called with the
 // canvas already translated to the Dock's centre.
 function drawBerthPads(dock: Vec): void {
-  const side = BERTH_PAD_SIZE * camera.zoom;
+  const side = BERTH_PAD_SIZE * ui.camera.zoom;
   ctx.save();
   ctx.strokeStyle = moduleAppearance("Dock").accent;
   ctx.globalAlpha = 0.7;
-  ctx.lineWidth = Math.max(1, camera.zoom);
-  ctx.setLineDash([Math.max(2, 3 * camera.zoom), Math.max(2, 2 * camera.zoom)]);
+  ctx.lineWidth = Math.max(1, ui.camera.zoom);
+  ctx.setLineDash([Math.max(2, 3 * ui.camera.zoom), Math.max(2, 2 * ui.camera.zoom)]);
   for (const pad of dockBerths(dock)) {
-    ctx.strokeRect((pad.x - dock.x) * camera.zoom - side / 2, (pad.y - dock.y) * camera.zoom - side / 2, side, side);
+    ctx.strokeRect((pad.x - dock.x) * ui.camera.zoom - side / 2, (pad.y - dock.y) * ui.camera.zoom - side / 2, side, side);
   }
   ctx.restore();
 }
 
 function drawStationModule(module: StationModule): void {
-  const center = worldToScreen(camera, viewport, module.position);
-  const width = module.size.width * camera.zoom;
-  const height = module.size.height * camera.zoom;
+  const center = worldToScreen(ui.camera, ui.viewport, module.position);
+  const width = module.size.width * ui.camera.zoom;
+  const height = module.size.height * ui.camera.zoom;
   const appearance = moduleAppearance(module.type);
-  const detailWidth = Math.max(1.5, 2 * camera.zoom);
+  const detailWidth = Math.max(1.5, 2 * ui.camera.zoom);
 
   ctx.save();
   ctx.translate(center.x, center.y);
   ctx.fillStyle = "#1e293b";
   ctx.strokeStyle = appearance.accent;
-  ctx.lineWidth = Math.max(1.5, 2 * camera.zoom);
+  ctx.lineWidth = Math.max(1.5, 2 * ui.camera.zoom);
   ctx.beginPath();
   ctx.ellipse(0, 0, width * 0.47, height * 0.46, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -801,7 +793,7 @@ function drawStationModule(module: StationModule): void {
     for (const x of [-0.22, 0, 0.22]) {
       ctx.fillStyle = x === 0 ? appearance.accent : "#475569";
       ctx.strokeStyle = appearance.accent;
-      ctx.lineWidth = Math.max(1, camera.zoom);
+      ctx.lineWidth = Math.max(1, ui.camera.zoom);
       ctx.beginPath();
       ctx.ellipse(width * x, 0, width * 0.14, height * 0.29, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -834,13 +826,13 @@ function drawStationModule(module: StationModule): void {
 // one from the start.
 function drawConstructionSite(): void {
   const { position, size } = state.station.constructionSite;
-  const left = worldToScreen(camera, viewport, { x: position.x - size.width / 2, y: position.y - size.height / 2 });
-  const right = worldToScreen(camera, viewport, { x: position.x + size.width / 2, y: position.y + size.height / 2 });
+  const left = worldToScreen(ui.camera, ui.viewport, { x: position.x - size.width / 2, y: position.y - size.height / 2 });
+  const right = worldToScreen(ui.camera, ui.viewport, { x: position.x + size.width / 2, y: position.y + size.height / 2 });
   fillWorldRect(position, size, "rgba(245,158,11,.25)");
   strokeWorldRect(position, size, "#f59e0b");
   ctx.save();
   ctx.strokeStyle = "rgba(245,158,11,.6)";
-  ctx.lineWidth = Math.max(1, camera.zoom);
+  ctx.lineWidth = Math.max(1, ui.camera.zoom);
   ctx.beginPath();
   ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y);
   ctx.moveTo(right.x, left.y); ctx.lineTo(left.x, right.y);
@@ -869,16 +861,16 @@ function drawClaimSite(site: (typeof state.claimSites)[number]): void {
 // Edges are rounded so the image lands on whole screen pixels at any zoom.
 function drawShip(ship: Ship): void {
   const size = shipSize(ship.design);
-  const a = worldToScreen(camera, viewport, { x: ship.position.x - size.width / 2, y: ship.position.y - size.height / 2 });
-  const b = worldToScreen(camera, viewport, { x: ship.position.x + size.width / 2, y: ship.position.y + size.height / 2 });
+  const a = worldToScreen(ui.camera, ui.viewport, { x: ship.position.x - size.width / 2, y: ship.position.y - size.height / 2 });
+  const b = worldToScreen(ui.camera, ui.viewport, { x: ship.position.x + size.width / 2, y: ship.position.y + size.height / 2 });
   const x = Math.round(a.x);
   const y = Math.round(a.y);
   ctx.drawImage(shipSprite(ship.design), x, y, Math.max(1, Math.round(b.x) - x), Math.max(1, Math.round(b.y) - y));
 }
 
 function drawSelectionRing(center: Vec, size: Size): void {
-  const screen = worldToScreen(camera, viewport, center);
-  const radius = Math.hypot(size.width, size.height) / 2 * camera.zoom + 5;
+  const screen = worldToScreen(ui.camera, ui.viewport, center);
+  const radius = Math.hypot(size.width, size.height) / 2 * ui.camera.zoom + 5;
   ctx.save();
   ctx.strokeStyle = "#4ade80";
   ctx.lineWidth = 2;
@@ -892,7 +884,7 @@ function drawSelectionRing(center: Vec, size: Size): void {
 const GRID_ZOOM = 6;
 
 function drawPaintCanvas(): void {
-  const surface = paintCanvas!;
+  const surface = ui.paintCanvas!;
   if (surface.width !== surface.clientWidth || surface.height !== surface.clientHeight) {
     surface.width = surface.clientWidth;
     surface.height = surface.clientHeight;
@@ -902,48 +894,48 @@ function drawPaintCanvas(): void {
   g.imageSmoothingEnabled = false;
   g.fillStyle = "#0f172a";
   g.fillRect(0, 0, vp.width, vp.height);
-  const { design, origin } = placedDesign(draft);
+  const { design, origin } = placedDesign(ui.draft);
   if (design.width > 0) {
-    const at = worldToScreen(paintView, vp, origin);
-    g.drawImage(shipSprite(design), at.x, at.y, design.width * paintView.zoom, design.height * paintView.zoom);
+    const at = worldToScreen(ui.paintView, vp, origin);
+    g.drawImage(shipSprite(design), at.x, at.y, design.width * ui.paintView.zoom, design.height * ui.paintView.zoom);
   }
-  if (paintView.zoom >= GRID_ZOOM) {
-    const first = screenToWorld(paintView, vp, { x: 0, y: 0 });
-    const last = screenToWorld(paintView, vp, { x: vp.width, y: vp.height });
+  if (ui.paintView.zoom >= GRID_ZOOM) {
+    const first = screenToWorld(ui.paintView, vp, { x: 0, y: 0 });
+    const last = screenToWorld(ui.paintView, vp, { x: vp.width, y: vp.height });
     g.strokeStyle = "rgba(148,163,184,.25)";
     g.lineWidth = 1;
     g.beginPath();
     for (let x = Math.ceil(first.x); x <= last.x; x += 1) {
-      const sx = Math.round(worldToScreen(paintView, vp, { x, y: 0 }).x) + 0.5;
+      const sx = Math.round(worldToScreen(ui.paintView, vp, { x, y: 0 }).x) + 0.5;
       g.moveTo(sx, 0);
       g.lineTo(sx, vp.height);
     }
     for (let y = Math.ceil(first.y); y <= last.y; y += 1) {
-      const sy = Math.round(worldToScreen(paintView, vp, { x: 0, y }).y) + 0.5;
+      const sy = Math.round(worldToScreen(ui.paintView, vp, { x: 0, y }).y) + 0.5;
       g.moveTo(0, sy);
       g.lineTo(vp.width, sy);
     }
     g.stroke();
   }
-  if (paintPointer) {
-    const cell = cellAt(paintView, vp, paintPointer);
-    const reach = draft.tool === "fill" ? 0 : Math.floor(draft.size / 2);
-    const corner = worldToScreen(paintView, vp, { x: cell.x - reach, y: cell.y - reach });
-    const span = (2 * reach + 1) * paintView.zoom;
-    g.strokeStyle = draft.tool === "erase" ? "#f87171" : "#facc15";
+  if (ui.paintPointer) {
+    const cell = cellAt(ui.paintView, vp, ui.paintPointer);
+    const reach = ui.draft.tool === "fill" ? 0 : Math.floor(ui.draft.size / 2);
+    const corner = worldToScreen(ui.paintView, vp, { x: cell.x - reach, y: cell.y - reach });
+    const span = (2 * reach + 1) * ui.paintView.zoom;
+    g.strokeStyle = ui.draft.tool === "erase" ? "#f87171" : "#facc15";
     g.lineWidth = 2;
     g.strokeRect(corner.x, corner.y, span, span);
   }
 }
 
 // The name of the part under the mouse, or null when it is not over a design.
-function hoveredPart(hover: NonNullable<typeof partHover>): string | null {
+function hoveredPart(hover: NonNullable<typeof ui.partHover>): string | null {
   if (hover.source === "paint") {
-    if (!paintCanvas || shipMenuBuilder === null) return null;
-    return draftPartAt(draft, cellAt(paintView, paintViewport(), paintPointAt(hover.at)));
+    if (!ui.paintCanvas || ui.shipMenuBuilder === null) return null;
+    return draftPartAt(ui.draft, cellAt(ui.paintView, paintViewport(), paintPointAt(hover.at)));
   }
   const thumb = shipPanelBox.querySelector<HTMLElement>(".ship-thumb");
-  const ship = state.ships.find((candidate) => candidate.id === selectedShip);
+  const ship = state.ships.find((candidate) => candidate.id === ui.selectedShip);
   if (!thumb || !ship || shipPanelBox.hidden) return null;
   const bounds = thumb.getBoundingClientRect();
   return designPartAt(ship.design, {
@@ -953,19 +945,19 @@ function hoveredPart(hover: NonNullable<typeof partHover>): string | null {
 }
 
 function renderPartTip(): void {
-  const name = partHover && hoveredPart(partHover);
-  partTip.hidden = !partHover || name === null;
-  if (!partHover || name === null) return;
+  const name = ui.partHover && hoveredPart(ui.partHover);
+  partTip.hidden = !ui.partHover || name === null;
+  if (!ui.partHover || name === null) return;
   partTip.textContent = name;
-  partTip.style.left = `${partHover.at.x + 14}px`;
-  partTip.style.top = `${partHover.at.y + 14}px`;
+  partTip.style.left = `${ui.partHover.at.x + 14}px`;
+  partTip.style.top = `${ui.partHover.at.y + 14}px`;
 }
 
 // Screen-space so the numbers stay readable at any zoom.
 const GAUGE = { width: 36, height: 12, gap: 4 };
 
 function drawGauge(shipPosition: Vec, gauge: Gauge, size: Size): void {
-  const top = worldToScreen(camera, viewport, {
+  const top = worldToScreen(ui.camera, ui.viewport, {
     x: shipPosition.x,
     y: shipPosition.y - size.height / 2,
   });
@@ -989,8 +981,8 @@ function drawGauge(shipPosition: Vec, gauge: Gauge, size: Size): void {
 
 // Screen-space, like the gauge, so the beam and flicker read at any zoom.
 function drawLaser(beam: Beam, seconds: number): void {
-  const from = worldToScreen(camera, viewport, beam.from);
-  const to = worldToScreen(camera, viewport, beam.to);
+  const from = worldToScreen(ui.camera, ui.viewport, beam.from);
+  const to = worldToScreen(ui.camera, ui.viewport, beam.to);
   const pulse = laserPulse(seconds);
 
   ctx.save();
@@ -1011,23 +1003,23 @@ function drawLaser(beam: Beam, seconds: number): void {
 }
 
 function drawOrderFeedback(seconds: number): void {
-  if (orderLines) {
-    const alpha = orderLineAlpha(seconds - orderLines.start);
-    if (alpha <= 0) orderLines = null;
+  if (ui.orderLines) {
+    const alpha = orderLineAlpha(seconds - ui.orderLines.start);
+    if (alpha <= 0) ui.orderLines = null;
     else {
-      const to = worldToScreen(camera, viewport, orderLines.to);
+      const to = worldToScreen(ui.camera, ui.viewport, ui.orderLines.to);
       ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = "#86efac"; ctx.setLineDash([5, 4]);
-      for (const from of orderLines.from) {
-        const start = worldToScreen(camera, viewport, from);
+      for (const from of ui.orderLines.from) {
+        const start = worldToScreen(ui.camera, ui.viewport, from);
         ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(to.x, to.y); ctx.stroke();
       }
       ctx.restore();
     }
   }
-  if (dragBox) {
+  if (ui.dragBox) {
     ctx.save(); ctx.strokeStyle = "#4ade80"; ctx.fillStyle = "rgba(74,222,128,.12)";
-    const x = Math.min(dragBox.start.x, dragBox.end.x); const y = Math.min(dragBox.start.y, dragBox.end.y);
-    const w = Math.abs(dragBox.start.x - dragBox.end.x); const h = Math.abs(dragBox.start.y - dragBox.end.y);
+    const x = Math.min(ui.dragBox.start.x, ui.dragBox.end.x); const y = Math.min(ui.dragBox.start.y, ui.dragBox.end.y);
+    const w = Math.abs(ui.dragBox.start.x - ui.dragBox.end.x); const h = Math.abs(ui.dragBox.start.y - ui.dragBox.end.y);
     ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); ctx.restore();
   }
 }
@@ -1042,21 +1034,21 @@ function backdropNumber(sectorId: number, index: number, salt: number): number {
 function drawBackdrop(sectorId: number): void {
   const backdrop = sectorBackdrop(sectorId);
   ctx.fillStyle = backdrop.background;
-  ctx.fillRect(0, 0, viewport.width, viewport.height);
+  ctx.fillRect(0, 0, ui.viewport.width, ui.viewport.height);
 
-  const glowX = viewport.width * (0.2 + backdropNumber(sectorId, 0, 17) * 0.6);
-  const glowY = viewport.height * (0.2 + backdropNumber(sectorId, 0, 31) * 0.6);
-  const glowRadius = Math.max(viewport.width, viewport.height) * 0.7;
+  const glowX = ui.viewport.width * (0.2 + backdropNumber(sectorId, 0, 17) * 0.6);
+  const glowY = ui.viewport.height * (0.2 + backdropNumber(sectorId, 0, 31) * 0.6);
+  const glowRadius = Math.max(ui.viewport.width, ui.viewport.height) * 0.7;
   const glow = ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, glowRadius);
   glow.addColorStop(0, backdrop.wash);
   glow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, viewport.width, viewport.height);
+  ctx.fillRect(0, 0, ui.viewport.width, ui.viewport.height);
 
   ctx.fillStyle = backdrop.starColor;
   for (let index = 0; index < backdrop.starCount; index += 1) {
-    const x = Math.floor(backdropNumber(sectorId, index, 101) * viewport.width);
-    const y = Math.floor(backdropNumber(sectorId, index, 211) * viewport.height);
+    const x = Math.floor(backdropNumber(sectorId, index, 101) * ui.viewport.width);
+    const y = Math.floor(backdropNumber(sectorId, index, 211) * ui.viewport.height);
     const size = backdropNumber(sectorId, index, 307) > 0.88 ? 2 : 1;
     ctx.globalAlpha = 0.35 + backdropNumber(sectorId, index, 401) * 0.65;
     ctx.fillRect(x, y, size, size);
@@ -1065,20 +1057,20 @@ function drawBackdrop(sectorId: number): void {
 }
 
 function draw(seconds: number): void {
-  drawBackdrop(currentSector);
+  drawBackdrop(ui.currentSector);
   drawOrderFeedback(seconds);
 
-  const sectorRocks = state.asteroids.filter((asteroid) => asteroid.sectorId === currentSector);
-  const sectorShips = state.ships.filter((ship) => ship.sectorId === currentSector && ship.state !== "jumpingOut" && ship.state !== "jumpingHome");
-  const gate = state.sectors[currentSector]!.gate;
-  const legacyGateVisible = gate.to !== currentSector;
-  const gateScreen = worldToScreen(camera, viewport, gate.position);
+  const sectorRocks = state.asteroids.filter((asteroid) => asteroid.sectorId === ui.currentSector);
+  const sectorShips = state.ships.filter((ship) => ship.sectorId === ui.currentSector && ship.state !== "jumpingOut" && ship.state !== "jumpingHome");
+  const gate = state.sectors[ui.currentSector]!.gate;
+  const legacyGateVisible = gate.to !== ui.currentSector;
+  const gateScreen = worldToScreen(ui.camera, ui.viewport, gate.position);
   if (legacyGateVisible) {
     ctx.fillStyle = "#22d3ee";
-    ctx.fillRect(gateScreen.x - gate.size.width * camera.zoom / 2, gateScreen.y - gate.size.height * camera.zoom / 2, gate.size.width * camera.zoom, gate.size.height * camera.zoom);
+    ctx.fillRect(gateScreen.x - gate.size.width * ui.camera.zoom / 2, gateScreen.y - gate.size.height * ui.camera.zoom / 2, gate.size.width * ui.camera.zoom, gate.size.height * ui.camera.zoom);
   }
   for (const project of state.gateProjects) {
-    const end = project.ends.find((candidate) => candidate.sectorId === currentSector);
+    const end = project.ends.find((candidate) => candidate.sectorId === ui.currentSector);
     if (!end) continue;
     if (project.complete) fillWorldRect(end.position, { width: 24, height: 24 }, "#22d3ee");
     else strokeWorldRect(end.position, { width: 24, height: 24 }, "#22d3ee");
@@ -1086,18 +1078,18 @@ function draw(seconds: number): void {
   for (const asteroid of sectorRocks) {
     fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material, asteroid.rich));
   }
-  for (const connector of currentSector === 0 ? stationConnectors(state.station.modules) : []) {
+  for (const connector of ui.currentSector === 0 ? stationConnectors(state.station.modules) : []) {
     drawStationConnector(connector.from, connector.to);
   }
-  for (const module of currentSector === 0 ? state.station.modules : []) {
+  for (const module of ui.currentSector === 0 ? state.station.modules : []) {
     drawStationModule(module);
   }
-  if (currentSector === 0) drawConstructionSite();
-  if (currentSector === 0 && state.station.construction) {
+  if (ui.currentSector === 0) drawConstructionSite();
+  if (ui.currentSector === 0 && state.station.construction) {
     strokeWorldRect(state.station.construction.position, state.station.construction.size, "#cbd5e1");
   }
   for (const site of state.claimSites) {
-    if (site.sectorId === currentSector) drawClaimSite(site);
+    if (site.sectorId === ui.currentSector) drawClaimSite(site);
   }
 
   for (const ship of sectorShips) {
@@ -1107,43 +1099,43 @@ function draw(seconds: number): void {
 
   for (const ship of sectorShips) {
     drawShip(ship);
-    if (selectedShips.includes(ship.id)) drawSelectionRing(ship.position, shipSize(ship.design));
+    if (ui.selectedShips.includes(ship.id)) drawSelectionRing(ship.position, shipSize(ship.design));
 
     const gauge = cargoGauge(ship);
     if (gauge) drawGauge(ship.position, gauge, shipSize(ship.design));
   }
-  const panelContext: ShipPanelContext = renderShipPanel(state, shipPanelBox, { selectedShips, selectedShip, renderedPanel });
-  selectedShips = panelContext.selectedShips;
-  selectedShip = panelContext.selectedShip;
-  renderedPanel = panelContext.renderedPanel;
-  renderStoragePanel(storagePanel, state, storagePanelOpen, performance.now(), deleteConfirmations);
+  const panelContext: ShipPanelContext = renderShipPanel(state, shipPanelBox, { selectedShips: ui.selectedShips, selectedShip: ui.selectedShip, renderedPanel: ui.renderedPanel });
+  ui.selectedShips = panelContext.selectedShips;
+  ui.selectedShip = panelContext.selectedShip;
+  ui.renderedPanel = panelContext.renderedPanel;
+  renderStoragePanel(storagePanel, state, ui.storagePanelOpen, performance.now(), ui.deleteConfirmations);
   renderPartTip();
 
-  if (sectorNameEl) sectorNameEl.textContent = state.sectors[currentSector]!.name;
-  const builtDestination = state.gateProjects.find((project) => project.complete && project.ends.some((end) => end.sectorId === currentSector))
-    ?.ends.find((end) => end.sectorId !== currentSector)?.sectorId;
+  if (sectorNameEl) sectorNameEl.textContent = state.sectors[ui.currentSector]!.name;
+  const builtDestination = state.gateProjects.find((project) => project.complete && project.ends.some((end) => end.sectorId === ui.currentSector))
+    ?.ends.find((end) => end.sectorId !== ui.currentSector)?.sectorId;
   const gateDestination = builtDestination ?? (legacyGateVisible ? gate.to : null);
-  canvas.setAttribute("aria-label", mapOpen
-    ? mapLayout(state, viewport).circles.map((circle) => `${circle.name}: ${circle.ships} ships${pendingGate ? `, ${circle.id === pendingGate.sectorId ? "current sector" : sectorInGateRange(pendingGate.sectorId, circle.id) ? "in gate range" : "out of gate range"}` : ""}`).join("; ")
-    : `Sector ${state.sectors[currentSector]!.name}: ${sectorRocks.length} asteroids, ${currentSector === 0 ? "station present" : "no station"}${gateDestination === null ? "" : `, gate to ${state.sectors[gateDestination]!.name}`}`);
-  // Re-checked every frame, so zooming under a still pointer updates it too,
+  canvas.setAttribute("aria-label", ui.mapOpen
+    ? mapLayout(state, ui.viewport).circles.map((circle) => `${circle.name}: ${circle.ships} ships${ui.pendingGate ? `, ${circle.id === ui.pendingGate.sectorId ? "current sector" : sectorInGateRange(ui.pendingGate.sectorId, circle.id) ? "in gate range" : "out of gate range"}` : ""}`).join("; ")
+    : `Sector ${state.sectors[ui.currentSector]!.name}: ${sectorRocks.length} asteroids, ${ui.currentSector === 0 ? "station present" : "no station"}${gateDestination === null ? "" : `, gate to ${state.sectors[gateDestination]!.name}`}`);
+  // Re-checked every frame, so zooming under a still ui.pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
-  let hovered = mapOpen ? null : hoveredBody(state, camera, viewport, pointer, currentSector);
-  if (hovered?.kind === "claimSite") stickySite = hovered.id;
-  else if (infoHovered && stickySite !== null && !mapOpen) hovered = { kind: "claimSite", id: stickySite };
-  else stickySite = null;
+  let hovered = ui.mapOpen ? null : hoveredBody(state, ui.camera, ui.viewport, ui.pointer, ui.currentSector);
+  if (hovered?.kind === "claimSite") ui.stickySite = hovered.id;
+  else if (ui.infoHovered && ui.stickySite !== null && !ui.mapOpen) hovered = { kind: "claimSite", id: ui.stickySite };
+  else ui.stickySite = null;
   // A + cell sits above the canvas, so a ship beside it would never hear the
-  // click. While the pointer is on a ship, the cells let clicks through.
+  // click. While the ui.pointer is on a ship, the cells let clicks through.
   buildControls.classList.toggle("over-ship", hovered?.kind === "ship");
   const info = infoBox(state, hovered);
   box.hidden = info === null;
-  if (info === null) infoHovered = false;
+  if (info === null) ui.infoHovered = false;
   box.style.pointerEvents = info?.action ? "auto" : "none";
   infoAction.hidden = !info?.action;
   if (info?.action) { infoAction.textContent = info.action.label; infoAction.dataset.site = String(info.action.siteId); }
   const body = hovered && bodyOf(state, hovered);
   if (body && info) {
-    const anchor = worldToScreen(camera, viewport, {
+    const anchor = worldToScreen(ui.camera, ui.viewport, {
       x: body.position.x + body.size.width / 2,
       y: body.position.y - body.size.height / 2,
     });
@@ -1152,15 +1144,15 @@ function draw(seconds: number): void {
     boxTitle.textContent = info.title;
     boxLine.textContent = info.line;
   }
-  if (legacyGateVisible && pointer && Math.hypot(pointer.x - gateScreen.x, pointer.y - gateScreen.y) < Math.max(14, gate.size.width * camera.zoom / 2)) {
-    const jumping = state.ships.some((ship) => ship.sectorId === currentSector && (ship.state === "jumpingOut" || ship.state === "jumpingHome"));
+  if (legacyGateVisible && ui.pointer && Math.hypot(ui.pointer.x - gateScreen.x, ui.pointer.y - gateScreen.y) < Math.max(14, gate.size.width * ui.camera.zoom / 2)) {
+    const jumping = state.ships.some((ship) => ship.sectorId === ui.currentSector && (ship.state === "jumpingOut" || ship.state === "jumpingHome"));
     box.hidden = false; boxTitle.textContent = "Gate"; boxLine.textContent = jumping ? "Jumping" : `Gate to ${state.sectors[gate.to]!.name}`;
     box.style.left = `${gateScreen.x + 16}px`; box.style.top = `${gateScreen.y}px`;
   }
-  if (mapOpen) {
+  if (ui.mapOpen) {
     // The map covers the sector, so only its circles have anything to show.
-    const layout = mapLayout(state, viewport);
-    const id = pointer ? mapHit(layout, pointer) : null;
+    const layout = mapLayout(state, ui.viewport);
+    const id = ui.pointer ? mapHit(layout, ui.pointer) : null;
     const sectorInfo = id === null ? null : sectorBox(state, id);
     box.hidden = sectorInfo === null;
     if (sectorInfo && id !== null) {
@@ -1174,8 +1166,8 @@ function draw(seconds: number): void {
 
   const sites = availableModuleBuildSites(state);
   const sitesKey = JSON.stringify(sites);
-  if (sitesKey !== renderedSites) {
-    renderedSites = sitesKey;
+  if (sitesKey !== ui.renderedSites) {
+    ui.renderedSites = sitesKey;
     buildControls.replaceChildren(...sites.map((site) => {
       const button = document.createElement("button");
       button.className = "build-toggle";
@@ -1188,28 +1180,28 @@ function draw(seconds: number): void {
       return button;
     }));
   }
-  const control = buildControlSize(camera.zoom);
+  const control = buildControlSize(ui.camera.zoom);
   buildControls.style.setProperty("--cell", `${control.cell}px`);
   buildControls.style.setProperty("--glyph", `${control.glyph}px`);
   for (const button of buildControls.querySelectorAll<HTMLButtonElement>("button[data-x]")) {
-    const screen = worldToScreen(camera, viewport, {
+    const screen = worldToScreen(ui.camera, ui.viewport, {
       x: Number(button.dataset.x),
       y: Number(button.dataset.y),
     });
     button.style.left = `${screen.x - control.cell / 2}px`;
     button.style.top = `${screen.y - control.cell / 2}px`;
   }
-  const inBuildArea = pointer !== null
-    && pointerInBuildArea(state, screenToWorld(camera, viewport, pointer));
-  buildControls.hidden = currentSector !== 0 || !buildControlsVisible(inBuildArea, controlsHovered);
-  if (buildMenuOpen && selectedBuildSite) {
-    const screen = worldToScreen(camera, viewport, selectedBuildSite);
+  const inBuildArea = ui.pointer !== null
+    && pointerInBuildArea(state, screenToWorld(ui.camera, ui.viewport, ui.pointer));
+  buildControls.hidden = ui.currentSector !== 0 || !buildControlsVisible(inBuildArea, ui.controlsHovered);
+  if (ui.buildMenuOpen && ui.selectedBuildSite) {
+    const screen = worldToScreen(ui.camera, ui.viewport, ui.selectedBuildSite);
     buildMenu.style.left = `${Math.round(screen.x + 20)}px`;
     buildMenu.style.top = `${Math.round(screen.y - 20)}px`;
   }
-  if (shipMenuBuilder !== null) {
+  if (ui.shipMenuBuilder !== null) {
     drawPaintCanvas();
-    const view = shipMenuView(state, shipMenuBuilder, draft);
+    const view = shipMenuView(state, ui.shipMenuBuilder, ui.draft);
     const stats = shipMenu.querySelector<HTMLElement>(".stats")!;
     const text = `Pixels ${view.pixels}\nSpeed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;
     if (stats.textContent !== text) stats.textContent = text;
@@ -1229,12 +1221,12 @@ function draw(seconds: number): void {
     shipMenu.querySelector<HTMLButtonElement>(".build")!.disabled = !view.canBuild;
     const blueprintName = shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
     shipMenu.querySelector<HTMLButtonElement>("button[data-blueprint-save]")!.disabled =
-      blueprintName.value.trim() === "" || designOf(draft).width === 0;
+      blueprintName.value.trim() === "" || designOf(ui.draft).width === 0;
   }
   const menuItems = buildMenuItems(state);
   const menuKey = JSON.stringify(menuItems);
-  if (menuKey !== renderedMenu) {
-    renderedMenu = menuKey;
+  if (menuKey !== ui.renderedMenu) {
+    ui.renderedMenu = menuKey;
     buildMenu.replaceChildren(...menuItems.map((item) => {
       const button = document.createElement("button");
       button.dataset.module = item.type;
@@ -1249,19 +1241,19 @@ function draw(seconds: number): void {
     }));
   }
 
-  claimButton.hidden = !mapOpen;
-  hint.hidden = !pendingClaim;
-  hint.textContent = mapOpen ? "Pick the sector for the claim station" : "Click a spot for the construction site. Esc cancels.";
-  renameBox.hidden = renamingSector === null || !mapOpen;
-  if (renameBox.hidden) renamingSector = null;
+  claimButton.hidden = !ui.mapOpen;
+  hint.hidden = !ui.pendingClaim;
+  hint.textContent = ui.mapOpen ? "Pick the sector for the claim station" : "Click a spot for the construction site. Esc cancels.";
+  renameBox.hidden = ui.renamingSector === null || !ui.mapOpen;
+  if (renameBox.hidden) ui.renamingSector = null;
 
-  if (mapOpen) {
-    const layout = mapLayout(state, viewport);
-    ctx.save(); ctx.fillStyle = "rgba(15,23,42,.94)"; ctx.fillRect(0, 0, viewport.width, viewport.height);
+  if (ui.mapOpen) {
+    const layout = mapLayout(state, ui.viewport);
+    ctx.save(); ctx.fillStyle = "rgba(15,23,42,.94)"; ctx.fillRect(0, 0, ui.viewport.width, ui.viewport.height);
     ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = 3;
     for (const link of layout.links) { ctx.beginPath(); ctx.moveTo(link.from.x, link.from.y); ctx.lineTo(link.to.x, link.to.y); ctx.stroke(); }
     for (const circle of layout.circles) {
-      const available = !pendingGate || circle.id === pendingGate.sectorId || sectorInGateRange(pendingGate.sectorId, circle.id);
+      const available = !ui.pendingGate || circle.id === ui.pendingGate.sectorId || sectorInGateRange(ui.pendingGate.sectorId, circle.id);
       ctx.beginPath(); ctx.arc(circle.center.x, circle.center.y, circle.radius, 0, Math.PI * 2);
       ctx.fillStyle = available ? circle.tint : "#334155";
       ctx.globalAlpha = available ? 1 : 0.55;
@@ -1275,7 +1267,7 @@ function draw(seconds: number): void {
         ctx.fillText("Rename", circle.center.x, label.y + 12);
         ctx.font = "14px monospace";
       }
-      if (renamingSector === circle.id) {
+      if (ui.renamingSector === circle.id) {
         renameBox.style.left = `${Math.round(circle.center.x - 60)}px`;
         renameBox.style.top = `${Math.round(circle.center.y - 22)}px`;
       }
@@ -1285,16 +1277,16 @@ function draw(seconds: number): void {
   }
 }
 
-let lastTimeMs = performance.now();
+
 
 function frame(nowMs: number): void {
-  const dt = Math.max(0, (nowMs - lastTimeMs) / 1000);
-  lastTimeMs = nowMs;
-  const movement = keyPan(heldKeys, dt);
-  if (movement.x || movement.y) camera = panBy(camera, movement.x, movement.y);
+  const dt = Math.max(0, (nowMs - ui.lastTimeMs) / 1000);
+  ui.lastTimeMs = nowMs;
+  const movement = keyPan(ui.heldKeys, dt);
+  if (movement.x || movement.y) ui.camera = panBy(ui.camera, movement.x, movement.y);
   // Paused frames skip the tick, so selecting, ordering and the menus keep
   // working on a state that simply does not advance.
-  const seconds = gameSeconds(clock, dt);
+  const seconds = gameSeconds(ui.clock, dt);
   if (seconds > 0) state = tick(state, seconds);
   renderSpeedControls();
   draw(nowMs / 1000);
