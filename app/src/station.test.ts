@@ -76,7 +76,7 @@ describe("station module hover", () => {
     const empty = createInitialState(7);
     expect(infoBox(empty, { kind: "dock" })).toEqual({
       title: "Dock",
-      line: "Unloading 0 / 6",
+      line: "Occupied 0 / 6",
     });
 
     const unloading: SimState = {
@@ -91,7 +91,7 @@ describe("station module hover", () => {
     };
     expect(infoBox(unloading, { kind: "dock" })).toEqual({
       title: "Dock",
-      line: "Unloading 1 / 6",
+      line: "Occupied 1 / 6",
     });
   });
 

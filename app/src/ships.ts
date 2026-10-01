@@ -61,7 +61,8 @@ function missing(design: ShipDesign): string {
   return "no storage";
 }
 
-function waitingStatus(state: SimState): string {
+function waitingStatus(state: SimState, ship: Ship): string {
+  if (ship.order?.kind === "haulGate" && ship.cargo === 0) return "Waiting: dock busy";
   const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
   return stored >= state.station.storage.capacity ? "Waiting: storage full" : "Waiting: dock busy";
 }
@@ -84,6 +85,18 @@ function idleMiner(state: SimState, ship: Ship): string {
 
 // One line saying what the ship is doing, for its hover box and panel.
 export function shipStatus(state: SimState, ship: Ship): string {
+  const { hold } = shipStats(ship.design);
+  if (ship.state === "loading") {
+    const starting = ship.transfer?.startingCargo ?? 0;
+    const amount = ship.transfer?.amount ?? hold;
+    return `Loading ${ship.cargo - starting}/${amount}`;
+  }
+  if (ship.state === "gateUnloading") {
+    const starting = ship.transfer?.startingCargo ?? hold;
+    const amount = ship.transfer?.amount ?? starting;
+    return `Unloading ${starting - ship.cargo}/${amount}`;
+  }
+  if (ship.state === "waiting" || (ship.state === "berthing" && ship.berth === null)) return waitingStatus(state, ship);
   if (ship.order) return `Order: ${ship.order.kind}`;
   const route = ship.haulRoute;
   const source = route ? state.sectors[route.from === "home" ? state.station.sectorId
@@ -104,9 +117,7 @@ export function shipStatus(state: SimState, ship: Ship): string {
     case "unloading":
       return "Unloading";
     case "berthing":
-      return ship.berth === null ? waitingStatus(state) : "Docking";
-    case "waiting":
-      return waitingStatus(state);
+      return "Docking";
     case "moving":
       return "Moving";
     case "holding":

@@ -1,7 +1,7 @@
 import { claimSiteBuilt } from "./claim";
 import { travelSeconds } from "./motion";
-import { shipStats, speedFactor, unloadingSeconds } from "./ship";
-import { STORAGE_CAPACITY, gateRoute, type HaulRoute, type HaulStationId, type Ship, type SimState, type Vec } from "./state";
+import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
+import { STORAGE_CAPACITY, berthLayout, gateRoute, toBerth, toParking, type HaulRoute, type HaulStationId, type Ship, type SimState, type Vec } from "./state";
 
 export interface HaulStation { id: HaulStationId; name: string }
 
@@ -40,8 +40,19 @@ function fly(ship: Ship, state: SimState, stationId: HaulStationId, kind: "outbo
     to = route.from;
   }
   const from = { ...ship.position };
-  return { ...ship, state: kind === "outbound" ? "haulOutbound" : "haulReturning", leg: { from, to: { ...to } },
+  return { ...ship, state: kind === "outbound" ? "haulOutbound" : "haulReturning", berth: null, transfer: null, leg: { from, to: { ...to } },
     timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
+}
+
+function transferAt(state: SimState, ship: Ship, stationId: HaulStationId, loading: boolean): Ship {
+  const amount = loading ? shipStats(ship.design).hold : ship.cargo;
+  const planned = { ...ship, cargoMaterial: loading ? ship.haulRoute?.material ?? null : ship.cargoMaterial,
+    transfer: { startingCargo: loading ? 0 : ship.cargo, amount } };
+  if (stationId === "home") {
+    return toBerth(berthLayout(state.station), state.ships, planned) ?? toParking(berthLayout(state.station), state.ships, planned);
+  }
+  return { ...planned, state: loading ? "haulLoading" : "haulUnloading", berth: null, leg: null,
+    timer: cargoTransferSeconds(amount) };
 }
 
 export function validHaulRoute(state: SimState, route: HaulRoute): boolean {
@@ -72,10 +83,10 @@ export function resumeHaulShip(state: SimState, ship: Ship): Ship {
       && ship.position.x === destination.position.x && ship.position.y === destination.position.y;
     if (!atDestination) return fly(clean, state, destinationId, destinationId === route.from ? "returning" : "outbound");
     return stored(destination) >= destination.capacity ? { ...clean, state: "haulWaitingFull", timer: 0, leg: null }
-      : { ...clean, state: "haulUnloading", timer: unloadingSeconds(ship.design), leg: null };
+      : transferAt(state, clean, destinationId, false);
   }
   if (!atFrom) return fly(clean, state, route.from, "returning");
   if (stored(to) >= to.capacity) return { ...clean, state: "haulWaitingFull", timer: 0, leg: null, cargoMaterial: null };
   if (from.inventory[route.material] < shipStats(ship.design).hold) return { ...clean, state: "haulWaitingSource", timer: 0, leg: null, cargoMaterial: null };
-  return { ...clean, state: "haulLoading", timer: unloadingSeconds(ship.design), leg: null, cargoMaterial: route.material };
+  return transferAt(state, clean, route.from, true);
 }

@@ -41,16 +41,71 @@ function farSector(state: SimState, changes: Partial<SimState["ships"][number]> 
 }
 
 describe("RTS ship orders", () => {
-  it("loads Storage ships and loops deliveries to a gate project", () => {
+  it("loads Storage ships over time and loops deliveries to a gate project", () => {
     let start = startGateBuild(miningStart(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
     start = { ...start, station: { ...start.station, inventory: { Metal: 200, Ice: 200 } },
       ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
     const ordered = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
-    expect(ordered.ships[0]).toMatchObject({ state: "gateHauling", cargoMaterial: "Metal", cargo: 20 });
-    expect(ordered.station.inventory.Metal).toBe(180);
+    expect(ordered.ships[0]).toMatchObject({ state: "berthing", cargoMaterial: "Metal", cargo: 0 });
+    expect(ordered.station.inventory.Metal).toBe(200);
+    const loading = until(ordered, (state) => state.ships[0]!.state === "loading");
+    const halfLoaded = run(loading, 6);
+    expect(halfLoaded.ships[0]).toMatchObject({ state: "loading", cargoMaterial: "Metal", cargo: 10 });
+    expect(halfLoaded.station.inventory.Metal).toBe(190);
     const delivered = until(ordered, (state) => state.gateProjects[0]!.delivered.Metal > 0);
-    expect(delivered.gateProjects[0]!.delivered.Metal).toBe(20);
+    expect(delivered.gateProjects[0]!.delivered.Metal).toBe(1);
     expect(delivered.ships[0]!.order).toEqual({ kind: "haulGate", gateId: 0 });
+  });
+
+  it("shares the Dock's six berths between loading haulers and unloading miners", () => {
+    let start = startGateBuild(fleet(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    const dock = start.station.dock.position;
+    start = { ...start, station: { ...start.station, inventory: { Metal: 200, Ice: 200 },
+      storage: { ...start.station.storage, capacity: 1000 } }, ships: start.ships.map((ship, id) => id < 5
+      ? { ...ship, state: "homebound" as const, position: { ...dock }, timer: 0, cargo: 20, cargoMaterial: "Metal" as const, target: null, leg: null }
+      : { ...ship, state: "holding" as const, position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null }) };
+    const minersDocking = tick(start, 0);
+    const ordered = giveOrder(minersDocking, [5, 6], { kind: "haulGate", gateId: 0 });
+
+    expect(ordered.ships.filter((ship) => ship.state === "berthing" && ship.berth !== null)).toHaveLength(6);
+    expect(ordered.ships[6]).toMatchObject({ state: "berthing", berth: null, cargo: 0, order: { kind: "haulGate" } });
+    const parked = until(ordered, (state) => state.ships[6]!.state === "waiting");
+    expect(parked.ships[6]).toMatchObject({ state: "waiting", berth: null, cargo: 0, order: { kind: "haulGate" } });
+  });
+
+  it("unloads at a gate over time and lets every arriving ship unload together", () => {
+    let start = startGateBuild(fleet(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    start = { ...start, gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 100, Ice: 200 } }],
+      ships: start.ships.map((ship) => ({ ...ship, state: "gateHauling" as const, position: { x: 80, y: 0 }, timer: 0,
+        cargo: 10, cargoMaterial: "Metal" as const, target: null, leg: { from: start.station.dock.position, to: { x: 80, y: 0 } },
+        order: { kind: "haulGate" as const, gateId: 0 } })) };
+
+    const unloading = tick(start, 0);
+    expect(unloading.ships.every((ship) => ship.state === "gateUnloading")).toBe(true);
+    expect(unloading.gateProjects[0]!.delivered.Metal).toBe(100);
+    const halfway = run(unloading, 3);
+    expect(halfway.gateProjects[0]!.delivered.Metal).toBe(135);
+    expect(halfway.ships.every((ship) => ship.cargo === 5)).toBe(true);
+  });
+
+  it("leaves with the cargo aboard when a new order interrupts loading or gate unloading", () => {
+    let start = startGateBuild(miningStart(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    start = { ...start, station: { ...start.station, inventory: { Metal: 200, Ice: 200 } },
+      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
+    const loading = until(giveOrder(start, [0], { kind: "haulGate", gateId: 0 }), (state) => state.ships[0]!.state === "loading");
+    const halfLoaded = run(loading, 6);
+    const diverted = giveOrder(halfLoaded, [0], { kind: "move", point: { x: 40, y: 30 } });
+    expect(diverted.ships[0]).toMatchObject({ state: "moving", cargo: 10, cargoMaterial: "Metal" });
+    expect(materialTotal(diverted, "Metal")).toBe(materialTotal(start, "Metal"));
+
+    const atGate = { ...halfLoaded, gateProjects: [{ ...halfLoaded.gateProjects[0]!, delivered: { Metal: 0, Ice: 0 } }],
+      ships: [{ ...halfLoaded.ships[0]!, state: "gateHauling" as const, position: { x: 80, y: 0 }, timer: 0,
+        leg: { from: halfLoaded.station.dock.position, to: { x: 80, y: 0 } } }] };
+    const halfUnloaded = run(tick(atGate, 0), 3);
+    const recalled = giveOrder(halfUnloaded, [0], { kind: "move", point: { x: 20, y: 10 } });
+    expect(recalled.ships[0]).toMatchObject({ state: "moving", cargo: 5, cargoMaterial: "Metal" });
+    expect(recalled.gateProjects[0]!.delivered.Metal).toBe(5);
+    expect(materialTotal(recalled, "Metal")).toBe(materialTotal(atGate, "Metal"));
   });
 
   it("unloads existing cargo before beginning a haul order without losing material", () => {
@@ -75,9 +130,11 @@ describe("RTS ship orders", () => {
         cargo: 20, cargoMaterial: "Metal" as const, target: null, leg: { from: { x: 0, y: 0 }, to: { x: 1, y: 0 } },
         order: { kind: "haulGate" as const, gateId: 0 } })) };
     const before = materialTotal(start, "Metal");
-    const completed = tick(start, 0);
+    const completed = until(tick(start, 0), (state) => state.gateProjects[0]!.complete
+      && state.ships.every((ship) => ship.state !== "gateUnloading"));
     expect(completed.gateProjects[0]).toMatchObject({ delivered: { Metal: 200 }, complete: true });
-    expect(completed.ships[1]).toMatchObject({ state: "gateReturning", cargo: 20, cargoMaterial: "Metal" });
+    expect(completed.ships.filter((ship) => ship.state === "gateReturning")
+      .reduce((sum, ship) => sum + ship.cargo, 0)).toBe(20);
     const returned = until(completed, (state) => state.station.inventory.Metal === 20);
     expect(materialTotal(returned, "Metal")).toBe(before);
   });
@@ -88,9 +145,10 @@ describe("RTS ship orders", () => {
     start = { ...start,
       gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 180, Ice: 200 } }],
       station: { ...start.station, inventory: { Metal: 40, Ice: 0 } },
+      asteroids: [],
       ships: [0, 1].map((id) => ({ ...base, id, state: "holding" as const, position: { ...start.station.dock.position },
         cargo: 0, cargoMaterial: null, target: null, timer: 0, leg: null, order: { kind: "haulGate" as const, gateId: 0 } })) };
-    const loaded = tick(start, 0);
+    const loaded = until(tick(start, 0), (state) => state.ships.some((ship) => ship.state === "gateHauling"));
     expect(loaded.ships.filter((ship) => ship.state === "gateHauling").map((ship) => ship.cargo)).toEqual([20]);
     expect(loaded.station.inventory.Metal).toBe(20);
     expect(materialTotal(loaded, "Metal")).toBe(materialTotal(start, "Metal"));

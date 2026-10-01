@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { claimSiteBuilt } from "./claim";
 import { configureHaul, giveOrder, haulStations, resumeDefault, setDefaultBehaviour } from "./orders";
-import { createInitialState, STORAGE_CAPACITY, type SimState } from "./state";
+import { createInitialState, dockBerths, STORAGE_CAPACITY, type SimState } from "./state";
 import { tick } from "./tick";
 
 function twoStations(): SimState {
@@ -44,9 +44,10 @@ describe("Haul default", () => {
   it("loads over time, flies through the gate, unloads over time, and repeats", () => {
     let state = twoStations();
     state = configureHaul(state, [0], { from: "home", to: "claim:4", material: "Ice" });
-    expect(state.ships[0]).toMatchObject({ defaultBehaviour: "haul", state: "haulLoading", cargo: 0 });
+    expect(state.ships[0]).toMatchObject({ defaultBehaviour: "haul", state: "berthing", cargo: 0, berth: 0 });
 
-    const halfLoaded = run(state, 3.01);
+    const loading = until(state, (next) => next.ships[0]!.state === "haulLoading");
+    const halfLoaded = run(loading, 3.01);
     expect(halfLoaded.ships[0]).toMatchObject({ state: "haulLoading", cargo: 5, cargoMaterial: "Ice" });
     expect(halfLoaded.station.inventory.Ice).toBe(35);
 
@@ -60,6 +61,51 @@ describe("Haul default", () => {
     expect(repeated.ships[0]).toMatchObject({ sectorId: 0, cargo: 0 });
   });
 
+  it("shares the Dock's berths and waits for a pad before loading at Home", () => {
+    const base = twoStations();
+    const ship = base.ships[0]!;
+    const crowded = tick({
+      ...base,
+      station: { ...base.station, inventory: { Metal: 0, Ice: 200 }, storage: { ...base.station.storage, capacity: 1000 } },
+      ships: [...[0, 1, 2, 3, 4, 5].map((id) => ({ ...ship, id, state: "homebound" as const, cargo: 20,
+        cargoMaterial: "Metal" as const })), { ...ship, id: 6 }],
+    }, 0);
+    const ordered = configureHaul(crowded, [6], { from: "home", to: "claim:4", material: "Ice" });
+
+    expect(ordered.ships[6]).toMatchObject({ state: "berthing", berth: null, cargo: 0 });
+    const waiting = until(ordered, (next) => next.ships[6]!.state === "waiting");
+    const loading = until(waiting, (next) => next.ships[6]!.state === "haulLoading");
+    expect(loading.ships[6]).toMatchObject({ cargo: 0, cargoMaterial: "Ice" });
+    expect(dockBerths(loading.station.dock.position)).toContainEqual(loading.ships[6]!.position);
+  });
+
+  it("does not let transfers at a claim station occupy Home's berths", () => {
+    const base = twoStations();
+    const ship = base.ships[0]!;
+    const remote = [0, 1, 2, 3, 4, 5].map((id) => ({
+      ...ship,
+      id,
+      state: "haulUnloading" as const,
+      sectorId: 1,
+      position: { ...base.claimSites[0]!.position },
+      timer: 12,
+      cargo: 20,
+      cargoMaterial: "Ice" as const,
+      defaultBehaviour: "haul" as const,
+      haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Ice" as const },
+      berth: null,
+      transfer: { startingCargo: 20, amount: 20 },
+    }));
+    const arriving = { ...ship, id: 6, state: "homebound" as const, position: { ...base.station.dock.position },
+      timer: 0, cargo: 20, cargoMaterial: "Metal" as const };
+    const state = { ...base, station: { ...base.station, storage: { ...base.station.storage, capacity: 1000 } },
+      ships: [...remote, arriving] };
+
+    const docked = tick(state, 0);
+    expect(docked.ships[6]).toMatchObject({ state: "berthing", berth: 0 });
+    expect(docked.ships[6]!.leg?.to).toEqual(dockBerths(base.station.dock.position)[0]);
+  });
+
   it("waits at From when the material is absent", () => {
     let state = twoStations();
     state = { ...state, station: { ...state.station, inventory: { ...state.station.inventory, Ice: 0 } } };
@@ -67,7 +113,9 @@ describe("Haul default", () => {
     expect(run(state, 10).ships[0]).toMatchObject({ state: "haulWaitingSource", cargo: 0, position: state.station.dock.position });
 
     const stocked = { ...state, station: { ...state.station, inventory: { ...state.station.inventory, Ice: 20 } } };
-    expect(tick(stocked, 1 / 30).ships[0]!.state).toBe("haulLoading");
+    const approaching = tick(stocked, 1 / 30);
+    expect(approaching.ships[0]).toMatchObject({ state: "berthing", berth: 0 });
+    expect(until(approaching, (next) => next.ships[0]!.state === "haulLoading").ships[0]!.cargo).toBe(0);
   });
 
   it("does not load while To is full, and waits there if To fills en route", () => {
@@ -86,6 +134,7 @@ describe("Haul default", () => {
 
   it("a right-click order interrupts hauling and Resume sends the ship back to it", () => {
     let state = configureHaul(twoStations(), [0], { from: "home", to: "claim:4", material: "Ice" });
+    state = until(state, (next) => next.ships[0]!.state === "haulLoading");
     state = run(state, 2);
     const cargo = state.ships[0]!.cargo;
     const ordered = giveOrder(state, [0], { kind: "move", point: { x: 30, y: 20 }, sectorId: 0 });

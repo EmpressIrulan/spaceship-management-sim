@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DOCK_CAPACITY, DOCK_SIZE, MATERIALS, createInitialState, dockBerths, shipSize, tick, type Ship, type ShipDesign, type SimState, type Vec } from "./index";
 
-const homeWithOre = { state: "homebound" as const, timer: 0, cargo: 10, cargoMaterial: "Metal" as const };
+const homeWithOre = { state: "homebound" as const, timer: 0, cargo: 20, cargoMaterial: "Metal" as const };
 
 function fleetAtDock(count: number): SimState {
   const state = createInitialState(7);

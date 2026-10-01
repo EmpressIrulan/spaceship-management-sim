@@ -36,6 +36,7 @@ const ship = (state: Ship["state"], cargo: number, timer = 1): Ship => ({
   order: null,
   leg: null,
   berth: null,
+  transfer: null,
 });
 
 describe("cargo gauge", () => {
@@ -133,6 +134,14 @@ describe("hover box", () => {
       title: "Gate",
       line: "Gate 30 / 200 Metal, 10 / 200 Ice",
     });
+  });
+
+  it("counts ships loading as well as unloading at the Dock", () => {
+    const loading = { ...ship("loading", 3), berth: 0, transfer: { startingCargo: 0, amount: 8 } };
+    const unloading = { ...ship("unloading", 7), berth: 1, transfer: { startingCargo: 10, amount: 10 } };
+    const transferring = { ...state, ships: [loading, unloading] };
+
+    expect(infoBox(transferring, { kind: "dock" })).toEqual({ title: "Dock", line: "Occupied 2 / 6" });
   });
 
   it("shows the destination name instead of materials once a gate is complete", () => {

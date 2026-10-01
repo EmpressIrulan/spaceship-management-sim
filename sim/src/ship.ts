@@ -95,8 +95,11 @@ export function shipStats(design: ShipDesign): ShipStats {
   };
 }
 
-export function unloadingSeconds(design: ShipDesign): number {
-  return (shipStats(design).hold / CARGO_PER_TRIP) * UNLOADING_SECONDS;
+// Loading and unloading use one rate everywhere cargo changes hands. Keeping
+// this independent of the destination lets station hauling adopt the same
+// timing without copying the gate or Dock state machines.
+export function cargoTransferSeconds(units: number): number {
+  return (units / CARGO_PER_TRIP) * UNLOADING_SECONDS;
 }
 
 // A ship missing any of these sits at the Dock.

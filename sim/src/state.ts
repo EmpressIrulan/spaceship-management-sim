@@ -9,7 +9,7 @@ import {
   shipBuildSeconds,
   shipSize,
   speedFactor,
-  unloadingSeconds,
+  cargoTransferSeconds,
   validDesign,
   type ShipDesign,
 } from "./ship";
@@ -84,10 +84,10 @@ export interface Size {
 }
 
 // "idle" means sitting at the Dock, because no asteroid has ore or the ship
-// can't mine. "waiting" means home with cargo and no room or no free berth,
+// can't mine. "waiting" means home with a transfer pending but no free berth,
 // parked just off the Dock. "berthing" is the short hop from the Dock to a pad
 // or a parking spot.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "berthing" | "unloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning"
+export type ShipState = "idle" | "outbound" | "working" | "homebound" | "berthing" | "loading" | "unloading" | "gateUnloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning"
   | "haulLoading" | "haulOutbound" | "haulJumpingOutbound" | "haulUnloading" | "haulReturning" | "haulJumpingReturning" | "haulWaitingSource" | "haulWaitingFull";
 export type DefaultBehaviour = "mine" | "haul" | "none";
 export type HaulStationId = "home" | `claim:${number}`;
@@ -99,6 +99,7 @@ export type Order =
   | { kind: "haulGate"; gateId: number }
   | { kind: "supplySite"; siteId: number; point: Vec; sectorId: number };
 export interface Leg { from: Vec; to: Vec }
+export interface CargoTransfer { startingCargo: number; amount: number }
 
 export interface Target {
   asteroidId: number;
@@ -129,6 +130,9 @@ export interface Ship {
   // The pad this ship is unloading on or flying to, or null. Only meaningful
   // while it is unloading or berthing.
   berth: number | null;
+  // The cargo aboard when this transfer began and the total units it will move.
+  // This makes partial transfers deterministic and safe to interrupt.
+  transfer: CargoTransfer | null;
 }
 
 export interface Station {
@@ -413,7 +417,7 @@ export function nearestWithOre(dock: Vec, asteroids: Asteroid[], others: Ship[] 
 export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Ship[] = []): Ship {
   const asteroid = canMine(ship.design) ? nearestWithOre(dock, minableRocks(ship, asteroids), others) : null;
   if (!asteroid) {
-    return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null };
+    return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null, transfer: null };
   }
   const site = miningSite(dock, asteroid, shipSize(ship.design));
   const from = ship.berth === null ? dock : ship.position;
@@ -426,6 +430,7 @@ export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Shi
     cargoMaterial: asteroid.material,
     target: { asteroidId: asteroid.id, sectorId: HOME_SECTOR, site },
     leg: ship.berth === null ? null : { from: { ...from }, to: site },
+    transfer: null,
   };
 }
 
@@ -528,6 +533,7 @@ export function createInitialState(seed: number): SimState {
     order: null,
     leg: null,
     berth: null,
+    transfer: null,
   };
   return {
     tickCount: 0,
@@ -687,7 +693,9 @@ function parkingPoint(dock: Vec, index: number): Vec {
 }
 
 function holdsBerth(ship: Ship): boolean {
-  return (ship.state === "unloading" && ship.order?.kind !== "supplySite") || (ship.state === "berthing" && ship.berth !== null);
+  return ship.state === "loading" || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
+    || (ship.state === "unloading" && ship.order?.kind !== "supplySite")
+    || (ship.state === "berthing" && ship.berth !== null);
 }
 
 // The lowest free pad, or null when every berth is taken. A ship unloading
@@ -730,7 +738,13 @@ export function arrived(ship: Ship): Ship {
   const position = ship.leg ? { ...ship.leg.to } : ship.position;
   return ship.berth === null
     ? { ...ship, state: "waiting", position, leg: null, timer: 0 }
-    : { ...ship, state: "unloading", position, leg: null, timer: unloadingSeconds(ship.design) };
+    : ship.order?.kind === "haulGate" && ship.cargo === 0 && ship.transfer
+      ? { ...ship, state: "loading", position, leg: null, timer: cargoTransferSeconds(ship.transfer.amount) }
+      : ship.defaultBehaviour === "haul" && ship.transfer?.startingCargo === 0
+        ? { ...ship, state: "haulLoading", position, leg: null, timer: cargoTransferSeconds(ship.transfer.amount) }
+        : ship.defaultBehaviour === "haul" && ship.transfer
+          ? { ...ship, state: "haulUnloading", position, leg: null, timer: cargoTransferSeconds(ship.transfer.amount) }
+      : { ...ship, state: "unloading", position, leg: null, transfer: { startingCargo: ship.cargo, amount: ship.cargo }, timer: cargoTransferSeconds(ship.cargo) };
 }
 
 // Whether a ship home with cargo can start unloading now: Storage has room
@@ -748,7 +762,8 @@ export function dockWaitingShips(station: Station, ships: Ship[]): Ship[] {
   const next = [...ships];
   for (let i = 0; i < next.length; i += 1) {
     const ship = next[i]!;
-    if (ship.state === "waiting" && ship.cargo > 0 && canUnload(station, next, ship.cargoMaterial)) {
+    const canLoad = ship.state === "waiting" && ship.cargo === 0 && ship.order?.kind === "haulGate" && ship.transfer;
+    if (ship.state === "waiting" && ((ship.cargo > 0 && canUnload(station, next, ship.cargoMaterial)) || canLoad)) {
       next[i] = toBerth(berthLayout(station), next, ship) ?? ship;
     }
   }
