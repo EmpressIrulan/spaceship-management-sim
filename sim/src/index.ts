@@ -63,14 +63,15 @@ export {
 } from "./state";
 export {
   PIXEL_SIZE,
-  SHIP_BUILD_SECONDS_PER_PIXEL,
-  SHIP_COST_PER_PIXEL,
+  SHIP_BUILD_SECONDS_PER_RESOURCE,
+  SHIP_MODULE_COST,
   SHIP_MODULES,
   STARTING_SHIP,
   canMine,
   pixelCount,
   shipBuildCost,
   shipBuildSeconds,
+  shipModuleCounts,
   shipSize,
   shipStats,
   unloadingSeconds,

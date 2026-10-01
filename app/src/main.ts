@@ -80,6 +80,15 @@ import {
   type ShipDraft,
 } from "./shipyard";
 import { moduleAppearance, stationConnectors } from "./station-appearance";
+import {
+  deleteBlueprint,
+  draftFromDesign,
+  loadBlueprints,
+  resolveBlueprintStore,
+  saveBlueprint,
+  viewCentredOn,
+  type Blueprint,
+} from "./blueprints";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -141,6 +150,8 @@ let selectedBuildSite: Vec | null = null;
 // The Builder whose Build ship menu is open, by module index.
 let shipMenuBuilder: number | null = null;
 let draft: ShipDraft = emptyDraft();
+const blueprintStore = resolveBlueprintStore(window);
+let blueprints: Blueprint[] = loadBlueprints(blueprintStore);
 // The Build ship canvas: which canvas pixel is at its middle and how big one
 // is on screen, plus the mouse state of a stroke or a pan in progress.
 let paintView: Camera = emptyView();
@@ -266,7 +277,7 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeGateMenu();
   if (buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
   if (shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
-  if (!(event.target instanceof HTMLSelectElement)) {
+  if (!(event.target instanceof HTMLSelectElement) && !(event.target instanceof HTMLInputElement)) {
     heldKeys.add(event.key);
     const next = clockAfterKey(clock, event.key, event.repeat);
     if (next !== clock || event.key === " ") { clock = next; event.preventDefault(); }
@@ -324,6 +335,31 @@ function thumbnailElement(design: ShipDesign): HTMLElement {
 
 const TOOL_BUTTONS = [["erase", "Eraser"], ["fill", "Fill"]] as const;
 
+function renderBlueprints(): void {
+  const list = shipMenu.querySelector<HTMLElement>(".blueprints")!;
+  if (blueprints.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "hint";
+    empty.textContent = "No saved blueprints";
+    list.replaceChildren(empty);
+    return;
+  }
+  list.replaceChildren(...blueprints.map((blueprint, index) => {
+    const row = document.createElement("div");
+    row.className = "blueprint";
+    const name = document.createElement("span");
+    name.textContent = blueprint.name;
+    const actions = document.createElement("span");
+    actions.className = "row";
+    actions.append(
+      button("Load", { blueprintLoad: String(index) }),
+      button("Delete", { blueprintDelete: String(index) }),
+    );
+    row.append(name, actions);
+    return row;
+  }));
+}
+
 // Built once when the menu opens. The buttons only change which one is
 // pressed afterwards, so the paint canvas and its listeners stay put. The
 // stats, cost and Build button are refreshed every frame in draw(), since
@@ -351,9 +387,21 @@ function renderShipMenu(): void {
   stats.className = "stats";
   const cost = document.createElement("div");
   cost.className = "cost";
+  const save = document.createElement("div");
+  save.className = "row blueprint-save";
+  const blueprintName = document.createElement("input");
+  blueprintName.className = "blueprint-name";
+  blueprintName.placeholder = "Blueprint name";
+  blueprintName.setAttribute("aria-label", "Blueprint name");
+  const saveBlueprintButton = button("Save blueprint", { blueprintSave: "" });
+  saveBlueprintButton.disabled = true;
+  save.append(blueprintName, saveBlueprintButton);
+  const blueprintList = document.createElement("div");
+  blueprintList.className = "blueprints";
   const build = button("Build", { build: "" });
   build.className = "build";
-  shipMenu.replaceChildren(title, modules, tools, paintCanvas, hint, stats, cost, build);
+  shipMenu.replaceChildren(title, modules, tools, paintCanvas, hint, stats, cost, save, blueprintList, build);
+  renderBlueprints();
   syncShipMenuButtons();
 }
 
@@ -392,12 +440,38 @@ shipMenu.addEventListener("click", (event) => {
   if (data.module) draft = withModule(withTool(draft, "paint"), data.module as ShipDraft["module"]);
   else if (data.size) draft = withSize(draft.tool === "fill" ? withTool(draft, "paint") : draft, Number(data.size) as ShipDraft["size"]);
   else if (data.tool) draft = withTool(draft, data.tool as ShipDraft["tool"]);
+  else if (data.blueprintSave !== undefined) {
+    const input = shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
+    blueprints = saveBlueprint(blueprintStore, input.value, designOf(draft));
+    input.value = "";
+    target.disabled = true;
+    renderBlueprints();
+  }
+  else if (data.blueprintLoad !== undefined) {
+    const blueprint = blueprints[Number(data.blueprintLoad)];
+    if (!blueprint) return;
+    draft = draftFromDesign(draft, blueprint.design);
+    paintView = viewCentredOn(paintView, blueprint.design);
+  }
+  else if (data.blueprintDelete !== undefined) {
+    const blueprint = blueprints[Number(data.blueprintDelete)];
+    if (!blueprint) return;
+    blueprints = deleteBlueprint(blueprintStore, blueprint.name);
+    renderBlueprints();
+  }
   else if (data.build !== undefined) {
     state = startShipBuild(state, shipMenuBuilder, designOf(draft));
     closeShipMenu();
     return;
   }
   syncShipMenuButtons();
+});
+
+shipMenu.addEventListener("input", (event) => {
+  const input = (event.target as HTMLElement).closest<HTMLInputElement>(".blueprint-name");
+  if (!input) return;
+  const save = shipMenu.querySelector<HTMLButtonElement>("button[data-blueprint-save]")!;
+  save.disabled = input.value.trim() === "" || designOf(draft).width === 0;
 });
 
 function paintPointAt(client: Vec): Vec {
@@ -619,24 +693,6 @@ function strokeWorldRect(center: Vec, size: Size, color: string): void {
   ctx.restore();
 }
 
-// The slot being supplied fills as materials arrive, and is solid while it builds.
-function supplyFraction(site: (typeof state.claimSites)[number]): number {
-  if (site.timer !== null) return 1;
-  const cost = CLAIM_MODULE_COST.Metal + CLAIM_MODULE_COST.Ice;
-  return (site.delivered.Metal + site.delivered.Ice) / cost;
-}
-
-function drawClaimSite(site: (typeof state.claimSites)[number]): void {
-  const size = { Dock: DOCK_SIZE, Storage: STORAGE_SIZE, Builder: DOCK_SIZE };
-  claimSiteSlots(site).forEach((slot, index) => {
-    if (slot.built) { drawStationModule({ type: slot.type, position: slot.position, size: size[slot.type] }); return; }
-    strokeWorldRect(slot.position, size[slot.type], "#cbd5e1");
-    if (index !== site.stage) return;
-    const height = size[slot.type].height * supplyFraction(site);
-    fillWorldRect({ x: slot.position.x, y: slot.position.y + (size[slot.type].height - height) / 2 }, { width: size[slot.type].width, height }, "rgba(148,163,184,.55)");
-  });
-}
-
 function moduleColor(type: ModuleType): string {
   if (type === "Dock") return "#64748b";
   if (type === "Storage") return "#475569";
@@ -721,6 +777,24 @@ function drawStationModule(module: StationModule): void {
     ctx.fill();
   }
   ctx.restore();
+}
+
+// The slot being supplied fills as materials arrive, and is solid while it builds.
+function supplyFraction(site: (typeof state.claimSites)[number]): number {
+  if (site.timer !== null) return 1;
+  const cost = CLAIM_MODULE_COST.Metal + CLAIM_MODULE_COST.Ice;
+  return (site.delivered.Metal + site.delivered.Ice) / cost;
+}
+
+function drawClaimSite(site: (typeof state.claimSites)[number]): void {
+  const size = { Dock: DOCK_SIZE, Storage: STORAGE_SIZE, Builder: DOCK_SIZE };
+  claimSiteSlots(site).forEach((slot, index) => {
+    if (slot.built) { drawStationModule({ type: slot.type, position: slot.position, size: size[slot.type] }); return; }
+    strokeWorldRect(slot.position, size[slot.type], "#cbd5e1");
+    if (index !== site.stage) return;
+    const height = size[slot.type].height * supplyFraction(site);
+    fillWorldRect({ x: slot.position.x, y: slot.position.y + (size[slot.type].height - height) / 2 }, { width: size[slot.type].width, height }, "rgba(148,163,184,.55)");
+  });
 }
 
 // Edges are rounded so the image lands on whole screen pixels at any zoom.
@@ -1032,9 +1106,9 @@ function draw(seconds: number): void {
     : `Sector ${state.sectors[currentSector]!.name}: ${sectorRocks.length} asteroids, ${currentSector === 0 ? "station present" : "no station"}${gateDestination === null ? "" : `, gate to ${state.sectors[gateDestination]!.name}`}`);
   // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
-  let hovered = mapOpen ? null : (hoveredBody(state, camera, viewport, pointer, currentSector));
+  let hovered = mapOpen ? null : hoveredBody(state, camera, viewport, pointer, currentSector);
   if (hovered?.kind === "claimSite") stickySite = hovered.id;
-  else if (infoHovered && stickySite !== null) hovered = { kind: "claimSite", id: stickySite };
+  else if (infoHovered && stickySite !== null && !mapOpen) hovered = { kind: "claimSite", id: stickySite };
   else stickySite = null;
   const info = infoBox(state, hovered);
   box.hidden = info === null;
@@ -1115,9 +1189,22 @@ function draw(seconds: number): void {
     const text = `Pixels ${view.pixels}\nSpeed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;
     if (stats.textContent !== text) stats.textContent = text;
     const cost = shipMenu.querySelector<HTMLElement>(".cost")!;
-    const costText = `Build time ${view.buildTime}\nCost ${view.cost}`;
-    if (cost.textContent !== costText) cost.textContent = costText;
+    const costKey = JSON.stringify([view.parts, view.buildTime, view.materials]);
+    if (cost.dataset.key !== costKey) {
+      cost.dataset.key = costKey;
+      cost.replaceChildren(document.createTextNode(`${view.parts}\nBuild time ${view.buildTime}\nCost `));
+      view.materials.forEach((material, index) => {
+        if (index > 0) cost.append(" ");
+        const total = document.createElement("span");
+        total.textContent = `${material.amount} ${material.material}`;
+        total.classList.toggle("short", material.short);
+        cost.append(total);
+      });
+    }
     shipMenu.querySelector<HTMLButtonElement>(".build")!.disabled = !view.canBuild;
+    const blueprintName = shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
+    shipMenu.querySelector<HTMLButtonElement>("button[data-blueprint-save]")!.disabled =
+      blueprintName.value.trim() === "" || designOf(draft).width === 0;
   }
   const menuItems = buildMenuItems(state);
   const menuKey = JSON.stringify(menuItems);
