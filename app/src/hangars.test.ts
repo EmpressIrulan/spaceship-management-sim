@@ -21,6 +21,7 @@ describe("hangars in the interface", () => {
     ];
 
     expect(infoBox(state, { kind: "ship", index: 0 })?.line).toContain("Hangar 16/40\nDocked ships: 1");
+    expect(infoBox(state, { kind: "ship", index: 0 })?.action).toMatchObject({ label: "Launch all", carrierId: 1, disabled: false });
     expect(shipsInBox(state, { center: { x: 0, y: 0 }, zoom: 1 }, { width: 100, height: 100 }, 0,
       { x: 40, y: 40 }, { x: 60, y: 60 })).toEqual([1]);
   });

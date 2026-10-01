@@ -33,7 +33,14 @@ export function renderHoverInfo(
   if (info === null) ui.infoHovered = false;
   box.style.pointerEvents = info?.action ? "auto" : "none";
   infoAction.hidden = !info?.action;
-  if (info?.action) { infoAction.textContent = info.action.label; infoAction.dataset.site = String(info.action.siteId); }
+  delete infoAction.dataset.site;
+  delete infoAction.dataset.carrier;
+  if (info?.action) {
+    infoAction.textContent = info.action.label;
+    infoAction.disabled = !!info.action.disabled;
+    if (info.action.siteId !== undefined) infoAction.dataset.site = String(info.action.siteId);
+    if (info.action.carrierId !== undefined) infoAction.dataset.carrier = String(info.action.carrierId);
+  }
   const body = hovered && bodyOf(getState(), hovered);
   if (body && info) {
     const anchor = worldToScreen(ui.camera, ui.viewport, {

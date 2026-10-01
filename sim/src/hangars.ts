@@ -54,6 +54,13 @@ export function completeDocking(ships: Ship[], ship: Ship): Ship {
   if (!carrier || carrier.hangarId != null || occupied + pixelCount(ship.design) > hangarCapacity(carrier.design)) {
     return { ...ship, state: "holding", order: null, leg: null, timer: 0 };
   }
+  if (carrier.sectorId !== ship.sectorId) return { ...ship, state: "holding", order: null, leg: null, timer: 0 };
+  const distance = Math.hypot(carrier.position.x - ship.position.x, carrier.position.y - ship.position.y);
+  if (distance > 0.01) {
+    const from = { ...ship.position };
+    const to = { ...carrier.position };
+    return { ...ship, state: "docking", leg: { from, to }, timer: travelSeconds(distance, speedFactor(ship.design)) };
+  }
   return { ...ship, state: "docked", sectorId: carrier.sectorId, position: { ...carrier.position }, hangarId: carrier.id,
     order: null, leg: null, timer: 0 };
 }
@@ -77,8 +84,9 @@ function launchPoint(carrier: Ship, ship: Ship, index: number, count: number): V
 
 export function launchAll(state: SimState, carrierId: number): SimState {
   const carrier = state.ships.find((ship) => ship.id === carrierId);
+  if (!carrier || carrier.state === "jumpingOut" || carrier.state === "jumpingHome") return state;
   const contents = hangarContents(state, carrierId);
-  if (!carrier || contents.length === 0) return state;
+  if (contents.length === 0) return state;
   const released = new Map(contents.map((ship, index) => [ship.id, {
     ...ship,
     state: "holding" as const,

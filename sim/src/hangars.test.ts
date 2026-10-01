@@ -81,4 +81,57 @@ describe("carrier hangars", () => {
     expect(launched.target).not.toBeNull();
     expect(launched.position).not.toEqual(carrier.position);
   });
+
+  it("refuses ordinary orders for ships that are inside a hangar", () => {
+    let state = tick(giveDockOrder(fleet(1), [2], 1), 100);
+    const before = state.ships.find((ship) => ship.id === 2)!;
+
+    state = giveOrder(state, [2], { kind: "move", point: { x: 500, y: 500 } });
+    state = tick(state, 500);
+
+    expect(state.ships.find((ship) => ship.id === 2)).toEqual(before);
+    expect(hangarContents(state, 1).map((ship) => ship.id)).toContain(2);
+  });
+
+  it("re-aims a docking ship at the carrier's position on arrival", () => {
+    const state = fleet(1);
+    const ordered = giveDockOrder(state, [2], 1);
+    const carrier = { ...ordered.ships[0]!, state: "moving" as const, position: { x: 100, y: 2000 } };
+    const fighter = ordered.ships[1]!;
+
+    const advanced = tick({ ...ordered, ships: [carrier, fighter] }, fighter.timer);
+    const arrived = advanced.ships.find((ship) => ship.id === 2)!;
+
+    expect(arrived.state).toBe("docking");
+    expect(arrived.hangarId).toBeFalsy();
+    expect(arrived.position).not.toEqual(carrier.position);
+    expect(arrived.leg?.to).toEqual(carrier.position);
+  });
+
+  it("drops docking when the carrier has left the sector", () => {
+    const ordered = giveDockOrder(fleet(1), [2], 1);
+    const carrier = { ...ordered.ships[0]!, sectorId: 1, position: { x: 100, y: 0 } };
+    const fighter = ordered.ships[1]!;
+    const advanced = tick({ ...ordered, ships: [carrier, fighter] }, fighter.timer);
+    const arrived = advanced.ships.find((ship) => ship.id === 2)!;
+
+    expect(arrived.state).toBe("holding");
+    expect(arrived.order).toBeNull();
+    expect(arrived.hangarId).toBeFalsy();
+    expect(arrived.sectorId).toBe(0);
+  });
+
+  it("launch all is a no-op while a carrier is jumping", () => {
+    const docked = tick(giveDockOrder(fleet(1), [2], 1), 100);
+    const jumping = { ...docked, ships: docked.ships.map((ship) => ship.id === 1 ? { ...ship, state: "jumpingOut" as const } : ship) };
+
+    expect(launchAll(jumping, 1)).toBe(jumping);
+  });
+
+  it("launch all is a no-op while a carrier is jumping home", () => {
+    const docked = tick(giveDockOrder(fleet(1), [2], 1), 100);
+    const jumping = { ...docked, ships: docked.ships.map((ship) => ship.id === 1 ? { ...ship, state: "jumpingHome" as const } : ship) };
+
+    expect(launchAll(jumping, 1)).toBe(jumping);
+  });
 });

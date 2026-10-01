@@ -109,12 +109,13 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     case "idle":
     case "waiting":
     case "holding":
-    case "docked":
     case "jumpingOut":
     case "jumpingHome":
     case "haulJumpingOutbound":
     case "haulJumpingReturning":
       return { ...ship, timer };
+    case "docked":
+      return { ...ship, timer: 0 };
     case "outbound":
     case "homebound":
     case "berthing":

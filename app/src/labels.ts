@@ -53,7 +53,7 @@ export interface InfoBox {
   title: string;
   line: string;
   // A button the box carries, for the hovers that can be acted on.
-  action?: { label: string; siteId: number };
+  action?: { label: string; siteId?: number; carrierId?: number; disabled?: boolean };
 }
 
 function claimSiteBox(state: SimState, id: number): InfoBox | null {
@@ -121,7 +121,8 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     if (!ship) return null;
     const capacity = hangarCapacity(ship.design);
     const hangar = capacity > 0 ? `\nHangar ${hangarUsed(state, ship.id)}/${capacity}\nDocked ships: ${hangarContents(state, ship.id).length}` : "";
-    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}` };
+    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}`,
+      ...(capacity > 0 ? { action: { label: "Launch all", carrierId: ship.id, disabled: hangarContents(state, ship.id).length === 0 } } : {}) };
   }
   if (hovered.kind === "claimSite") return claimSiteBox(state, hovered.id);
   if (hovered.kind === "gateProject") {

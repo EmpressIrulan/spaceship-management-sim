@@ -136,7 +136,7 @@ function apply(ship: Ship, target: OrderTarget, point: Vec, state: SimState): Sh
 }
 
 export function giveOrder(state: SimState, ids: number[], target: OrderTarget): SimState {
-  const selected = state.ships.filter((ship) => ids.includes(ship.id));
+  const selected = state.ships.filter((ship) => ids.includes(ship.id) && ship.hangarId == null);
   if (!selected.length) return state;
   if (target.kind === "haulGate") {
     const project = state.gateProjects.find((candidate) => candidate.id === target.gateId && !candidate.complete);
@@ -146,7 +146,7 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
     const ships = [...state.ships];
     for (let index = 0; index < ships.length; index += 1) {
       const ship = ships[index]!;
-      if (!ids.includes(ship.id) || shipStats(ship.design).hold <= 0) continue;
+      if (!ids.includes(ship.id) || ship.hangarId != null || shipStats(ship.design).hold <= 0) continue;
       const order = { kind: "haulGate" as const, gateId: project.id };
       const atStorage = ship.sectorId === state.station.sectorId
         && ship.position.x === state.station.dock.position.x && ship.position.y === state.station.dock.position.y;
