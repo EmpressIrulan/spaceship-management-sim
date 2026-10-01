@@ -140,7 +140,6 @@ function renderPartTip(): void {
   partTip.style.top = `${ui.partHover.at.y + 14}px`;
 }
 
-// Screen-space so the numbers stay readable at any zoom.
 function draw(seconds: number): void {
   overlayDrawing.drawBackdrop(ui.currentSector);
   overlayDrawing.drawOrderFeedback(seconds);
@@ -204,14 +203,14 @@ function draw(seconds: number): void {
   canvas.setAttribute("aria-label", ui.mapOpen
     ? mapLayout(getState(), ui.viewport).circles.map((circle) => `${circle.name}: ${circle.ships} ships${ui.pendingGate ? `, ${circle.id === ui.pendingGate.sectorId ? "current sector" : sectorInGateRange(ui.pendingGate.sectorId, circle.id) ? "in gate range" : "out of gate range"}` : ""}`).join("; ")
     : `Sector ${getState().sectors[ui.currentSector]!.name}: ${sectorRocks.length} asteroids, ${ui.currentSector === 0 ? "station present" : "no station"}${gateDestination === null ? "" : `, gate to ${getState().sectors[gateDestination]!.name}`}`);
-  // Re-checked every frame, so zooming under a still ui.pointer updates it too,
+  // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
   let hovered = ui.mapOpen ? null : hoveredBody(getState(), ui.camera, ui.viewport, ui.pointer, ui.currentSector);
   if (hovered?.kind === "claimSite") ui.stickySite = hovered.id;
   else if (ui.infoHovered && ui.stickySite !== null && !ui.mapOpen) hovered = { kind: "claimSite", id: ui.stickySite };
   else ui.stickySite = null;
   // A + cell sits above the canvas, so a ship beside it would never hear the
-  // click. While the ui.pointer is on a ship, the cells let clicks through.
+  // click. While the pointer is on a ship, the cells let clicks through.
   buildControls.classList.toggle("over-ship", hovered?.kind === "ship");
   const info = infoBox(getState(), hovered);
   box.hidden = info === null;

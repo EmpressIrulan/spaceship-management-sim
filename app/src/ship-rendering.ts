@@ -1,5 +1,5 @@
 import { laserBeam, shipSize, type Beam, type Ship, type Size, type Vec } from "sim";
-import { worldToScreen, type Camera, type Viewport } from "./camera";
+import { worldToScreen } from "./camera";
 import { type Gauge } from "./labels";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
 import { shipSprite } from "./ships";
@@ -29,7 +29,6 @@ function drawSelectionRing(center: Vec, size: Size): void {
   ctx.restore();
 }
 
-// Screen pixels per canvas pixel above which the pixel grid is drawn.
 function drawGauge(shipPosition: Vec, gauge: Gauge, size: Size): void {
   const top = worldToScreen(ui.camera, ui.viewport, {
     x: shipPosition.x,

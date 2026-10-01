@@ -1,5 +1,6 @@
 import { orderLineAlpha } from "./selection";
 import { sectorBackdrop } from "./sectors";
+import { worldToScreen } from "./camera";
 import type { UiState } from "./ui-state";
 
 export interface OverlayDrawing { drawOrderFeedback: (seconds: number) => void; drawBackdrop: (sectorId: number) => void; }
@@ -58,5 +59,3 @@ export function createOverlayDrawing(ui: UiState, ctx: CanvasRenderingContext2D)
 
   return { drawOrderFeedback, drawBackdrop };
 }
-
-import { worldToScreen } from "./camera";

@@ -2,9 +2,8 @@ import { SHIP_MODULES, startShipBuild, type SimState, type Vec } from "sim";
 import { panBy, wheelZoomFactor, type Viewport } from "./camera";
 import { menuButton as button, renderBlueprints } from "./menu-rendering";
 import { slotColor } from "./ships";
-import { BRUSH_SIZES, applyTool, cellAt, designOf, emptyDraft, emptyView, lineCells, zoomView, withModule, withSize, withTool, type ShipDraft } from "./shipyard";
+import { BRUSH_SIZES, applyTool, cellAt, designOf, emptyDraft, emptyView, lineCells, zoomView, withModule, withSize, withTool, shouldDismissShipMenuOnMouseDown, type ShipDraft } from "./shipyard";
 import { deleteBlueprint, draftFromDesign, saveBlueprint, viewCentredOn, type Blueprint, resolveBlueprintStore } from "./blueprints";
-import { shouldDismissShipMenuOnMouseDown } from "./shipyard";
 import type { UiState } from "./ui-state";
 
 export interface ShipMenuSystem { openShipMenu: (builder: number) => void; closeShipMenu: () => void; paintPointAt: (client: Vec) => Vec; paintViewport: () => Viewport; }

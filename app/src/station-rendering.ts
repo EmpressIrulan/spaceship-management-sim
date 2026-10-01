@@ -139,6 +139,5 @@ function drawClaimSite(site: SimState["claimSites"][number]): void {
   });
 }
 
-// Edges are rounded so the image lands on whole screen pixels at any zoom.
   return { drawStationConnector, drawStationModule, drawConstructionSite, drawClaimSite };
 }
