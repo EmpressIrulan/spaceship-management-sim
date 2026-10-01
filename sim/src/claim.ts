@@ -1,6 +1,7 @@
-import { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MATERIALS, MODULE_COST, MODULE_SPACING } from "./build-constants";
-import type { ClaimSite, Material, ModuleType, Size, Vec } from "./model";
-type ClaimState = { sectors: { id: number; name: string }[]; claimSites: ClaimSite[]; nextClaimSiteId: number; asteroids: { sectorId: number; position: Vec }[]; station: { modules: { position: Vec; size: Size }[]; constructionSite: { position: Vec; size: Size } } };
+import { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MODULE_COST, MODULE_SPACING } from "./build-constants";
+import { MATERIALS } from "./model";
+import type { ClaimSite, Material, ModuleType, SimState, Size, Vec } from "./model";
+export type { ClaimSite } from "./model";
 
 // Placeholders, to revisit after playing. A site builds the same Dock and
 // Storage as the home station, at the same price and time.
@@ -9,8 +10,6 @@ export const CLAIM_MODULE_COST: Record<Material, number> = MODULE_COST;
 export const CLAIM_BUILD_SECONDS = BUILD_SECONDS;
 // Two module slots side by side. `position` is the middle of the pair.
 export const CLAIM_SITE_SIZE: Size = { width: DOCK_SIZE.width + MODULE_SPACING, height: DOCK_SIZE.height };
-
-export type { ClaimSite } from "./model";
 
 export interface ClaimSiteNeeds {
   // The module being supplied or built now, and the one after it.
@@ -50,14 +49,19 @@ function overlaps(a: Vec, b: Vec, size: Size, margin: number): boolean {
   return Math.abs(a.x - b.x) < size.width / 2 + margin && Math.abs(a.y - b.y) < size.height / 2 + margin;
 }
 
-export function startClaimSite<S extends ClaimState>(state: S, sectorId: number, position: Vec): S {
+export function startClaimSite(state: SimState, sectorId: number, position: Vec): SimState {
   if (!state.sectors[sectorId]) return state;
   const blockedBySite = state.claimSites.some((site) => site.sectorId === sectorId
     && overlaps(site.position, position, { width: CLAIM_SITE_SIZE.width * 2, height: CLAIM_SITE_SIZE.height * 2 }, 0));
   const blockedByRock = state.asteroids.some((rock) => rock.sectorId === sectorId
     && overlaps(rock.position, position, CLAIM_SITE_SIZE, ASTEROID_MIN_SPACING / 2));
   const blockedByStation = sectorId === HOME_SECTOR
-    && [...state.station.modules, state.station.constructionSite].some((module) => overlaps(module.position, position, { width: CLAIM_SITE_SIZE.width + module.size.width, height: CLAIM_SITE_SIZE.height + module.size.height }, 0));
+    && [...state.station.modules, state.station.constructionSite].some((module) => overlaps(
+      module.position,
+      position,
+      { width: CLAIM_SITE_SIZE.width + module.size.width, height: CLAIM_SITE_SIZE.height + module.size.height },
+      0,
+    ));
   if (blockedBySite || blockedByRock || blockedByStation) return state;
   const site: ClaimSite = {
     id: state.nextClaimSiteId,
@@ -67,24 +71,24 @@ export function startClaimSite<S extends ClaimState>(state: S, sectorId: number,
     delivered: { Metal: 0, Ice: 0 },
     timer: null,
   };
-  return { ...state, nextClaimSiteId: state.nextClaimSiteId + 1, claimSites: [...state.claimSites, site] } as S;
+  return { ...state, nextClaimSiteId: state.nextClaimSiteId + 1, claimSites: [...state.claimSites, site] };
 }
 
 // Only a site whose Dock and first Storage are built can be taken down.
-export function removeClaimSite<S extends ClaimState>(state: S, siteId: number): S {
+export function removeClaimSite(state: SimState, siteId: number): SimState {
   const site = state.claimSites.find((candidate) => candidate.id === siteId);
   if (!site || !claimSiteBuilt(site)) return state;
-  return { ...state, claimSites: state.claimSites.filter((candidate) => candidate.id !== siteId) } as S;
+  return { ...state, claimSites: state.claimSites.filter((candidate) => candidate.id !== siteId) };
 }
 
-export function sectorClaimed(state: Pick<ClaimState, "claimSites">, sectorId: number): boolean {
+export function sectorClaimed(state: Pick<SimState, "claimSites">, sectorId: number): boolean {
   return state.claimSites.some((site) => site.sectorId === sectorId && claimSiteBuilt(site));
 }
 
-export function renameSector<S extends ClaimState>(state: S, sectorId: number, name: string): S {
+export function renameSector(state: SimState, sectorId: number, name: string): SimState {
   const trimmed = name.trim();
   if (!trimmed || !sectorClaimed(state, sectorId)) return state;
-  return { ...state, sectors: state.sectors.map((sector) => (sector.id === sectorId ? { ...sector, name: trimmed } : sector)) } as S;
+  return { ...state, sectors: state.sectors.map((sector) => (sector.id === sectorId ? { ...sector, name: trimmed } : sector)) };
 }
 
 // Takes what the site still needs of one material and returns what was

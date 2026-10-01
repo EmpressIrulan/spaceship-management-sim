@@ -1,6 +1,6 @@
-import { ASTEROID_MIN_SPACING, BUILD_SECONDS, BUILDER_SIZE, DOCK_SIZE, MATERIALS, MODULE_COST, MODULE_TYPES, STORAGE_SIZE, MODULE_SPACING } from "./build-constants";
-import type { Material, ModuleType, Size, Vec } from "./model";
-type BuildState = { station: { constructionSite: { position: Vec; size: Size; inventory: Record<Material, number> }; construction: { type: ModuleType; position: Vec; size: Size; timer: number } | null; modules: { type: ModuleType; position: Vec; size: Size }[]; inventory: Record<Material, number> }; asteroids: { position: Vec }[]; ships: unknown[] };
+import { ASTEROID_MIN_SPACING, BUILD_SECONDS, BUILDER_SIZE, DOCK_SIZE, MODULE_COST, STORAGE_SIZE, MODULE_SPACING } from "./build-constants";
+import { MATERIALS, MODULE_TYPES } from "./model";
+import type { Material, ModuleType, SimState, Size, Vec } from "./model";
 import { distance } from "./fields";
 
 export interface ModuleBuildOption {
@@ -10,7 +10,7 @@ export interface ModuleBuildOption {
   missing: Record<Material, number>;
 }
 
-export function availableModuleBuilds(state: BuildState): ModuleBuildOption[] {
+export function availableModuleBuilds(state: SimState): ModuleBuildOption[] {
   const stock = state.station.constructionSite.inventory;
   const missing = Object.fromEntries(
     MATERIALS.map((material) => [material, Math.max(0, MODULE_COST[material] - stock[material])]),
@@ -38,7 +38,7 @@ function overlapsFootprint(site: Vec, footprint: { position: Vec; size: Size }):
     && Math.abs(site.y - footprint.position.y) < (DOCK_SIZE.height + footprint.size.height) / 2;
 }
 
-export function availableModuleBuildSites(state: BuildState): Vec[] {
+export function availableModuleBuildSites(state: SimState): Vec[] {
   const footprints = [
     ...state.station.modules,
     ...(state.station.construction ? [state.station.construction] : []),
@@ -62,7 +62,7 @@ function moduleSize(type: ModuleType): Size {
   return BUILDER_SIZE;
 }
 
-export function startModuleBuild<S extends BuildState>(state: S, type: ModuleType, position: Vec): S {
+export function startModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {
   const option = availableModuleBuilds(state).find((candidate) => candidate.type === type);
   const site = availableModuleBuildSites(state).find((candidate) => samePosition(candidate, position));
   if (!option?.enabled || !site) return state;
@@ -77,5 +77,5 @@ export function startModuleBuild<S extends BuildState>(state: S, type: ModuleTyp
     timer: BUILD_SECONDS,
   };
   const station = { ...state.station, constructionSite: { ...state.station.constructionSite, inventory }, construction };
-  return { ...state, station } as S;
+  return { ...state, station };
 }

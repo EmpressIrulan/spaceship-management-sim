@@ -1,12 +1,26 @@
-import type { ClaimSite } from "./model";
-import { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MATERIALS, MODULE_COST, MODULE_TYPES, BUILDER_SIZE, STORAGE_SIZE } from "./build-constants";
-import type { AsteroidField, Density, Material, ModuleType, Size, Vec } from "./model";
-export type { AsteroidField, Density, Material, ModuleType, Size, Vec, ClaimSite } from "./model";
-export { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MATERIALS, MODULE_COST, MODULE_TYPES, BUILDER_SIZE, STORAGE_SIZE } from "./build-constants";
+import {
+  ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR,
+  MODULE_COST, BUILDER_SIZE, STORAGE_SIZE,
+} from "./build-constants";
+import { MATERIALS, MODULE_TYPES } from "./model";
+import type {
+  Asteroid, AsteroidField, Beam, BerthLayout, CargoTransfer, ClaimSite,
+  DefaultBehaviour, Density, Delivery, GateEnd, GateProject, HaulRoute,
+  HaulStationId, Leg, Material, ModuleConstruction, ModuleType, Order, Respawn,
+  Sector, SectorCharacter, Ship, ShipBuild, ShipDesign, ShipState, SimState,
+  Size, Station, StationModule, Target, Vec,
+} from "./model";
+export type * from "./model";
+export { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MODULE_COST, BUILDER_SIZE, STORAGE_SIZE } from "./build-constants";
+export { MATERIALS, MODULE_TYPES } from "./model";
 export { MODULE_SPACING } from "./build-constants";
 import { distance, makeFields, placeInField, rocksInField } from "./fields";
 export { availableModuleBuildSites, availableModuleBuilds, startModuleBuild, type ModuleBuildOption } from "./station-building";
-export { FIELD_LAYOUT, BELT_ROCKS, CLUSTER_ROCKS, SPARSE_BELT_ROCKS, SPARSE_CLUSTER_ROCKS, BELT_RADIUS, BELT_SWEEP, BELT_WIDTH, CLUSTER_RADIUS, FIELD_MIN_REACH, FIELD_MAX_REACH, FIELD_SEPARATION, FIELD_GATE_CLEARANCE } from "./fields";
+export {
+  FIELD_LAYOUT, BELT_ROCKS, CLUSTER_ROCKS, SPARSE_BELT_ROCKS,
+  SPARSE_CLUSTER_ROCKS, BELT_RADIUS, BELT_SWEEP, BELT_WIDTH, CLUSTER_RADIUS,
+  FIELD_MIN_REACH, FIELD_MAX_REACH, FIELD_SEPARATION, FIELD_GATE_CLEARANCE,
+} from "./fields";
 export { placeInField } from "./fields";
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
@@ -20,7 +34,6 @@ import {
   speedFactor,
   cargoTransferSeconds,
   validDesign,
-  type ShipDesign,
 } from "./ship";
 
 // Ship speed lives in motion.ts, and the mining and unloading rates in ship.ts.
@@ -53,167 +66,6 @@ export const SECTOR_COUNT = 4;
 export const GATE_COST: Record<Material, number> = { Metal: 200, Ice: 200 };
 export const SECTOR_MAP_POINTS = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 1 }] as const;
 
-// "idle" means sitting at the Dock, because no asteroid has ore or the ship
-// can't mine. "waiting" means home with a transfer pending but no free berth,
-// parked just off the Dock. "berthing" is the short hop from the Dock to a pad
-// or a parking spot.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "berthing" | "loading" | "unloading" | "gateUnloading" | "waiting" | "moving" | "holding" | "docking" | "docked" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning"
-  | "haulLoading" | "haulOutbound" | "haulJumpingOutbound" | "haulUnloading" | "haulReturning" | "haulJumpingReturning" | "haulWaitingSource" | "haulWaitingFull";
-export type DefaultBehaviour = "mine" | "haul" | "supply" | "none";
-export type HaulStationId = "home" | `claim:${number}`;
-export interface HaulRoute { from: HaulStationId; to: HaulStationId; material: Material }
-export type Order =
-  | { kind: "mine"; asteroidId: number; loaded: boolean }
-  | { kind: "move"; point: Vec; sectorId: number }
-  | { kind: "home" }
-  | { kind: "haulGate"; gateId: number }
-  | { kind: "supplySite"; siteId: number; point: Vec; sectorId: number }
-  | { kind: "supplyBuild"; point: Vec; sectorId: number }
-  | { kind: "dock"; carrierId: number };
-export interface Leg { from: Vec; to: Vec }
-export interface CargoTransfer {
-  startingCargo: number;
-  amount: number;
-  // Set when the cargo goes into the construction site, not Storage.
-  destination?: "constructionSite";
-}
-
-export interface Target {
-  asteroidId: number;
-  sectorId: number;
-  // Where the ship mines from. Kept on the ship so it can fly home after the
-  // asteroid has been mined out and removed.
-  site: Vec;
-}
-
-export interface Ship {
-  id: number;
-  design: ShipDesign;
-  state: ShipState;
-  sectorId: number;
-  position: Vec;
-  // Seconds left in the current state. Unused while idle.
-  timer: number;
-  cargo: number;
-  // The contents of a mining hold. `cargo` remains the total so movement,
-  // capacity and the non-mining cargo jobs can share the same state machine.
-  cargoByMaterial?: Record<Material, number>;
-  cargoMaterial: Material | null;
-  target: Target | null;
-  defaultBehaviour: DefaultBehaviour;
-  haulRoute?: HaulRoute;
-  // What "Mine for Station" is allowed to mine. Empty means nothing, so a
-  // new ship sits idle until someone ticks a material.
-  mineMaterials: Material[];
-  mineOtherSectors?: boolean;
-  order: Order | null;
-  leg: Leg | null;
-  // The pad this ship is unloading on or flying to, or null. Only meaningful
-  // while it is unloading or berthing.
-  berth: number | null;
-  // The cargo aboard when this transfer began and the total units it will move.
-  // This makes partial transfers deterministic and safe to interrupt.
-  transfer: CargoTransfer | null;
-  // Set while this ship is hidden inside another ship.
-  hangarId?: number | null;
-}
-
-export interface Station {
-  sectorId: number;
-  // The Dock is the station's home point: the position ships route to and
-  // from, and the one the asteroid band is measured out from.
-  dock: { position: Vec; size: Size; capacity: number };
-  storage: { position: Vec; size: Size; capacity: number };
-  inventory: Record<Material, number>;
-  // Build storage. Modules the station builds are paid from here and only ships
-  // fill it. It has no cap, so it has no capacity field.
-  constructionSite: { position: Vec; size: Size; inventory: Record<Material, number> };
-  storageLimits: Record<Material, number | null>;
-  // Ore that ships unloaded into storage within the last INCOME_WINDOW_SECONDS.
-  deliveries: Delivery[];
-  modules: StationModule[];
-  construction: ModuleConstruction | null;
-  shipBuilds: ShipBuild[];
-}
-
-export interface Delivery {
-  // Game seconds since the start, so the figure follows game speed.
-  at: number;
-  material: Material;
-  amount: number;
-}
-
-export interface ShipBuild {
-  // Index of the Builder in `modules`. Modules are only ever appended.
-  builder: number;
-  design: ShipDesign;
-  timer: number;
-}
-
-export interface StationModule {
-  type: ModuleType;
-  position: Vec;
-  size: Size;
-}
-
-export interface ModuleConstruction extends StationModule {
-  timer: number;
-}
-
-export interface Asteroid {
-  id: number;
-  sectorId: number;
-  rich: boolean;
-  // The belt or cluster this rock belongs to, and comes back to when mined out.
-  fieldId: number;
-  position: Vec;
-  size: Size;
-  ore: number;
-  material: Material;
-}
-
-
-export interface Respawn {
-  sectorId: number;
-  fieldId: number;
-  // Seconds until a new asteroid appears.
-  timer: number;
-  // A rich rock comes back as a rich rock, so a sector keeps its rich count.
-  rich: boolean;
-  // Where the emptied asteroid was, so the new one lands somewhere else.
-  lastPosition: Vec;
-}
-
-export interface SimState {
-  tickCount: number;
-  // Game seconds ticked so far. Paused or slowed time does not advance it.
-  time: number;
-  // PRNG state, carried here so respawn spots replay exactly from the seed.
-  rng: number;
-  nextAsteroidId: number;
-  nextShipId: number;
-  sectors: Sector[];
-  fields: AsteroidField[];
-  nextGateId: number;
-  gateProjects: GateProject[];
-  nextClaimSiteId: number;
-  claimSites: ClaimSite[];
-  station: Station;
-  asteroids: Asteroid[];
-  respawns: Respawn[];
-  ships: Ship[];
-}
-
-// What a sector is good for. Fixed when the sector is made.
-export interface SectorCharacter {
-  // The material most of the sector's rocks are made of.
-  abundant: Material;
-  density: Density;
-  // How many rich rocks the sector starts with.
-  richRocks: number;
-}
-export interface Sector { id: number; name: string; gate: { position: Vec; size: Size; to: number }; character: SectorCharacter }
-
 // The home sector takes the first entry. It has no rich rocks, so the first
 // mining trips are the same on every seed. The other sectors get the rest in
 // an order picked from the seed, so a map always offers every kind of sector.
@@ -223,14 +75,6 @@ const SECTOR_CHARACTERS: readonly SectorCharacter[] = [
   { abundant: "Metal", density: "sparse", richRocks: 3 },
   { abundant: "Ice", density: "dense", richRocks: 0 },
 ];
-export interface GateEnd { sectorId: number; position: Vec }
-export interface GateProject {
-  id: number;
-  ends: [GateEnd, GateEnd];
-  delivered: Record<Material, number>;
-  complete: boolean;
-}
-
 export function sectorInGateRange(a: number, b: number): boolean {
   const left = SECTOR_MAP_POINTS[a]; const right = SECTOR_MAP_POINTS[b];
   return !!left && !!right && Math.hypot(left.x - right.x, left.y - right.y) <= 1.5;
@@ -375,7 +219,18 @@ export function nearestWithOre(dock: Vec, asteroids: Asteroid[], others: Ship[] 
 export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Ship[] = []): Ship {
   const asteroid = canMine(ship.design) ? nearestWithOre(dock, minableRocks(ship, asteroids), others) : null;
   if (!asteroid) {
-    return { ...ship, state: "idle", position: { ...dock }, timer: 0, cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 }, cargoMaterial: null, target: null, leg: null, transfer: null };
+    return {
+      ...ship,
+      state: "idle",
+      position: { ...dock },
+      timer: 0,
+      cargo: 0,
+      cargoByMaterial: { Metal: 0, Ice: 0 },
+      cargoMaterial: null,
+      target: null,
+      leg: null,
+      transfer: null,
+    };
   }
   const site = miningSite(dock, asteroid, shipSize(ship.design));
   const from = ship.berth === null ? dock : ship.position;
@@ -549,13 +404,6 @@ const PARKING_RADIUS = 70;
 const PARKING_ARC_STEP = 22;
 const PARKING_ARC_SLOTS = 6;
 
-export interface BerthLayout {
-  // The Dock ships route to. Parking spots are measured from here.
-  dock: Vec;
-  modules: StationModule[];
-  capacity: number;
-}
-
 export function berthLayout(station: Station): BerthLayout {
   return { dock: station.dock.position, modules: station.modules, capacity: station.dock.capacity };
 }
@@ -705,11 +553,6 @@ export function startShipBuild(state: SimState, builder: number, design: ShipDes
   };
   const station = { ...state.station, inventory, shipBuilds: [...state.station.shipBuilds, job] };
   return { ...state, station, ships: dockWaitingShips(station, state.ships) };
-}
-
-export interface Beam {
-  from: Vec;
-  to: Vec;
 }
 
 // A mining ship's laser, from the ship to the near edge of the rock it is
