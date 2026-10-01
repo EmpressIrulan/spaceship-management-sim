@@ -355,6 +355,7 @@ describe("ore is conserved", () => {
       order: null,
       leg: null,
       berth: null,
+      transfer: null,
     };
   }
 

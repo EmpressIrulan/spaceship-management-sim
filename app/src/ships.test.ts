@@ -43,6 +43,16 @@ describe("hovering a ship shows its state", () => {
     expect(infoBox(arrived, { kind: "ship", index })?.line).toBe("Waiting: dock busy");
   });
 
+  it("shows live gate loading and unloading counts ahead of the standing order", () => {
+    const ordered = { kind: "haulGate" as const, gateId: 0 };
+    expect(infoBox(withShips([{ state: "loading" as Ship["state"], cargo: 12, cargoMaterial: "Metal", order: ordered }]),
+      { kind: "ship", index: 0 })?.line).toBe("Loading 12/20");
+    expect(infoBox(withShips([{ state: "gateUnloading" as Ship["state"], cargo: 12, cargoMaterial: "Metal", order: ordered,
+      transfer: { startingCargo: 20, amount: 20 } }]), { kind: "ship", index: 0 })?.line).toBe("Unloading 8/20");
+    expect(infoBox(withShips([{ state: "waiting", cargo: 0, cargoMaterial: "Metal", order: ordered }]),
+      { kind: "ship", index: 0 })?.line).toBe("Waiting: dock busy");
+  });
+
   it("can hover a ship sitting idle at the Dock", () => {
     const state = tick(withShips([{ state: "idle", design: noLaser, target: null }]), 0);
     const pointer = worldToScreen(camera, viewport, state.station.dock.position);

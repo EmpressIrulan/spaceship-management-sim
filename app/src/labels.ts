@@ -1,4 +1,4 @@
-import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, shipStats, stationIncome, unloadingSeconds, type Ship, type SimState } from "sim";
+import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, shipStats, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -29,12 +29,13 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "berthing":
     case "homebound":
       return { fill: hold ? ship.cargo / hold : 0, text };
+    case "loading":
+      return { fill: hold ? ship.cargo / hold : 0, text };
     case "working":
       return { fill: miningSeconds ? 1 - ship.timer / miningSeconds : 0, text };
     case "unloading":
-      // A partial load starts below the timer's fraction, so the bar never
-      // reads fuller than what is aboard.
-      return { fill: Math.min(ship.timer / unloadingSeconds(ship.design), hold ? ship.cargo / hold : 0), text };
+    case "gateUnloading":
+      return { fill: hold ? ship.cargo / hold : 0, text };
   }
 }
 
