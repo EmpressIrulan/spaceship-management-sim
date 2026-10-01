@@ -3,12 +3,40 @@ import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
 import { availableModuleBuildSites } from "./station-building";
 import { moduleSize, samePosition } from "./station-module-geometry";
+import { travelSeconds } from "./motion";
+import { speedFactor } from "./ship";
+import type { Draft } from "./tick-mining";
 
 type QueueState = Pick<Station, "constructionSite" | "construction" | "buildQueue">;
 
 export function supplyQueueStatus(ship: Pick<Ship, "defaultBehaviour" | "order">, queuedCount: number): "waiting" | "supplying" | null {
   if (ship.defaultBehaviour !== "supply" || ship.order !== null) return null;
   return queuedCount === 0 ? "waiting" : "supplying";
+}
+
+export function waitEmptyQueueSupplier(ship: Ship, queuedCount: number): Ship | null {
+  if (supplyQueueStatus(ship, queuedCount) !== "waiting" || ship.state !== "idle") return null;
+  return { ...ship, state: "holding", timer: 0, leg: null, target: null };
+}
+
+export function holdReturnedSupplier(ship: Ship, queuedCount: number, dock: Vec): Ship | null {
+  if (supplyQueueStatus(ship, queuedCount) !== "waiting" || ship.state !== "homebound") return null;
+  return { ...ship, state: "holding", position: { ...dock }, timer: 0, leg: null, target: null, berth: null, transfer: null };
+}
+
+export function unloadSupplierIntoEmptyQueue(ship: Ship, queuedCount: number, dock: Vec): Ship | null {
+  if (supplyQueueStatus(ship, queuedCount) !== "waiting" || ship.state !== "unloading") return null;
+  const from = { ...ship.position };
+  const to = { ...dock };
+  return { ...ship, state: "homebound", transfer: null, position: from, leg: { from, to },
+    timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
+}
+
+export function settleQueuedBuild(draft: Pick<Draft, "constructionSite" | "construction" | "buildQueue">): void {
+  const next = startNextQueuedModule(draft);
+  draft.constructionSite = next.constructionSite;
+  draft.construction = next.construction;
+  draft.buildQueue = next.buildQueue;
 }
 
 function canPay(inventory: Record<Material, number>): boolean {
