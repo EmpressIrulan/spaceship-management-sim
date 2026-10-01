@@ -1,13 +1,13 @@
-import {
-  availableModuleBuildSites, claimSiteSlots, dockBerths, laserBeam, sectorInGateRange, shipSize,
-} from "sim";
+import { availableModuleBuildSites, laserBeam, sectorInGateRange, shipSize } from "sim";
 import { bodyOf, hoveredBody, screenToWorld, worldToScreen, type Camera, type Viewport } from "./camera";
-import { cargoGauge, infoBox, sectorBox, type Gauge } from "./labels";
+import { cargoGauge, infoBox, sectorBox } from "./labels";
 import { asteroidColor } from "./asteroid";
-import { mapHit, mapLayout, renameLabel, sectorBackdrop } from "./sectors";
-import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
-import { buildControlSize, buildControlsVisible, buildMenuItems, pointerInBuildArea } from "./building";
+import { mapHit, mapLayout, sectorBackdrop } from "./sectors";
+import { drawMapOverlay } from "./map-rendering";
+import { createShipDrawing } from "./ship-rendering";
 import { shipSprite } from "./ships";
+import { buildControlSize, buildControlsVisible, buildMenuItems, pointerInBuildArea } from "./building";
+
 import { renderShipPanel, type ShipPanelContext } from "./ship-panel";
 import { orderLineAlpha } from "./selection";
 import { cellAt, designOf, designPartAt, draftPartAt, placedDesign, shipMenuView, type ShipDraft } from "./shipyard";
@@ -65,29 +65,8 @@ function strokeWorldRect(center: Vec, size: Size, color: string): void {
 }
 
 const stationDrawing = createStationDrawing(ui, getState, ctx, fillWorldRect, strokeWorldRect);
+const shipDrawing = createShipDrawing(ui, ctx);
 
-function drawShip(ship: Ship): void {
-  const size = shipSize(ship.design);
-  const a = worldToScreen(ui.camera, ui.viewport, { x: ship.position.x - size.width / 2, y: ship.position.y - size.height / 2 });
-  const b = worldToScreen(ui.camera, ui.viewport, { x: ship.position.x + size.width / 2, y: ship.position.y + size.height / 2 });
-  const x = Math.round(a.x);
-  const y = Math.round(a.y);
-  ctx.drawImage(shipSprite(ship.design), x, y, Math.max(1, Math.round(b.x) - x), Math.max(1, Math.round(b.y) - y));
-}
-
-function drawSelectionRing(center: Vec, size: Size): void {
-  const screen = worldToScreen(ui.camera, ui.viewport, center);
-  const radius = Math.hypot(size.width, size.height) / 2 * ui.camera.zoom + 5;
-  ctx.save();
-  ctx.strokeStyle = "#4ade80";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(screen.x, screen.y, radius, 0, 2 * Math.PI);
-  ctx.stroke();
-  ctx.restore();
-}
-
-// Screen pixels per canvas pixel above which the pixel grid is drawn.
 const GRID_ZOOM = 6;
 
 function drawPaintCanvas(): void {
@@ -161,54 +140,6 @@ function renderPartTip(): void {
 }
 
 // Screen-space so the numbers stay readable at any zoom.
-const GAUGE = { width: 36, height: 12, gap: 4 };
-
-function drawGauge(shipPosition: Vec, gauge: Gauge, size: Size): void {
-  const top = worldToScreen(ui.camera, ui.viewport, {
-    x: shipPosition.x,
-    y: shipPosition.y - size.height / 2,
-  });
-  const x = Math.round(top.x - GAUGE.width / 2);
-  const y = Math.round(top.y - GAUGE.gap - GAUGE.height);
-
-  ctx.fillStyle = "#1f2937";
-  ctx.fillRect(x, y, GAUGE.width, GAUGE.height);
-  ctx.fillStyle = "#a16207";
-  ctx.fillRect(x, y, GAUGE.width * gauge.fill, GAUGE.height);
-  ctx.strokeStyle = "#64748b";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + 0.5, y + 0.5, GAUGE.width - 1, GAUGE.height - 1);
-
-  ctx.fillStyle = "#f9fafb";
-  ctx.font = "9px monospace";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(gauge.text, x + GAUGE.width / 2, y + GAUGE.height / 2 + 0.5);
-}
-
-// Screen-space, like the gauge, so the beam and flicker read at any zoom.
-function drawLaser(beam: Beam, seconds: number): void {
-  const from = worldToScreen(ui.camera, ui.viewport, beam.from);
-  const to = worldToScreen(ui.camera, ui.viewport, beam.to);
-  const pulse = laserPulse(seconds);
-
-  ctx.save();
-  ctx.globalAlpha = pulse;
-  ctx.strokeStyle = LASER_COLOR;
-  ctx.lineWidth = 1 + pulse;
-  ctx.beginPath();
-  ctx.moveTo(from.x, from.y);
-  ctx.lineTo(to.x, to.y);
-  ctx.stroke();
-  ctx.restore();
-
-  // 2 by 2 so a single spark is still visible on a low-density screen.
-  ctx.fillStyle = "#fff1f2";
-  for (const pixel of flickerPixels({ x: Math.round(to.x), y: Math.round(to.y) }, seconds)) {
-    ctx.fillRect(pixel.x - 1, pixel.y - 1, 2, 2);
-  }
-}
-
 function drawOrderFeedback(seconds: number): void {
   if (ui.orderLines) {
     const alpha = orderLineAlpha(seconds - ui.orderLines.start);
@@ -302,15 +233,15 @@ function draw(seconds: number): void {
 
   for (const ship of sectorShips) {
     const beam = laserBeam(getState(), ship);
-    if (beam) drawLaser(beam, seconds);
+    if (beam) shipDrawing.drawLaser(beam, seconds);
   }
 
   for (const ship of sectorShips) {
-    drawShip(ship);
-    if (ui.selectedShips.includes(ship.id)) drawSelectionRing(ship.position, shipSize(ship.design));
+    shipDrawing.drawShip(ship);
+    if (ui.selectedShips.includes(ship.id)) shipDrawing.drawSelectionRing(ship.position, shipSize(ship.design));
 
     const gauge = cargoGauge(ship);
-    if (gauge) drawGauge(ship.position, gauge, shipSize(ship.design));
+    if (gauge) shipDrawing.drawGauge(ship.position, gauge, shipSize(ship.design));
   }
   const panelContext: ShipPanelContext = renderShipPanel(getState(), shipPanelBox, { selectedShips: ui.selectedShips, selectedShip: ui.selectedShip, renderedPanel: ui.renderedPanel });
   ui.selectedShips = panelContext.selectedShips;
@@ -455,34 +386,7 @@ function draw(seconds: number): void {
   renameBox.hidden = ui.renamingSector === null || !ui.mapOpen;
   if (renameBox.hidden) ui.renamingSector = null;
 
-  if (ui.mapOpen) {
-    const layout = mapLayout(getState(), ui.viewport);
-    ctx.save(); ctx.fillStyle = "rgba(15,23,42,.94)"; ctx.fillRect(0, 0, ui.viewport.width, ui.viewport.height);
-    ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = 3;
-    for (const link of layout.links) { ctx.beginPath(); ctx.moveTo(link.from.x, link.from.y); ctx.lineTo(link.to.x, link.to.y); ctx.stroke(); }
-    for (const circle of layout.circles) {
-      const available = !ui.pendingGate || circle.id === ui.pendingGate.sectorId || sectorInGateRange(ui.pendingGate.sectorId, circle.id);
-      ctx.beginPath(); ctx.arc(circle.center.x, circle.center.y, circle.radius, 0, Math.PI * 2);
-      ctx.fillStyle = available ? circle.tint : "#334155";
-      ctx.globalAlpha = available ? 1 : 0.55;
-      ctx.fill(); ctx.strokeStyle = available ? "#67e8f9" : "#64748b"; ctx.stroke();
-      ctx.fillStyle = "#f8fafc"; ctx.textAlign = "center"; ctx.font = "14px monospace";
-      ctx.fillText(circle.name, circle.center.x, circle.center.y - 4);
-      ctx.fillText(`${circle.ships} ships`, circle.center.x, circle.center.y + 18);
-      if (circle.claimed) {
-        const label = renameLabel(circle);
-        ctx.font = "11px monospace"; ctx.strokeStyle = "#94a3b8"; ctx.strokeRect(label.x, label.y, label.width, label.height);
-        ctx.fillText("Rename", circle.center.x, label.y + 12);
-        ctx.font = "14px monospace";
-      }
-      if (ui.renamingSector === circle.id) {
-        renameBox.style.left = `${Math.round(circle.center.x - 60)}px`;
-        renameBox.style.top = `${Math.round(circle.center.y - 22)}px`;
-      }
-    }
-    ctx.globalAlpha = 1;
-    ctx.restore();
-  }
+  if (ui.mapOpen) drawMapOverlay(ui, getState(), ctx, renameBox);
 }
 
 
