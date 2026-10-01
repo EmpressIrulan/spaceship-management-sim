@@ -1,4 +1,6 @@
-import { ASTEROID_MIN_SPACING, BUILD_SECONDS, BUILDER_SIZE, DOCK_SIZE, MATERIALS, MODULE_COST, MODULE_TYPES, STORAGE_SIZE, type Material, type ModuleConstruction, type ModuleType, type SimState, type Size, type Vec } from "./state";
+import { ASTEROID_MIN_SPACING, BUILD_SECONDS, BUILDER_SIZE, DOCK_SIZE, MATERIALS, MODULE_COST, MODULE_TYPES, STORAGE_SIZE, MODULE_SPACING } from "./build-constants";
+import type { Material, ModuleType, Size, Vec } from "./model";
+type BuildState = { station: { constructionSite: { position: Vec; size: Size; inventory: Record<Material, number> }; construction: { type: ModuleType; position: Vec; size: Size; timer: number } | null; modules: { type: ModuleType; position: Vec; size: Size }[]; inventory: Record<Material, number> }; asteroids: { position: Vec }[]; ships: unknown[] };
 import { distance } from "./fields";
 
 export interface ModuleBuildOption {
@@ -8,7 +10,7 @@ export interface ModuleBuildOption {
   missing: Record<Material, number>;
 }
 
-export function availableModuleBuilds(state: SimState): ModuleBuildOption[] {
+export function availableModuleBuilds(state: BuildState): ModuleBuildOption[] {
   const stock = state.station.constructionSite.inventory;
   const missing = Object.fromEntries(
     MATERIALS.map((material) => [material, Math.max(0, MODULE_COST[material] - stock[material])]),
@@ -18,7 +20,6 @@ export function availableModuleBuilds(state: SimState): ModuleBuildOption[] {
 }
 
 // Centre-to-centre distance between neighbouring module slots.
-export const MODULE_SPACING = 40;
 const BUILD_DIRECTIONS: Vec[] = [
   { x: -MODULE_SPACING, y: 0 },
   { x: 0, y: -MODULE_SPACING },
@@ -37,7 +38,7 @@ function overlapsFootprint(site: Vec, footprint: { position: Vec; size: Size }):
     && Math.abs(site.y - footprint.position.y) < (DOCK_SIZE.height + footprint.size.height) / 2;
 }
 
-export function availableModuleBuildSites(state: SimState): Vec[] {
+export function availableModuleBuildSites(state: BuildState): Vec[] {
   const footprints = [
     ...state.station.modules,
     ...(state.station.construction ? [state.station.construction] : []),
@@ -61,7 +62,7 @@ function moduleSize(type: ModuleType): Size {
   return BUILDER_SIZE;
 }
 
-export function startModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {
+export function startModuleBuild<S extends BuildState>(state: S, type: ModuleType, position: Vec): S {
   const option = availableModuleBuilds(state).find((candidate) => candidate.type === type);
   const site = availableModuleBuildSites(state).find((candidate) => samePosition(candidate, position));
   if (!option?.enabled || !site) return state;
@@ -69,12 +70,12 @@ export function startModuleBuild(state: SimState, type: ModuleType, position: Ve
   const inventory = Object.fromEntries(
     MATERIALS.map((material) => [material, state.station.constructionSite.inventory[material] - MODULE_COST[material]]),
   ) as Record<Material, number>;
-  const construction: ModuleConstruction = {
+  const construction = {
     type,
     position: { ...site },
     size: moduleSize(type),
     timer: BUILD_SECONDS,
   };
   const station = { ...state.station, constructionSite: { ...state.station.constructionSite, inventory }, construction };
-  return { ...state, station };
+  return { ...state, station } as S;
 }

@@ -1,5 +1,5 @@
 import { SHIP_CRUISE_SPEED } from "./motion";
-import type { Material, Size } from "./state";
+import type { Material, Size } from "./model";
 
 // Placeholder tuning. The client asked for the first cut to run four times
 // slower, which puts one cycle at roughly 35 to 50 seconds. These are the

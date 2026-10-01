@@ -1,5 +1,5 @@
 import { nextRandom } from "./prng";
-import type { AsteroidField, Density, Vec } from "./state";
+import type { AsteroidField, Density, Vec } from "./model";
 
 // Keeps asteroids from landing on top of each other, or a respawn from landing
 // where the last one ran out. About three asteroid widths.

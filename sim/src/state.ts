@@ -1,7 +1,11 @@
-import type { ClaimSite } from "./claim";
+import type { ClaimSite } from "./model";
+import { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MATERIALS, MODULE_COST, MODULE_TYPES, BUILDER_SIZE, STORAGE_SIZE } from "./build-constants";
+import type { AsteroidField, Density, Material, ModuleType, Size, Vec } from "./model";
+export type { AsteroidField, Density, Material, ModuleType, Size, Vec, ClaimSite } from "./model";
+export { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MATERIALS, MODULE_COST, MODULE_TYPES, BUILDER_SIZE, STORAGE_SIZE } from "./build-constants";
+export { MODULE_SPACING } from "./build-constants";
 import { distance, makeFields, placeInField, rocksInField } from "./fields";
-export { ASTEROID_MIN_SPACING } from "./fields";
-export { availableModuleBuildSites, availableModuleBuilds, startModuleBuild, MODULE_SPACING, type ModuleBuildOption } from "./station-building";
+export { availableModuleBuildSites, availableModuleBuilds, startModuleBuild, type ModuleBuildOption } from "./station-building";
 export { FIELD_LAYOUT, BELT_ROCKS, CLUSTER_ROCKS, SPARSE_BELT_ROCKS, SPARSE_CLUSTER_ROCKS, BELT_RADIUS, BELT_SWEEP, BELT_WIDTH, CLUSTER_RADIUS, FIELD_MIN_REACH, FIELD_MAX_REACH, FIELD_SEPARATION, FIELD_GATE_CLEARANCE } from "./fields";
 export { placeInField } from "./fields";
 import { travelSeconds } from "./motion";
@@ -25,17 +29,9 @@ export { CARGO_PER_TRIP, MINING_GAP, UNLOADING_SECONDS, WORKING_SECONDS } from "
 export const ASTEROID_ORE = 30;
 // Placeholder, to tune at the demo.
 export const RESPAWN_SECONDS = 30;
-export const MATERIALS = ["Metal", "Ice"] as const;
-export type Material = (typeof MATERIALS)[number];
 
 export const DOCK_CAPACITY = 6;
 export const STORAGE_CAPACITY = 100;
-export const DOCK_SIZE = { width: 40, height: 70 };
-export const STORAGE_SIZE = { width: 30, height: 40 };
-export const BUILDER_SIZE = { width: 30, height: 40 };
-export const BUILD_SECONDS = 15;
-export const MODULE_COST: Record<Material, number> = { Metal: 25, Ice: 25 };
-export const MODULE_TYPES = ["Dock", "Storage", "Builder"] as const;
 // The construction site sits off the Dock's north-east corner. Placed between
 // two module slots, so it takes none of the ones Home offers at the start.
 export const CONSTRUCTION_SITE_POSITION: Vec = { x: 75, y: -60 };
@@ -43,7 +39,6 @@ export const CONSTRUCTION_SITE_SIZE = { width: 28, height: 28 };
 // Placeholder: the site starts empty, so the first module needs a ship supplying
 // it. Raise this if the first minute of play feels stuck before anything is built.
 export const CONSTRUCTION_SITE_START: Record<Material, number> = { Metal: 0, Ice: 0 };
-export type ModuleType = (typeof MODULE_TYPES)[number];
 export const ASTEROID_SIZE = { width: 13, height: 10 };
 // A rich rock is bigger and holds four times the ore of a plain one.
 export const RICH_ORE_FACTOR = 4;
@@ -51,23 +46,12 @@ export const RICH_ORE = ASTEROID_ORE * RICH_ORE_FACTOR;
 export const RICH_ASTEROID_SIZE = { width: 21, height: 16 };
 // Share of a sector's rocks in its abundant material.
 export const ABUNDANT_SHARE = 0.75;
-export const HOME_SECTOR = 0;
 export const JUMP_SECONDS = 2;
 export const GATE_SIZE = { width: 24, height: 24 };
 export const GATE_DISTANCE = 480;
 export const SECTOR_COUNT = 4;
 export const GATE_COST: Record<Material, number> = { Metal: 200, Ice: 200 };
 export const SECTOR_MAP_POINTS = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 1 }] as const;
-
-export interface Vec {
-  x: number;
-  y: number;
-}
-
-export interface Size {
-  width: number;
-  height: number;
-}
 
 // "idle" means sitting at the Dock, because no asteroid has ore or the ship
 // can't mine. "waiting" means home with a transfer pending but no free berth,
@@ -188,11 +172,6 @@ export interface Asteroid {
   material: Material;
 }
 
-interface FieldBase { id: number; sectorId: number; centre: Vec; radius: number }
-export type AsteroidField =
-  | (FieldBase & { kind: "cluster" })
-  // The arc runs `sweep` radians from angle `from`, `width` thick.
-  | (FieldBase & { kind: "belt"; from: number; sweep: number; width: number });
 
 export interface Respawn {
   sectorId: number;
@@ -225,7 +204,6 @@ export interface SimState {
   ships: Ship[];
 }
 
-export type Density = "sparse" | "dense";
 // What a sector is good for. Fixed when the sector is made.
 export interface SectorCharacter {
   // The material most of the sector's rocks are made of.
