@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { claimSiteBuilt } from "./claim";
 import { configureHaul, giveOrder, haulStations, resumeDefault, setDefaultBehaviour } from "./orders";
 import { createInitialState, STORAGE_CAPACITY, type SimState } from "./state";
+import { unloadingSeconds } from "./ship";
 import { tick } from "./tick";
 
 function twoStations(): SimState {
@@ -48,6 +49,7 @@ describe("Haul default", () => {
 
     const halfLoaded = run(state, 3.01);
     expect(halfLoaded.ships[0]).toMatchObject({ state: "haulLoading", cargo: 5, cargoMaterial: "Ice" });
+    expect(halfLoaded.ships[0]!.cargoByMaterial).toEqual({ Metal: 0, Ice: 5 });
     expect(halfLoaded.station.inventory.Ice).toBe(35);
 
     const arrived = until(halfLoaded, (next) => next.ships[0]!.state === "haulUnloading");
@@ -58,6 +60,18 @@ describe("Haul default", () => {
 
     const repeated = until(halfUnloaded, (next) => next.ships[0]!.state === "haulLoading");
     expect(repeated.ships[0]).toMatchObject({ sectorId: 0, cargo: 0 });
+  });
+
+  it("unloads each material in a mixed hold at the haul destination", () => {
+    const base = twoStations();
+    const ship = base.ships[0]!;
+    const start = { ...base, ships: [{ ...ship, sectorId: 1, position: { ...base.claimSites[0]!.position },
+      state: "haulUnloading" as const, timer: unloadingSeconds(ship.design), cargo: 20, cargoMaterial: "Ice" as const,
+      cargoByMaterial: { Metal: 6, Ice: 14 }, haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Ice" as const } }] };
+
+    const done = tick(start, unloadingSeconds(ship.design));
+    expect(done.claimSites[0]!.delivered).toEqual({ Metal: 6, Ice: 14 });
+    expect(done.ships[0]).toMatchObject({ cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 } });
   });
 
   it("waits at From when the material is absent", () => {

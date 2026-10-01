@@ -376,7 +376,7 @@ export function miningSite(dock: Vec, asteroid: Asteroid, ship: Size = shipSize(
 // Rocks this ship may pick on its own. Other sectors are included only when
 // the ship has explicitly been allowed to cross gates for mining.
 export function minableRocks(ship: Ship, asteroids: Asteroid[]): Asteroid[] {
-  return asteroids.filter((rock) => (rock.sectorId === HOME_SECTOR || ship.mineOtherSectors)
+  return asteroids.filter((rock) => rock.sectorId === HOME_SECTOR
     && (ship.defaultBehaviour !== "mine" || ship.mineMaterials.includes(rock.material)));
 }
 

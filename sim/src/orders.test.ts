@@ -46,11 +46,28 @@ describe("RTS ship orders", () => {
     start = { ...start, station: { ...start.station, inventory: { Metal: 200, Ice: 200 } },
       ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
     const ordered = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
-    expect(ordered.ships[0]).toMatchObject({ state: "gateHauling", cargoMaterial: "Metal", cargo: 20 });
+    expect(ordered.ships[0]).toMatchObject({ state: "gateHauling", cargoMaterial: "Metal", cargo: 20,
+      cargoByMaterial: { Metal: 20, Ice: 0 } });
     expect(ordered.station.inventory.Metal).toBe(180);
     const delivered = until(ordered, (state) => state.gateProjects[0]!.delivered.Metal > 0);
     expect(delivered.gateProjects[0]!.delivered.Metal).toBe(20);
     expect(delivered.ships[0]!.order).toEqual({ kind: "haulGate", gateId: 0 });
+  });
+
+  it("carries a mixed hold through a full Storage and delivers each material to a gate", () => {
+    let start = startGateBuild(miningStart(7), 0, { x: 1, y: 0 }, 3, { x: -1, y: 0 });
+    const ship = start.ships[0]!;
+    start = { ...start,
+      station: { ...start.station, inventory: { Metal: 50, Ice: 50 } },
+      ships: [{ ...ship, state: "unloading", position: { ...start.station.dock.position }, timer: 0,
+        cargo: 20, cargoMaterial: "Ice", cargoByMaterial: { Metal: 6, Ice: 14 }, target: null, leg: null,
+        order: { kind: "haulGate", gateId: 0 } }] };
+
+    const carrying = tick(start, 0);
+    expect(carrying.ships[0]).toMatchObject({ state: "gateHauling", cargo: 20, cargoByMaterial: { Metal: 6, Ice: 14 } });
+    const delivered = until(carrying, (state) => state.gateProjects[0]!.delivered.Metal > 0);
+    expect(delivered.gateProjects[0]!.delivered).toEqual({ Metal: 6, Ice: 14 });
+    expect(delivered.ships[0]).toMatchObject({ cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 } });
   });
 
   it("unloads existing cargo before beginning a haul order without losing material", () => {

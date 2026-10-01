@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { giveOrder, setMineMaterial, setMineOtherSectors } from "./orders";
-import { createInitialState, HOME_SECTOR, MATERIALS, newAsteroid, type Material, type SimState } from "./state";
+import { createInitialState, HOME_SECTOR, MATERIALS, newAsteroid, startGateBuild, type Material, type SimState } from "./state";
 import { tick } from "./tick";
 
 function runUntil(state: SimState, done: (state: SimState) => boolean, limit = 600): SimState {
@@ -83,5 +83,29 @@ describe("miners fill the hold before going home", () => {
     const ordered = giveOrder(start, [0], { kind: "mine", asteroidId: 100 });
     const toppedUp = runUntil(ordered, (state) => state.ships[0]!.state === "homebound");
     expect(toppedUp.ships[0]).toMatchObject({ cargo: 20, cargoByMaterial: { Metal: 3, Ice: 17 }, order: { kind: "mine", loaded: true } });
+  });
+
+  it("keeps depart home-only when an empty gate hauler falls back to mining", () => {
+    let start = mining(withRocks([
+      { id: 100, x: 2_000, ore: 30, material: "Metal" },
+      { id: 101, sectorId: 1, x: 150, ore: 30, material: "Metal" },
+    ]), ["Metal"]);
+    start = startGateBuild(start, 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
+    start = { ...start,
+      station: { ...start.station, inventory: { Metal: 0, Ice: 0 } },
+      ships: [{ ...start.ships[0]!, state: "holding", timer: 0, target: null, leg: null, mineOtherSectors: true,
+        order: { kind: "haulGate", gateId: 0 } }] };
+
+    const fallback = tick(start, 0);
+    expect(fallback.ships[0]).toMatchObject({ state: "outbound", target: { asteroidId: 100, sectorId: HOME_SECTOR } });
+  });
+
+  it.each(["working", "unloading"] as const)("changing the sector tickbox does not reset a %s miner", (state) => {
+    const start = mining(withRocks([{ id: 100, x: 100, ore: 30, material: "Metal" }]), ["Metal"]);
+    const ship = { ...start.ships[0]!, state, timer: 7, cargo: 6, cargoMaterial: "Metal" as const,
+      cargoByMaterial: { Metal: 6, Ice: 0 }, mineOtherSectors: false };
+    const changed = setMineOtherSectors({ ...start, ships: [ship] }, [0], true).ships[0]!;
+
+    expect(changed).toMatchObject({ state, timer: 7, cargo: 6, cargoByMaterial: { Metal: 6, Ice: 0 }, mineOtherSectors: true });
   });
 });

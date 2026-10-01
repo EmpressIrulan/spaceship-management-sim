@@ -26,6 +26,7 @@ export {
   createInitialState,
   cargoByMaterial,
   minableRocks,
+  nearestMineableRock,
   availableModuleBuildSites,
   availableModuleBuilds,
   availableShipBuild,

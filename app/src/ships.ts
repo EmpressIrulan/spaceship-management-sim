@@ -2,7 +2,7 @@ import {
   MATERIALS,
   cargoByMaterial,
   canMine,
-  minableRocks,
+  nearestMineableRock,
   shipStats,
   type ShipDesign,
   type ShipModule,
@@ -74,7 +74,7 @@ function mineList(ship: Ship): string | null {
 // of what is ticked has ore left in the home sector.
 function idleMiner(state: SimState, ship: Ship): string {
   if (ship.mineMaterials.length === 0) return "Idle";
-  const available = minableRocks(ship, state.asteroids).some((rock) => rock.ore > 0);
+  const available = nearestMineableRock(ship, state.asteroids, state.sectors, state.gateProjects) !== null;
   return available ? "Idle" : `Waiting: no ${ship.mineMaterials.join(", ")}`;
 }
 

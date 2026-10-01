@@ -160,7 +160,8 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
       }
       const cargo = Math.min(shipStats(ship.design).hold, inventory[material], outstanding(material));
       inventory[material] -= cargo;
-      const loaded = { ...ship, cargo, cargoMaterial: material, order, target: null };
+      const loaded = { ...ship, cargo, cargoByMaterial: { Metal: material === "Metal" ? cargo : 0, Ice: material === "Ice" ? cargo : 0 },
+        cargoMaterial: material, order, target: null };
       ships[index] = { ...fly(loaded, "moving", end.position), state: "gateHauling" as const };
     }
     return { ...state, station: { ...state.station, inventory }, ships };
@@ -228,6 +229,7 @@ export function setMineOtherSectors(state: SimState, ids: number[], on: boolean)
     if (!ids.includes(ship.id) || !!ship.mineOtherSectors === on) return ship;
     const next = { ...ship, mineOtherSectors: on };
     if (next.defaultBehaviour !== "mine" || next.order) return next;
+    if (next.state !== "idle") return next;
     return resumeMining({ ...next, target: null }, state.station.dock.position, state.asteroids, state.sectors, state.gateProjects, state.ships);
   }) };
 }
