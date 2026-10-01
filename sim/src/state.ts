@@ -693,7 +693,7 @@ function parkingPoint(dock: Vec, index: number): Vec {
 }
 
 function holdsBerth(ship: Ship): boolean {
-  return ship.state === "loading" || ship.state === "haulLoading" || ship.state === "haulUnloading"
+  return ship.state === "loading" || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
     || (ship.state === "unloading" && ship.order?.kind !== "supplySite")
     || (ship.state === "berthing" && ship.berth !== null);
 }

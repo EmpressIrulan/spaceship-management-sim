@@ -79,6 +79,33 @@ describe("Haul default", () => {
     expect(dockBerths(loading.station.dock.position)).toContainEqual(loading.ships[6]!.position);
   });
 
+  it("does not let transfers at a claim station occupy Home's berths", () => {
+    const base = twoStations();
+    const ship = base.ships[0]!;
+    const remote = [0, 1, 2, 3, 4, 5].map((id) => ({
+      ...ship,
+      id,
+      state: "haulUnloading" as const,
+      sectorId: 1,
+      position: { ...base.claimSites[0]!.position },
+      timer: 12,
+      cargo: 20,
+      cargoMaterial: "Ice" as const,
+      defaultBehaviour: "haul" as const,
+      haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Ice" as const },
+      berth: null,
+      transfer: { startingCargo: 20, amount: 20 },
+    }));
+    const arriving = { ...ship, id: 6, state: "homebound" as const, position: { ...base.station.dock.position },
+      timer: 0, cargo: 20, cargoMaterial: "Metal" as const };
+    const state = { ...base, station: { ...base.station, storage: { ...base.station.storage, capacity: 1000 } },
+      ships: [...remote, arriving] };
+
+    const docked = tick(state, 0);
+    expect(docked.ships[6]).toMatchObject({ state: "berthing", berth: 0 });
+    expect(docked.ships[6]!.leg?.to).toEqual(dockBerths(base.station.dock.position)[0]);
+  });
+
   it("waits at From when the material is absent", () => {
     let state = twoStations();
     state = { ...state, station: { ...state.station, inventory: { ...state.station.inventory, Ice: 0 } } };

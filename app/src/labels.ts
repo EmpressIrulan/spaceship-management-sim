@@ -82,7 +82,7 @@ function storageBox(state: SimState): InfoBox {
 
 function dockBox(state: SimState): InfoBox {
   const transferring = state.ships.filter((ship) => ship.state === "loading"
-    || ship.state === "haulLoading" || ship.state === "haulUnloading"
+    || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
     || (ship.state === "unloading" && ship.order?.kind !== "supplySite")).length;
   return { title: "Dock", line: `Occupied ${transferring} / ${state.station.dock.capacity}` };
 }
