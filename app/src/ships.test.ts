@@ -75,7 +75,7 @@ describe("hovering a ship shows its state", () => {
   });
 
   it.each([1, 0.5, 0.2])("picks out each ship when nine crowd the Dock, at zoom %s", (zoom) => {
-    const home = { state: "homebound" as const, timer: 0, cargo: 10, cargoMaterial: "Metal" as const };
+    const home = { state: "homebound" as const, timer: 0, cargo: 20, cargoMaterial: "Metal" as const };
     const fleet = withShips(Array.from({ length: 9 }, () => home), {
       storage: { ...createInitialState(7).station.storage, capacity: 1000 },
     });
