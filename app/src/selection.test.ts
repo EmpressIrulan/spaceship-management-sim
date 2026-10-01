@@ -23,6 +23,37 @@ describe("RTS selection helpers", () => {
     expect(selectionPanel(state, [0, 14])).toMatchObject({ defaultBehaviour: "mixed", canResume: true, rows: [{ id: 0 }, { id: 14 }] });
   });
 
+  it("marks an order that is holding", () => {
+    const initial = createInitialState(7);
+    const ship = { ...initial.ships[0]!, state: "holding" as const,
+      order: { kind: "move" as const, point: { x: 1, y: 2 }, sectorId: 0 } };
+    const state = { ...initial, ships: [ship] };
+
+    expect(selectionPanel(state, [0])?.rows[0]?.status).toBe("Order: move (holding)");
+  });
+
+  it("disables Haul with one station and names the route controls with two", () => {
+    const initial = createInitialState(7);
+    expect(selectionPanel(initial, [0])).toMatchObject({
+      canHaul: false,
+      haulDisabledReason: "Needs two stations",
+      haulRoute: null,
+    });
+
+    const state = {
+      ...initial,
+      sectors: initial.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
+      claimSites: [{ id: 3, sectorId: 1, position: { x: 100, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null }],
+      ships: [{ ...initial.ships[0]!, defaultBehaviour: "haul" as const,
+        haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } }],
+    };
+    expect(selectionPanel(state, [0])).toMatchObject({
+      canHaul: true,
+      stations: [{ id: "home", name: "Home" }, { id: "claim:3", name: "Kessel" }],
+      haulRoute: { from: "home", to: "claim:3", material: "Ice" },
+    });
+  });
+
   it("fades order feedback to zero after one second", () => {
     expect(orderLineAlpha(0)).toBe(1);
     expect(orderLineAlpha(0.5)).toBe(0.5);

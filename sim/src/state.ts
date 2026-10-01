@@ -85,8 +85,11 @@ export interface Size {
 
 // "idle" means sitting at the Dock, because no asteroid has ore or the ship
 // can't mine. "waiting" means home with cargo and no room or no free berth.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning";
-export type DefaultBehaviour = "mine" | "none";
+export type ShipState = "idle" | "outbound" | "working" | "homebound" | "unloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning"
+  | "haulLoading" | "haulOutbound" | "haulJumpingOutbound" | "haulUnloading" | "haulReturning" | "haulJumpingReturning" | "haulWaitingSource" | "haulWaitingFull";
+export type DefaultBehaviour = "mine" | "haul" | "none";
+export type HaulStationId = "home" | `claim:${number}`;
+export interface HaulRoute { from: HaulStationId; to: HaulStationId; material: Material }
 export type Order =
   | { kind: "mine"; asteroidId: number; loaded: boolean }
   | { kind: "move"; point: Vec; sectorId: number }
@@ -115,6 +118,7 @@ export interface Ship {
   cargoMaterial: Material | null;
   target: Target | null;
   defaultBehaviour: DefaultBehaviour;
+  haulRoute?: HaulRoute;
   // What "Mine for Station" is allowed to mine. Empty means nothing, so a
   // new ship sits idle until someone ticks a material.
   mineMaterials: Material[];
