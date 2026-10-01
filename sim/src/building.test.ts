@@ -17,7 +17,7 @@ describe("building station modules", () => {
     const state = miningStart(7);
     return {
       ...state,
-      station: { ...state.station, inventory: { Metal: 50, Ice: 50 } },
+      station: { ...state.station, constructionSite: { ...state.station.constructionSite, inventory: { Metal: 50, Ice: 50 } } },
     };
   }
 
@@ -27,17 +27,18 @@ describe("building station modules", () => {
     const state = miningStart(7);
 
     expect(MODULE_COST).toEqual({ Metal: 25, Ice: 25 });
+    const missing = { Metal: 25, Ice: 25 };
     expect(availableModuleBuilds(state)).toEqual([
-      { type: "Dock", enabled: false },
-      { type: "Storage", enabled: false },
-      { type: "Builder", enabled: false },
+      { type: "Dock", enabled: false, missing },
+      { type: "Storage", enabled: false, missing },
+      { type: "Builder", enabled: false, missing },
     ]);
   });
 
   it("takes the cost immediately, occupies the next slot, and disables every choice", () => {
     const state = startModuleBuild(funded(), "Storage", east);
 
-    expect(state.station.inventory).toEqual({ Metal: 25, Ice: 25 });
+    expect(state.station.constructionSite.inventory).toEqual({ Metal: 25, Ice: 25 });
     expect(state.station.construction).toMatchObject({
       type: "Storage",
       timer: BUILD_SECONDS,
@@ -95,7 +96,7 @@ describe("building station modules", () => {
     expect(builder.station.modules.at(-1)).toMatchObject({ type: "Builder" });
   });
 
-  it("lets a storage-blocked ship resume unloading when ore is spent", () => {
+  it("leaves a Storage-blocked ship waiting, because a build no longer spends Storage", () => {
     const initial = funded();
     const waiting: SimState = {
       ...initial,
@@ -105,8 +106,8 @@ describe("building station modules", () => {
 
     const building = startModuleBuild(waiting, "Builder", east);
 
-    expect(building.station.inventory).toEqual({ Metal: 50, Ice: 0 });
-    expect(building.ships[0]).toMatchObject({ state: "berthing", cargo: 10 });
+    expect(building.station.inventory).toEqual({ Metal: 75, Ice: 25 });
+    expect(building.ships[0]).toMatchObject({ state: "waiting", cargo: 10 });
   });
 
   it("lets a ship waiting on full Storage leave once a Storage module completes", () => {

@@ -13,15 +13,19 @@ export interface BuildMenuItem {
   type: ModuleType;
   cost: string;
   disabled: boolean;
+  // Hover text for a greyed-out option: what the construction site lacks.
+  title: string;
 }
 
 export function buildMenuItems(state: SimState): BuildMenuItem[] {
   const cost = MATERIALS.map((material) => `${MODULE_COST[material]} ${material}`).join(", ");
-  return availableModuleBuilds(state).map((option) => ({
-    type: option.type,
-    cost,
-    disabled: !option.enabled,
-  }));
+  return availableModuleBuilds(state).map((option) => {
+    const short = MATERIALS.filter((material) => option.missing[material] > 0)
+      .map((material) => `${option.missing[material]} more ${material}`);
+    const title = short.length > 0 ? `Needs ${short.join(" and ")}`
+      : option.enabled ? "" : "Another module is being built";
+    return { type: option.type, cost, disabled: !option.enabled, title };
+  });
 }
 
 export function buildControlsVisible(stationHovered: boolean, controlsHovered: boolean): boolean {

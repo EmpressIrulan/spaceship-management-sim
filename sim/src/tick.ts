@@ -80,6 +80,7 @@ interface Draft {
   storageCapacity: number;
   storageLimits: Station["storageLimits"];
   inventory: SimState["station"]["inventory"];
+  constructionSite: Station["constructionSite"];
   asteroids: Asteroid[];
   respawns: SimState["respawns"];
   fields: SimState["fields"];
@@ -322,6 +323,10 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
       return { ...addCargo(ship, ship.cargoMaterial, loaded), timer };
     }
     case "unloading": {
+      if (ship.transfer?.destination === "constructionSite") {
+        const targetCargo = Math.max(0, ship.transfer.startingCargo - transferDone(ship, timer));
+        return { ...giveToBuildSite(draft, ship, ship.cargo - targetCargo), timer };
+      }
       if (ship.order?.kind === "supplySite") {
         const targetCargo = Math.max(0, (ship.transfer?.startingCargo ?? ship.cargo) - transferDone(ship, timer));
         return { ...giveToSite(draft, ship, ship.cargo - targetCargo), timer };
@@ -426,6 +431,62 @@ function giveToSite(draft: Draft, ship: Ship, units: number): Ship {
   return next;
 }
 
+// Puts up to `units` of the ship's cargo into the construction site, each
+// material from its own count in the hold. The site has no cap, so it takes all.
+function giveToBuildSite(draft: Draft, ship: Ship, units: number): Ship {
+  if (units <= 0) return ship;
+  const inventory = { ...draft.constructionSite.inventory };
+  const next = transferCargo(ship, units, (material, amount) => {
+    inventory[material] += amount;
+    return amount;
+  });
+  draft.constructionSite = { ...draft.constructionSite, inventory };
+  return next;
+}
+
+// Where a ship that has just finished an order goes next: back along its Haul
+// route if that is its default, otherwise to mining or to hold.
+function resumeAfterBuildOrder(draft: Draft, ship: Ship): Ship {
+  const done = { ...ship, order: null, target: null };
+  const route = done.haulRoute;
+  if (done.defaultBehaviour !== "haul") return afterOrder(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+  const from = route ? haulEnd(draft, route.from) : null;
+  if (!route || !from || !haulEnd(draft, route.to)) return { ...done, state: "holding", timer: 0, leg: null };
+  const atFrom = done.sectorId === from.sectorId && samePoint(done.position, from.position);
+  return atFrom ? beginHaulLoading(draft, done) : flyHaul(draft, done, route.from, "haulReturning");
+}
+
+// A ship on Supply construction site, with no order of its own, takes what it
+// mines to the construction site instead of the Dock.
+function supplying(ship: Ship): boolean {
+  return ship.defaultBehaviour === "supply" && ship.order === null;
+}
+
+function samePoint(a: Vec, b: Vec): boolean {
+  return Math.hypot(a.x - b.x, a.y - b.y) < 0.01;
+}
+
+function flyTo(ship: Ship, from: Vec, to: Vec): Ship {
+  return { ...ship, state: "homebound", position: { ...from }, berth: null, transfer: null, leg: { from: { ...from }, to: { ...to } },
+    timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
+}
+
+// Arrival at the construction site starts the same unloading countdown as at
+// the Dock, but takes no berth.
+function arriveAtBuildSite(draft: Draft, ship: Ship): Ship {
+  const arrived = { ...ship, position: { ...draft.constructionSite.position }, leg: null, berth: null };
+  return arrived.cargo > 0
+    ? { ...arrived, state: "unloading", transfer: { startingCargo: arrived.cargo, amount: arrived.cargo, destination: "constructionSite" }, timer: cargoTransferSeconds(arrived.cargo) }
+    : resumeAfterBuildOrder(draft, { ...arrived, transfer: null });
+}
+
+// The countdown is over: the site takes the rest and the ship goes back to its
+// default, or on to its next order.
+function finishBuildSupply(draft: Draft, ship: Ship): Ship {
+  const emptied = giveToBuildSite(draft, ship, ship.cargo);
+  return resumeAfterBuildOrder(draft, { ...emptied, cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 }, cargoMaterial: null, transfer: null });
+}
+
 // Arrival at a site starts the same unloading countdown as at the Dock.
 function arriveAtSite(draft: Draft, ship: Ship): Ship {
   return ship.cargo > 0
@@ -516,6 +577,7 @@ function finish(draft: Draft, ship: Ship): Ship {
         return { ...ship, state: "jumpingOut", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
       }
       if (ship.order?.kind === "supplySite") return arriveAtSite(draft, { ...ship, position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null });
+      if (ship.order?.kind === "supplyBuild") return arriveAtBuildSite(draft, ship);
       return { ...ship, state: "holding", position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null, timer: 0 };
     case "gateHauling": {
       const position = ship.leg ? { ...ship.leg.to } : ship.position;
@@ -580,6 +642,7 @@ function finish(draft: Draft, ship: Ship): Ship {
         return { ...ship, state: "homebound", leg: { from: { ...ship.position }, to: { ...gate } }, timer: travelSeconds(length, speedFactor(ship.design)),
           order: ship.order?.kind === "mine" ? { ...ship.order, loaded: true } : ship.order };
       }
+      if (supplying(ship)) return flyTo({ ...ship, cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo) }, ship.position, draft.constructionSite.position);
       return {
         ...ship,
         state: "homebound",
@@ -589,6 +652,13 @@ function finish(draft: Draft, ship: Ship): Ship {
       };
     case "homebound":
       if (ship.sectorId !== HOME_SECTOR) return { ...ship, state: "jumpingHome", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
+      const site = draft.constructionSite.position;
+      const headingForSite = ship.leg !== null && samePoint(ship.leg.to, site);
+      if (supplying(ship) && (headingForSite || ship.cargo > 0)) {
+        return headingForSite ? arriveAtBuildSite(draft, ship) : flyTo(ship, draft.dock, site);
+      }
+      // Heading for the site on a default it has since lost: on to the Dock.
+      if (headingForSite) return flyTo(ship, site, draft.dock);
       if (ship.cargo > 0 && !canProcessCargo(draft, ship)) {
         return toParking(layoutOf(draft), draft.ships, { ...ship, position: { ...draft.dock }, leg: null });
       }
@@ -599,6 +669,7 @@ function finish(draft: Draft, ship: Ship): Ship {
         : toBerth(layoutOf(draft), draft.ships, docked) ?? { ...docked, state: "unloading", berth: null,
           transfer: { startingCargo: 0, amount: 0 }, timer: cargoTransferSeconds(0) };
     case "unloading": {
+      if (ship.transfer?.destination === "constructionSite") return finishBuildSupply(draft, ship);
       if (ship.order?.kind === "supplySite") return finishSupply(draft, ship);
       const left = afterUnloading(draft, ship);
       // The pad is free from here on. A ship with nowhere to go stays at the
@@ -667,7 +738,7 @@ function settle(draft: Draft): void {
       [respawn.lastPosition, ...draft.asteroids.filter((a) => a.sectorId === respawn.sectorId).map((a) => a.position)],
       [
         ...(respawn.sectorId === HOME_SECTOR
-          ? [...draft.modules.map((module) => module.position), ...(draft.construction ? [draft.construction.position] : [])]
+          ? [...draft.modules.map((module) => module.position), draft.constructionSite.position, ...(draft.construction ? [draft.construction.position] : [])]
           : []),
         ...draft.claimSites.filter((site) => site.sectorId === respawn.sectorId)
           .flatMap((site) => [site.position, ...claimSiteSlots(site).map((slot) => slot.position)]),
@@ -740,6 +811,7 @@ export function tick(state: SimState, dt: number): SimState {
     storageCapacity: state.station.storage.capacity,
     storageLimits: state.station.storageLimits,
     inventory: state.station.inventory,
+    constructionSite: state.station.constructionSite,
     asteroids: state.asteroids,
     respawns: state.respawns,
     fields: state.fields,
@@ -774,6 +846,7 @@ export function tick(state: SimState, dt: number): SimState {
       dock: { ...state.station.dock, capacity: draft.dockCapacity },
       storage: { ...state.station.storage, capacity: draft.storageCapacity },
       inventory: draft.inventory,
+      constructionSite: draft.constructionSite,
       deliveries: draft.deliveries.filter((delivery) => delivery.at > draft.time - INCOME_WINDOW_SECONDS),
       modules: draft.modules,
       construction: draft.construction,

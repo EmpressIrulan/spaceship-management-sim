@@ -83,7 +83,7 @@ function storageBox(state: SimState): InfoBox {
 function dockBox(state: SimState): InfoBox {
   const transferring = state.ships.filter((ship) => ship.state === "loading"
     || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
-    || (ship.state === "unloading" && ship.order?.kind !== "supplySite")).length;
+    || (ship.state === "unloading" && ship.order?.kind !== "supplySite" && ship.transfer?.destination !== "constructionSite")).length;
   return { title: "Dock", line: `Occupied ${transferring} / ${state.station.dock.capacity}` };
 }
 
@@ -92,6 +92,10 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   if (!hovered) return null;
   if (hovered.kind === "dock") return dockBox(state);
   if (hovered.kind === "storage") return storageBox(state);
+  if (hovered.kind === "constructionSite") {
+    const { inventory } = state.station.constructionSite;
+    return { title: "Construction site", line: MATERIALS.map((material) => `${material}: ${inventory[material]}`).join("\n") };
+  }
   if (hovered.kind === "construction") {
     const construction = state.station.construction;
     return construction

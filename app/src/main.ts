@@ -723,7 +723,7 @@ canvas.addEventListener("contextmenu", (event) => {
   if (!selectedShips.length) return;
   const world = screenToWorld(camera, viewport, point); const target = orderTargetAt(state, hovered, world, currentSector);
   const to = target.kind === "move" ? target.point : target.kind === "home" ? state.station.dock.position
-    : target.kind === "haulGate" ? world : target.kind === "supplySite" ? state.claimSites.find((site) => site.id === target.siteId)?.position ?? world : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
+    : target.kind === "haulGate" ? world : target.kind === "supplyBuild" ? state.station.constructionSite.position : target.kind === "supplySite" ? state.claimSites.find((site) => site.id === target.siteId)?.position ?? world : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
   orderLines = { from: selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
   state = giveOrder(state, selectedShips, target);
 });
@@ -875,6 +875,24 @@ function drawStationModule(module: StationModule): void {
   ctx.restore();
 }
 
+// Ships carry ore here and Home builds from it. Always drawn, since Home has
+// one from the start.
+function drawConstructionSite(): void {
+  const { position, size } = state.station.constructionSite;
+  const left = worldToScreen(camera, viewport, { x: position.x - size.width / 2, y: position.y - size.height / 2 });
+  const right = worldToScreen(camera, viewport, { x: position.x + size.width / 2, y: position.y + size.height / 2 });
+  fillWorldRect(position, size, "rgba(245,158,11,.25)");
+  strokeWorldRect(position, size, "#f59e0b");
+  ctx.save();
+  ctx.strokeStyle = "rgba(245,158,11,.6)";
+  ctx.lineWidth = Math.max(1, camera.zoom);
+  ctx.beginPath();
+  ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y);
+  ctx.moveTo(right.x, left.y); ctx.lineTo(left.x, right.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
 // The slot being supplied fills as materials arrive, and is solid while it builds.
 function supplyFraction(site: (typeof state.claimSites)[number]): number {
   if (site.timer !== null) return 1;
@@ -1015,7 +1033,7 @@ function renderShipPanel(): void {
     rows.append(term, detail);
   }
   const select = document.createElement("select"); select.name = "default";
-  for (const [value, label] of [["mine", "Default: Mine for Station"], ["haul", "Default: Haul"], ["none", "Default: None"]] as const) {
+  for (const [value, label] of [["mine", "Default: Mine for Station"], ["supply", "Default: Supply construction site"], ["haul", "Default: Haul"], ["none", "Default: None"]] as const) {
     const option = document.createElement("option"); option.value = value; option.textContent = label;
     if (value === "haul" && !list.canHaul) { option.disabled = true; option.title = list.haulDisabledReason ?? ""; }
     option.selected = list.defaultBehaviour === value; select.append(option);
@@ -1195,6 +1213,7 @@ function draw(seconds: number): void {
   for (const module of currentSector === 0 ? state.station.modules : []) {
     drawStationModule(module);
   }
+  if (currentSector === 0) drawConstructionSite();
   if (currentSector === 0 && state.station.construction) {
     strokeWorldRect(state.station.construction.position, state.station.construction.size, "#cbd5e1");
   }
@@ -1338,6 +1357,7 @@ function draw(seconds: number): void {
       const button = document.createElement("button");
       button.dataset.module = item.type;
       button.disabled = item.disabled;
+      button.title = item.title;
       const name = document.createElement("span");
       name.textContent = item.type;
       const cost = document.createElement("span");

@@ -57,6 +57,13 @@ export const BUILDER_SIZE = { width: 30, height: 40 };
 export const BUILD_SECONDS = 15;
 export const MODULE_COST: Record<Material, number> = { Metal: 25, Ice: 25 };
 export const MODULE_TYPES = ["Dock", "Storage", "Builder"] as const;
+// The construction site sits off the Dock's north-east corner. Placed between
+// two module slots, so it takes none of the ones Home offers at the start.
+export const CONSTRUCTION_SITE_POSITION: Vec = { x: 75, y: -60 };
+export const CONSTRUCTION_SITE_SIZE = { width: 28, height: 28 };
+// Placeholder: the site starts empty, so the first module needs a ship supplying
+// it. Raise this if the first minute of play feels stuck before anything is built.
+export const CONSTRUCTION_SITE_START: Record<Material, number> = { Metal: 0, Ice: 0 };
 export type ModuleType = (typeof MODULE_TYPES)[number];
 export const ASTEROID_SIZE = { width: 13, height: 10 };
 // A rich rock is bigger and holds four times the ore of a plain one.
@@ -89,7 +96,7 @@ export interface Size {
 // or a parking spot.
 export type ShipState = "idle" | "outbound" | "working" | "homebound" | "berthing" | "loading" | "unloading" | "gateUnloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning"
   | "haulLoading" | "haulOutbound" | "haulJumpingOutbound" | "haulUnloading" | "haulReturning" | "haulJumpingReturning" | "haulWaitingSource" | "haulWaitingFull";
-export type DefaultBehaviour = "mine" | "haul" | "none";
+export type DefaultBehaviour = "mine" | "haul" | "supply" | "none";
 export type HaulStationId = "home" | `claim:${number}`;
 export interface HaulRoute { from: HaulStationId; to: HaulStationId; material: Material }
 export type Order =
@@ -97,9 +104,15 @@ export type Order =
   | { kind: "move"; point: Vec; sectorId: number }
   | { kind: "home" }
   | { kind: "haulGate"; gateId: number }
-  | { kind: "supplySite"; siteId: number; point: Vec; sectorId: number };
+  | { kind: "supplySite"; siteId: number; point: Vec; sectorId: number }
+  | { kind: "supplyBuild"; point: Vec; sectorId: number };
 export interface Leg { from: Vec; to: Vec }
-export interface CargoTransfer { startingCargo: number; amount: number }
+export interface CargoTransfer {
+  startingCargo: number;
+  amount: number;
+  // Set when the cargo goes into the construction site, not Storage.
+  destination?: "constructionSite";
+}
 
 export interface Target {
   asteroidId: number;
@@ -146,6 +159,9 @@ export interface Station {
   dock: { position: Vec; size: Size; capacity: number };
   storage: { position: Vec; size: Size; capacity: number };
   inventory: Record<Material, number>;
+  // Build storage. Modules the station builds are paid from here and only ships
+  // fill it. It has no cap, so it has no capacity field.
+  constructionSite: { position: Vec; size: Size; inventory: Record<Material, number> };
   storageLimits: Record<Material, number | null>;
   // Ore that ships unloaded into storage within the last INCOME_WINDOW_SECONDS.
   deliveries: Delivery[];
@@ -539,13 +555,18 @@ export function createInitialState(seed: number): SimState {
     rng = made.rng;
     fields.push(...made.fields);
     // Only the home sector has a station to keep clear of.
-    const blocked = sector.id === HOME_SECTOR ? [dockPosition, storagePosition] : [];
+    const station = sector.id === HOME_SECTOR ? [dockPosition, storagePosition] : [];
+    const blocked = sector.id === HOME_SECTOR ? [...station, CONSTRUCTION_SITE_POSITION] : [];
     const placed: { field: AsteroidField; position: Vec }[] = [];
     for (const field of made.fields) {
       const count = rocksInField(field.kind, sector.character.density);
       for (let i = 0; i < count; i += 1) {
-        const spot = placeInField(rng, field, placed.map((rock) => rock.position), blocked);
-        // Starting fields are wide open, so there is always room.
+        const taken = placed.map((rock) => rock.position);
+        // A belt that happens to run across Home has no room left once the
+        // construction site is kept clear too. Those seeds give the site up
+        // rather than a rock.
+        const spot = placeInField(rng, field, taken, blocked) ?? placeInField(rng, field, taken, station);
+        // Starting fields are otherwise wide open, so there is always room.
         rng = spot!.rng;
         placed.push({ field, position: spot!.position });
       }
@@ -610,6 +631,7 @@ export function createInitialState(seed: number): SimState {
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
       inventory: { Metal: 20, Ice: 20 },
+      constructionSite: { position: { ...CONSTRUCTION_SITE_POSITION }, size: CONSTRUCTION_SITE_SIZE, inventory: { ...CONSTRUCTION_SITE_START } },
       storageLimits: { Metal: null, Ice: null },
       deliveries: [],
       modules: [
@@ -628,14 +650,17 @@ export function createInitialState(seed: number): SimState {
 export interface ModuleBuildOption {
   type: ModuleType;
   enabled: boolean;
+  // What the construction site still lacks to pay for this module.
+  missing: Record<Material, number>;
 }
 
 export function availableModuleBuilds(state: SimState): ModuleBuildOption[] {
-  const canPay = MATERIALS.every(
-    (material) => state.station.inventory[material] >= MODULE_COST[material],
-  );
-  const enabled = canPay && state.station.construction === null;
-  return MODULE_TYPES.map((type) => ({ type, enabled }));
+  const stock = state.station.constructionSite.inventory;
+  const missing = Object.fromEntries(
+    MATERIALS.map((material) => [material, Math.max(0, MODULE_COST[material] - stock[material])]),
+  ) as Record<Material, number>;
+  const enabled = MATERIALS.every((material) => missing[material] === 0) && state.station.construction === null;
+  return MODULE_TYPES.map((type) => ({ type, enabled, missing }));
 }
 
 // Centre-to-centre distance between neighbouring module slots.
@@ -662,6 +687,7 @@ export function availableModuleBuildSites(state: SimState): Vec[] {
   const footprints = [
     ...state.station.modules,
     ...(state.station.construction ? [state.station.construction] : []),
+    state.station.constructionSite,
   ];
   const sites: Vec[] = [];
   for (const module of state.station.modules) {
@@ -687,7 +713,7 @@ export function startModuleBuild(state: SimState, type: ModuleType, position: Ve
   if (!option?.enabled || !site) return state;
 
   const inventory = Object.fromEntries(
-    MATERIALS.map((material) => [material, state.station.inventory[material] - MODULE_COST[material]]),
+    MATERIALS.map((material) => [material, state.station.constructionSite.inventory[material] - MODULE_COST[material]]),
   ) as Record<Material, number>;
   const construction: ModuleConstruction = {
     type,
@@ -695,8 +721,8 @@ export function startModuleBuild(state: SimState, type: ModuleType, position: Ve
     size: moduleSize(type),
     timer: BUILD_SECONDS,
   };
-  const station = { ...state.station, inventory, construction };
-  return { ...state, station, ships: dockWaitingShips(station, state.ships) };
+  const station = { ...state.station, constructionSite: { ...state.station.constructionSite, inventory }, construction };
+  return { ...state, station };
 }
 
 function storedTotal(inventory: Record<Material, number>): number {
@@ -752,7 +778,7 @@ function parkingPoint(dock: Vec, index: number): Vec {
 
 function holdsBerth(ship: Ship): boolean {
   return ship.state === "loading" || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
-    || (ship.state === "unloading" && ship.order?.kind !== "supplySite")
+    || (ship.state === "unloading" && ship.order?.kind !== "supplySite" && ship.transfer?.destination !== "constructionSite")
     || (ship.state === "berthing" && ship.berth !== null);
 }
 

@@ -20,9 +20,9 @@ import { infoBox } from "./labels";
 describe("station building controls", () => {
   it("presents all module choices with their shared cost and disabled state", () => {
     expect(buildMenuItems(createInitialState(7))).toEqual([
-      { type: "Dock", cost: "25 Metal, 25 Ice", disabled: true },
-      { type: "Storage", cost: "25 Metal, 25 Ice", disabled: true },
-      { type: "Builder", cost: "25 Metal, 25 Ice", disabled: true },
+      { type: "Dock", cost: "25 Metal, 25 Ice", disabled: true, title: "Needs 25 more Metal and 25 more Ice" },
+      { type: "Storage", cost: "25 Metal, 25 Ice", disabled: true, title: "Needs 25 more Metal and 25 more Ice" },
+      { type: "Builder", cost: "25 Metal, 25 Ice", disabled: true, title: "Needs 25 more Metal and 25 more Ice" },
     ]);
   });
 
@@ -30,7 +30,7 @@ describe("station building controls", () => {
     const initial = createInitialState(7);
     const funded = {
       ...initial,
-      station: { ...initial.station, inventory: { Metal: 50, Ice: 50 } },
+      station: { ...initial.station, constructionSite: { ...initial.station.constructionSite, inventory: { Metal: 50, Ice: 50 } } },
     };
     const building = tick(startModuleBuild(funded, "Builder", { x: -40, y: 0 }), 3);
     expect(infoBox(building, { kind: "construction" })).toEqual({
