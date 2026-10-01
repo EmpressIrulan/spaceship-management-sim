@@ -1,6 +1,6 @@
-import { MATERIALS, claimSiteBuilt, type DefaultBehaviour, type Material, type OrderTarget, type SimState, type Vec } from "sim";
-import { shipStatus } from "./ships";
+import { MATERIALS, claimSiteBuilt, haulStations, type DefaultBehaviour, type HaulRoute, type HaulStation, type Material, type OrderTarget, type SimState, type Vec } from "sim";
 import { screenToWorld, type Camera, type Hovered, type Viewport } from "./camera";
+import { shipStatus } from "./ships";
 
 const DRAG_THRESHOLD = 4;
 export const ORDER_LINE_SECONDS = 1;
@@ -39,14 +39,19 @@ export interface MaterialBox { material: Material; ticked: "on" | "off" | "mixed
 export interface SelectionPanel {
   rows: { id: number; name: string; status: string }[];
   defaultBehaviour: DefaultBehaviour | "mixed";
-  // Null unless every selected ship is on Mine for Station.
   materials: MaterialBox[] | null;
   canResume: boolean;
+  canHaul: boolean;
+  haulDisabledReason: string | null;
+  stations: HaulStation[];
+  haulRoute: HaulRoute | null;
 }
 export function selectionPanel(state: SimState, ids: number[]): SelectionPanel | null {
   const ships = ids.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship] : []; });
   if (!ships.length) return null;
   const defaults = new Set(ships.map((ship) => ship.defaultBehaviour));
+  const stations = haulStations(state);
+  const routes = new Set(ships.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
   return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order
     ? `Order: ${ship.order.kind}${ship.state === "holding" ? " (holding)" : ""}` : shipStatus(state, ship) })),
     defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed",
@@ -54,5 +59,7 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
       const count = ships.filter((ship) => ship.mineMaterials.includes(material)).length;
       return { material, ticked: count === ships.length ? "on" : count === 0 ? "off" : "mixed" } as MaterialBox;
     }) : null,
-    canResume: ships.some((ship) => ship.order !== null) };
+    canResume: ships.some((ship) => ship.order !== null),
+    canHaul: stations.length >= 2, haulDisabledReason: stations.length >= 2 ? null : "Needs two stations", stations,
+    haulRoute: routes.size === 1 ? ships[0]!.haulRoute ?? null : null };
 }

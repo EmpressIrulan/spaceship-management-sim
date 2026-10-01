@@ -87,8 +87,11 @@ export interface Size {
 // can't mine. "waiting" means home with a transfer pending but no free berth,
 // parked just off the Dock. "berthing" is the short hop from the Dock to a pad
 // or a parking spot.
-export type ShipState = "idle" | "outbound" | "working" | "homebound" | "berthing" | "loading" | "unloading" | "gateUnloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning";
-export type DefaultBehaviour = "mine" | "none";
+export type ShipState = "idle" | "outbound" | "working" | "homebound" | "berthing" | "loading" | "unloading" | "gateUnloading" | "waiting" | "moving" | "holding" | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning"
+  | "haulLoading" | "haulOutbound" | "haulJumpingOutbound" | "haulUnloading" | "haulReturning" | "haulJumpingReturning" | "haulWaitingSource" | "haulWaitingFull";
+export type DefaultBehaviour = "mine" | "haul" | "none";
+export type HaulStationId = "home" | `claim:${number}`;
+export interface HaulRoute { from: HaulStationId; to: HaulStationId; material: Material }
 export type Order =
   | { kind: "mine"; asteroidId: number; loaded: boolean }
   | { kind: "move"; point: Vec; sectorId: number }
@@ -118,6 +121,7 @@ export interface Ship {
   cargoMaterial: Material | null;
   target: Target | null;
   defaultBehaviour: DefaultBehaviour;
+  haulRoute?: HaulRoute;
   // What "Mine for Station" is allowed to mine. Empty means nothing, so a
   // new ship sits idle until someone ticks a material.
   mineMaterials: Material[];
@@ -689,7 +693,8 @@ function parkingPoint(dock: Vec, index: number): Vec {
 }
 
 function holdsBerth(ship: Ship): boolean {
-  return ship.state === "loading" || (ship.state === "unloading" && ship.order?.kind !== "supplySite")
+  return ship.state === "loading" || ship.state === "haulLoading" || ship.state === "haulUnloading"
+    || (ship.state === "unloading" && ship.order?.kind !== "supplySite")
     || (ship.state === "berthing" && ship.berth !== null);
 }
 
@@ -735,6 +740,10 @@ export function arrived(ship: Ship): Ship {
     ? { ...ship, state: "waiting", position, leg: null, timer: 0 }
     : ship.order?.kind === "haulGate" && ship.cargo === 0 && ship.transfer
       ? { ...ship, state: "loading", position, leg: null, timer: cargoTransferSeconds(ship.transfer.amount) }
+      : ship.defaultBehaviour === "haul" && ship.transfer?.startingCargo === 0
+        ? { ...ship, state: "haulLoading", position, leg: null, timer: cargoTransferSeconds(ship.transfer.amount) }
+        : ship.defaultBehaviour === "haul" && ship.transfer
+          ? { ...ship, state: "haulUnloading", position, leg: null, timer: cargoTransferSeconds(ship.transfer.amount) }
       : { ...ship, state: "unloading", position, leg: null, transfer: { startingCargo: ship.cargo, amount: ship.cargo }, timer: cargoTransferSeconds(ship.cargo) };
 }
 

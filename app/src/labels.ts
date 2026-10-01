@@ -21,6 +21,9 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "holding":
     case "jumpingOut":
     case "jumpingHome":
+    case "haulReturning":
+    case "haulJumpingReturning":
+    case "haulWaitingSource":
       return null;
     case "gateReturning":
       return null;
@@ -28,6 +31,9 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "waiting":
     case "berthing":
     case "homebound":
+    case "haulOutbound":
+    case "haulJumpingOutbound":
+    case "haulWaitingFull":
       return { fill: hold ? ship.cargo / hold : 0, text };
     case "loading":
       return { fill: hold ? ship.cargo / hold : 0, text };
@@ -35,6 +41,8 @@ export function cargoGauge(ship: Ship): Gauge | null {
       return { fill: miningSeconds ? 1 - ship.timer / miningSeconds : 0, text };
     case "unloading":
     case "gateUnloading":
+    case "haulUnloading":
+    case "haulLoading":
       return { fill: hold ? ship.cargo / hold : 0, text };
   }
 }
@@ -74,6 +82,7 @@ function storageBox(state: SimState): InfoBox {
 
 function dockBox(state: SimState): InfoBox {
   const transferring = state.ships.filter((ship) => ship.state === "loading"
+    || ship.state === "haulLoading" || ship.state === "haulUnloading"
     || (ship.state === "unloading" && ship.order?.kind !== "supplySite")).length;
   return { title: "Dock", line: `Occupied ${transferring} / ${state.station.dock.capacity}` };
 }
