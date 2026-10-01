@@ -67,6 +67,7 @@ import {
 import { INITIAL_CLOCK, clockAfterButton, clockAfterKey, gameSeconds, type SpeedButtonId } from "./speed";
 import { menuButton as button, renderBlueprints, renderSpeedControls } from "./menu-rendering";
 import { createRenderer } from "./renderer";
+import { installPanels } from "./panels";
 import { shipSprite, slotColor } from "./ships";
 import { renderShipPanel, type ShipPanelContext } from "./ship-panel";
 import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
@@ -190,36 +191,7 @@ const ui = {
   lastTimeMs: performance.now()
 };
 export type UiState = typeof ui;
-function closeStoragePanel(): void {
-  ui.storagePanelOpen = false;
-  storagePanel.hidden = true;
-  ui.deleteConfirmations.clear();
-}
-
-
-storagePanel.addEventListener("change", (event) => {
-  const input = (event.target as HTMLElement).closest<HTMLInputElement>("input[data-limit]");
-  if (!input) return;
-  const value = input.value.trim() === "" ? null : Number(input.value);
-  if (value !== null && (!Number.isFinite(value) || value < 0)) return;
-  state = setStorageLimit(state, input.dataset.limit as Material, value);
-});
-
-storagePanel.addEventListener("click", (event) => {
-  const remove = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-delete]");
-  if (!remove) return;
-  const material = remove.dataset.delete as Material;
-  const quantity = storagePanel.querySelector<HTMLInputElement>(`input[data-delete-amount="${material}"]`)!;
-  const action = deleteButtonAction(ui.deleteConfirmations.get(material) ?? null, material, quantity.value, performance.now());
-  if (action.deleteAmount !== null) {
-    state = deleteStock(state, material, action.deleteAmount);
-    quantity.value = "";
-  }
-  if (action.confirmation) ui.deleteConfirmations.set(material, action.confirmation);
-  else ui.deleteConfirmations.delete(material);
-  renderStoragePanel(storagePanel, state, ui.storagePanelOpen, performance.now(), ui.deleteConfirmations);
-});
-
+const closeStoragePanel = installPanels(ui, () => state, (next) => { state = next; }, storagePanel, shipPanelBox);
 function closeGateMenu(): void {
   gateMenu.hidden = true;
   ui.pendingGate = dismissGatePlacement(ui.pendingGate);
@@ -631,29 +603,6 @@ canvas.addEventListener("contextmenu", (event) => {
 gateMenu.addEventListener("click", () => {
   gateMenu.hidden = true;
   ui.mapOpen = ui.pendingGate !== null;
-});
-
-shipPanelBox.addEventListener("change", (event) => {
-  const select = event.target as HTMLSelectElement;
-  if (select.name === "default") state = setDefaultBehaviour(state, ui.selectedShips, select.value as DefaultBehaviour);
-  if (["haul-from", "haul-to", "haul-material"].includes(select.name)) {
-    const panel = selectionPanel(state, ui.selectedShips);
-    const route = panel?.haulRoute;
-    if (!route) return;
-    state = configureHaul(state, ui.selectedShips, {
-      from: select.name === "haul-from" ? select.value as HaulStationId : route.from,
-      to: select.name === "haul-to" ? select.value as HaulStationId : route.to,
-      material: select.name === "haul-material" ? select.value as Material : route.material,
-    });
-  }
-});
-shipPanelBox.addEventListener("change", (event) => {
-  const box = event.target as HTMLInputElement;
-  if (box.name === "mine-material") state = setMineMaterial(state, ui.selectedShips, box.value as Material, box.checked);
-  if (box.name === "mine-other-sectors") state = setMineOtherSectors(state, ui.selectedShips, box.checked);
-});
-shipPanelBox.addEventListener("click", (event) => {
-  if ((event.target as HTMLElement).closest("button[data-resume]")) state = resumeDefault(state, ui.selectedShips);
 });
 
 const draw = createRenderer(ui, () => state, { ctx, canvas, shipPanelBox, partTip, sectorNameEl, buildControls, box, boxTitle, boxLine, infoAction, buildMenu, claimButton, hint, renameBox, shipMenu, storagePanel, paintViewport, paintPointAt });
