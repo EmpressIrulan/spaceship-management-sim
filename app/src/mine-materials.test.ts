@@ -35,6 +35,22 @@ describe("a miner's status names the materials ticked for it", () => {
     expect(status(state)).toBe("Idle");
   });
 
+  it("waits when ticked rocks are in another sector but cross-sector mining is off", () => {
+    const initial = createInitialState(7);
+    const state = withShips([{ state: "idle", sectorId: 1, mineMaterials: ["Metal"], mineOtherSectors: false }], {
+      asteroids: initial.asteroids.filter((rock) => rock.sectorId === HOME_SECTOR && rock.material === "Metal"),
+    });
+    expect(status(state)).toBe("Waiting: no Metal");
+  });
+
+  it("waits when an other-sector ticked rock has no reachable gate", () => {
+    const initial = createInitialState(7);
+    const state = withShips([{ state: "idle", mineMaterials: ["Metal"], mineOtherSectors: true }], {
+      asteroids: initial.asteroids.filter((rock) => rock.sectorId === 2 && rock.material === "Metal"),
+    });
+    expect(status(state)).toBe("Waiting: no Metal");
+  });
+
   it("keeps showing the order while a ship follows one", () => {
     const state = withShips([{ state: "working", mineMaterials: ["Ice"], order: { kind: "mine", asteroidId: 0, loaded: false } }]);
     expect(status(state)).toBe("Order: mine");

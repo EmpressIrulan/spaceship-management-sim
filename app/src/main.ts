@@ -20,6 +20,7 @@ import {
   configureHaul,
   setDefaultBehaviour,
   setMineMaterial,
+  setMineOtherSectors,
   resumeDefault,
   setStorageLimit,
   shipSize,
@@ -749,6 +750,7 @@ shipPanelBox.addEventListener("change", (event) => {
 shipPanelBox.addEventListener("change", (event) => {
   const box = event.target as HTMLInputElement;
   if (box.name === "mine-material") state = setMineMaterial(state, selectedShips, box.value as Material, box.checked);
+  if (box.name === "mine-other-sectors") state = setMineOtherSectors(state, selectedShips, box.checked);
 });
 shipPanelBox.addEventListener("click", (event) => {
   if ((event.target as HTMLElement).closest("button[data-resume]")) state = resumeDefault(state, selectedShips);
@@ -1053,7 +1055,8 @@ function renderShipPanel(): void {
     material.append(materialSelect); routeControls.push(material);
   }
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
-  shipPanelBox.replaceChildren(title, rows, select, ...routeControls, ...materialBoxes(list.materials), resume, ...(selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
+  shipPanelBox.replaceChildren(title, rows, select, ...routeControls, ...materialBoxes(list.materials),
+    ...otherSectorsBox(list.mineOtherSectors), resume, ...(selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
 }
 
 // One tickbox per material for ships on Mine for Station. A box the selected
@@ -1067,6 +1070,16 @@ function materialBoxes(boxes: MaterialBox[] | null): HTMLElement[] {
     label.className = "mine-material"; label.append(input, ` ${material}`);
     return label;
   });
+}
+
+function otherSectorsBox(ticked: "on" | "off" | "mixed" | null): HTMLElement[] {
+  if (ticked === null) return [];
+  const input = document.createElement("input");
+  input.type = "checkbox"; input.name = "mine-other-sectors";
+  input.checked = ticked === "on"; input.indeterminate = ticked === "mixed";
+  const label = document.createElement("label");
+  label.className = "mine-material"; label.append(input, " Mine in other sectors");
+  return [label];
 }
 
 // Screen-space so the numbers stay readable at any zoom.

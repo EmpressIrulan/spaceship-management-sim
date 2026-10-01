@@ -196,8 +196,9 @@ describe("Supply construction site", () => {
     const arrived = until(switched, unloadingNow);
 
     expect(near(arrived.ships[0]!.position, site(arrived).position)).toBe(true);
-    expect(tick(arrived, 30).station.inventory).toEqual(storage);
-    expect(siteTotal(tick(arrived, 30))).toBe(10);
+    const unloaded = tick(arrived, cargoTransferSeconds(arrived.ships[0]!.cargo) + 0.01);
+    expect(unloaded.station.inventory).toEqual(storage);
+    expect(siteTotal(unloaded)).toBe(10);
   });
 
   it("sends a ship flying to the site to the Dock once it is switched back", () => {

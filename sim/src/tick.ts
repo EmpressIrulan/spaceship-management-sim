@@ -1,7 +1,7 @@
 import { advanceSites, deliverToSite, nextSiteEvent, settleSites, claimSiteSlots } from "./claim";
 import { haulCargoDestination } from "./haul";
 import { distanceAlong, travelSeconds } from "./motion";
-import { afterOrder, travelOrder } from "./orders";
+import { afterOrder, nextMiningRock, resumeMining, startMining, travelOrder } from "./orders";
 import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import {
@@ -11,11 +11,12 @@ import {
   JUMP_SECONDS,
   HOME_SECTOR,
   INCOME_WINDOW_SECONDS,
+  MATERIALS,
   RESPAWN_SECONDS,
   STORAGE_CAPACITY,
   arrived,
   depart,
-  freeBerth,
+  cargoByMaterial,
   gateRoute,
   newAsteroid,
   placeInField,
@@ -130,24 +131,69 @@ function berth(draft: Draft, ship: Ship): Ship {
   return toBerth(layoutOf(draft), draft.ships, ship) ?? toParking(layoutOf(draft), draft.ships, ship);
 }
 
-function unload(draft: Draft, ship: Ship, units: number): number {
-  if (units <= 0 || !ship.cargoMaterial) return 0;
-  const limit = draft.storageLimits[ship.cargoMaterial];
-  const materialRoom = limit === null ? Infinity : Math.max(0, limit - draft.inventory[ship.cargoMaterial]);
+function unloadMaterial(draft: Draft, material: "Metal" | "Ice", units: number): number {
+  if (units <= 0) return 0;
+  const limit = draft.storageLimits[material];
+  const materialRoom = limit === null ? Infinity : Math.max(0, limit - draft.inventory[material]);
   const accepted = Math.min(units, storageRemaining(draft), materialRoom);
-  if (accepted > 0) draft.deliveries = [...draft.deliveries, { at: draft.time, material: ship.cargoMaterial, amount: accepted }];
+  if (accepted > 0) draft.deliveries = [...draft.deliveries, { at: draft.time, material, amount: accepted }];
   draft.inventory = {
     ...draft.inventory,
-    [ship.cargoMaterial]: draft.inventory[ship.cargoMaterial] + accepted,
+    [material]: draft.inventory[material] + accepted,
   };
-  const atLimit = limit !== null && draft.inventory[ship.cargoMaterial] >= limit;
+  const atLimit = limit !== null && draft.inventory[material] >= limit;
   return accepted + (atLimit ? units - accepted : 0);
 }
 
+function unloadCargo(draft: Draft, ship: Ship, units: number): Ship {
+  const cargo = cargoByMaterial(ship);
+  let left = units;
+  let removed = 0;
+  for (const material of MATERIALS) {
+    const amount = Math.min(left, cargo[material]);
+    const processed = unloadMaterial(draft, material, amount);
+    cargo[material] -= processed;
+    removed += processed;
+    left -= processed;
+  }
+  const total = ship.cargo - removed;
+  const cargoMaterial = total === 0 ? null : MATERIALS.find((material) => cargo[material] > 0) ?? ship.cargoMaterial;
+  return { ...ship, cargo: total, cargoByMaterial: cargo, cargoMaterial };
+}
+
+function withCargo(ship: Ship, cargo: Record<"Metal" | "Ice", number>): Ship {
+  const total = cargo.Metal + cargo.Ice;
+  const active = ship.cargoMaterial && cargo[ship.cargoMaterial] > 0 ? ship.cargoMaterial
+    : MATERIALS.find((material) => cargo[material] > 0) ?? null;
+  return { ...ship, cargo: total, cargoByMaterial: cargo, cargoMaterial: active };
+}
+
+function transferCargo(
+  ship: Ship,
+  units: number,
+  transfer: (material: "Metal" | "Ice", amount: number) => number,
+): Ship {
+  const cargo = cargoByMaterial(ship);
+  let left = units;
+  for (const material of MATERIALS) {
+    const moved = transfer(material, Math.min(left, cargo[material]));
+    cargo[material] -= moved;
+    left -= moved;
+  }
+  return withCargo(ship, cargo);
+}
+
+function addCargo(ship: Ship, material: "Metal" | "Ice" | null, amount: number): Ship {
+  if (!material || amount <= 0) return ship;
+  const cargo = cargoByMaterial(ship);
+  cargo[material] += amount;
+  return { ...withCargo(ship, cargo), cargoMaterial: ship.cargoMaterial ?? material };
+}
+
 function canProcessCargo(draft: Draft, ship: Ship): boolean {
-  if (!ship.cargoMaterial) return false;
-  const limit = draft.storageLimits[ship.cargoMaterial];
-  return storageRemaining(draft) > 0 || (limit !== null && draft.inventory[ship.cargoMaterial] >= limit);
+  const cargo = cargoByMaterial(ship);
+  return storageRemaining(draft) > 0 || MATERIALS.some((material) => cargo[material] > 0
+    && draft.storageLimits[material] !== null && draft.inventory[material] >= draft.storageLimits[material]!);
 }
 
 function haulEnd(draft: Draft, id: HaulStationId) {
@@ -179,13 +225,17 @@ function loadHauler(draft: Draft, ship: Ship, units: number): number {
   return taken;
 }
 
-function unloadHauler(draft: Draft, ship: Ship, units: number): number {
+function unloadHauler(draft: Draft, ship: Ship, units: number): Ship {
   const destinationId = haulCargoDestination(ship);
   const destination = destinationId ? haulEnd(draft, destinationId) : null;
-  if (!destinationId || !destination || !ship.cargoMaterial || units <= 0) return 0;
-  const accepted = Math.min(units, Math.max(0, destination.capacity - haulStored(destination)));
-  changeHaulInventory(draft, destinationId, ship.cargoMaterial, accepted);
-  return accepted;
+  if (!destinationId || !destination || units <= 0) return ship;
+  let room = Math.max(0, destination.capacity - haulStored(destination));
+  return transferCargo(ship, units, (material, amount) => {
+    const accepted = Math.min(amount, room);
+    changeHaulInventory(draft, destinationId, material, accepted);
+    room -= accepted;
+    return accepted;
+  });
 }
 
 function flyHaul(draft: Draft, ship: Ship, id: HaulStationId, state: "haulOutbound" | "haulReturning"): Ship {
@@ -259,17 +309,18 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     }
     case "working": {
       const { hold } = shipStats(ship.design);
-      const cargo = ship.cargo + mine(draft, ship, unitsDone(timer, miningSeconds(ship), hold) - ship.cargo);
-      // Out of ore before the hold is full: stop now and head home with what is aboard.
-      const done = cargo < hold && asteroidGone(draft, ship);
-      return { ...ship, timer: done ? 0 : timer, cargo };
+      const next = addCargo(ship, ship.cargoMaterial, mine(draft, ship, unitsDone(timer, miningSeconds(ship), hold) - ship.cargo));
+      // A depleted rock ends this mining timer early; finish() chooses another
+      // allowed rock or heads home if none can be reached.
+      const done = next.cargo < hold && asteroidGone(draft, ship);
+      return { ...next, timer: done ? 0 : timer };
     }
     case "loading": {
       if (!ship.transfer || !ship.cargoMaterial) return { ...ship, timer };
       const targetCargo = ship.transfer.startingCargo + transferDone(ship, timer);
       const loaded = Math.min(Math.max(0, targetCargo - ship.cargo), draft.inventory[ship.cargoMaterial]);
       draft.inventory = { ...draft.inventory, [ship.cargoMaterial]: draft.inventory[ship.cargoMaterial] - loaded };
-      return { ...ship, timer, cargo: ship.cargo + loaded };
+      return { ...addCargo(ship, ship.cargoMaterial, loaded), timer };
     }
     case "unloading": {
       if (ship.transfer?.destination === "constructionSite") {
@@ -278,24 +329,23 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
       }
       if (ship.order?.kind === "supplySite") {
         const targetCargo = Math.max(0, (ship.transfer?.startingCargo ?? ship.cargo) - transferDone(ship, timer));
-        return { ...ship, timer, cargo: ship.cargo - giveToSite(draft, ship, ship.cargo - targetCargo) };
+        return { ...giveToSite(draft, ship, ship.cargo - targetCargo), timer };
       }
       const targetCargo = Math.max(0, (ship.transfer?.startingCargo ?? ship.cargo) - transferDone(ship, timer));
-      const unloaded = unload(draft, ship, ship.cargo - targetCargo);
-      return { ...ship, timer, cargo: ship.cargo - unloaded };
+      return { ...unloadCargo(draft, ship, ship.cargo - targetCargo), timer };
     }
     case "gateUnloading": {
       const targetCargo = Math.max(0, (ship.transfer?.startingCargo ?? ship.cargo) - transferDone(ship, timer));
-      return { ...ship, timer, cargo: ship.cargo - giveToGate(draft, ship, ship.cargo - targetCargo) };
+      return { ...giveToGate(draft, ship, ship.cargo - targetCargo), timer };
     }
     case "haulLoading": {
       const targetCargo = (ship.transfer?.startingCargo ?? 0) + transferDone(ship, timer);
-      const cargo = ship.cargo + loadHauler(draft, ship, Math.max(0, targetCargo - ship.cargo));
-      return { ...ship, timer, cargo };
+      return { ...addCargo(ship, ship.haulRoute?.material ?? null,
+        loadHauler(draft, ship, Math.max(0, targetCargo - ship.cargo))), timer };
     }
     case "haulUnloading": {
       const targetCargo = Math.max(0, (ship.transfer?.startingCargo ?? ship.cargo) - transferDone(ship, timer));
-      return { ...ship, timer, cargo: ship.cargo - unloadHauler(draft, ship, ship.cargo - targetCargo) };
+      return { ...unloadHauler(draft, ship, ship.cargo - targetCargo), timer };
     }
     case "haulWaitingSource":
     case "haulWaitingFull":
@@ -308,10 +358,10 @@ function gateOutstanding(draft: Draft, gateId: number, material: "Metal" | "Ice"
   if (!project) return 0;
   return GATE_COST[material] - project.delivered[material]
     - draft.ships.reduce((sum, other) => {
-      if (other.id === shipId || other.order?.kind !== "haulGate" || other.order.gateId !== gateId || other.cargoMaterial !== material) return sum;
+      if (other.id === shipId || other.order?.kind !== "haulGate" || other.order.gateId !== gateId) return sum;
       if ((other.state === "berthing" || other.state === "waiting" || other.state === "loading")
-        && other.transfer?.startingCargo === 0) return sum + other.transfer.amount;
-      return other.state === "gateHauling" || other.state === "gateUnloading" ? sum + other.cargo : sum;
+        && other.transfer?.startingCargo === 0) return other.cargoMaterial === material ? sum + other.transfer.amount : sum;
+      return other.state === "gateHauling" || other.state === "gateUnloading" ? sum + cargoByMaterial(other)[material] : sum;
     }, 0);
 }
 
@@ -319,9 +369,11 @@ function carryCargoToGate(draft: Draft, ship: Ship): Ship | null {
   const gateId = ship.order?.kind === "haulGate" ? ship.order.gateId : -1;
   const project = draft.gateProjects.find((candidate) => candidate.id === gateId && !candidate.complete);
   const end = project?.ends.find((candidate) => candidate.sectorId === HOME_SECTOR);
-  if (!project || !end || !ship.cargoMaterial || gateOutstanding(draft, gateId, ship.cargoMaterial, ship.id) <= 0) return null;
+  const cargo = cargoByMaterial(ship);
+  const material = MATERIALS.find((item) => cargo[item] > 0 && gateOutstanding(draft, gateId, item, ship.id) > 0);
+  if (!project || !end || !material) return null;
   const from = { ...ship.position }; const to = { ...end.position };
-  return { ...ship, state: "gateHauling", position: from, berth: null, transfer: null,
+  return { ...ship, state: "gateHauling", position: from, cargoMaterial: material, berth: null, transfer: null,
     leg: { from, to }, timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
 }
 
@@ -342,32 +394,41 @@ function loadGateHauler(draft: Draft, ship: Ship): Ship {
     return mining.state === "idle" ? { ...mining, state: "holding", timer: 0 } : mining;
   }
   const amount = Math.min(shipStats(ship.design).hold, available(material), outstanding(material));
-  const planned = { ...ship, position: { ...draft.dock }, cargo: 0, cargoMaterial: material, target: null, leg: null,
-    transfer: { startingCargo: 0, amount } };
+  const planned = { ...ship, position: { ...draft.dock }, cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 }, cargoMaterial: material,
+    target: null, leg: null, transfer: { startingCargo: 0, amount } };
   return toBerth(layoutOf(draft), draft.ships, planned) ?? toParking(layoutOf(draft), draft.ships, planned);
 }
 
-// Puts up to `units` of a hauler's cargo into its gate project.
-function giveToGate(draft: Draft, ship: Ship, units: number): number {
+// Puts up to `units` of a hauler's cargo into its gate project, which takes
+// only what is still outstanding of each material.
+function giveToGate(draft: Draft, ship: Ship, units: number): Ship {
   const gateId = ship.order?.kind === "haulGate" ? ship.order.gateId : -1;
   const gate = draft.gateProjects.find((candidate) => candidate.id === gateId);
-  if (!gate || !ship.cargoMaterial || units <= 0) return 0;
-  const accepted = Math.min(units, Math.max(0, GATE_COST[ship.cargoMaterial] - gate.delivered[ship.cargoMaterial]));
-  const delivered = { ...gate.delivered, [ship.cargoMaterial]: gate.delivered[ship.cargoMaterial] + accepted };
+  if (!gate || units <= 0) return ship;
+  const delivered = { ...gate.delivered };
+  const next = transferCargo(ship, units, (material, amount) => {
+    const accepted = Math.min(amount, Math.max(0, GATE_COST[material] - delivered[material]));
+    delivered[material] += accepted;
+    return accepted;
+  });
   const complete = delivered.Metal >= GATE_COST.Metal && delivered.Ice >= GATE_COST.Ice;
   draft.gateProjects = draft.gateProjects.map((candidate) => candidate.id === gate.id ? { ...candidate, delivered, complete } : candidate);
-  return accepted;
+  return next;
 }
 
 // Puts up to `units` of the ship's cargo into the site it is ordered to and
 // returns how many the site took.
-function giveToSite(draft: Draft, ship: Ship, units: number): number {
+function giveToSite(draft: Draft, ship: Ship, units: number): Ship {
   const siteId = ship.order?.kind === "supplySite" ? ship.order.siteId : -1;
-  const site = draft.claimSites.find((candidate) => candidate.id === siteId);
-  if (!site || !ship.cargoMaterial) return 0;
-  const { site: next, accepted } = deliverToSite(site, ship.cargoMaterial, units);
-  draft.claimSites = draft.claimSites.map((candidate) => (candidate.id === siteId ? next : candidate));
-  return accepted;
+  let site = draft.claimSites.find((candidate) => candidate.id === siteId);
+  if (!site) return ship;
+  const next = transferCargo(ship, units, (material, amount) => {
+    const delivered = deliverToSite(site!, material, amount);
+    site = delivered.site;
+    return delivered.accepted;
+  });
+  draft.claimSites = draft.claimSites.map((candidate) => (candidate.id === siteId ? site! : candidate));
+  return next;
 }
 
 // Puts up to `units` of the ship's cargo into the construction site. It has no
@@ -419,8 +480,7 @@ function arriveAtSite(draft: Draft, ship: Ship): Ship {
 
 // The countdown is over: the site takes what it can of the rest and the ship moves on.
 function finishSupply(draft: Draft, ship: Ship): Ship {
-  const cargo = ship.cargo - giveToSite(draft, ship, ship.cargo);
-  return afterOrder({ ...ship, cargo, cargoMaterial: cargo > 0 ? ship.cargoMaterial : null, transfer: null }, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+  return afterOrder({ ...giveToSite(draft, ship, ship.cargo), transfer: null }, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
 }
 
 // Moves a ship whose timer has run out into its next state.
@@ -428,7 +488,8 @@ function finish(draft: Draft, ship: Ship): Ship {
   const route = routeOf(ship, draft.dock);
   switch (ship.state) {
     case "idle":
-      return ship.defaultBehaviour === "none" ? ship : depart(ship, draft.dock, draft.asteroids, draft.ships);
+      return ship.defaultBehaviour === "none" ? ship
+        : resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
     case "holding":
       if (ship.order?.kind === "haulGate") return loadGateHauler(draft, ship);
       return ship;
@@ -513,12 +574,11 @@ function finish(draft: Draft, ship: Ship): Ship {
         timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
     }
     case "gateUnloading": {
-      const cargo = ship.cargo - giveToGate(draft, ship, ship.cargo);
       const gateId = ship.order?.kind === "haulGate" ? ship.order.gateId : -1;
+      ship = giveToGate(draft, ship, ship.cargo);
       const complete = draft.gateProjects.find((gate) => gate.id === gateId)?.complete ?? true;
-      if (complete && cargo === 0) return { ...ship, state: "holding", cargo: 0, cargoMaterial: null,
-        order: null, leg: null, transfer: null, timer: 0 };
-      ship = { ...ship, cargo, cargoMaterial: cargo > 0 ? ship.cargoMaterial : null, transfer: null };
+      if (complete && ship.cargo === 0) return { ...ship, state: "holding", order: null, leg: null, transfer: null, timer: 0 };
+      ship = { ...ship, transfer: null };
       const from = ship.leg ? ship.leg.to : ship.position;
       const to = draft.dock;
       return { ...ship, state: "gateReturning", position: { ...from },
@@ -555,11 +615,15 @@ function finish(draft: Draft, ship: Ship): Ship {
         timer: remainingMining,
       };
     case "working":
+      ship = addCargo(ship, ship.cargoMaterial, mine(draft, ship, shipStats(ship.design).hold - ship.cargo));
+      if (ship.cargo < shipStats(ship.design).hold) {
+        const rock = nextMiningRock(ship, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships, ship.order?.kind === "mine");
+        if (rock) return startMining(ship, rock, draft.dock, draft.sectors, draft.gateProjects);
+      }
       if (ship.sectorId !== HOME_SECTOR) {
         const gate = gateRoute(draft, ship.sectorId, HOME_SECTOR)?.from ?? draft.sectors[ship.sectorId]!.gate.position;
         const length = Math.hypot(gate.x - ship.position.x, gate.y - ship.position.y);
         return { ...ship, state: "homebound", leg: { from: { ...ship.position }, to: { ...gate } }, timer: travelSeconds(length, speedFactor(ship.design)),
-          cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo),
           order: ship.order?.kind === "mine" ? { ...ship.order, loaded: true } : ship.order };
       }
       if (supplying(ship)) return flyTo({ ...ship, cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo) }, ship.position, draft.constructionSite.position);
@@ -568,7 +632,6 @@ function finish(draft: Draft, ship: Ship): Ship {
         state: "homebound",
         timer: route ? route.legSeconds : 0,
         leg: null,
-        cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo),
         order: ship.order?.kind === "mine" ? { ...ship.order, loaded: true } : ship.order,
       };
     case "homebound":
@@ -602,16 +665,16 @@ function finish(draft: Draft, ship: Ship): Ship {
 }
 
 function afterUnloading(draft: Draft, ship: Ship): Ship {
-  const unloaded = unload(draft, ship, ship.cargo);
-  if (unloaded < ship.cargo) {
-    const remaining = { ...ship, cargo: ship.cargo - unloaded, transfer: null };
+  const remaining = { ...unloadCargo(draft, ship, ship.cargo), transfer: null };
+  if (remaining.cargo > 0) {
     if (ship.order?.kind === "haulGate") return carryCargoToGate(draft, remaining) ?? toParking(layoutOf(draft), draft.ships, remaining);
     return toParking(layoutOf(draft), draft.ships, remaining);
   }
-  if (ship.order?.kind === "haulGate") return loadGateHauler(draft, { ...ship, cargo: 0, cargoMaterial: null, transfer: null });
-  return ship.order ? afterOrder({ ...ship, cargo: 0, transfer: null }, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects)
-    : ship.defaultBehaviour === "none" ? { ...ship, state: "holding", cargo: 0, order: null, leg: null, transfer: null, timer: 0 }
-      : depart({ ...ship, cargo: 0, transfer: null }, draft.dock, draft.asteroids, draft.ships);
+  const empty = { ...remaining, cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 }, cargoMaterial: null };
+  if (ship.order?.kind === "haulGate") return loadGateHauler(draft, empty);
+  return ship.order ? afterOrder(empty, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects)
+    : ship.defaultBehaviour === "none" ? { ...empty, state: "holding", order: null, leg: null, timer: 0 }
+      : resumeMining(empty, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
 }
 
 // Seconds until the next timer anywhere in the sector runs out.
@@ -694,10 +757,12 @@ function settle(draft: Draft): void {
       position: { ...draft.dock },
       timer: 0,
       cargo: 0,
+      cargoByMaterial: { Metal: 0, Ice: 0 },
       cargoMaterial: null,
       target: null,
       defaultBehaviour: "mine",
       mineMaterials: [],
+      mineOtherSectors: false,
       order: null,
       leg: null,
       berth: null,

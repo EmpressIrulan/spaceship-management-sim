@@ -41,6 +41,7 @@ export interface SelectionPanel {
   rows: { id: number; name: string; status: string }[];
   defaultBehaviour: DefaultBehaviour | "mixed";
   materials: MaterialBox[] | null;
+  mineOtherSectors: "on" | "off" | "mixed" | null;
   canResume: boolean;
   canHaul: boolean;
   haulDisabledReason: string | null;
@@ -53,6 +54,7 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
   const defaults = new Set(ships.map((ship) => ship.defaultBehaviour));
   const stations = haulStations(state);
   const routes = new Set(ships.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
+  const otherSectorSettings = new Set(ships.map((ship) => !!ship.mineOtherSectors));
   return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order && !intoSite(ship)
     ? `${orderLabel(ship.order)}${ship.state === "holding" ? " (holding)" : ""}` : shipStatus(state, ship) })),
     defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed",
@@ -60,6 +62,9 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
       const count = ships.filter((ship) => ship.mineMaterials.includes(material)).length;
       return { material, ticked: count === ships.length ? "on" : count === 0 ? "off" : "mixed" } as MaterialBox;
     }) : null,
+    mineOtherSectors: defaults.size === 1 && ships[0]!.defaultBehaviour === "mine"
+      ? otherSectorSettings.size === 1 ? ships[0]!.mineOtherSectors ? "on" : "off" : "mixed"
+      : null,
     canResume: ships.some((ship) => ship.order !== null),
     canHaul: stations.length >= 2, haulDisabledReason: stations.length >= 2 ? null : "Needs two stations", stations,
     haulRoute: routes.size === 1 ? ships[0]!.haulRoute ?? null : null };
