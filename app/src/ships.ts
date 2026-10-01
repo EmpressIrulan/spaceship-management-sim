@@ -1,6 +1,7 @@
 import {
   MATERIALS,
   canMine,
+  minableRocks,
   shipStats,
   type ShipDesign,
   type ShipModule,
@@ -66,6 +67,22 @@ function waitingStatus(state: SimState, ship: Ship): string {
   return stored >= state.station.storage.capacity ? "Waiting: storage full" : "Waiting: dock busy";
 }
 
+// The materials ticked for a ship on Mine for Station, as a suffix for its
+// status. Everything ticked reads as plain "Mining", and nothing ticked has
+// nothing to list.
+function mineList(ship: Ship): string | null {
+  if (ship.defaultBehaviour !== "mine" || ship.mineMaterials.length === 0) return null;
+  return ship.mineMaterials.length === MATERIALS.length ? "" : ` ${ship.mineMaterials.join(", ")}`;
+}
+
+// At the Dock on its own default: idle with nothing ticked, waiting when none
+// of what is ticked has ore left in the home sector.
+function idleMiner(state: SimState, ship: Ship): string {
+  if (ship.mineMaterials.length === 0) return "Idle";
+  const available = minableRocks(ship, state.asteroids).some((rock) => rock.ore > 0);
+  return available ? "Idle" : `Waiting: no ${ship.mineMaterials.join(", ")}`;
+}
+
 // One line saying what the ship is doing, for its hover box and panel.
 export function shipStatus(state: SimState, ship: Ship): string {
   const { hold } = shipStats(ship.design);
@@ -83,11 +100,12 @@ export function shipStatus(state: SimState, ship: Ship): string {
   if (ship.order) return `Order: ${ship.order.kind}`;
   switch (ship.state) {
     case "idle":
-      return canMine(ship.design) ? "Idle: no ore" : `Idle: ${missing(ship.design)}`;
+      if (!canMine(ship.design)) return `Idle: ${missing(ship.design)}`;
+      return ship.defaultBehaviour === "mine" ? idleMiner(state, ship) : "Idle: no ore";
     case "outbound":
       return `Flying out to mine ${ship.cargoMaterial ?? "ore"}`;
     case "working":
-      return `Mining ${ship.cargoMaterial ?? "ore"}`;
+      return `Mining${mineList(ship) ?? ` ${ship.cargoMaterial ?? "ore"}`}`;
     case "homebound":
       return `Flying home with ${ship.cargo} ${ship.cargoMaterial ?? "ore"}`;
     case "unloading":

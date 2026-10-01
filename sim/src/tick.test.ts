@@ -16,6 +16,7 @@ import {
   type Asteroid,
   type SimState,
   type Vec,
+  type Material,
 } from "./state";
 import { travelSeconds } from "./motion";
 
@@ -352,6 +353,7 @@ describe("ore is conserved", () => {
       cargoMaterial: asteroid.material,
       target: { asteroidId: asteroid.id, sectorId: asteroid.sectorId, site },
       defaultBehaviour: "mine" as const,
+      mineMaterials: ["Metal", "Ice"] as Material[],
       order: null,
       leg: null,
       berth: null,

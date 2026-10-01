@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   UNLOADING_SECONDS,
+  MATERIALS,
   createInitialState,
   deleteStock,
   setStorageLimit,
@@ -19,6 +20,7 @@ describe("Storage stock controls", () => {
       },
       ships: [{
         ...initial.ships[0]!,
+        mineMaterials: [...MATERIALS],
         state: "unloading",
         position: { ...initial.station.dock.position },
         timer: UNLOADING_SECONDS,

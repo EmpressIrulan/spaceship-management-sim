@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DOCK_CAPACITY, createInitialState, dockBerths, shipSize, tick, type Ship, type SimState, type Vec } from "./index";
+import { DOCK_CAPACITY, DOCK_SIZE, MATERIALS, createInitialState, dockBerths, shipSize, tick, type Ship, type ShipDesign, type SimState, type Vec } from "./index";
 
 const homeWithOre = { state: "homebound" as const, timer: 0, cargo: 10, cargoMaterial: "Metal" as const };
 
@@ -10,7 +10,7 @@ function fleetAtDock(count: number): SimState {
     ...state,
     station: { ...state.station, storage: { ...state.station.storage, capacity: 1000 } },
     ships: Array.from({ length: count }, (_, id): Ship => ({
-      ...base, ...homeWithOre, id, position: { ...state.station.dock.position }, target: null, leg: null,
+      ...base, ...homeWithOre, id, mineMaterials: [...MATERIALS], position: { ...state.station.dock.position }, target: null, leg: null,
     })),
     nextShipId: count,
   };
@@ -24,15 +24,52 @@ const apart = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.y - b.y);
 const SETTLED = 8;
 
 describe("Dock berths", () => {
-  it("marks six pads around the Dock, clear of its centre and of each other", () => {
-    const dock = createInitialState(7).station.dock.position;
+  it("marks six pads on the Dock, clear of each other", () => {
+    const state = createInitialState(7);
+    const dock = state.station.dock.position;
     const pads = dockBerths(dock);
-    const width = shipSize(createInitialState(7).ships[0]!.design).width;
+    const width = shipSize(state.ships[0]!.design).width;
 
     expect(pads).toHaveLength(DOCK_CAPACITY);
-    for (const pad of pads) expect(apart(pad, dock)).toBeGreaterThan(width);
+    for (const pad of pads) {
+      expect(Math.abs(pad.x - dock.x) + width / 2).toBeLessThan(DOCK_SIZE.width / 2);
+      expect(Math.abs(pad.y - dock.y) + width / 2).toBeLessThan(DOCK_SIZE.height / 2);
+    }
     for (let i = 0; i < pads.length; i += 1) {
       for (let j = i + 1; j < pads.length; j += 1) expect(apart(pads[i]!, pads[j]!)).toBeGreaterThan(width);
+    }
+  });
+
+  it("fits small and large ships on distinct pads within the Dock module", () => {
+    const state = fleetAtDock(2);
+    const design = (side: number): ShipDesign => {
+      const slots = Array<"Engine" | "Storage">(side * side).fill("Engine");
+      slots[slots.length - 1] = "Storage";
+      return { width: side, height: side, slots };
+    };
+    const mixed = {
+      ...state,
+      ships: state.ships.map((ship, index) => ({ ...ship, design: design(index === 0 ? 2 : 6) })),
+    };
+    const approaching = tick(mixed, 0);
+    const docked = tick(approaching, Math.max(...approaching.ships.map((ship) => ship.timer)) + 0.01);
+    const pads = dockBerths(docked.station.dock.position);
+
+    expect(docked.ships.map((ship) => ship.state)).toEqual(["unloading", "unloading"]);
+    expect(docked.ships.map(at)).toEqual(pads.slice(0, 2));
+    for (const pad of pads) {
+      expect(Math.abs(pad.x - docked.station.dock.position.x) + 6.5).toBeLessThanOrEqual(DOCK_SIZE.width * 0.47);
+      expect(Math.abs(pad.y - docked.station.dock.position.y) + 6.5).toBeLessThanOrEqual(DOCK_SIZE.height * 0.46);
+    }
+    const size = docked.ships.map((ship) => shipSize(ship.design));
+    expect(Math.abs(at(docked.ships[0]!).x - at(docked.ships[1]!).x)).toBeGreaterThan((size[0]!.width + size[1]!.width) / 2);
+    for (let ship = 0; ship < docked.ships.length; ship += 1) {
+      for (let pad = 0; pad < pads.length; pad += 1) {
+        if (pad === ship) continue;
+        const dx = Math.abs(at(docked.ships[ship]!).x - pads[pad]!.x);
+        const dy = Math.abs(at(docked.ships[ship]!).y - pads[pad]!.y);
+        expect(dx > (size[ship]!.width + 13) / 2 || dy > (size[ship]!.height + 13) / 2).toBe(true);
+      }
     }
   });
 

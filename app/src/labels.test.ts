@@ -32,6 +32,7 @@ const ship = (state: Ship["state"], cargo: number, timer = 1): Ship => ({
   position: { x: 0, y: 0 },
   target: null,
   defaultBehaviour: "mine",
+  mineMaterials: ["Metal"],
   order: null,
   leg: null,
   berth: null,

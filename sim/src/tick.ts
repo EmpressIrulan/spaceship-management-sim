@@ -499,6 +499,7 @@ function settle(draft: Draft): void {
       cargoMaterial: null,
       target: null,
       defaultBehaviour: "mine",
+      mineMaterials: [],
       order: null,
       leg: null,
       berth: null,

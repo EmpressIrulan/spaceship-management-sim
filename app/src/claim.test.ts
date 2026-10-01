@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLAIM_BUILD_SECONDS, createInitialState, type SimState } from "sim";
+import { CLAIM_BUILD_SECONDS, CLAIM_SITE_SIZE, createInitialState, type SimState } from "sim";
 import { bodyOf, fitCamera, hoveredBody, worldToScreen } from "./camera";
 import { infoBox } from "./labels";
 import { mapHit, mapLayout, renameHit } from "./sectors";
@@ -53,11 +53,11 @@ describe("Dock hover", () => {
 describe("claim site in the world", () => {
   it("is hovered inside the sector it is in, and not from another sector", () => {
     const state = withSite();
-    const camera = fitCamera(viewport, [{ position: { x: 300, y: 300 }, size: { width: 70, height: 40 } }]);
+    const camera = fitCamera(viewport, [{ position: { x: 300, y: 300 }, size: CLAIM_SITE_SIZE }]);
     const at = worldToScreen(camera, viewport, { x: 320, y: 300 });
     expect(hoveredBody(state, camera, viewport, at, 1)).toEqual({ kind: "claimSite", id: 0 });
     expect(hoveredBody(state, camera, viewport, at, 0)).toBeNull();
-    expect(bodyOf(state, { kind: "claimSite", id: 0 })).toMatchObject({ position: { x: 300, y: 300 }, size: { width: 70, height: 40 } });
+    expect(bodyOf(state, { kind: "claimSite", id: 0 })).toMatchObject({ position: { x: 300, y: 300 }, size: CLAIM_SITE_SIZE });
   });
 
   it("makes a right-click on an unfinished site an order to supply it, and on a finished one a plain move", () => {

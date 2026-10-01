@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { miningStart } from "./test-ships";
 import {
   BUILD_SECONDS,
+  DOCK_SIZE,
   MODULE_COST,
   availableModuleBuildSites,
   availableModuleBuilds,
-  createInitialState,
   startModuleBuild,
   tick,
   type SimState,
@@ -13,7 +14,7 @@ import {
 
 describe("building station modules", () => {
   function funded(): SimState {
-    const state = createInitialState(7);
+    const state = miningStart(7);
     return {
       ...state,
       station: { ...state.station, inventory: { Metal: 50, Ice: 50 } },
@@ -23,7 +24,7 @@ describe("building station modules", () => {
   const east = { x: 80, y: 0 };
 
   it("lists every module at 25 Metal and 25 Ice and disables unaffordable choices", () => {
-    const state = createInitialState(7);
+    const state = miningStart(7);
 
     expect(MODULE_COST).toEqual({ Metal: 25, Ice: 25 });
     expect(availableModuleBuilds(state)).toEqual([
@@ -48,17 +49,37 @@ describe("building station modules", () => {
   it("offers every empty adjacent slot so the station can grow in any direction", () => {
     expect(availableModuleBuildSites(funded())).toEqual([
       { x: -40, y: 0 },
-      { x: 0, y: -40 },
-      { x: 0, y: 40 },
-      { x: 40, y: -40 },
-      { x: 40, y: 40 },
       { x: 80, y: 0 },
     ]);
 
-    expect(startModuleBuild(funded(), "Builder", { x: 0, y: -40 }).station.construction)
-      .toMatchObject({ type: "Builder", position: { x: 0, y: -40 } });
+    expect(startModuleBuild(funded(), "Builder", { x: -40, y: 0 }).station.construction)
+      .toMatchObject({ type: "Builder", position: { x: -40, y: 0 } });
     const state = funded();
     expect(startModuleBuild(state, "Builder", { x: 400, y: 400 })).toBe(state);
+  });
+
+  it("never offers a site that overlaps an existing module, on a fresh game or after a second Dock", () => {
+    function expectClear(state: SimState): void {
+      const footprints = [
+        ...state.station.modules,
+        ...(state.station.construction ? [state.station.construction] : []),
+      ];
+      for (const site of availableModuleBuildSites(state)) {
+        for (const module of footprints) {
+          const overlapX = Math.abs(site.x - module.position.x) < (DOCK_SIZE.width + module.size.width) / 2;
+          const overlapY = Math.abs(site.y - module.position.y) < (DOCK_SIZE.height + module.size.height) / 2;
+          expect(overlapX && overlapY, `${JSON.stringify(site)} vs ${module.type}`).toBe(false);
+        }
+      }
+    }
+
+    const fresh = funded();
+    expectClear(fresh);
+    expect(availableModuleBuildSites(fresh).length).toBeGreaterThan(0);
+
+    const withSecondDock = tick(startModuleBuild(fresh, "Dock", east), BUILD_SECONDS);
+    expect(withSecondDock.station.modules.filter((module) => module.type === "Dock")).toHaveLength(2);
+    expectClear(withSecondDock);
   });
 
   it("finishes modules after 15 seconds and increases the matching capacity", () => {
@@ -109,7 +130,7 @@ describe("building station modules", () => {
   });
 
   it("keeps respawned asteroids clear of a station grown in every direction and mineable", () => {
-    const initial = createInitialState(17);
+    const initial = miningStart(17);
     const positions: Vec[] = [];
     for (let offset = -400; offset <= 400; offset += 40) {
       positions.push({ x: offset, y: 0 }, { x: 0, y: offset });
