@@ -68,6 +68,7 @@ import { INITIAL_CLOCK, clockAfterButton, clockAfterKey, gameSeconds, type Speed
 import { menuButton as button, renderBlueprints, renderSpeedControls } from "./menu-rendering";
 import { createRenderer } from "./renderer";
 import { installPanels } from "./panels";
+import { installBuildMenu } from "./build-menu";
 import { shipSprite, slotColor } from "./ships";
 import { renderShipPanel, type ShipPanelContext } from "./ship-panel";
 import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
@@ -192,51 +193,11 @@ const ui = {
 };
 export type UiState = typeof ui;
 const closeStoragePanel = installPanels(ui, () => state, (next) => { state = next; }, storagePanel, shipPanelBox);
+const closeBuildMenu = installBuildMenu(ui, () => state, (next) => { state = next; }, buildControls, buildMenu, mousePoint);
 function closeGateMenu(): void {
   gateMenu.hidden = true;
   ui.pendingGate = dismissGatePlacement(ui.pendingGate);
 }
-
-function closeBuildMenu(): void {
-  ui.buildMenuOpen = false;
-  buildMenu.hidden = true;
-  ui.selectedBuildSite = null;
-}
-
-buildControls.addEventListener("pointerover", () => {
-  ui.controlsHovered = true;
-});
-// The + cells sit above the canvas, so the canvas stops hearing the ui.pointer
-// while it is over one.
-buildControls.addEventListener("pointermove", (event) => {
-  ui.pointer = mousePoint(event);
-});
-buildControls.addEventListener("pointerout", (event) => {
-  if (!buildControls.contains(event.relatedTarget as Node | null)) ui.controlsHovered = false;
-});
-buildControls.addEventListener("click", (event) => {
-  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-x]");
-  if (!button) return;
-  ui.selectedBuildSite = { x: Number(button.dataset.x), y: Number(button.dataset.y) };
-  ui.buildMenuOpen = true;
-  buildMenu.hidden = false;
-});
-
-buildMenu.addEventListener("click", (event) => {
-  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-module]");
-  if (!button || button.disabled) return;
-  if (!ui.selectedBuildSite) return;
-  state = startModuleBuild(state, button.dataset.module as ModuleType, ui.selectedBuildSite);
-  closeBuildMenu();
-});
-
-document.addEventListener("click", (event) => {
-  if (!ui.buildMenuOpen) return;
-  const target = event.target as Node | null;
-  if (dismissBuildMenuForClick(buildMenu.contains(target), buildControls.contains(target))) {
-    closeBuildMenu();
-  }
-});
 
 document.addEventListener("click", (event) => {
   if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
