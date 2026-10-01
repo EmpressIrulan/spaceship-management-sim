@@ -1,16 +1,10 @@
-import { flyHaul as flyToHaulEnd, haulCargoDestination, haulStationDetails } from "./haul";
-import { type HaulStationId, type Ship, type SimState } from "./state";
+import { haulCargoDestination, haulStationDetails } from "./haul";
+import { type HaulStationId, type Ship } from "./state";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import type { Draft } from "./tick-mining";
 import { addCargo, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
 
-export function haulEnd(draft: Draft, id: HaulStationId) { return haulStationDetails(draft, id); }
-
-export function flyHaul(draft: Draft, ship: Ship, id: HaulStationId, state: "haulOutbound" | "haulReturning"): Ship {
-  return flyToHaulEnd(ship, draft, id, state);
-}
-
-export function haulStored(end: NonNullable<ReturnType<typeof haulEnd>>): number {
+export function haulStored(end: NonNullable<ReturnType<typeof haulStationDetails>>): number {
   return end.inventory.Metal + end.inventory.Ice;
 }
 
@@ -26,7 +20,7 @@ export function changeHaulInventory(draft: Draft, id: HaulStationId, material: "
 
 export function loadHauler(draft: Draft, ship: Ship, units: number): number {
   const route = ship.haulRoute;
-  const source = route ? haulEnd(draft, route.from) : null;
+  const source = route ? haulStationDetails(draft, route.from) : null;
   if (!route || !source || units <= 0) return 0;
   const taken = Math.min(units, source.inventory[route.material]);
   changeHaulInventory(draft, route.from, route.material, -taken);
@@ -35,7 +29,7 @@ export function loadHauler(draft: Draft, ship: Ship, units: number): number {
 
 export function unloadHauler(draft: Draft, ship: Ship, units: number): Ship {
   const destinationId = haulCargoDestination(ship);
-  const destination = destinationId ? haulEnd(draft, destinationId) : null;
+  const destination = destinationId ? haulStationDetails(draft, destinationId) : null;
   if (!destinationId || !destination || units <= 0) return ship;
   let room = Math.max(0, destination.capacity - haulStored(destination));
   return transferCargo(ship, units, (material, amount) => {
@@ -57,8 +51,8 @@ export function startHaulTransfer(draft: Draft, ship: Ship, stationId: HaulStati
 
 export function beginHaulLoading(draft: Draft, ship: Ship): Ship {
   const route = ship.haulRoute;
-  const source = route ? haulEnd(draft, route.from) : null;
-  const destination = route ? haulEnd(draft, route.to) : null;
+  const source = route ? haulStationDetails(draft, route.from) : null;
+  const destination = route ? haulStationDetails(draft, route.to) : null;
   if (!route || !source || !destination) return { ...ship, state: "holding", timer: 0, leg: null };
   if (haulStored(destination) >= destination.capacity) return { ...ship, state: "haulWaitingFull", timer: 0, leg: null, cargoMaterial: null };
   if (source.inventory[route.material] < shipStats(ship.design).hold) return { ...ship, state: "haulWaitingSource", timer: 0, leg: null, cargoMaterial: null };
@@ -67,7 +61,7 @@ export function beginHaulLoading(draft: Draft, ship: Ship): Ship {
 
 export function beginHaulUnloading(draft: Draft, ship: Ship): Ship {
   const destinationId = haulCargoDestination(ship);
-  const destination = destinationId ? haulEnd(draft, destinationId) : null;
+  const destination = destinationId ? haulStationDetails(draft, destinationId) : null;
   return !destinationId || !destination || haulStored(destination) >= destination.capacity
     ? { ...ship, state: "haulWaitingFull", timer: 0, leg: null }
     : startHaulTransfer(draft, ship, destinationId, false);

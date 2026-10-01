@@ -1,8 +1,8 @@
 import { advanceSites, deliverToSite, nextSiteEvent, settleSites, claimSiteSlots } from "./claim";
-import { haulCargoDestination } from "./haul";
+import { flyHaul, haulCargoDestination, haulStationDetails } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { asteroidGone, mine, miningSeconds, type Draft } from "./tick-mining";
-import { beginHaulLoading, beginHaulUnloading, flyHaul, haulEnd, loadHauler, unloadHauler } from "./tick-hauling";
+import { beginHaulLoading, beginHaulUnloading, loadHauler, unloadHauler } from "./tick-hauling";
 import { addCargo, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
 import { distanceAlong, travelSeconds } from "./motion";
 import { afterOrder, nextMiningRock, resumeMining, startMining, travelOrder } from "./orders";
@@ -264,10 +264,10 @@ function resumeAfterBuildOrder(draft: Draft, ship: Ship): Ship {
   const done = { ...ship, order: null, target: null };
   const route = done.haulRoute;
   if (done.defaultBehaviour !== "haul") return afterOrder(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
-  const from = route ? haulEnd(draft, route.from) : null;
-  if (!route || !from || !haulEnd(draft, route.to)) return { ...done, state: "holding", timer: 0, leg: null };
+  const from = route ? haulStationDetails(draft, route.from) : null;
+  if (!route || !from || !haulStationDetails(draft, route.to)) return { ...done, state: "holding", timer: 0, leg: null };
   const atFrom = done.sectorId === from.sectorId && samePoint(done.position, from.position);
-  return atFrom ? beginHaulLoading(draft, done) : flyHaul(draft, done, route.from, "haulReturning");
+  return atFrom ? beginHaulLoading(draft, done) : flyHaul(done, draft, route.from, "returning");
 }
 
 // A ship on Supply construction site, with no order of its own, takes what it
@@ -333,32 +333,32 @@ function finish(draft: Draft, ship: Ship): Ship {
       return ship.cargo > 0 ? beginHaulUnloading(draft, ship) : beginHaulLoading(draft, ship);
     case "haulLoading":
       return ship.cargo > 0 && ship.haulRoute
-        ? flyHaul(draft, { ...ship, berth: null, transfer: null }, ship.haulRoute.to, "haulOutbound")
+        ? flyHaul({ ...ship, berth: null, transfer: null }, draft, ship.haulRoute.to, "outbound")
         : { ...ship, state: "haulWaitingSource", berth: null, transfer: null, timer: 0, leg: null };
     case "haulOutbound": {
       if (!ship.haulRoute) return { ...ship, state: "holding", timer: 0, leg: null };
       const destinationId = haulCargoDestination(ship);
-      const destination = destinationId ? haulEnd(draft, destinationId) : null;
+      const destination = destinationId ? haulStationDetails(draft, destinationId) : null;
       if (!destination) return { ...ship, state: "holding", timer: 0, leg: null };
       if (ship.sectorId !== destination.sectorId) return { ...ship, state: "haulJumpingOutbound", timer: JUMP_SECONDS,
         position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
       return beginHaulUnloading(draft, { ...ship, position: { ...destination.position }, leg: null });
     }
     case "haulJumpingOutbound": {
-      const destination = ship.haulRoute ? haulEnd(draft, ship.haulRoute.to) : null;
+      const destination = ship.haulRoute ? haulStationDetails(draft, ship.haulRoute.to) : null;
       if (!destination) return { ...ship, state: "holding", timer: 0, leg: null };
       const gate = gateRoute(draft, ship.sectorId, destination.sectorId)?.to;
       if (!gate) return { ...ship, state: "holding", timer: 0, leg: null };
-      return flyHaul(draft, { ...ship, sectorId: destination.sectorId, position: { ...gate } }, destination.id, "haulOutbound");
+      return flyHaul({ ...ship, sectorId: destination.sectorId, position: { ...gate } }, draft, destination.id, "outbound");
     }
     case "haulUnloading":
       if (ship.cargo > 0) return { ...ship, state: "haulWaitingFull", berth: null, transfer: null, timer: 0, leg: null };
       return ship.haulRoute
-        ? flyHaul(draft, { ...ship, cargoMaterial: null, berth: null, transfer: null }, ship.haulRoute.from, "haulReturning")
+        ? flyHaul({ ...ship, cargoMaterial: null, berth: null, transfer: null }, draft, ship.haulRoute.from, "returning")
         : { ...ship, state: "holding", berth: null, transfer: null, timer: 0, leg: null };
     case "haulReturning": {
       if (!ship.haulRoute) return { ...ship, state: "holding", timer: 0, leg: null };
-      const source = haulEnd(draft, ship.haulRoute.from);
+      const source = haulStationDetails(draft, ship.haulRoute.from);
       if (!source) return { ...ship, state: "holding", timer: 0, leg: null };
       if (ship.sectorId !== source.sectorId) return { ...ship, state: "haulJumpingReturning", timer: JUMP_SECONDS,
         position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
@@ -366,11 +366,11 @@ function finish(draft: Draft, ship: Ship): Ship {
       return ship.cargo > 0 ? beginHaulUnloading(draft, arrived) : beginHaulLoading(draft, arrived);
     }
     case "haulJumpingReturning": {
-      const source = ship.haulRoute ? haulEnd(draft, ship.haulRoute.from) : null;
+      const source = ship.haulRoute ? haulStationDetails(draft, ship.haulRoute.from) : null;
       if (!source) return { ...ship, state: "holding", timer: 0, leg: null };
       const gate = gateRoute(draft, ship.sectorId, source.sectorId)?.to;
       if (!gate) return { ...ship, state: "holding", timer: 0, leg: null };
-      return flyHaul(draft, { ...ship, sectorId: source.sectorId, position: { ...gate } }, source.id, "haulReturning");
+      return flyHaul({ ...ship, sectorId: source.sectorId, position: { ...gate } }, draft, source.id, "returning");
     }
     case "jumpingOut": {
       const travel = travelOrder(ship.order);
