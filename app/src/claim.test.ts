@@ -45,8 +45,8 @@ describe("Dock hover", () => {
   it("does not count a ship unloading at a claim site", () => {
     const state = withSite({}, 0);
     const ship = { ...state.ships[0]!, state: "unloading" as const, order: { kind: "supplySite" as const, siteId: 0, point: { x: 300, y: 300 }, sectorId: 0 } };
-    expect(infoBox({ ...state, ships: [ship] }, { kind: "dock" })!.line).toMatch(/^Unloading 0 \//);
-    expect(infoBox({ ...state, ships: [{ ...ship, order: null }] }, { kind: "dock" })!.line).toMatch(/^Unloading 1 \//);
+    expect(infoBox({ ...state, ships: [ship] }, { kind: "dock" })!.line).toMatch(/^Occupied 0 \//);
+    expect(infoBox({ ...state, ships: [{ ...ship, order: null }] }, { kind: "dock" })!.line).toMatch(/^Occupied 1 \//);
   });
 });
 

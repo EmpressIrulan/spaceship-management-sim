@@ -69,8 +69,16 @@ function waitingStatus(state: SimState, ship: Ship): string {
 // One line saying what the ship is doing, for its hover box and panel.
 export function shipStatus(state: SimState, ship: Ship): string {
   const { hold } = shipStats(ship.design);
-  if (ship.state === "loading") return `Loading ${ship.cargo}/${hold}`;
-  if (ship.state === "gateUnloading") return `Unloading ${(ship.transfer?.startingCargo ?? hold) - ship.cargo}/${hold}`;
+  if (ship.state === "loading") {
+    const starting = ship.transfer?.startingCargo ?? 0;
+    const amount = ship.transfer?.amount ?? hold;
+    return `Loading ${ship.cargo - starting}/${amount}`;
+  }
+  if (ship.state === "gateUnloading") {
+    const starting = ship.transfer?.startingCargo ?? hold;
+    const amount = ship.transfer?.amount ?? starting;
+    return `Unloading ${starting - ship.cargo}/${amount}`;
+  }
   if (ship.state === "waiting" || (ship.state === "berthing" && ship.berth === null)) return waitingStatus(state, ship);
   if (ship.order) return `Order: ${ship.order.kind}`;
   switch (ship.state) {

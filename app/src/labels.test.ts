@@ -135,6 +135,14 @@ describe("hover box", () => {
     });
   });
 
+  it("counts ships loading as well as unloading at the Dock", () => {
+    const loading = { ...ship("loading", 3), berth: 0, transfer: { startingCargo: 0, amount: 8 } };
+    const unloading = { ...ship("unloading", 7), berth: 1, transfer: { startingCargo: 10, amount: 10 } };
+    const transferring = { ...state, ships: [loading, unloading] };
+
+    expect(infoBox(transferring, { kind: "dock" })).toEqual({ title: "Dock", line: "Occupied 2 / 6" });
+  });
+
   it("shows the destination name instead of materials once a gate is complete", () => {
     const completed = {
       ...state,

@@ -72,16 +72,16 @@ function storageBox(state: SimState): InfoBox {
   };
 }
 
+function dockBox(state: SimState): InfoBox {
+  const transferring = state.ships.filter((ship) => ship.state === "loading"
+    || (ship.state === "unloading" && ship.order?.kind !== "supplySite")).length;
+  return { title: "Dock", line: `Occupied ${transferring} / ${state.station.dock.capacity}` };
+}
+
 // Null closes the box, including when the hovered asteroid has just gone.
 export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | null {
   if (!hovered) return null;
-  if (hovered.kind === "dock") {
-    const unloading = state.ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length;
-    return {
-      title: "Dock",
-      line: `Unloading ${unloading} / ${state.station.dock.capacity}`,
-    };
-  }
+  if (hovered.kind === "dock") return dockBox(state);
   if (hovered.kind === "storage") return storageBox(state);
   if (hovered.kind === "construction") {
     const construction = state.station.construction;
@@ -98,10 +98,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       const size = `${job.design.width}x${job.design.height}`;
       return { title: "Builder", line: `Building ${size}: ${formatDuration(Math.ceil(job.timer))}` };
     }
-    if (module.type === "Dock") {
-      const unloading = state.ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length;
-      return { title: "Dock", line: `Unloading ${unloading} / ${state.station.dock.capacity}` };
-    }
+    if (module.type === "Dock") return dockBox(state);
     return storageBox(state);
   }
   if (hovered.kind === "ship") {

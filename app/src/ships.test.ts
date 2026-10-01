@@ -53,6 +53,14 @@ describe("hovering a ship shows its state", () => {
       { kind: "ship", index: 0 })?.line).toBe("Waiting: dock busy");
   });
 
+  it("shows transfer progress against the amount for partial loads and unloads", () => {
+    const ordered = { kind: "haulGate" as const, gateId: 0 };
+    expect(infoBox(withShips([{ state: "loading", cargo: 3, cargoMaterial: "Metal", order: ordered,
+      transfer: { startingCargo: 0, amount: 8 } }]), { kind: "ship", index: 0 })?.line).toBe("Loading 3/8");
+    expect(infoBox(withShips([{ state: "gateUnloading", cargo: 2, cargoMaterial: "Metal", order: ordered,
+      transfer: { startingCargo: 6, amount: 6 } }]), { kind: "ship", index: 0 })?.line).toBe("Unloading 4/6");
+  });
+
   it("can hover a ship sitting idle at the Dock", () => {
     const state = tick(withShips([{ state: "idle", design: noLaser, target: null }]), 0);
     const pointer = worldToScreen(camera, viewport, state.station.dock.position);
