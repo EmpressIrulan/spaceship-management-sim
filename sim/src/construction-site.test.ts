@@ -251,3 +251,43 @@ describe("right-clicking a ship onto the site", () => {
     expect(giveOrder(empty, [0], { kind: "supplyBuild" })).toEqual(empty);
   });
 });
+
+describe("unloading a ship into the site at the end of a trip", () => {
+  // A ship at the site with a hold of 6 Metal and 14 Ice, Ice being the active material.
+  function mixedHold(patch: Partial<Ship> = {}): SimState {
+    const base = createInitialState(7);
+    const ship: Ship = { ...base.ships[0]!, state: "unloading", position: { ...site(base).position }, cargo: 20, cargoMaterial: "Ice",
+      cargoByMaterial: { Metal: 6, Ice: 14 }, transfer: { startingCargo: 20, amount: 20, destination: "constructionSite" },
+      timer: cargoTransferSeconds(20), target: null, leg: null, berth: null, ...patch };
+    return { ...base, ships: [ship] };
+  }
+
+  it("credits each material in a mixed hold, not everything to the active one", () => {
+    const done = tick(mixedHold({ defaultBehaviour: "supply" }), cargoTransferSeconds(20) + 0.01);
+
+    expect(site(done).inventory).toEqual({ Metal: 6, Ice: 14 });
+    expect(done.ships[0]).toMatchObject({ cargo: 0, cargoMaterial: null, cargoByMaterial: { Metal: 0, Ice: 0 } });
+  });
+
+  it("keeps the site and the hold in step while the unloading is under way", () => {
+    const half = tick(mixedHold({ defaultBehaviour: "supply" }), cargoTransferSeconds(20) / 2);
+    const ship = half.ships[0]!;
+
+    expect(site(half).inventory.Metal + ship.cargoByMaterial!.Metal).toBe(6);
+    expect(site(half).inventory.Ice + ship.cargoByMaterial!.Ice).toBe(14);
+    expect(siteTotal(half)).toBe(20 - ship.cargo);
+    expect(site(half).inventory.Metal).toBeGreaterThan(0);
+  });
+
+  it("resumes the Haul route after a one-time delivery, not mining", () => {
+    const base = mixedHold({ defaultBehaviour: "haul", order: { kind: "supplyBuild", point: { x: 75, y: -60 }, sectorId: 0 },
+      haulRoute: { from: "home", to: "claim:4", material: "Ice" } });
+    const state: SimState = { ...base,
+      claimSites: [{ id: 4, sectorId: 1, position: { x: 120, y: 40 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null }] };
+
+    const done = tick(state, cargoTransferSeconds(20) + 0.01);
+
+    expect(done.ships[0]).toMatchObject({ order: null, defaultBehaviour: "haul", cargo: 0, state: "haulReturning" });
+    expect(done.ships[0]!.target).toBeNull();
+  });
+});

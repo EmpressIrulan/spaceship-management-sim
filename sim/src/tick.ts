@@ -325,7 +325,7 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     case "unloading": {
       if (ship.transfer?.destination === "constructionSite") {
         const targetCargo = Math.max(0, ship.transfer.startingCargo - transferDone(ship, timer));
-        return { ...ship, timer, cargo: ship.cargo - giveToBuildSite(draft, ship, ship.cargo - targetCargo) };
+        return { ...giveToBuildSite(draft, ship, ship.cargo - targetCargo), timer };
       }
       if (ship.order?.kind === "supplySite") {
         const targetCargo = Math.max(0, (ship.transfer?.startingCargo ?? ship.cargo) - transferDone(ship, timer));
@@ -431,13 +431,29 @@ function giveToSite(draft: Draft, ship: Ship, units: number): Ship {
   return next;
 }
 
-// Puts up to `units` of the ship's cargo into the construction site. It has no
-// cap, so it takes everything.
-function giveToBuildSite(draft: Draft, ship: Ship, units: number): number {
-  if (units <= 0 || !ship.cargoMaterial) return 0;
-  const { inventory } = draft.constructionSite;
-  draft.constructionSite = { ...draft.constructionSite, inventory: { ...inventory, [ship.cargoMaterial]: inventory[ship.cargoMaterial] + units } };
-  return units;
+// Puts up to `units` of the ship's cargo into the construction site, each
+// material from its own count in the hold. The site has no cap, so it takes all.
+function giveToBuildSite(draft: Draft, ship: Ship, units: number): Ship {
+  if (units <= 0) return ship;
+  const inventory = { ...draft.constructionSite.inventory };
+  const next = transferCargo(ship, units, (material, amount) => {
+    inventory[material] += amount;
+    return amount;
+  });
+  draft.constructionSite = { ...draft.constructionSite, inventory };
+  return next;
+}
+
+// Where a ship that has just finished an order goes next: back along its Haul
+// route if that is its default, otherwise to mining or to hold.
+function resumeAfterBuildOrder(draft: Draft, ship: Ship): Ship {
+  const done = { ...ship, order: null, target: null };
+  const route = done.haulRoute;
+  if (done.defaultBehaviour !== "haul") return afterOrder(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+  const from = route ? haulEnd(draft, route.from) : null;
+  if (!route || !from || !haulEnd(draft, route.to)) return { ...done, state: "holding", timer: 0, leg: null };
+  const atFrom = done.sectorId === from.sectorId && samePoint(done.position, from.position);
+  return atFrom ? beginHaulLoading(draft, done) : flyHaul(draft, done, route.from, "haulReturning");
 }
 
 // A ship on Supply construction site, with no order of its own, takes what it
@@ -461,14 +477,14 @@ function arriveAtBuildSite(draft: Draft, ship: Ship): Ship {
   const arrived = { ...ship, position: { ...draft.constructionSite.position }, leg: null, berth: null };
   return arrived.cargo > 0
     ? { ...arrived, state: "unloading", transfer: { startingCargo: arrived.cargo, amount: arrived.cargo, destination: "constructionSite" }, timer: cargoTransferSeconds(arrived.cargo) }
-    : afterOrder({ ...arrived, transfer: null }, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+    : resumeAfterBuildOrder(draft, { ...arrived, transfer: null });
 }
 
 // The countdown is over: the site takes the rest and the ship goes back to its
 // default, or on to its next order.
 function finishBuildSupply(draft: Draft, ship: Ship): Ship {
-  giveToBuildSite(draft, ship, ship.cargo);
-  return afterOrder({ ...ship, cargo: 0, cargoMaterial: null, transfer: null }, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+  const emptied = giveToBuildSite(draft, ship, ship.cargo);
+  return resumeAfterBuildOrder(draft, { ...emptied, cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 }, cargoMaterial: null, transfer: null });
 }
 
 // Arrival at a site starts the same unloading countdown as at the Dock.
