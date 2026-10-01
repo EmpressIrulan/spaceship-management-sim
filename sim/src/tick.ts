@@ -1,5 +1,8 @@
 import { advanceSites, deliverToSite, nextSiteEvent, settleSites, claimSiteSlots } from "./claim";
 import { haulCargoDestination } from "./haul";
+import { asteroidGone, mine, miningSeconds, type Draft } from "./tick-mining";
+import { beginHaulLoading, beginHaulUnloading, flyHaul, haulEnd, loadHauler, unloadHauler } from "./tick-hauling";
+import { addCargo, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
 import { distanceAlong, travelSeconds } from "./motion";
 import { afterOrder, nextMiningRock, resumeMining, startMining, travelOrder } from "./orders";
 import { nextRandom } from "./prng";
@@ -61,76 +64,6 @@ function transferDone(ship: Ship, timer: number): number {
   return ship.transfer ? unitsDone(timer, cargoTransferSeconds(ship.transfer.amount), ship.transfer.amount) : 0;
 }
 
-// Only called for a ship that can mine, so it has a Laser.
-function miningSeconds(ship: Ship): number {
-  return shipStats(ship.design).miningSeconds ?? 0;
-}
-
-// Mutable copy of the parts of SimState that one tick changes. Built fresh
-// from the input, so the caller's state is never touched.
-interface Draft {
-  time: number;
-  deliveries: Station["deliveries"];
-  rng: number;
-  nextAsteroidId: number;
-  nextShipId: number;
-  // The Dock module's position, the station's home point and route origin.
-  dock: Vec;
-  stationSector: number;
-  storageCapacity: number;
-  storageLimits: Station["storageLimits"];
-  inventory: SimState["station"]["inventory"];
-  constructionSite: Station["constructionSite"];
-  asteroids: Asteroid[];
-  respawns: SimState["respawns"];
-  fields: SimState["fields"];
-  ships: Ship[];
-  modules: Station["modules"];
-  construction: Station["construction"];
-  shipBuilds: Station["shipBuilds"];
-  dockCapacity: number;
-  sectors: SimState["sectors"];
-  gateProjects: SimState["gateProjects"];
-  claimSites: SimState["claimSites"];
-}
-
-// Takes up to `units` of ore from the asteroid a ship is mining and returns
-// how many it got, removing the asteroid and queueing its replacement once it
-// is empty. A ship whose asteroid is already gone gets nothing.
-function mine(draft: Draft, ship: Ship, units: number): number {
-  if (units <= 0 || !ship.target) return 0;
-  const id = ship.target.asteroidId;
-  const asteroid = draft.asteroids.find((a) => a.id === id);
-  if (!asteroid) return 0;
-  const taken = Math.min(units, asteroid.ore);
-  const ore = asteroid.ore - taken;
-  if (ore > 0) {
-    draft.asteroids = draft.asteroids.map((a) => (a.id === id ? { ...a, ore } : a));
-    return taken;
-  }
-  draft.asteroids = draft.asteroids.filter((a) => a.id !== id);
-  draft.respawns = [...draft.respawns, { sectorId: asteroid.sectorId, fieldId: asteroid.fieldId, timer: RESPAWN_SECONDS, lastPosition: asteroid.position, rich: asteroid.rich }];
-  return taken;
-}
-
-function asteroidGone(draft: Draft, ship: Ship): boolean {
-  return !draft.asteroids.some((a) => a.id === ship.target?.asteroidId);
-}
-
-function storageRemaining(draft: Draft): number {
-  const stored = Object.values(draft.inventory).reduce((total, amount) => total + amount, 0);
-  return Math.max(0, draft.storageCapacity - stored);
-}
-
-function layoutOf(draft: Draft): BerthLayout {
-  return { dock: draft.dock, modules: draft.modules, capacity: draft.dockCapacity };
-}
-
-// Puts a ship home with cargo on a free pad, or parks it to wait for one.
-function berth(draft: Draft, ship: Ship): Ship {
-  return toBerth(layoutOf(draft), draft.ships, ship) ?? toParking(layoutOf(draft), draft.ships, ship);
-}
-
 function unloadMaterial(draft: Draft, material: "Metal" | "Ice", units: number): number {
   if (units <= 0) return 0;
   const limit = draft.storageLimits[material];
@@ -161,121 +94,12 @@ function unloadCargo(draft: Draft, ship: Ship, units: number): Ship {
   return { ...ship, cargo: total, cargoByMaterial: cargo, cargoMaterial };
 }
 
-function withCargo(ship: Ship, cargo: Record<"Metal" | "Ice", number>): Ship {
-  const total = cargo.Metal + cargo.Ice;
-  const active = ship.cargoMaterial && cargo[ship.cargoMaterial] > 0 ? ship.cargoMaterial
-    : MATERIALS.find((material) => cargo[material] > 0) ?? null;
-  return { ...ship, cargo: total, cargoByMaterial: cargo, cargoMaterial: active };
-}
-
-function transferCargo(
-  ship: Ship,
-  units: number,
-  transfer: (material: "Metal" | "Ice", amount: number) => number,
-): Ship {
-  const cargo = cargoByMaterial(ship);
-  let left = units;
-  for (const material of MATERIALS) {
-    const moved = transfer(material, Math.min(left, cargo[material]));
-    cargo[material] -= moved;
-    left -= moved;
-  }
-  return withCargo(ship, cargo);
-}
-
-function addCargo(ship: Ship, material: "Metal" | "Ice" | null, amount: number): Ship {
-  if (!material || amount <= 0) return ship;
-  const cargo = cargoByMaterial(ship);
-  cargo[material] += amount;
-  return { ...withCargo(ship, cargo), cargoMaterial: ship.cargoMaterial ?? material };
-}
-
 function canProcessCargo(draft: Draft, ship: Ship): boolean {
   const cargo = cargoByMaterial(ship);
   return storageRemaining(draft) > 0 || MATERIALS.some((material) => cargo[material] > 0
     && draft.storageLimits[material] !== null && draft.inventory[material] >= draft.storageLimits[material]!);
 }
 
-function haulEnd(draft: Draft, id: HaulStationId) {
-  if (id === "home") return { id, sectorId: draft.stationSector, position: draft.dock, inventory: draft.inventory, capacity: draft.storageCapacity };
-  const site = draft.claimSites.find((candidate) => `claim:${candidate.id}` === id && candidate.stage >= 2);
-  return site ? { id, sectorId: site.sectorId, position: site.position, inventory: site.delivered, capacity: STORAGE_CAPACITY } : null;
-}
-
-function haulStored(end: NonNullable<ReturnType<typeof haulEnd>>): number {
-  return end.inventory.Metal + end.inventory.Ice;
-}
-
-function changeHaulInventory(draft: Draft, id: HaulStationId, material: "Metal" | "Ice", amount: number): void {
-  if (id === "home") {
-    draft.inventory = { ...draft.inventory, [material]: draft.inventory[material] + amount };
-    return;
-  }
-  const siteId = Number(id.slice("claim:".length));
-  draft.claimSites = draft.claimSites.map((site) => site.id === siteId
-    ? { ...site, delivered: { ...site.delivered, [material]: site.delivered[material] + amount } } : site);
-}
-
-function loadHauler(draft: Draft, ship: Ship, units: number): number {
-  const route = ship.haulRoute;
-  const source = route ? haulEnd(draft, route.from) : null;
-  if (!route || !source || units <= 0) return 0;
-  const taken = Math.min(units, source.inventory[route.material]);
-  changeHaulInventory(draft, route.from, route.material, -taken);
-  return taken;
-}
-
-function unloadHauler(draft: Draft, ship: Ship, units: number): Ship {
-  const destinationId = haulCargoDestination(ship);
-  const destination = destinationId ? haulEnd(draft, destinationId) : null;
-  if (!destinationId || !destination || units <= 0) return ship;
-  let room = Math.max(0, destination.capacity - haulStored(destination));
-  return transferCargo(ship, units, (material, amount) => {
-    const accepted = Math.min(amount, room);
-    changeHaulInventory(draft, destinationId, material, accepted);
-    room -= accepted;
-    return accepted;
-  });
-}
-
-function flyHaul(draft: Draft, ship: Ship, id: HaulStationId, state: "haulOutbound" | "haulReturning"): Ship {
-  const end = haulEnd(draft, id);
-  if (!end) return { ...ship, state: "holding", timer: 0, leg: null };
-  const route = ship.sectorId === end.sectorId ? null : gateRoute(draft, ship.sectorId, end.sectorId);
-  if (ship.sectorId !== end.sectorId && !route) return { ...ship, state: "holding", timer: 0, leg: null };
-  const from = { ...ship.position }; const to = { ...(route?.from ?? end.position) };
-  return { ...ship, state, berth: null, transfer: null, leg: { from, to },
-    timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
-}
-
-function startHaulTransfer(draft: Draft, ship: Ship, stationId: HaulStationId, loading: boolean): Ship {
-  const amount = loading ? shipStats(ship.design).hold : ship.cargo;
-  const planned = { ...ship, cargoMaterial: loading ? ship.haulRoute?.material ?? null : ship.cargoMaterial,
-    transfer: { startingCargo: loading ? 0 : ship.cargo, amount } };
-  if (stationId === "home") return berth(draft, planned);
-  return { ...planned, state: loading ? "haulLoading" : "haulUnloading", berth: null, leg: null,
-    timer: cargoTransferSeconds(amount) };
-}
-
-function beginHaulLoading(draft: Draft, ship: Ship): Ship {
-  const route = ship.haulRoute;
-  const source = route ? haulEnd(draft, route.from) : null;
-  const destination = route ? haulEnd(draft, route.to) : null;
-  if (!route || !source || !destination) return { ...ship, state: "holding", timer: 0, leg: null };
-  if (haulStored(destination) >= destination.capacity) return { ...ship, state: "haulWaitingFull", timer: 0, leg: null, cargoMaterial: null };
-  if (source.inventory[route.material] < shipStats(ship.design).hold) return { ...ship, state: "haulWaitingSource", timer: 0, leg: null, cargoMaterial: null };
-  return startHaulTransfer(draft, ship, route.from, true);
-}
-
-function beginHaulUnloading(draft: Draft, ship: Ship): Ship {
-  const destinationId = haulCargoDestination(ship);
-  const destination = destinationId ? haulEnd(draft, destinationId) : null;
-  return !destinationId || !destination || haulStored(destination) >= destination.capacity
-    ? { ...ship, state: "haulWaitingFull", timer: 0, leg: null }
-    : startHaulTransfer(draft, ship, destinationId, false);
-}
-
-// Moves a ship partway through its current state, leaving `timer` seconds.
 function progress(draft: Draft, ship: Ship, timer: number): Ship {
   const route = routeOf(ship, draft.dock);
   switch (ship.state) {
