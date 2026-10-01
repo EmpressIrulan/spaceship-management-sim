@@ -1,4 +1,8 @@
 import type { ClaimSite } from "./claim";
+import { distance, makeFields, placeInField, rocksInField } from "./fields";
+export { availableModuleBuildSites, availableModuleBuilds, startModuleBuild, MODULE_SPACING, type ModuleBuildOption } from "./station-building";
+export { FIELD_LAYOUT, BELT_ROCKS, CLUSTER_ROCKS, SPARSE_BELT_ROCKS, SPARSE_CLUSTER_ROCKS, BELT_RADIUS, BELT_SWEEP, BELT_WIDTH, CLUSTER_RADIUS, FIELD_MIN_REACH, FIELD_MAX_REACH, FIELD_SEPARATION, FIELD_GATE_CLEARANCE } from "./fields";
+export { placeInField } from "./fields";
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
 import {
@@ -29,22 +33,6 @@ export const ROCK_SPACING = 25;
 
 // Each sector has these fields, at points picked from its own seed. A belt is
 // an arc of a circle around its point, a cluster a disc.
-export const FIELD_LAYOUT = ["belt", "cluster", "belt", "cluster"] as const;
-export const BELT_ROCKS = 5;
-export const CLUSTER_ROCKS = 4;
-// A sparse sector has fewer rocks in every field than a dense one.
-export const SPARSE_BELT_ROCKS = 3;
-export const SPARSE_CLUSTER_ROCKS = 3;
-export const BELT_RADIUS = 100;
-export const BELT_SWEEP = 1.8;
-export const BELT_WIDTH = 24;
-export const CLUSTER_RADIUS = 55;
-// How far from the sector's origin a field's point can be. Not tied to the
-// station, which only happens to sit at the origin of the home sector.
-const FIELD_MIN_REACH = 180;
-const FIELD_MAX_REACH = 340;
-const FIELD_SEPARATION = 240;
-const FIELD_GATE_CLEARANCE = 150;
 
 export const MATERIALS = ["Metal", "Ice"] as const;
 export type Material = (typeof MATERIALS)[number];
@@ -301,79 +289,6 @@ export function gateRoute(state: Pick<SimState, "sectors" | "gateProjects">, fro
     ? { from: { ...from.gate.position }, to: { ...to.gate.position } } : null;
 }
 
-function distance(a: Vec, b: Vec): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-function insideField(field: AsteroidField, position: Vec): boolean {
-  const d = distance(field.centre, position);
-  if (field.kind === "cluster") return d <= field.radius;
-  if (Math.abs(d - field.radius) > field.width / 2) return false;
-  const turn = Math.atan2(position.y - field.centre.y, position.x - field.centre.x) - field.from;
-  return ((turn % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) <= field.sweep;
-}
-
-// A random spot inside a belt or cluster, re-rolled if it lands too close to
-// another rock (`rocks`) or to anything the station occupies (`blocked`). If
-// random tries fail, a sweep of the whole field finds any spot left. A field
-// the station has fully covered gets null, because a rock outside its field
-// would not be in its belt or cluster; the caller tries again later.
-export function placeInField(
-  rng: number,
-  field: AsteroidField,
-  rocks: Vec[],
-  blocked: Vec[],
-): { position: Vec; rng: number } | null {
-  const free = (position: Vec) =>
-    rocks.every((other) => distance(other, position) >= ROCK_SPACING)
-    && blocked.every((other) => distance(other, position) >= ASTEROID_MIN_SPACING);
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const along = nextRandom(rng);
-    const across = nextRandom(along.state);
-    rng = across.state;
-    const angle = field.kind === "belt" ? field.from + along.value * field.sweep : along.value * 2 * Math.PI;
-    const d = field.kind === "belt"
-      ? field.radius + (across.value - 0.5) * field.width
-      : field.radius * Math.sqrt(across.value);
-    const position = { x: field.centre.x + Math.cos(angle) * d, y: field.centre.y + Math.sin(angle) * d };
-    if (free(position)) return { position, rng };
-  }
-  const reach = field.radius + (field.kind === "belt" ? field.width / 2 : 0);
-  const step = ROCK_SPACING / 2;
-  for (let x = -reach; x <= reach; x += step) {
-    for (let y = -reach; y <= reach; y += step) {
-      const position = { x: field.centre.x + x, y: field.centre.y + y };
-      if (insideField(field, position) && free(position)) return { position, rng };
-    }
-  }
-  return null;
-}
-
-// The sector's belts and clusters, each at a point of its own that keeps clear
-// of the others and of the gate.
-function makeFields(rng: number, sectorId: number, firstId: number, gate: Vec): { fields: AsteroidField[]; rng: number } {
-  const fields: AsteroidField[] = [];
-  for (const kind of FIELD_LAYOUT) {
-    let centre: Vec = { x: 0, y: 0 };
-    for (let attempt = 0; attempt < 100; attempt += 1) {
-      const angle = nextRandom(rng);
-      const reach = nextRandom(angle.state);
-      rng = reach.state;
-      const d = FIELD_MIN_REACH + reach.value * (FIELD_MAX_REACH - FIELD_MIN_REACH);
-      centre = { x: Math.cos(angle.value * 2 * Math.PI) * d, y: Math.sin(angle.value * 2 * Math.PI) * d };
-      if (distance(centre, gate) >= FIELD_GATE_CLEARANCE
-        && fields.every((field) => distance(field.centre, centre) >= FIELD_SEPARATION)) break;
-    }
-    const spin = nextRandom(rng);
-    rng = spin.state;
-    const id = firstId + fields.length;
-    fields.push(kind === "belt"
-      ? { id, sectorId, kind, centre, radius: BELT_RADIUS, from: spin.value * 2 * Math.PI, sweep: BELT_SWEEP, width: BELT_WIDTH }
-      : { id, sectorId, kind, centre, radius: CLUSTER_RADIUS });
-  }
-  return { fields, rng };
-}
-
 // Where the straight line from `from` to the asteroid's centre crosses its
 // outline.
 function edgeToward(asteroid: Asteroid, from: Vec): Vec {
@@ -504,11 +419,6 @@ export function depart(ship: Ship, dock: Vec, asteroids: Asteroid[], others: Shi
     leg: ship.berth === null ? null : { from: { ...from }, to: site },
     transfer: null,
   };
-}
-
-function rocksInField(kind: AsteroidField["kind"], density: Density): number {
-  if (density === "dense") return kind === "belt" ? BELT_ROCKS : CLUSTER_ROCKS;
-  return kind === "belt" ? SPARSE_BELT_ROCKS : SPARSE_CLUSTER_ROCKS;
 }
 
 export function newAsteroid(id: number, sectorId: number, fieldId: number, position: Vec, material: Material, rich: boolean): Asteroid {
@@ -645,84 +555,6 @@ export function createInitialState(seed: number): SimState {
     respawns: [],
     ships: [depart(idle, dockPosition, asteroids)],
   };
-}
-
-export interface ModuleBuildOption {
-  type: ModuleType;
-  enabled: boolean;
-  // What the construction site still lacks to pay for this module.
-  missing: Record<Material, number>;
-}
-
-export function availableModuleBuilds(state: SimState): ModuleBuildOption[] {
-  const stock = state.station.constructionSite.inventory;
-  const missing = Object.fromEntries(
-    MATERIALS.map((material) => [material, Math.max(0, MODULE_COST[material] - stock[material])]),
-  ) as Record<Material, number>;
-  const enabled = MATERIALS.every((material) => missing[material] === 0) && state.station.construction === null;
-  return MODULE_TYPES.map((type) => ({ type, enabled, missing }));
-}
-
-// Centre-to-centre distance between neighbouring module slots.
-export const MODULE_SPACING = 40;
-const BUILD_DIRECTIONS: Vec[] = [
-  { x: -MODULE_SPACING, y: 0 },
-  { x: 0, y: -MODULE_SPACING },
-  { x: 0, y: MODULE_SPACING },
-  { x: MODULE_SPACING, y: 0 },
-];
-
-function samePosition(a: Vec, b: Vec): boolean {
-  return a.x === b.x && a.y === b.y;
-}
-
-// A site is offered before the module type is picked, so it has to fit the
-// largest module, the Dock.
-function overlapsFootprint(site: Vec, footprint: { position: Vec; size: Size }): boolean {
-  return Math.abs(site.x - footprint.position.x) < (DOCK_SIZE.width + footprint.size.width) / 2
-    && Math.abs(site.y - footprint.position.y) < (DOCK_SIZE.height + footprint.size.height) / 2;
-}
-
-export function availableModuleBuildSites(state: SimState): Vec[] {
-  const footprints = [
-    ...state.station.modules,
-    ...(state.station.construction ? [state.station.construction] : []),
-    state.station.constructionSite,
-  ];
-  const sites: Vec[] = [];
-  for (const module of state.station.modules) {
-    for (const direction of BUILD_DIRECTIONS) {
-      const site = { x: module.position.x + direction.x, y: module.position.y + direction.y };
-      const blocked = footprints.some((footprint) => overlapsFootprint(site, footprint))
-        || state.asteroids.some((asteroid) => distance(asteroid.position, site) < ASTEROID_MIN_SPACING);
-      if (!blocked && !sites.some((position) => samePosition(position, site))) sites.push(site);
-    }
-  }
-  return sites;
-}
-
-function moduleSize(type: ModuleType): Size {
-  if (type === "Dock") return DOCK_SIZE;
-  if (type === "Storage") return STORAGE_SIZE;
-  return BUILDER_SIZE;
-}
-
-export function startModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {
-  const option = availableModuleBuilds(state).find((candidate) => candidate.type === type);
-  const site = availableModuleBuildSites(state).find((candidate) => samePosition(candidate, position));
-  if (!option?.enabled || !site) return state;
-
-  const inventory = Object.fromEntries(
-    MATERIALS.map((material) => [material, state.station.constructionSite.inventory[material] - MODULE_COST[material]]),
-  ) as Record<Material, number>;
-  const construction: ModuleConstruction = {
-    type,
-    position: { ...site },
-    size: moduleSize(type),
-    timer: BUILD_SECONDS,
-  };
-  const station = { ...state.station, constructionSite: { ...state.station.constructionSite, inventory }, construction };
-  return { ...state, station };
 }
 
 function storedTotal(inventory: Record<Material, number>): number {
