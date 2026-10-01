@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState } from "sim";
+import { miningStart } from "./test-mining";
 import {
   MAX_ZOOM,
   MIN_ZOOM,
@@ -110,7 +111,7 @@ describe("scroll wheel", () => {
 });
 
 describe("hovering", () => {
-  const state = createInitialState(7);
+  const state = miningStart(7);
   const asteroid = state.asteroids[2]!;
 
   it("points at the Dock wherever the camera has moved it", () => {

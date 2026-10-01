@@ -24,11 +24,14 @@ export {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  minableRocks,
   availableModuleBuildSites,
   availableModuleBuilds,
   availableShipBuild,
   laserBeam,
   stationIncome,
+  setStorageLimit,
+  deleteStock,
   startModuleBuild,
   startShipBuild,
   startGateBuild,
@@ -96,5 +99,5 @@ export {
   type ClaimSiteNeeds,
 } from "./claim";
 export { tick } from "./tick";
-export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, type OrderTarget } from "./orders";
+export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, type OrderTarget } from "./orders";
 export { haulStationDetails, type HaulStation } from "./haul";

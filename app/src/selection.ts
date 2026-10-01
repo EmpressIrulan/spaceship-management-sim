@@ -1,4 +1,4 @@
-import { claimSiteBuilt, haulStations, type DefaultBehaviour, type HaulRoute, type HaulStation, type OrderTarget, type SimState, type Vec } from "sim";
+import { MATERIALS, claimSiteBuilt, haulStations, type DefaultBehaviour, type HaulRoute, type HaulStation, type Material, type OrderTarget, type SimState, type Vec } from "sim";
 import { screenToWorld, type Camera, type Hovered, type Viewport } from "./camera";
 import { shipStatus } from "./ships";
 
@@ -34,9 +34,12 @@ export function keyPan(keys: ReadonlySet<string>, dt: number): Vec {
     y: (held("w", "ArrowUp") ? speed : 0) - (held("s", "ArrowDown") ? speed : 0) };
 }
 export function orderLineAlpha(elapsed: number): number { return Math.max(0, 1 - elapsed / ORDER_LINE_SECONDS); }
+// "mixed" is the half-ticked box, where the selected ships disagree.
+export interface MaterialBox { material: Material; ticked: "on" | "off" | "mixed" }
 export interface SelectionPanel {
   rows: { id: number; name: string; status: string }[];
   defaultBehaviour: DefaultBehaviour | "mixed";
+  materials: MaterialBox[] | null;
   canResume: boolean;
   canHaul: boolean;
   haulDisabledReason: string | null;
@@ -49,9 +52,14 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
   const defaults = new Set(ships.map((ship) => ship.defaultBehaviour));
   const stations = haulStations(state);
   const routes = new Set(ships.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
-  return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`,
-    status: `${shipStatus(state, ship)}${ship.order && ship.state === "holding" ? " (holding)" : ""}` })),
-    defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed", canResume: ships.some((ship) => ship.order !== null),
+  return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order
+    ? `Order: ${ship.order.kind}${ship.state === "holding" ? " (holding)" : ""}` : shipStatus(state, ship) })),
+    defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed",
+    materials: defaults.size === 1 && ships[0]!.defaultBehaviour === "mine" ? MATERIALS.map((material) => {
+      const count = ships.filter((ship) => ship.mineMaterials.includes(material)).length;
+      return { material, ticked: count === ships.length ? "on" : count === 0 ? "off" : "mixed" } as MaterialBox;
+    }) : null,
+    canResume: ships.some((ship) => ship.order !== null),
     canHaul: stations.length >= 2, haulDisabledReason: stations.length >= 2 ? null : "Needs two stations", stations,
     haulRoute: routes.size === 1 ? ships[0]!.haulRoute ?? null : null };
 }

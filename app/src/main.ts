@@ -11,11 +11,14 @@ import {
   SHIP_MODULES,
   availableModuleBuildSites,
   createInitialState,
+  deleteStock,
   laserBeam,
   giveOrder,
   configureHaul,
   setDefaultBehaviour,
+  setMineMaterial,
   resumeDefault,
+  setStorageLimit,
   shipSize,
   startModuleBuild,
   startShipBuild,
@@ -26,6 +29,7 @@ import {
   type DefaultBehaviour,
   type HaulStationId,
   type Material,
+  type MaterialBox,
   type ModuleType,
   type Ship,
   type ShipDesign,
@@ -59,7 +63,7 @@ import {
 } from "./building";
 import { INITIAL_CLOCK, clockAfterButton, clockAfterKey, gameSeconds, speedButtons, type SpeedButtonId } from "./speed";
 import { shipPanel, shipSprite, slotColor } from "./ships";
-import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
+import { type MaterialBox, contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 import {
   BRUSH_SIZES,
   applyTool,
@@ -80,6 +84,7 @@ import {
   type ShipDraft,
 } from "./shipyard";
 import { moduleAppearance, stationConnectors } from "./station-appearance";
+import { deleteButtonAction, storagePanelOpenAfterClick, storagePanelRows, type DeleteConfirmation } from "./storage";
 import {
   deleteBlueprint,
   draftFromDesign,
@@ -111,7 +116,8 @@ const hint: HTMLElement = hintEl;
 const renameBox: HTMLInputElement = renameBoxEl;
 const infoAction: HTMLButtonElement = infoActionEl;
 const speedControlsEl = document.querySelector<HTMLElement>("#speed-controls");
-if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !partTipEl || !gateMenuEl) {
+const storagePanelEl = document.querySelector<HTMLElement>("#storage-panel");
+if (!speedControlsEl || !canvasEl || !boxEl || !titleEl || !lineEl || !buildControlsEl || !buildMenuEl || !shipMenuEl || !shipPanelEl || !partTipEl || !gateMenuEl || !storagePanelEl) {
   throw new Error("missing #screen canvas or #info box");
 }
 const shipMenu: HTMLElement = shipMenuEl;
@@ -125,6 +131,7 @@ const buildControls: HTMLElement = buildControlsEl;
 const buildMenu: HTMLElement = buildMenuEl;
 const gateMenu: HTMLElement = gateMenuEl;
 const speedControls: HTMLElement = speedControlsEl;
+const storagePanel: HTMLElement = storagePanelEl;
 
 const context = canvas.getContext("2d");
 if (!context) {
@@ -180,6 +187,72 @@ let renamingSector: number | null = null;
 let stickySite: number | null = null;
 let infoHovered = false;
 let clock = INITIAL_CLOCK;
+let storagePanelOpen = false;
+const deleteConfirmations = new Map<Material, DeleteConfirmation>();
+
+function openStoragePanel(): void {
+  storagePanelOpen = true;
+  storagePanel.hidden = false;
+  if (storagePanel.children.length > 0) return;
+  const title = document.createElement("h2");
+  title.textContent = "Storage";
+  const rows = storagePanelRows(state).map(({ material }) => {
+    const row = document.createElement("div"); row.className = "storage-row"; row.dataset.material = material;
+    const name = document.createElement("span"); name.className = "material"; name.textContent = material;
+    const amount = document.createElement("span"); amount.className = "amount";
+    const limitLabel = document.createElement("label"); limitLabel.textContent = "Limit";
+    const limit = document.createElement("input"); limit.type = "number"; limit.min = "0"; limit.placeholder = "No limit"; limit.dataset.limit = material; limitLabel.append(limit);
+    const deleteLabel = document.createElement("label"); deleteLabel.textContent = "Amount";
+    const quantity = document.createElement("input"); quantity.type = "number"; quantity.min = "1"; quantity.dataset.deleteAmount = material; deleteLabel.append(quantity);
+    const remove = document.createElement("button"); remove.textContent = "Delete"; remove.dataset.delete = material;
+    row.append(name, amount, limitLabel, deleteLabel, remove);
+    return row;
+  });
+  storagePanel.replaceChildren(title, ...rows);
+}
+
+function closeStoragePanel(): void {
+  storagePanelOpen = false;
+  storagePanel.hidden = true;
+  deleteConfirmations.clear();
+}
+
+function renderStoragePanel(now: number): void {
+  if (!storagePanelOpen) return;
+  for (const row of storagePanelRows(state)) {
+    const element = storagePanel.querySelector<HTMLElement>(`.storage-row[data-material="${row.material}"]`)!;
+    element.querySelector<HTMLElement>(".amount")!.textContent = String(row.amount);
+    const limit = element.querySelector<HTMLInputElement>("input[data-limit]")!;
+    if (document.activeElement !== limit) limit.value = row.limit;
+    const confirmation = deleteConfirmations.get(row.material);
+    const remove = element.querySelector<HTMLButtonElement>("button[data-delete]")!;
+    remove.textContent = confirmation !== undefined && now <= confirmation.until ? "Confirm" : "Delete";
+    if (confirmation !== undefined && now > confirmation.until) deleteConfirmations.delete(row.material);
+  }
+}
+
+storagePanel.addEventListener("change", (event) => {
+  const input = (event.target as HTMLElement).closest<HTMLInputElement>("input[data-limit]");
+  if (!input) return;
+  const value = input.value.trim() === "" ? null : Number(input.value);
+  if (value !== null && (!Number.isFinite(value) || value < 0)) return;
+  state = setStorageLimit(state, input.dataset.limit as Material, value);
+});
+
+storagePanel.addEventListener("click", (event) => {
+  const remove = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-delete]");
+  if (!remove) return;
+  const material = remove.dataset.delete as Material;
+  const quantity = storagePanel.querySelector<HTMLInputElement>(`input[data-delete-amount="${material}"]`)!;
+  const action = deleteButtonAction(deleteConfirmations.get(material) ?? null, material, quantity.value, performance.now());
+  if (action.deleteAmount !== null) {
+    state = deleteStock(state, material, action.deleteAmount);
+    quantity.value = "";
+  }
+  if (action.confirmation) deleteConfirmations.set(material, action.confirmation);
+  else deleteConfirmations.delete(material);
+  renderStoragePanel(performance.now());
+});
 
 function closeGateMenu(): void {
   gateMenu.hidden = true;
@@ -622,6 +695,11 @@ window.addEventListener("mouseup", (event) => {
       }
     } else if (event.target === canvas) {
       const point = mousePoint(event); const hovered = hoveredBody(state, camera, viewport, point, currentSector);
+      const clickedStorage = hovered?.kind === "storage"
+        || (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Storage");
+      const storageOpen = storagePanelOpenAfterClick(storagePanelOpen, clickedStorage ? "storage" : hovered ? "other" : "empty");
+      if (storageOpen && !storagePanelOpen) openStoragePanel();
+      else if (!storageOpen && storagePanelOpen) closeStoragePanel();
       if (hovered?.kind === "ship") selectedShips = additive ? toggleShip(selectedShips, state.ships[hovered.index]!.id) : [state.ships[hovered.index]!.id];
       else if (!additive) selectedShips = [];
       selectedShip = selectedShips[0] ?? null;
@@ -665,6 +743,10 @@ shipPanelBox.addEventListener("change", (event) => {
       material: select.name === "haul-material" ? select.value as Material : route.material,
     });
   }
+});
+shipPanelBox.addEventListener("change", (event) => {
+  const box = event.target as HTMLInputElement;
+  if (box.name === "mine-material") state = setMineMaterial(state, selectedShips, box.value as Material, box.checked);
 });
 shipPanelBox.addEventListener("click", (event) => {
   if ((event.target as HTMLElement).closest("button[data-resume]")) state = resumeDefault(state, selectedShips);
@@ -935,7 +1017,20 @@ function renderShipPanel(): void {
     material.append(materialSelect); routeControls.push(material);
   }
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
-  shipPanelBox.replaceChildren(title, rows, select, ...routeControls, resume, ...(selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
+  shipPanelBox.replaceChildren(title, rows, select, ...routeControls, ...materialBoxes(list.materials), resume, ...(selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
+}
+
+// One tickbox per material for ships on Mine for Station. A box the selected
+// ships disagree on is half-ticked, and clicking it ticks it for all of them.
+function materialBoxes(boxes: MaterialBox[] | null): HTMLElement[] {
+  return (boxes ?? []).map(({ material, ticked }) => {
+    const input = document.createElement("input");
+    input.type = "checkbox"; input.name = "mine-material"; input.value = material;
+    input.checked = ticked === "on"; input.indeterminate = ticked === "mixed";
+    const label = document.createElement("label");
+    label.className = "mine-material"; label.append(input, ` ${material}`);
+    return label;
+  });
 }
 
 // Screen-space so the numbers stay readable at any zoom.
@@ -1089,6 +1184,7 @@ function draw(seconds: number): void {
     if (gauge) drawGauge(ship.position, gauge, shipSize(ship.design));
   }
   renderShipPanel();
+  renderStoragePanel(performance.now());
   renderPartTip();
 
   if (sectorNameEl) sectorNameEl.textContent = state.sectors[currentSector]!.name;
