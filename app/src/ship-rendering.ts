@@ -3,7 +3,7 @@ import { worldToScreen, type Camera, type Viewport } from "./camera";
 import { type Gauge } from "./labels";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
 import { shipSprite } from "./ships";
-import type { UiState } from "./main";
+import type { UiState } from "./ui-state";
 
 const GAUGE = { width: 36, height: 12, gap: 4 };
 export interface ShipDrawing { drawShip: (ship: Ship) => void; drawSelectionRing: (center: Vec, size: Size) => void; drawGauge: (position: Vec, gauge: Gauge, size: Size) => void; drawLaser: (beam: Beam, seconds: number) => void; }

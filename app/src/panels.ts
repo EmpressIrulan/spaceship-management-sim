@@ -6,7 +6,7 @@ import {
 import { deleteButtonAction } from "./storage";
 import { selectionPanel } from "./selection";
 import { renderStoragePanel } from "./storage-panel";
-import type { UiState } from "./main";
+import type { UiState } from "./ui-state";
 
 export function installPanels(
   ui: UiState,

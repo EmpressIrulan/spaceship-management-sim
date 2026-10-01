@@ -2,7 +2,7 @@ import { giveOrder, HOME_SECTOR, type SimState, type Vec } from "sim";
 import { hoveredBody, screenToWorld } from "./camera";
 import { dismissGatePlacement } from "./sectors";
 import { contextOrderAllowed, orderTargetAt } from "./selection";
-import type { UiState } from "./main";
+import type { UiState } from "./ui-state";
 
 export function installContextMenu(
   ui: UiState,

@@ -1,10 +1,8 @@
-import { createInitialState, tick, type Material, type Vec } from "sim";
-import { fitCamera, panBy, type Camera, type Viewport } from "./camera";
-import { INITIAL_CLOCK, gameSeconds } from "./speed";
+import { createInitialState, tick } from "sim";
+import { panBy } from "./camera";
+import { gameSeconds } from "./speed";
 import { keyPan } from "./selection";
-import { emptyDraft, emptyView, type ShipDraft } from "./shipyard";
-import { loadBlueprints, resolveBlueprintStore, type Blueprint } from "./blueprints";
-import type { PendingGate } from "./sectors";
+import { loadBlueprints, resolveBlueprintStore } from "./blueprints";
 import { createRenderer } from "./renderer";
 import { installPanels } from "./panels";
 import { installContextMenu } from "./context-menu";
@@ -12,7 +10,7 @@ import { installBuildMenu } from "./build-menu";
 import { installShipMenu } from "./ship-menu";
 import { installInput, mousePoint } from "./input";
 import { renderSpeedControls } from "./menu-rendering";
-import type { DeleteConfirmation } from "./storage";
+import { createUiState } from "./ui-state";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
@@ -64,44 +62,7 @@ const seed = seedParam === null ? Date.now() % 2 ** 32 : Number(seedParam);
 
 let state = createInitialState(seed);
 const blueprintStore = resolveBlueprintStore(window);
-const ui = {
-  currentSector: 0,
-  mapOpen: false,
-  viewport: { width: 0, height: 0 } as Viewport,
-  pointer: null as Vec | null,
-  buildMenuOpen: false,
-  renderedMenu: "",
-  renderedSites: "",
-  controlsHovered: false,
-  selectedBuildSite: null as Vec | null,
-  shipMenuBuilder: null as number | null,
-  draft: emptyDraft() as ShipDraft,
-  blueprints: loadBlueprints(blueprintStore) as Blueprint[],
-  paintView: emptyView() as Camera,
-  paintCanvas: null as HTMLCanvasElement | null,
-  paintPointer: null as Vec | null,
-  partHover: null as { at: Vec; source: "paint" | "thumb" } | null,
-  stroking: null as Vec | null,
-  paintPan: null as Vec | null,
-  selectedShip: null as number | null,
-  selectedShips: [] as number[],
-  renderedPanel: "",
-  heldKeys: new Set<string>(),
-  pan: null as { last: Vec } | null,
-  dragBox: null as { start: Vec; end: Vec; additive: boolean } | null,
-  orderLines: null as { from: Vec[]; to: Vec; start: number } | null,
-  pendingGate: null as PendingGate | null,
-  pendingClaim: false,
-  renamingSector: null as number | null,
-  stickySite: null as number | null,
-  infoHovered: false,
-  clock: INITIAL_CLOCK,
-  storagePanelOpen: false,
-  deleteConfirmations: new Map<Material, DeleteConfirmation>(),
-  camera: fitCamera({ width: 0, height: 0 }, []),
-  lastTimeMs: performance.now()
-};
-export type UiState = typeof ui;
+const ui = createUiState(loadBlueprints(blueprintStore));
 const closeStoragePanel = installPanels(ui, () => state, (next) => { state = next; }, storagePanel, shipPanelBox);
 const closeBuildMenu = installBuildMenu(ui, () => state, (next) => { state = next; }, buildControls, buildMenu, (event) => mousePoint(canvas, event));
 const shipMenuSystem = installShipMenu(ui, () => state, (next) => { state = next; }, shipMenu, shipPanelBox, blueprintStore);

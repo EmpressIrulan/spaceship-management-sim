@@ -1,6 +1,6 @@
 import { sectorInGateRange, type SimState } from "sim";
 import { mapLayout, renameLabel } from "./sectors";
-import type { UiState } from "./main";
+import type { UiState } from "./ui-state";
 
 export function drawMapOverlay(ui: UiState, state: SimState, ctx: CanvasRenderingContext2D, renameBox: HTMLInputElement): void {
   const layout = mapLayout(state, ui.viewport);

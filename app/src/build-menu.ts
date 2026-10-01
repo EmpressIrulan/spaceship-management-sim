@@ -1,6 +1,6 @@
 import { startModuleBuild, type ModuleType, type SimState, type Vec } from "sim";
 import { dismissBuildMenuForClick } from "./building";
-import type { UiState } from "./main";
+import type { UiState } from "./ui-state";
 
 export function installBuildMenu(
   ui: UiState,

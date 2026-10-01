@@ -1,7 +1,7 @@
 import { BERTH_PAD_SIZE, BUILDER_SIZE, CLAIM_MODULE_COST, DOCK_SIZE, STORAGE_SIZE, claimSiteSlots, dockBerths, type SimState, type StationModule, type Vec, type Size } from "sim";
 import { worldToScreen } from "./camera";
 import { moduleAppearance } from "./station-appearance";
-import type { UiState } from "./main";
+import type { UiState } from "./ui-state";
 
 export interface StationDrawing { drawStationConnector: (from: Vec, to: Vec) => void; drawStationModule: (module: StationModule) => void; drawConstructionSite: () => void; drawClaimSite: (site: SimState["claimSites"][number]) => void; }
 export function createStationDrawing(ui: UiState, getState: () => SimState, ctx: CanvasRenderingContext2D,

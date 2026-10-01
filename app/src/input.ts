@@ -9,7 +9,7 @@ import { clockAfterButton, clockAfterKey, type SpeedButtonId } from "./speed";
 import { contextOrderAllowed, isBoxDrag, keyPan, shipsInBox, toggleShip } from "./selection";
 import { storagePanelOpenAfterClick } from "./storage";
 import { openStoragePanel } from "./storage-panel";
-import type { UiState } from "./main";
+import type { UiState } from "./ui-state";
 
 export interface InputElements { canvas: HTMLCanvasElement; box: HTMLElement; infoAction: HTMLButtonElement; renameBox: HTMLInputElement; speedControls: HTMLElement; storagePanel: HTMLElement; ctx: CanvasRenderingContext2D; }
 export interface InputActions { closeStoragePanel: () => void; closeBuildMenu: () => void; closeGateMenu: () => void; openShipMenu: (builder: number) => void; closeShipMenu: () => void; }

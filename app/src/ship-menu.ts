@@ -5,7 +5,7 @@ import { slotColor } from "./ships";
 import { BRUSH_SIZES, applyTool, cellAt, designOf, emptyDraft, emptyView, lineCells, zoomView, withModule, withSize, withTool, type ShipDraft } from "./shipyard";
 import { deleteBlueprint, draftFromDesign, saveBlueprint, viewCentredOn, type Blueprint, resolveBlueprintStore } from "./blueprints";
 import { shouldDismissShipMenuOnMouseDown } from "./shipyard";
-import type { UiState } from "./main";
+import type { UiState } from "./ui-state";
 
 export interface ShipMenuSystem { openShipMenu: (builder: number) => void; closeShipMenu: () => void; paintPointAt: (client: Vec) => Vec; paintViewport: () => Viewport; }
 export function installShipMenu(ui: UiState, getState: () => SimState, setState: (state: SimState) => void,

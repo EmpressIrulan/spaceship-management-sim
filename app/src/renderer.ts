@@ -14,7 +14,7 @@ import { cellAt, designOf, designPartAt, draftPartAt, placedDesign, shipMenuView
 import { stationConnectors } from "./station-appearance";
 import { createStationDrawing } from "./station-rendering";
 import { renderStoragePanel } from "./storage-panel";
-import type { UiState } from "./main";
+import type { UiState } from "./ui-state";
 import type { Beam, Ship, SimState, Size, Vec } from "sim";
 
 export interface RendererElements {
