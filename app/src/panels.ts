@@ -1,7 +1,7 @@
 import {
   configureHaul, deleteStock, resumeDefault, setDefaultBehaviour, setMineMaterial,
   setMineOtherSectors, setStorageLimit, type DefaultBehaviour, type HaulStationId,
-  type Material, type SimState,
+  launchAll, type Material, type SimState,
 } from "sim";
 import { deleteButtonAction } from "./storage";
 import { selectionPanel } from "./selection";
@@ -65,6 +65,8 @@ export function installPanels(
   });
   shipPanelBox.addEventListener("click", (event) => {
     if ((event.target as HTMLElement).closest("button[data-resume]")) setState(resumeDefault(getState(), ui.selectedShips));
+    const launch = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-launch-all]");
+    if (launch) setState(launchAll(getState(), Number(launch.dataset.launchAll)));
   });
 
   return closeStoragePanel;

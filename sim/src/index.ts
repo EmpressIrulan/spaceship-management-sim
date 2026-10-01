@@ -109,4 +109,5 @@ export {
 } from "./claim";
 export { tick } from "./tick";
 export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, setMineOtherSectors, type OrderTarget } from "./orders";
+export { giveDockOrder, hangarCapacity, hangarContents, hangarUsed, launchAll } from "./hangars";
 export { haulStationDetails, type HaulStation } from "./haul";

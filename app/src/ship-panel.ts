@@ -1,6 +1,7 @@
 import { type SimState, type ShipDesign, type HaulStationId } from "sim";
 import { selectionPanel, type MaterialBox } from "./selection";
 import { shipPanel, shipSprite } from "./ships";
+import { hangarPanelRows, launchAllButton } from "./hangar-panel";
 
 export interface ShipPanelContext {
   selectedShips: number[];
@@ -28,10 +29,12 @@ export function renderShipPanel(state: SimState, shipPanelBox: HTMLElement, cont
   const panel = context.selectedShip === null ? null : shipPanel(state, context.selectedShip);
   const list = selectionPanel(state, context.selectedShips);
   shipPanelBox.hidden = !panel || !list;
+  const shipId = context.selectedShip;
   // The design is left out of the key, since a capital ship's pixels are too
   // many to serialise every frame. The ship's id stands in for it.
-  const key = JSON.stringify({ panel: { ...panel, design: null }, list, ship: context.selectedShip });
-  if (!panel || !list || key === context.renderedPanel) return context;
+  const hangarRows = shipId === null ? [] : hangarPanelRows(state, shipId);
+  const key = JSON.stringify({ panel: { ...panel, design: null }, list, hangarRows, ship: shipId });
+  if (!panel || !list || shipId === null || key === context.renderedPanel) return context;
   context.renderedPanel = key;
   const title = document.createElement("h2");
   title.textContent = context.selectedShips.length > 1 ? `${context.selectedShips.length} ships selected` : `Ship ${panel.size}`;
@@ -40,7 +43,7 @@ export function renderShipPanel(state: SimState, shipPanelBox: HTMLElement, cont
     const term = document.createElement("dt"); term.textContent = row.name;
     const detail = document.createElement("dd"); detail.textContent = row.status; rows.append(term, detail);
   }
-  for (const [label, value] of context.selectedShips.length === 1 ? panel.rows : []) {
+  for (const [label, value] of context.selectedShips.length === 1 ? [...panel.rows, ...hangarRows] : []) {
     const term = document.createElement("dt");
     term.textContent = label;
     const detail = document.createElement("dd");
@@ -71,8 +74,9 @@ export function renderShipPanel(state: SimState, shipPanelBox: HTMLElement, cont
     material.append(materialSelect); routeControls.push(material);
   }
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
+  const launch = context.selectedShips.length === 1 ? launchAllButton(state, shipId) : null;
   shipPanelBox.replaceChildren(title, rows, select, ...routeControls, ...materialBoxes(list.materials),
-    ...otherSectorsBox(list.mineOtherSectors), resume, ...(context.selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
+    ...otherSectorsBox(list.mineOtherSectors), resume, ...(launch ? [launch] : []), ...(context.selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
   return context;
 }
 

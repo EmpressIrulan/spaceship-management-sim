@@ -7,7 +7,7 @@ export const ORDER_LINE_SECONDS = 1;
 export function isBoxDrag(a: Vec, b: Vec): boolean { return Math.hypot(b.x - a.x, b.y - a.y) > DRAG_THRESHOLD; }
 export function shipsInBox(state: SimState, camera: Camera, viewport: Viewport, sectorId: number, a: Vec, b: Vec): number[] {
   const p = screenToWorld(camera, viewport, a); const q = screenToWorld(camera, viewport, b);
-  return state.ships.filter((s) => s.sectorId === sectorId && s.position.x >= Math.min(p.x, q.x) && s.position.x <= Math.max(p.x, q.x)
+  return state.ships.filter((s) => s.state !== "docked" && s.sectorId === sectorId && s.position.x >= Math.min(p.x, q.x) && s.position.x <= Math.max(p.x, q.x)
     && s.position.y >= Math.min(p.y, q.y) && s.position.y <= Math.max(p.y, q.y)).map((s) => s.id);
 }
 export function toggleShip(selected: number[], id: number): number[] {

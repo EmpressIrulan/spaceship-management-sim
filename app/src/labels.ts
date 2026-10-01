@@ -1,4 +1,4 @@
-import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, shipStats, stationIncome, type Ship, type SimState } from "sim";
+import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, hangarCapacity, hangarContents, hangarUsed, shipStats, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -19,6 +19,8 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "outbound":
     case "moving":
     case "holding":
+    case "docking":
+    case "docked":
     case "jumpingOut":
     case "jumpingHome":
     case "haulReturning":
@@ -116,7 +118,10 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   }
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
-    return ship ? { title: "Ship", line: shipStatus(state, ship) } : null;
+    if (!ship) return null;
+    const capacity = hangarCapacity(ship.design);
+    const hangar = capacity > 0 ? `\nHangar ${hangarUsed(state, ship.id)}/${capacity}\nDocked ships: ${hangarContents(state, ship.id).length}` : "";
+    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}` };
   }
   if (hovered.kind === "claimSite") return claimSiteBox(state, hovered.id);
   if (hovered.kind === "gateProject") {

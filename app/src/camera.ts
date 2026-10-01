@@ -153,7 +153,7 @@ export function hoveredBody(
     }
     return best === null ? null : { kind: "ship", index: best };
   };
-  const ships = state.ships.map((ship, index) => ({ ship, index })).filter(({ ship }) => ship.sectorId === currentSector);
+  const ships = state.ships.map((ship, index) => ({ ship, index })).filter(({ ship }) => ship.sectorId === currentSector && ship.state !== "docked");
   const stationVisible = state.station.sectorId === currentSector;
   const atStationOrGate = (index: number): boolean => {
     const position = state.ships[index]!.position;
