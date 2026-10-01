@@ -136,4 +136,11 @@ describe("the selected ship's panel", () => {
     expect(shipPanel(later, 0)!.rows).not.toEqual(shipPanel(start, 0)!.rows);
     expect(shipPanel(start, 9)).toBeNull();
   });
+
+  it("lists each material in a mixed hold before the capacity", () => {
+    const state = withShips([{ state: "homebound", cargo: 14, cargoMaterial: "Ice",
+      cargoByMaterial: { Metal: 6, Ice: 8 } }]);
+    expect(shipPanel(state, 0)!.rows).toContainEqual(["Cargo", "Metal 6, Ice 8 / 20"]);
+    expect(shipPanel(state, 0)!.rows).toContainEqual(["State", "Flying home with 6 Metal, 8 Ice"]);
+  });
 });

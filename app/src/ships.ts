@@ -1,5 +1,6 @@
 import {
   MATERIALS,
+  cargoByMaterial,
   canMine,
   minableRocks,
   shipStats,
@@ -77,6 +78,14 @@ function idleMiner(state: SimState, ship: Ship): string {
   return available ? "Idle" : `Waiting: no ${ship.mineMaterials.join(", ")}`;
 }
 
+function cargoLabel(ship: Ship): string {
+  const contents = cargoByMaterial(ship);
+  const listed = MATERIALS.filter((material) => contents[material] > 0);
+  return listed.length > 1
+    ? listed.map((material) => `${contents[material]} ${material}`).join(", ")
+    : `${ship.cargo} ${listed[0] ?? ship.cargoMaterial ?? "ore"}`;
+}
+
 // One line saying what the ship is doing, for its hover box and panel.
 export function shipStatus(state: SimState, ship: Ship): string {
   if (ship.order) return `Order: ${ship.order.kind}`;
@@ -95,7 +104,7 @@ export function shipStatus(state: SimState, ship: Ship): string {
     case "working":
       return `Mining${mineList(ship) ?? ` ${ship.cargoMaterial ?? "ore"}`}`;
     case "homebound":
-      return `Flying home with ${ship.cargo} ${ship.cargoMaterial ?? "ore"}`;
+      return `Flying home with ${cargoLabel(ship)}`;
     case "unloading":
       return "Unloading";
     case "waiting": {
@@ -142,7 +151,11 @@ export function shipPanel(state: SimState, id: number): ShipPanel | null {
   if (!ship) return null;
   const stats = statsView(ship.design);
   const { hold } = shipStats(ship.design);
-  const cargo = `${ship.cargo}/${hold}${ship.cargo > 0 && ship.cargoMaterial ? ` ${ship.cargoMaterial}` : ""}`;
+  const contents = cargoByMaterial(ship);
+  const listed = MATERIALS.filter((material) => contents[material] > 0);
+  const cargo = listed.length > 1
+    ? `${listed.map((material) => `${material} ${contents[material]}`).join(", ")} / ${hold}`
+    : `${ship.cargo}/${hold}${listed[0] ? ` ${listed[0]}` : ""}`;
   return {
     size: `${ship.design.width}x${ship.design.height}`,
     design: ship.design,

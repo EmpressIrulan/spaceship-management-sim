@@ -367,7 +367,7 @@ describe("ore is conserved", () => {
     return cargo - startCargo + stored(state) - stored(start);
   }
 
-  it("sends a ship home with a partial load when the rock has fewer than 10 left", () => {
+  it("keeps a partial load and heads to another rock when the first has fewer than 10 left", () => {
     const start = withRock(4, 1);
     const id = start.ships[0]!.target!.asteroidId;
     const perUnit = WORKING_SECONDS / CARGO_PER_TRIP;
@@ -375,11 +375,9 @@ describe("ore is conserved", () => {
     const emptied = run(start, 4 * perUnit + 0.05);
     expect(emptied.asteroids.map((a) => a.id)).not.toContain(id);
     expect(ship(emptied).cargo).toBe(4);
-    expect(ship(emptied).state).toBe("homebound");
-
-    const home = run(emptied, legSeconds(oneStorageStart(7)) + UNLOADING_SECONDS + 0.1);
-    expect(stored(home)).toBe(stored(start) + 4);
-    expect(ship(home).cargo).toBe(0);
+    expect(ship(emptied).state).toBe("outbound");
+    expect(ship(emptied).target?.asteroidId).not.toBe(id);
+    expect(oreHeld(start, emptied)).toBe(oreRemoved(start, emptied));
   });
 
   it("splits a rock between two ships mining it, taking no more than it held", () => {
@@ -389,21 +387,20 @@ describe("ore is conserved", () => {
     const emptied = run(start, 8);
     expect(emptied.asteroids.map((a) => a.id)).not.toContain(id);
     expect(emptied.ships.map((s) => s.cargo)).toEqual([6, 6]);
-    expect(emptied.ships.map((s) => s.state)).toEqual(["homebound", "homebound"]);
-
-    const home = run(emptied, legSeconds(oneStorageStart(7)) + UNLOADING_SECONDS + 0.1);
-    expect(stored(home)).toBe(stored(start) + 12);
+    expect(emptied.ships.map((s) => s.state)).toEqual(["outbound", "outbound"]);
+    expect(emptied.ships.every((s) => s.target?.asteroidId !== id)).toBe(true);
+    expect(oreHeld(start, emptied)).toBe(oreRemoved(start, emptied));
   });
 
-  it("gives nothing to a ship whose rock was removed by another ship", () => {
+  it("redirects a ship whose rock was removed by another ship without inventing ore", () => {
     const start = withRock(10, 2);
     // The second ship arrives later, so the first takes the whole rock.
     const late = { ...start.ships[1]!, state: "outbound" as const, timer: WORKING_SECONDS + 1 };
     const state = run({ ...start, ships: [start.ships[0]!, late] }, 2 * WORKING_SECONDS + 2);
 
-    expect(state.ships[0]!.cargo + stored(state) - stored(start)).toBe(10);
-    expect(state.ships[1]!.cargo).toBe(0);
-    expect(state.ships[1]!.state).not.toBe("working");
+    expect(oreHeld(start, state)).toBe(oreRemoved(start, state));
+    expect(state.ships[1]!.target?.asteroidId).not.toBe(start.ships[1]!.target?.asteroidId);
+    expect(state.ships[1]!.target).not.toBeNull();
   });
 
   it("balances ore mined against cargo and station stock over a long run with many ships", () => {

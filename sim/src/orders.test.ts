@@ -225,7 +225,7 @@ describe("RTS ship orders", () => {
     expect(run(resumed, 1 / 30).ships[0]!.timer).toBeLessThan(JUMP_SECONDS);
   });
 
-  it("routes a loaded ship to the far-sector gate before unloading for a different-material mine order", () => {
+  it("lets a loaded ship mix material while carrying out a mine order in its sector", () => {
     const initial = fleet(1);
     const rock = initial.asteroids.find((candidate) => candidate.sectorId === 1)!;
     const loaded = farSector(initial, {
@@ -234,15 +234,10 @@ describe("RTS ship orders", () => {
     });
     const ordered = giveOrder(loaded, [0], { kind: "mine", asteroidId: rock.id });
 
-    expect(ordered.ships[0]).toMatchObject({
-      sectorId: 1,
-      state: "homebound",
-      leg: { to: loaded.sectors[1]!.gate.position },
-      cargo: 3,
-      order: { kind: "mine", asteroidId: rock.id, loaded: false },
-    });
-    expect(run(ordered, 1 / 30).ships[0]).toMatchObject({ state: "jumpingHome", position: loaded.sectors[1]!.gate.position, cargo: 3 });
-    expect(run(ordered, 1 / 30).ships[0]!.timer).toBeLessThan(JUMP_SECONDS);
+    expect(ordered.ships[0]).toMatchObject({ sectorId: 1, state: "outbound", cargo: 3,
+      target: { asteroidId: rock.id }, order: { kind: "mine", asteroidId: rock.id, loaded: false } });
+    const working = until(ordered, (state) => state.ships[0]!.state === "working");
+    expect(working.ships[0]!.cargo).toBe(3);
   });
 
   it("moves from sector 1 through its gate before moving to a point in sector 0", () => {

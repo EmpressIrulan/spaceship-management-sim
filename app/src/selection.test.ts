@@ -23,6 +23,13 @@ describe("RTS selection helpers", () => {
     expect(selectionPanel(state, [0, 14])).toMatchObject({ defaultBehaviour: "mixed", canResume: true, rows: [{ id: 0 }, { id: 14 }] });
   });
 
+  it("shows Mine in other sectors off by default and mixed when selected ships disagree", () => {
+    const initial = createInitialState(7);
+    expect(selectionPanel(initial, [0])?.mineOtherSectors).toBe("off");
+    const second = { ...initial.ships[0]!, id: 14, mineOtherSectors: true };
+    expect(selectionPanel({ ...initial, ships: [initial.ships[0]!, second] }, [0, 14])?.mineOtherSectors).toBe("mixed");
+  });
+
   it("marks an order that is holding", () => {
     const initial = createInitialState(7);
     const ship = { ...initial.ships[0]!, state: "holding" as const,
