@@ -29,7 +29,6 @@ import {
   type DefaultBehaviour,
   type HaulStationId,
   type Material,
-  type MaterialBox,
   type ModuleType,
   type Ship,
   type ShipDesign,

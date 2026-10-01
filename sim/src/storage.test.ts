@@ -24,6 +24,7 @@ describe("Storage stock controls", () => {
         timer: UNLOADING_SECONDS,
         cargo: 10,
         cargoMaterial: "Ice",
+        mineMaterials: ["Metal", "Ice"],
       }],
     }, "Ice", 40);
 
