@@ -1,4 +1,4 @@
-import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, shipStats, stationIncome, unloadingSeconds, type Ship, type SimState } from "sim";
+import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, shipStats, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -35,13 +35,13 @@ export function cargoGauge(ship: Ship): Gauge | null {
     case "haulJumpingOutbound":
     case "haulWaitingFull":
       return { fill: hold ? ship.cargo / hold : 0, text };
+    case "loading":
+      return { fill: hold ? ship.cargo / hold : 0, text };
     case "working":
       return { fill: miningSeconds ? 1 - ship.timer / miningSeconds : 0, text };
     case "unloading":
+    case "gateUnloading":
     case "haulUnloading":
-      // A partial load starts below the timer's fraction, so the bar never
-      // reads fuller than what is aboard.
-      return { fill: Math.min(ship.timer / unloadingSeconds(ship.design), hold ? ship.cargo / hold : 0), text };
     case "haulLoading":
       return { fill: hold ? ship.cargo / hold : 0, text };
   }
@@ -80,16 +80,17 @@ function storageBox(state: SimState): InfoBox {
   };
 }
 
+function dockBox(state: SimState): InfoBox {
+  const transferring = state.ships.filter((ship) => ship.state === "loading"
+    || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
+    || (ship.state === "unloading" && ship.order?.kind !== "supplySite")).length;
+  return { title: "Dock", line: `Occupied ${transferring} / ${state.station.dock.capacity}` };
+}
+
 // Null closes the box, including when the hovered asteroid has just gone.
 export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | null {
   if (!hovered) return null;
-  if (hovered.kind === "dock") {
-    const unloading = state.ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length;
-    return {
-      title: "Dock",
-      line: `Unloading ${unloading} / ${state.station.dock.capacity}`,
-    };
-  }
+  if (hovered.kind === "dock") return dockBox(state);
   if (hovered.kind === "storage") return storageBox(state);
   if (hovered.kind === "construction") {
     const construction = state.station.construction;
@@ -106,10 +107,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       const size = `${job.design.width}x${job.design.height}`;
       return { title: "Builder", line: `Building ${size}: ${formatDuration(Math.ceil(job.timer))}` };
     }
-    if (module.type === "Dock") {
-      const unloading = state.ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length;
-      return { title: "Dock", line: `Unloading ${unloading} / ${state.station.dock.capacity}` };
-    }
+    if (module.type === "Dock") return dockBox(state);
     return storageBox(state);
   }
   if (hovered.kind === "ship") {

@@ -9,7 +9,7 @@ import {
   startClaimSite,
 } from "./claim";
 import { giveOrder } from "./orders";
-import { unloadingSeconds } from "./ship";
+import { cargoTransferSeconds } from "./ship";
 import { createInitialState, type Ship, type SimState, type Vec } from "./state";
 import { tick } from "./tick";
 
@@ -105,7 +105,7 @@ describe("claim station sites", () => {
     const { state: withSite } = place(createInitialState(7), 0);
     const start = loaded(withSite, 20, "Metal");
     const arrived = until(giveOrder(start, [0], { kind: "supplySite", siteId: 0 }), (next) => next.ships[0]!.state === "unloading");
-    const seconds = unloadingSeconds(arrived.ships[0]!.design);
+    const seconds = cargoTransferSeconds(arrived.ships[0]!.cargo);
     expect(arrived.claimSites[0]!.delivered.Metal).toBe(0);
     expect(arrived.ships[0]!.cargo).toBe(20);
     const half = tick(arrived, seconds / 2);
