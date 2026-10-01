@@ -9,6 +9,7 @@ export function selectClick(context: InputContext, event: MouseEvent, additive: 
   if (event.target !== canvas) return;
   const point = mousePoint(event);
   const hovered = hoveredBody(getState(), ui.camera, ui.viewport, point, ui.currentSector);
+  ui.stickyQueuedBuild = hovered?.kind === "queuedBuild" ? hovered.index : null;
   const clickedStorage = hovered?.kind === "storage"
     || (hovered?.kind === "module" && getState().station.modules[hovered.index]?.type === "Storage");
   const storageOpen = storagePanelOpenAfterClick(ui.storagePanelOpen, clickedStorage ? "storage" : hovered ? "other" : "empty");

@@ -19,6 +19,7 @@ export interface StationDrawing {
   drawStationConnector: (from: Vec, to: Vec) => void;
   drawStationModule: (module: StationModule) => void;
   drawConstructionSite: () => void;
+  drawQueuedModule: (module: StationModule) => void;
   drawClaimSite: (site: SimState["claimSites"][number]) => void;
 }
 export function createStationDrawing(
@@ -146,8 +147,15 @@ export function createStationDrawing(
     ctx.restore();
   }
 
-  // Ships carry ore here and Home builds from it. Always drawn, since Home has
-  // one from the start.
+  function drawQueuedModule(module: StationModule): void {
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    drawStationModule(module);
+    ctx.restore();
+  }
+
+  // Ships carry ore here and Home builds from it. The caller only draws it
+  // while the build queue needs supplies.
   function drawConstructionSite(): void {
     const { position, size } = getState().station.constructionSite;
     const left = worldToScreen(ui.camera, ui.viewport, {
@@ -212,6 +220,7 @@ export function createStationDrawing(
     drawStationConnector,
     drawStationModule,
     drawConstructionSite,
+    drawQueuedModule,
     drawClaimSite,
   };
 }

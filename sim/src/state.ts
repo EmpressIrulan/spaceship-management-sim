@@ -376,6 +376,7 @@ export function createInitialState(seed: number): SimState {
         { type: "Storage", position: storagePosition, size: STORAGE_SIZE },
       ],
       construction: null,
+      buildQueue: [],
       shipBuilds: [],
     },
     asteroids,

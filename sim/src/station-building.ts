@@ -42,10 +42,12 @@ export function availableModuleBuildSites(state: SimState): Vec[] {
   const footprints = [
     ...state.station.modules,
     ...(state.station.construction ? [state.station.construction] : []),
+    ...state.station.buildQueue,
     state.station.constructionSite,
   ];
+  const anchors = [...state.station.modules, ...state.station.buildQueue];
   const sites: Vec[] = [];
-  for (const module of state.station.modules) {
+  for (const module of anchors) {
     for (const direction of BUILD_DIRECTIONS) {
       const site = { x: module.position.x + direction.x, y: module.position.y + direction.y };
       const blocked = footprints.some((footprint) => overlapsFootprint(site, footprint))

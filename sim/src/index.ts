@@ -60,6 +60,7 @@ export {
   type HaulStationId,
   type ModuleBuildOption,
   type ModuleConstruction,
+  type QueuedModuleBuild,
   type ModuleType,
   type Ship,
   type ShipBuild,
@@ -73,6 +74,7 @@ export {
   type Target,
   type Vec,
 } from "./state";
+export { cancelQueuedModuleBuild, queueModuleBuild, startNextQueuedModule } from "./station-build-queue";
 export {
   PIXEL_SIZE,
   SHIP_BUILD_SECONDS_PER_RESOURCE,

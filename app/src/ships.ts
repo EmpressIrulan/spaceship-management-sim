@@ -144,6 +144,7 @@ export function shipStatus(state: SimState, ship: Ship): string {
     case "moving":
       return "Moving";
     case "holding":
+      if (ship.defaultBehaviour === "supply" && state.station.buildQueue.length === 0) return "Waiting at Home: nothing queued";
       return "Holding";
     case "docking":
       return "Docking with carrier";

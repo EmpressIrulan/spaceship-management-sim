@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, type Ship, type SimState } from "sim";
+import { createInitialState, queueModuleBuild, type Ship, type SimState } from "sim";
 import { buildMenuItems } from "./building";
 import { hoveredBody, bodyOf, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
@@ -20,8 +20,18 @@ function withShip(patch: Partial<Ship>): SimState {
 }
 
 describe("the construction site on screen", () => {
-  it("is hoverable, and shows the Metal and Ice in it with no cap", () => {
-    const state = withSite({ Metal: 12, Ice: 0 });
+  it("is absent and cannot be clicked with no queue, then returns with its contents", () => {
+    const hidden = withSite({ Metal: 12, Ice: 0 });
+    const pointer = worldToScreen(camera, viewport, hidden.station.constructionSite.position);
+    expect(hoveredBody(hidden, camera, viewport, pointer)).not.toEqual({ kind: "constructionSite" });
+
+    const queued = queueModuleBuild(hidden, "Storage", { x: 80, y: 0 });
+    expect(hoveredBody(queued, camera, viewport, pointer)).toEqual({ kind: "constructionSite" });
+    expect(queued.station.constructionSite.inventory).toEqual({ Metal: 12, Ice: 0 });
+  });
+
+  it("is hoverable while something is queued, and shows its uncapped inventory", () => {
+    const state = queueModuleBuild(withSite({ Metal: 12, Ice: 0 }), "Storage", { x: 80, y: 0 });
     const { position } = state.station.constructionSite;
     const pointer = worldToScreen(camera, viewport, position);
 
@@ -58,11 +68,15 @@ describe("the construction site on screen", () => {
 });
 
 describe("the + menu", () => {
-  it("greys out what the site cannot pay and says what is missing on hover", () => {
+  it("never greys out module choices", () => {
+    expect(buildMenuItems(withSite({ Metal: 0, Ice: 0 })).every((item) => !item.disabled)).toBe(true);
+  });
+
+  it("keeps short choices enabled and says what is missing on hover", () => {
     const items = buildMenuItems(withSite({ Metal: 30, Ice: 10 }));
 
     expect(items.map(({ disabled, title }) => ({ disabled, title })))
-      .toEqual(Array(3).fill({ disabled: true, title: "Needs 15 more Ice" }));
+      .toEqual(Array(3).fill({ disabled: false, title: "Needs 15 more Ice" }));
   });
 
   it("names both materials when both are short", () => {
@@ -77,15 +91,20 @@ describe("the + menu", () => {
     ]);
   });
 
-  it("says why when the site is funded but a module is already being built", () => {
+  it("allows another module to be queued while one is being built", () => {
     const state = withSite({ Metal: 50, Ice: 50 });
     const building = { ...state, station: { ...state.station, construction: { type: "Dock" as const, position: { x: 80, y: 0 }, size: { width: 40, height: 70 }, timer: 5 } } };
 
-    expect(buildMenuItems(building)[0]).toMatchObject({ disabled: true, title: "Another module is being built" });
+    expect(buildMenuItems(building)[0]).toMatchObject({ disabled: false, title: "" });
   });
 });
 
 describe("a ship supplying the site", () => {
+  it("reads that it is waiting at Home when nothing is queued", () => {
+    const state = withShip({ defaultBehaviour: "supply", state: "holding", cargo: 7, cargoMaterial: "Metal" });
+    expect(shipStatus(state, state.ships[0]!)).toBe("Waiting at Home: nothing queued");
+  });
+
   it("is on its own default in the panel", () => {
     expect(selectionPanel(withShip({ defaultBehaviour: "supply" }), [0])).toMatchObject({ defaultBehaviour: "supply" });
   });

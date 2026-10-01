@@ -8,6 +8,7 @@ import {
   cargoTransferSeconds,
   createInitialState,
   giveOrder,
+  queueModuleBuild,
   setDefaultBehaviour,
   startModuleBuild,
   startShipBuild,
@@ -54,7 +55,8 @@ function minerOn(behaviour: Ship["defaultBehaviour"], seed = 7): SimState {
   const base = oneStorageStart(seed);
   const dock = base.station.dock.position;
   const ship = { ...base.ships[0]!, defaultBehaviour: behaviour };
-  return { ...base, ships: [depart(ship, dock, base.asteroids)] };
+  const state = { ...base, ships: [depart(ship, dock, base.asteroids)] };
+  return behaviour === "supply" ? queueModuleBuild(state, "Storage", { x: 80, y: 0 }) : state;
 }
 
 describe("the construction site", () => {
@@ -154,7 +156,8 @@ describe("Supply construction site", () => {
 
     expect(unloadings).toBeGreaterThanOrEqual(3);
     expect(longestJump(minerOn("supply"), (now) => now.time > 300)).toBeLessThan(6);
-    expect(siteTotal(state)).toBeGreaterThanOrEqual(20);
+    expect(siteTotal(state)).toBeGreaterThan(0);
+    expect(state.station.construction ?? state.station.modules[2]).toMatchObject({ type: "Storage" });
     expect(state.station.inventory).toEqual(storage);
   });
 
@@ -191,7 +194,7 @@ describe("Supply construction site", () => {
     const hauling = until(minerOn("mine"), (state) => state.ships[0]!.state === "homebound" && state.ships[0]!.cargo > 0);
     const storage = hauling.station.inventory;
 
-    const switched = setDefaultBehaviour(hauling, [0], "supply");
+    const switched = setDefaultBehaviour(queueModuleBuild(hauling, "Storage", { x: 80, y: 0 }), [0], "supply");
     expect(longestJump(switched, unloadingNow)).toBeLessThan(6);
     const arrived = until(switched, unloadingNow);
 
@@ -259,7 +262,8 @@ describe("unloading a ship into the site at the end of a trip", () => {
     const ship: Ship = { ...base.ships[0]!, state: "unloading", position: { ...site(base).position }, cargo: 20, cargoMaterial: "Ice",
       cargoByMaterial: { Metal: 6, Ice: 14 }, transfer: { startingCargo: 20, amount: 20, destination: "constructionSite" },
       timer: cargoTransferSeconds(20), target: null, leg: null, berth: null, ...patch };
-    return { ...base, ships: [ship] };
+    const state = { ...base, ships: [ship] };
+    return ship.defaultBehaviour === "supply" ? queueModuleBuild(state, "Storage", { x: 80, y: 0 }) : state;
   }
 
   it("credits each material in a mixed hold, not everything to the active one", () => {

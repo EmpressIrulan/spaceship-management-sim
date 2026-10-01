@@ -27,6 +27,7 @@ export interface Draft {
   ships: Ship[];
   modules: Station["modules"];
   construction: Station["construction"];
+  buildQueue: Station["buildQueue"];
   shipBuilds: Station["shipBuilds"];
   dockCapacity: number;
   sectors: SimState["sectors"];
