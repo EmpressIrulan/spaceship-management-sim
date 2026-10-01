@@ -1,4 +1,4 @@
-import { GATE_COST, MATERIALS, shipStats, stationIncome, unloadingSeconds, type Ship, type SimState } from "sim";
+import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, shipStats, stationIncome, unloadingSeconds, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -41,6 +41,21 @@ export function cargoGauge(ship: Ship): Gauge | null {
 export interface InfoBox {
   title: string;
   line: string;
+  // A button the box carries, for the hovers that can be acted on.
+  action?: { label: string; siteId: number };
+}
+
+function claimSiteBox(state: SimState, id: number): InfoBox | null {
+  const site = state.claimSites.find((candidate) => candidate.id === id);
+  if (!site) return null;
+  if (claimSiteBuilt(site)) {
+    return { title: "Claim station", line: `${CLAIM_BUILD_ORDER.join(" and ")} built`, action: { label: "Remove site", siteId: site.id } };
+  }
+  const needs = claimSiteNeeds(site);
+  const now = needs.seconds === null
+    ? `${needs.building}: ${MATERIALS.map((material) => `${material} ${site.delivered[material]}/${CLAIM_MODULE_COST[material]}`).join(", ")}`
+    : `Building ${needs.building}: ${Math.ceil(needs.seconds)} s`;
+  return { title: "Claim site", line: needs.next ? `${now}\nThen: ${needs.next}` : now };
 }
 
 // Every Storage module shares one inventory, so each shows the same box.
@@ -60,7 +75,7 @@ function storageBox(state: SimState): InfoBox {
 export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | null {
   if (!hovered) return null;
   if (hovered.kind === "dock") {
-    const unloading = state.ships.filter((ship) => ship.state === "unloading").length;
+    const unloading = state.ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length;
     return {
       title: "Dock",
       line: `Unloading ${unloading} / ${state.station.dock.capacity}`,
@@ -83,7 +98,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       return { title: "Builder", line: `Building ${size}: ${formatDuration(Math.ceil(job.timer))}` };
     }
     if (module.type === "Dock") {
-      const unloading = state.ships.filter((ship) => ship.state === "unloading").length;
+      const unloading = state.ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length;
       return { title: "Dock", line: `Unloading ${unloading} / ${state.station.dock.capacity}` };
     }
     return storageBox(state);
@@ -92,6 +107,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const ship = state.ships[hovered.index];
     return ship ? { title: "Ship", line: shipStatus(state, ship) } : null;
   }
+  if (hovered.kind === "claimSite") return claimSiteBox(state, hovered.id);
   if (hovered.kind === "gateProject") {
     const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
     if (!project) return null;

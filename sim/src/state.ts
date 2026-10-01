@@ -1,3 +1,4 @@
+import type { ClaimSite } from "./claim";
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
 import {
@@ -92,7 +93,8 @@ export type Order =
   | { kind: "mine"; asteroidId: number; loaded: boolean }
   | { kind: "move"; point: Vec; sectorId: number }
   | { kind: "home" }
-  | { kind: "haulGate"; gateId: number };
+  | { kind: "haulGate"; gateId: number }
+  | { kind: "supplySite"; siteId: number; point: Vec; sectorId: number };
 export interface Leg { from: Vec; to: Vec }
 
 export interface Target {
@@ -202,6 +204,8 @@ export interface SimState {
   fields: AsteroidField[];
   nextGateId: number;
   gateProjects: GateProject[];
+  nextClaimSiteId: number;
+  claimSites: ClaimSite[];
   station: Station;
   asteroids: Asteroid[];
   respawns: Respawn[];
@@ -519,6 +523,8 @@ export function createInitialState(seed: number): SimState {
     fields,
     nextGateId: 0,
     gateProjects: [],
+    nextClaimSiteId: 0,
+    claimSites: [],
     nextShipId: 1,
     station: {
       sectorId: HOME_SECTOR,
@@ -661,7 +667,7 @@ function parkingPoint(dock: Vec, index: number): Vec {
 }
 
 function holdsBerth(ship: Ship): boolean {
-  return ship.state === "unloading" || (ship.state === "berthing" && ship.berth !== null);
+  return (ship.state === "unloading" && ship.order?.kind !== "supplySite") || (ship.state === "berthing" && ship.berth !== null);
 }
 
 // The lowest free pad, or null when every berth is taken. A ship unloading

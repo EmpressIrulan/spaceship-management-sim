@@ -1,4 +1,4 @@
-import { type DefaultBehaviour, type OrderTarget, type SimState, type Vec } from "sim";
+import { claimSiteBuilt, type DefaultBehaviour, type OrderTarget, type SimState, type Vec } from "sim";
 import { screenToWorld, type Camera, type Hovered, type Viewport } from "./camera";
 
 const DRAG_THRESHOLD = 4;
@@ -16,6 +16,10 @@ export function orderTargetAt(state: SimState, hovered: Hovered | null, world: V
   if (hovered?.kind === "gateProject") {
     const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
     return project?.complete ? { kind: "move", point: world, sectorId: currentSector } : { kind: "haulGate", gateId: hovered.id };
+  }
+  if (hovered?.kind === "claimSite") {
+    const site = state.claimSites.find((candidate) => candidate.id === hovered.id);
+    return site && !claimSiteBuilt(site) ? { kind: "supplySite", siteId: site.id } : { kind: "move", point: world, sectorId: currentSector };
   }
   if (hovered?.kind === "asteroid") return { kind: "mine", asteroidId: hovered.id };
   if (hovered?.kind === "dock" || (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Dock")) return { kind: "home" };

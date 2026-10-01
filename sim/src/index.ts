@@ -67,14 +67,15 @@ export {
 } from "./state";
 export {
   PIXEL_SIZE,
-  SHIP_BUILD_SECONDS_PER_PIXEL,
-  SHIP_COST_PER_PIXEL,
+  SHIP_BUILD_SECONDS_PER_RESOURCE,
+  SHIP_MODULE_COST,
   SHIP_MODULES,
   STARTING_SHIP,
   canMine,
   pixelCount,
   shipBuildCost,
   shipBuildSeconds,
+  shipModuleCounts,
   shipSize,
   shipStats,
   unloadingSeconds,
@@ -83,5 +84,20 @@ export {
   type ShipModule,
   type ShipStats,
 } from "./ship";
+export {
+  CLAIM_BUILD_ORDER,
+  CLAIM_BUILD_SECONDS,
+  CLAIM_MODULE_COST,
+  CLAIM_SITE_SIZE,
+  claimSiteBuilt,
+  claimSiteNeeds,
+  claimSiteSlots,
+  removeClaimSite,
+  renameSector,
+  sectorClaimed,
+  startClaimSite,
+  type ClaimSite,
+  type ClaimSiteNeeds,
+} from "./claim";
 export { tick } from "./tick";
 export { formation, giveOrder, resumeDefault, setDefaultBehaviour, type OrderTarget } from "./orders";
