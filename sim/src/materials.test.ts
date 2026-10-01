@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ONE_STORAGE, oneStorageStart } from "./test-ships";
+import { ONE_STORAGE, oneStorageStart, padHopSeconds } from "./test-ships";
+import { travelSeconds } from "./motion";
 import { shipSize } from "./ship";
 const ONE_STORAGE_SIZE = shipSize(ONE_STORAGE);
 import { CARGO_PER_TRIP, UNLOADING_SECONDS, WORKING_SECONDS, createInitialState, depart, type SimState } from "./state";
@@ -45,13 +46,17 @@ describe("material deliveries", () => {
     expect(atWork.ships[0]!.cargoMaterial).toBe("Metal");
     expect(atWork.asteroids[0]!.ore).toBe(5);
 
-    const firstCycle = 2 * start.ships[0]!.timer + WORKING_SECONDS + UNLOADING_SECONDS;
+    const firstCycle = 2 * start.ships[0]!.timer + WORKING_SECONDS + padHopSeconds(start) + UNLOADING_SECONDS;
     const afterMetal = tick(start, firstCycle + 0.1);
     expect(afterMetal.station.inventory).toEqual({ Metal: 30, Ice: 20 });
     expect(afterMetal.ships[0]!.target?.asteroidId).toBe(second.id);
     expect(afterMetal.ships[0]!.cargoMaterial).toBe("Ice");
 
-    const secondCycle = 2 * (afterMetal.ships[0]!.timer + 0.1) + WORKING_SECONDS + UNLOADING_SECONDS;
+    // The ship left from the pad, so its way out is shorter than its way home.
+    const outbound = afterMetal.ships[0]!;
+    const dock = start.station.dock.position;
+    const wayHome = travelSeconds(Math.hypot(outbound.target!.site.x - dock.x, outbound.target!.site.y - dock.y));
+    const secondCycle = outbound.timer + WORKING_SECONDS + wayHome + padHopSeconds(start) + UNLOADING_SECONDS + 0.1;
     const delivered = tick(afterMetal, secondCycle);
     expect(delivered.station.inventory).toEqual({ Metal: 30, Ice: 30 });
     expect(start.station.inventory).toEqual({ Metal: 20, Ice: 20 });

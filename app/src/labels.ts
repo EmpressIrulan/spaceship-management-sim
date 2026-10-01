@@ -29,6 +29,7 @@ export function cargoGauge(ship: Ship): Gauge | null {
       return null;
     case "gateHauling":
     case "waiting":
+    case "berthing":
     case "homebound":
     case "haulOutbound":
     case "haulJumpingOutbound":

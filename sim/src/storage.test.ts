@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   UNLOADING_SECONDS,
+  MATERIALS,
   createInitialState,
   deleteStock,
   setStorageLimit,
@@ -19,12 +20,12 @@ describe("Storage stock controls", () => {
       },
       ships: [{
         ...initial.ships[0]!,
+        mineMaterials: [...MATERIALS],
         state: "unloading",
         position: { ...initial.station.dock.position },
         timer: UNLOADING_SECONDS,
         cargo: 10,
         cargoMaterial: "Ice",
-        mineMaterials: ["Metal", "Ice"],
       }],
     }, "Ice", 40);
 
@@ -64,6 +65,6 @@ describe("Storage stock controls", () => {
     const freed = deleteStock(blocked, "Ice", 30);
 
     expect(freed.station.inventory).toEqual({ Metal: 20, Ice: 50 });
-    expect(freed.ships[0]).toMatchObject({ state: "unloading", cargo: 10 });
+    expect(freed.ships[0]).toMatchObject({ state: "berthing", cargo: 10 });
   });
 });

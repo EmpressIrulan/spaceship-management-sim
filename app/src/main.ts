@@ -1,4 +1,5 @@
 import {
+  BUILDER_SIZE,
   CLAIM_MODULE_COST,
   CLAIM_SITE_SIZE,
   DOCK_SIZE,
@@ -12,6 +13,8 @@ import {
   availableModuleBuildSites,
   createInitialState,
   deleteStock,
+  BERTH_PAD_SIZE,
+  dockBerths,
   laserBeam,
   giveOrder,
   configureHaul,
@@ -791,6 +794,21 @@ function drawStationConnector(from: Vec, to: Vec): void {
   ctx.restore();
 }
 
+// The Dock's pads, marked whether or not a ship is on them. Called with the
+// canvas already translated to the Dock's centre.
+function drawBerthPads(dock: Vec): void {
+  const side = BERTH_PAD_SIZE * camera.zoom;
+  ctx.save();
+  ctx.strokeStyle = moduleAppearance("Dock").accent;
+  ctx.globalAlpha = 0.7;
+  ctx.lineWidth = Math.max(1, camera.zoom);
+  ctx.setLineDash([Math.max(2, 3 * camera.zoom), Math.max(2, 2 * camera.zoom)]);
+  for (const pad of dockBerths(dock)) {
+    ctx.strokeRect((pad.x - dock.x) * camera.zoom - side / 2, (pad.y - dock.y) * camera.zoom - side / 2, side, side);
+  }
+  ctx.restore();
+}
+
 function drawStationModule(module: StationModule): void {
   const center = worldToScreen(camera, viewport, module.position);
   const width = module.size.width * camera.zoom;
@@ -851,6 +869,7 @@ function drawStationModule(module: StationModule): void {
     ctx.arc(width * 0.34, height * 0.04, Math.max(1.5, width * 0.07), 0, Math.PI * 2);
     ctx.fill();
   }
+  if (module.type === "Dock") drawBerthPads(module.position);
   ctx.restore();
 }
 
@@ -862,7 +881,7 @@ function supplyFraction(site: (typeof state.claimSites)[number]): number {
 }
 
 function drawClaimSite(site: (typeof state.claimSites)[number]): void {
-  const size = { Dock: DOCK_SIZE, Storage: STORAGE_SIZE, Builder: DOCK_SIZE };
+  const size = { Dock: DOCK_SIZE, Storage: STORAGE_SIZE, Builder: BUILDER_SIZE };
   claimSiteSlots(site).forEach((slot, index) => {
     if (slot.built) { drawStationModule({ type: slot.type, position: slot.position, size: size[slot.type] }); return; }
     strokeWorldRect(slot.position, size[slot.type], "#cbd5e1");
@@ -1199,6 +1218,9 @@ function draw(seconds: number): void {
   if (hovered?.kind === "claimSite") stickySite = hovered.id;
   else if (infoHovered && stickySite !== null && !mapOpen) hovered = { kind: "claimSite", id: stickySite };
   else stickySite = null;
+  // A + cell sits above the canvas, so a ship beside it would never hear the
+  // click. While the pointer is on a ship, the cells let clicks through.
+  buildControls.classList.toggle("over-ship", hovered?.kind === "ship");
   const info = infoBox(state, hovered);
   box.hidden = info === null;
   if (info === null) infoHovered = false;

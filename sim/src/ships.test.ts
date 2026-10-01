@@ -251,12 +251,17 @@ describe("several ships", () => {
     };
 
     const arrived = tick(home, 0);
-    expect(arrived.ships.filter((ship) => ship.state === "unloading")).toHaveLength(6);
-    const waiting = arrived.ships.filter((ship) => ship.state === "waiting");
+    expect(arrived.ships.filter((ship) => ship.state === "berthing" && ship.berth !== null)).toHaveLength(6);
+
+    // Everyone has reached a pad or a parking spot, and nobody has finished.
+    const settled = tick(arrived, 8);
+    expect(settled.ships.filter((ship) => ship.state === "unloading")).toHaveLength(6);
+    const waiting = settled.ships.filter((ship) => ship.state === "waiting");
     expect(waiting).toHaveLength(1);
 
-    const berthFree = tick(arrived, arrived.ships[0]!.timer);
-    expect(berthFree.ships.find((ship) => ship.id === waiting[0]!.id)!.state).toBe("unloading");
+    const soonest = Math.min(...settled.ships.filter((ship) => ship.state === "unloading").map((ship) => ship.timer));
+    const berthFree = tick(settled, soonest);
+    expect(berthFree.ships.find((ship) => ship.id === waiting[0]!.id)).toMatchObject({ state: "berthing" });
   });
 });
 

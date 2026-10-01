@@ -165,7 +165,8 @@ describe("station module hover", () => {
       cargo: arrived.ships[0]!.cargo,
       hover: infoBox(arrived, { kind: "ship", index: 0 })?.line,
     }).toEqual({
-      state: "waiting",
+      // Still flying to its parking spot, and already reads as waiting.
+      state: "berthing",
       cargo: 10,
       hover: "Waiting: storage full",
     });
