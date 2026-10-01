@@ -23,6 +23,15 @@ describe("RTS selection helpers", () => {
     expect(selectionPanel(state, [0, 14])).toMatchObject({ defaultBehaviour: "mixed", canResume: true, rows: [{ id: 0 }, { id: 14 }] });
   });
 
+  it("marks an order that is holding", () => {
+    const initial = createInitialState(7);
+    const ship = { ...initial.ships[0]!, state: "holding" as const,
+      order: { kind: "move" as const, point: { x: 1, y: 2 }, sectorId: 0 } };
+    const state = { ...initial, ships: [ship] };
+
+    expect(selectionPanel(state, [0])?.rows[0]?.status).toBe("Order: move (holding)");
+  });
+
   it("disables Haul with one station and names the route controls with two", () => {
     const initial = createInitialState(7);
     expect(selectionPanel(initial, [0])).toMatchObject({

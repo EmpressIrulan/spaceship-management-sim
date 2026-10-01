@@ -95,6 +95,46 @@ describe("Haul default", () => {
     expect(["haulOutbound", "haulUnloading"]).toContain(resumed.ships[0]!.state);
   });
 
+  it("returns carried Ice to From before starting a newly selected Metal route", () => {
+    let state = configureHaul(twoStations(), [0], { from: "home", to: "claim:4", material: "Ice" });
+    state = until(state, (next) => next.ships[0]!.state === "haulOutbound");
+    expect(state.ships[0]).toMatchObject({ cargo: 20, cargoMaterial: "Ice" });
+
+    const changed = configureHaul(state, [0], { from: "home", to: "claim:4", material: "Metal" });
+    expect(changed.ships[0]).toMatchObject({ state: "haulReturning", cargo: 20, cargoMaterial: "Ice",
+      haulRoute: { material: "Metal" } });
+
+    const unloading = until(changed, (next) => next.ships[0]!.state === "haulUnloading");
+    const unloaded = run(unloading, 12.01);
+    expect(unloaded.station.inventory).toEqual({ Metal: 20, Ice: 40 });
+    expect(unloaded.claimSites[0]!.delivered).toEqual({ Metal: 0, Ice: 0 });
+  });
+
+  it("returns a loaded miner's material to Home before starting its Haul route", () => {
+    const base = twoStations();
+    const loaded = { ...base, ships: [{ ...base.ships[0]!, state: "homebound" as const,
+      position: { x: 40, y: 20 }, cargo: 10, cargoMaterial: "Ice" as const, defaultBehaviour: "mine" as const }] };
+
+    const hauling = setDefaultBehaviour(loaded, [0], "haul");
+    expect(hauling.ships[0]).toMatchObject({ state: "haulReturning", cargo: 10, cargoMaterial: "Ice",
+      haulRoute: { from: "home", to: "claim:4", material: "Metal" } });
+
+    const unloading = until(hauling, (next) => next.ships[0]!.state === "haulUnloading");
+    const unloaded = run(unloading, 12.01);
+    expect(unloaded.station.inventory).toEqual({ Metal: 20, Ice: 50 });
+    expect(unloaded.claimSites[0]!.delivered).toEqual({ Metal: 0, Ice: 0 });
+  });
+
+  it("keeps a right-click order active when the Haul dropdowns change", () => {
+    let state = configureHaul(twoStations(), [0], { from: "home", to: "claim:4", material: "Ice" });
+    state = giveOrder(state, [0], { kind: "move", point: { x: 30, y: 20 }, sectorId: 0 });
+    const ordered = state.ships[0]!;
+
+    const configured = configureHaul(state, [0], { from: "home", to: "claim:4", material: "Metal" });
+    expect(configured.ships[0]).toMatchObject({ state: ordered.state, order: ordered.order,
+      leg: ordered.leg, defaultBehaviour: "haul", haulRoute: { material: "Metal" } });
+  });
+
   it("cannot select Haul with only one station", () => {
     const state = createInitialState(7);
     expect(setDefaultBehaviour(state, [0], "haul")).toBe(state);

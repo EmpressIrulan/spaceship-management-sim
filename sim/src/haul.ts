@@ -49,6 +49,14 @@ export function validHaulRoute(state: SimState, route: HaulRoute): boolean {
   return route.from !== route.to && stations.has(route.from) && stations.has(route.to);
 }
 
+// Cargo that no longer matches the configured route goes back to From before
+// the ship starts loading the newly selected material.
+export function haulCargoDestination(ship: Ship): HaulStationId | null {
+  const route = ship.haulRoute;
+  if (!route) return null;
+  return ship.cargo > 0 && ship.cargoMaterial && ship.cargoMaterial !== route.material ? route.from : route.to;
+}
+
 // Restarts the standing order from wherever an interruption left the ship.
 export function resumeHaulShip(state: SimState, ship: Ship): Ship {
   const route = ship.haulRoute;
@@ -56,11 +64,14 @@ export function resumeHaulShip(state: SimState, ship: Ship): Ship {
   const from = haulStationDetails(state, route.from)!;
   const to = haulStationDetails(state, route.to)!;
   const atFrom = ship.sectorId === from.sectorId && ship.position.x === from.position.x && ship.position.y === from.position.y;
-  const atTo = ship.sectorId === to.sectorId && ship.position.x === to.position.x && ship.position.y === to.position.y;
   const clean = { ...ship, order: null, target: null };
   if (ship.cargo > 0) {
-    if (!atTo) return fly(clean, state, route.to, "outbound");
-    return stored(to) >= to.capacity ? { ...clean, state: "haulWaitingFull", timer: 0, leg: null }
+    const destinationId = haulCargoDestination(ship)!;
+    const destination = destinationId === route.from ? from : to;
+    const atDestination = ship.sectorId === destination.sectorId
+      && ship.position.x === destination.position.x && ship.position.y === destination.position.y;
+    if (!atDestination) return fly(clean, state, destinationId, destinationId === route.from ? "returning" : "outbound");
+    return stored(destination) >= destination.capacity ? { ...clean, state: "haulWaitingFull", timer: 0, leg: null }
       : { ...clean, state: "haulUnloading", timer: unloadingSeconds(ship.design), leg: null };
   }
   if (!atFrom) return fly(clean, state, route.from, "returning");

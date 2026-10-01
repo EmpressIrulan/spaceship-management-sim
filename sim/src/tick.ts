@@ -1,4 +1,5 @@
 import { advanceSites, deliverToSite, nextSiteEvent, settleSites, claimSiteSlots } from "./claim";
+import { haulCargoDestination } from "./haul";
 import { distanceAlong, travelSeconds } from "./motion";
 import { afterOrder, travelOrder } from "./orders";
 import { nextRandom } from "./prng";
@@ -154,11 +155,11 @@ function loadHauler(draft: Draft, ship: Ship, units: number): number {
 }
 
 function unloadHauler(draft: Draft, ship: Ship, units: number): number {
-  const route = ship.haulRoute;
-  const destination = route ? haulEnd(draft, route.to) : null;
-  if (!route || !destination || units <= 0) return 0;
+  const destinationId = haulCargoDestination(ship);
+  const destination = destinationId ? haulEnd(draft, destinationId) : null;
+  if (!destinationId || !destination || !ship.cargoMaterial || units <= 0) return 0;
   const accepted = Math.min(units, Math.max(0, destination.capacity - haulStored(destination)));
-  changeHaulInventory(draft, route.to, route.material, accepted);
+  changeHaulInventory(draft, destinationId, ship.cargoMaterial, accepted);
   return accepted;
 }
 
@@ -182,7 +183,8 @@ function beginHaulLoading(draft: Draft, ship: Ship): Ship {
 }
 
 function beginHaulUnloading(draft: Draft, ship: Ship): Ship {
-  const destination = ship.haulRoute ? haulEnd(draft, ship.haulRoute.to) : null;
+  const destinationId = haulCargoDestination(ship);
+  const destination = destinationId ? haulEnd(draft, destinationId) : null;
   return !destination || haulStored(destination) >= destination.capacity
     ? { ...ship, state: "haulWaitingFull", timer: 0, leg: null }
     : { ...ship, state: "haulUnloading", timer: unloadingSeconds(ship.design), leg: null };
@@ -335,7 +337,8 @@ function finish(draft: Draft, ship: Ship): Ship {
         : { ...ship, state: "haulWaitingSource", timer: 0, leg: null };
     case "haulOutbound": {
       if (!ship.haulRoute) return { ...ship, state: "holding", timer: 0, leg: null };
-      const destination = haulEnd(draft, ship.haulRoute.to);
+      const destinationId = haulCargoDestination(ship);
+      const destination = destinationId ? haulEnd(draft, destinationId) : null;
       if (!destination) return { ...ship, state: "holding", timer: 0, leg: null };
       if (ship.sectorId !== destination.sectorId) return { ...ship, state: "haulJumpingOutbound", timer: JUMP_SECONDS,
         position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
@@ -359,7 +362,8 @@ function finish(draft: Draft, ship: Ship): Ship {
       if (!source) return { ...ship, state: "holding", timer: 0, leg: null };
       if (ship.sectorId !== source.sectorId) return { ...ship, state: "haulJumpingReturning", timer: JUMP_SECONDS,
         position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
-      return beginHaulLoading(draft, { ...ship, position: { ...source.position }, leg: null });
+      const arrived = { ...ship, position: { ...source.position }, leg: null };
+      return ship.cargo > 0 ? beginHaulUnloading(draft, arrived) : beginHaulLoading(draft, arrived);
     }
     case "haulJumpingReturning": {
       const source = ship.haulRoute ? haulEnd(draft, ship.haulRoute.from) : null;

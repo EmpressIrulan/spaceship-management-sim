@@ -185,8 +185,11 @@ export function setDefaultBehaviour(state: SimState, ids: number[], behaviour: D
 
 export function configureHaul(state: SimState, ids: number[], route: HaulRoute): SimState {
   if (!validHaulRoute(state, route)) return state;
-  return { ...state, ships: state.ships.map((ship) => ids.includes(ship.id)
-    ? resumeHaulShip(state, { ...ship, defaultBehaviour: "haul", haulRoute: { ...route } }) : ship) };
+  return { ...state, ships: state.ships.map((ship) => {
+    if (!ids.includes(ship.id)) return ship;
+    const next = { ...ship, defaultBehaviour: "haul" as const, haulRoute: { ...route } };
+    return next.order ? next : resumeHaulShip(state, next);
+  }) };
 }
 
 export { haulStations };

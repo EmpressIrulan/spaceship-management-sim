@@ -693,12 +693,6 @@ function strokeWorldRect(center: Vec, size: Size, color: string): void {
   ctx.restore();
 }
 
-function moduleColor(type: ModuleType): string {
-  if (type === "Dock") return "#64748b";
-  if (type === "Storage") return "#475569";
-  return "#7c3aed";
-}
-
 function drawStationConnector(from: Vec, to: Vec): void {
   const start = worldToScreen(camera, viewport, from);
   const end = worldToScreen(camera, viewport, to);

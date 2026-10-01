@@ -49,7 +49,8 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
   const defaults = new Set(ships.map((ship) => ship.defaultBehaviour));
   const stations = haulStations(state);
   const routes = new Set(ships.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
-  return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: shipStatus(state, ship) })),
+  return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`,
+    status: `${shipStatus(state, ship)}${ship.order && ship.state === "holding" ? " (holding)" : ""}` })),
     defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed", canResume: ships.some((ship) => ship.order !== null),
     canHaul: stations.length >= 2, haulDisabledReason: stations.length >= 2 ? null : "Needs two stations", stations,
     haulRoute: routes.size === 1 ? ships[0]!.haulRoute ?? null : null };
