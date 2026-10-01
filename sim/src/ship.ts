@@ -1,5 +1,6 @@
 import { SHIP_CRUISE_SPEED } from "./motion";
-import type { Material, Size } from "./state";
+import type { Material, ShipDesign, ShipModule, Size } from "./model";
+export type { ShipDesign, ShipModule } from "./model";
 
 // Placeholder tuning. The client asked for the first cut to run four times
 // slower, which puts one cycle at roughly 35 to 50 seconds. These are the
@@ -11,17 +12,10 @@ export const UNLOADING_SECONDS = 6;
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and
 // draws, but does nothing.
 export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull"] as const;
-export type ShipModule = (typeof SHIP_MODULES)[number];
 
 // A ship is painted pixels, each one a module cell. The design is their
 // bounding box, stored row by row, and a null slot is an empty pixel inside
 // the box: it is not part of the ship, so it costs and weighs nothing.
-export interface ShipDesign {
-  width: number;
-  height: number;
-  slots: (ShipModule | null)[];
-}
-
 // World units per pixel. A pixel is a quarter of the old 4.5 module square,
 // so the starting ship painted 4x4 is the size it was as a 2x2 of modules.
 // Placeholder until the client has seen a big ship next to a station.

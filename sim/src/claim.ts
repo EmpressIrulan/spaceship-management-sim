@@ -1,17 +1,7 @@
-import {
-  ASTEROID_MIN_SPACING,
-  BUILD_SECONDS,
-  DOCK_SIZE,
-  HOME_SECTOR,
-  MATERIALS,
-  MODULE_COST,
-  MODULE_SPACING,
-  type Material,
-  type ModuleType,
-  type SimState,
-  type Size,
-  type Vec,
-} from "./state";
+import { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MODULE_COST, MODULE_SPACING } from "./build-constants";
+import { MATERIALS } from "./model";
+import type { ClaimSite, Material, ModuleType, SimState, Size, Vec } from "./model";
+export type { ClaimSite } from "./model";
 
 // Placeholders, to revisit after playing. A site builds the same Dock and
 // Storage as the home station, at the same price and time.
@@ -20,18 +10,6 @@ export const CLAIM_MODULE_COST: Record<Material, number> = MODULE_COST;
 export const CLAIM_BUILD_SECONDS = BUILD_SECONDS;
 // Two module slots side by side. `position` is the middle of the pair.
 export const CLAIM_SITE_SIZE: Size = { width: DOCK_SIZE.width + MODULE_SPACING, height: DOCK_SIZE.height };
-
-export interface ClaimSite {
-  id: number;
-  sectorId: number;
-  position: Vec;
-  // Modules of CLAIM_BUILD_ORDER finished so far.
-  stage: number;
-  // What ships have delivered towards the module at `stage`.
-  delivered: Record<Material, number>;
-  // Seconds left building the module at `stage`. Null until it is fully supplied.
-  timer: number | null;
-}
 
 export interface ClaimSiteNeeds {
   // The module being supplied or built now, and the one after it.
@@ -78,7 +56,12 @@ export function startClaimSite(state: SimState, sectorId: number, position: Vec)
   const blockedByRock = state.asteroids.some((rock) => rock.sectorId === sectorId
     && overlaps(rock.position, position, CLAIM_SITE_SIZE, ASTEROID_MIN_SPACING / 2));
   const blockedByStation = sectorId === HOME_SECTOR
-    && [...state.station.modules, state.station.constructionSite].some((module) => overlaps(module.position, position, { width: CLAIM_SITE_SIZE.width + module.size.width, height: CLAIM_SITE_SIZE.height + module.size.height }, 0));
+    && [...state.station.modules, state.station.constructionSite].some((module) => overlaps(
+      module.position,
+      position,
+      { width: CLAIM_SITE_SIZE.width + module.size.width, height: CLAIM_SITE_SIZE.height + module.size.height },
+      0,
+    ));
   if (blockedBySite || blockedByRock || blockedByStation) return state;
   const site: ClaimSite = {
     id: state.nextClaimSiteId,
