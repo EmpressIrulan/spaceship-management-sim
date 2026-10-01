@@ -1,111 +1,18 @@
-import {
-  BUILDER_SIZE,
-  CLAIM_MODULE_COST,
-  CLAIM_SITE_SIZE,
-  DOCK_SIZE,
-  HOME_SECTOR,
-  STORAGE_SIZE,
-  claimSiteSlots,
-  removeClaimSite,
-  renameSector,
-  startClaimSite,
-  SHIP_MODULES,
-  availableModuleBuildSites,
-  createInitialState,
-  deleteStock,
-  BERTH_PAD_SIZE,
-  dockBerths,
-  laserBeam,
-  giveOrder,
-  configureHaul,
-  setDefaultBehaviour,
-  setMineMaterial,
-  setMineOtherSectors,
-  resumeDefault,
-  setStorageLimit,
-  shipSize,
-  startModuleBuild,
-  startShipBuild,
-  startGateBuild,
-  sectorInGateRange,
-  tick,
-  type Beam,
-  type DefaultBehaviour,
-  type HaulStationId,
-  type Material,
-  type ModuleType,
-  type Ship,
-  type ShipDesign,
-  type Size,
-  type StationModule,
-  type Vec,
-} from "sim";
-import {
-  bodyOf,
-  fitCamera,
-  hoveredBody,
-  panBy,
-  screenToWorld,
-  wheelZoomFactor,
-  worldToScreen,
-  zoomAt,
-  type Camera,
-  type Viewport,
-} from "./camera";
-import { cargoGauge, infoBox, sectorBox, type Gauge } from "./labels";
-import { asteroidColor } from "./asteroid";
-import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, renameHit, renameLabel, sectorBackdrop, type PendingGate } from "./sectors";
-import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
-import {
-  buildControlSize,
-  buildControlsVisible,
-  buildMenuItems,
-  dismissBuildMenuForClick,
-  dismissBuildMenuForKey,
-  pointerInBuildArea,
-} from "./building";
-import { INITIAL_CLOCK, clockAfterButton, clockAfterKey, gameSeconds, type SpeedButtonId } from "./speed";
-import { menuButton as button, renderBlueprints, renderSpeedControls } from "./menu-rendering";
+import { createInitialState, tick, type Material, type Vec } from "sim";
+import { fitCamera, panBy, type Camera, type Viewport } from "./camera";
+import { INITIAL_CLOCK, gameSeconds } from "./speed";
+import { keyPan } from "./selection";
+import { emptyDraft, emptyView, type ShipDraft } from "./shipyard";
+import { loadBlueprints, resolveBlueprintStore, type Blueprint } from "./blueprints";
+import type { PendingGate } from "./sectors";
 import { createRenderer } from "./renderer";
 import { installPanels } from "./panels";
 import { installContextMenu } from "./context-menu";
 import { installBuildMenu } from "./build-menu";
 import { installShipMenu } from "./ship-menu";
 import { installInput, mousePoint } from "./input";
-import { shipSprite, slotColor } from "./ships";
-import { renderShipPanel, type ShipPanelContext } from "./ship-panel";
-import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
-import {
-  BRUSH_SIZES,
-  applyTool,
-  cellAt,
-  designOf,
-  designPartAt,
-  draftPartAt,
-  emptyDraft,
-  emptyView,
-  lineCells,
-  placedDesign,
-  shipMenuView,
-  shouldDismissShipMenuOnMouseDown,
-  withModule,
-  withSize,
-  withTool,
-  zoomView,
-  type ShipDraft,
-} from "./shipyard";
-import { moduleAppearance, stationConnectors } from "./station-appearance";
-import { deleteButtonAction, storagePanelOpenAfterClick, type DeleteConfirmation } from "./storage";
-import { openStoragePanel, renderStoragePanel } from "./storage-panel";
-import {
-  deleteBlueprint,
-  draftFromDesign,
-  loadBlueprints,
-  resolveBlueprintStore,
-  saveBlueprint,
-  viewCentredOn,
-  type Blueprint,
-} from "./blueprints";
+import { renderSpeedControls } from "./menu-rendering";
+import type { DeleteConfirmation } from "./storage";
 
 const canvasEl = document.querySelector<HTMLCanvasElement>("#screen");
 const boxEl = document.querySelector<HTMLElement>("#info");
