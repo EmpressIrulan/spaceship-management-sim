@@ -85,6 +85,12 @@ function idleMiner(state: SimState, ship: Ship): string {
 // One line saying what the ship is doing, for its hover box and panel.
 export function shipStatus(state: SimState, ship: Ship): string {
   if (ship.order) return `Order: ${ship.order.kind}`;
+  const route = ship.haulRoute;
+  const source = route ? state.sectors[route.from === "home" ? state.station.sectorId
+    : state.claimSites.find((site) => `claim:${site.id}` === route.from)?.sectorId ?? -1]?.name : null;
+  const destination = route ? state.sectors[route.to === "home" ? state.station.sectorId
+    : state.claimSites.find((site) => `claim:${site.id}` === route.to)?.sectorId ?? -1]?.name : null;
+  const cargoDestination = ship.cargo > 0 && ship.cargoMaterial && ship.cargoMaterial !== route?.material ? source : destination;
   switch (ship.state) {
     case "idle":
       if (!canMine(ship.design)) return `Idle: ${missing(ship.design)}`;
@@ -112,6 +118,20 @@ export function shipStatus(state: SimState, ship: Ship): string {
       return `Hauling ${ship.cargo} ${ship.cargoMaterial ?? "ore"} to gate`;
     case "gateReturning":
       return "Returning to Storage";
+    case "haulLoading":
+      return `Loading ${ship.cargo}/${shipStats(ship.design).hold} ${route?.material ?? "cargo"}`;
+    case "haulOutbound":
+    case "haulJumpingOutbound":
+      return `Hauling ${route?.material ?? "cargo"} to ${destination ?? "station"}`;
+    case "haulUnloading":
+      return `Unloading ${ship.cargo}/${shipStats(ship.design).hold} ${ship.cargoMaterial ?? route?.material ?? "cargo"}`;
+    case "haulReturning":
+    case "haulJumpingReturning":
+      return `Returning to ${source ?? "station"}`;
+    case "haulWaitingSource":
+      return `Waiting at ${source ?? "station"}: no ${route?.material ?? "cargo"}`;
+    case "haulWaitingFull":
+      return `Waiting at ${ship.cargo > 0 ? cargoDestination : source}: ${cargoDestination ?? destination ?? "station"} full`;
   }
 }
 

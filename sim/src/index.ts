@@ -51,6 +51,8 @@ export {
   type Material,
   type GateEnd,
   type GateProject,
+  type HaulRoute,
+  type HaulStationId,
   type ModuleBuildOption,
   type ModuleConstruction,
   type ModuleType,
@@ -101,4 +103,5 @@ export {
   type ClaimSiteNeeds,
 } from "./claim";
 export { tick } from "./tick";
-export { formation, giveOrder, resumeDefault, setDefaultBehaviour, setMineMaterial, type OrderTarget } from "./orders";
+export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, type OrderTarget } from "./orders";
+export { haulStationDetails, type HaulStation } from "./haul";

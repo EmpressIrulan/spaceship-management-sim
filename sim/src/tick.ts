@@ -1,4 +1,5 @@
 import { advanceSites, deliverToSite, nextSiteEvent, settleSites, claimSiteSlots } from "./claim";
+import { haulCargoDestination } from "./haul";
 import { distanceAlong, travelSeconds } from "./motion";
 import { afterOrder, travelOrder } from "./orders";
 import { nextRandom } from "./prng";
@@ -22,6 +23,7 @@ import {
   toParking,
   type BerthLayout,
   type Asteroid,
+  type HaulStationId,
   type Ship,
   type SimState,
   type Station,
@@ -69,6 +71,7 @@ interface Draft {
   nextShipId: number;
   // The Dock module's position, the station's home point and route origin.
   dock: Vec;
+  stationSector: number;
   storageCapacity: number;
   storageLimits: Station["storageLimits"];
   inventory: SimState["station"]["inventory"];
@@ -142,6 +145,71 @@ function canProcessCargo(draft: Draft, ship: Ship): boolean {
   return storageRemaining(draft) > 0 || (limit !== null && draft.inventory[ship.cargoMaterial] >= limit);
 }
 
+function haulEnd(draft: Draft, id: HaulStationId) {
+  if (id === "home") return { id, sectorId: draft.stationSector, position: draft.dock, inventory: draft.inventory, capacity: draft.storageCapacity };
+  const site = draft.claimSites.find((candidate) => `claim:${candidate.id}` === id && candidate.stage >= 2);
+  return site ? { id, sectorId: site.sectorId, position: site.position, inventory: site.delivered, capacity: STORAGE_CAPACITY } : null;
+}
+
+function haulStored(end: NonNullable<ReturnType<typeof haulEnd>>): number {
+  return end.inventory.Metal + end.inventory.Ice;
+}
+
+function changeHaulInventory(draft: Draft, id: HaulStationId, material: "Metal" | "Ice", amount: number): void {
+  if (id === "home") {
+    draft.inventory = { ...draft.inventory, [material]: draft.inventory[material] + amount };
+    return;
+  }
+  const siteId = Number(id.slice("claim:".length));
+  draft.claimSites = draft.claimSites.map((site) => site.id === siteId
+    ? { ...site, delivered: { ...site.delivered, [material]: site.delivered[material] + amount } } : site);
+}
+
+function loadHauler(draft: Draft, ship: Ship, units: number): number {
+  const route = ship.haulRoute;
+  const source = route ? haulEnd(draft, route.from) : null;
+  if (!route || !source || units <= 0) return 0;
+  const taken = Math.min(units, source.inventory[route.material]);
+  changeHaulInventory(draft, route.from, route.material, -taken);
+  return taken;
+}
+
+function unloadHauler(draft: Draft, ship: Ship, units: number): number {
+  const destinationId = haulCargoDestination(ship);
+  const destination = destinationId ? haulEnd(draft, destinationId) : null;
+  if (!destinationId || !destination || !ship.cargoMaterial || units <= 0) return 0;
+  const accepted = Math.min(units, Math.max(0, destination.capacity - haulStored(destination)));
+  changeHaulInventory(draft, destinationId, ship.cargoMaterial, accepted);
+  return accepted;
+}
+
+function flyHaul(draft: Draft, ship: Ship, id: HaulStationId, state: "haulOutbound" | "haulReturning"): Ship {
+  const end = haulEnd(draft, id);
+  if (!end) return { ...ship, state: "holding", timer: 0, leg: null };
+  const route = ship.sectorId === end.sectorId ? null : gateRoute(draft, ship.sectorId, end.sectorId);
+  if (ship.sectorId !== end.sectorId && !route) return { ...ship, state: "holding", timer: 0, leg: null };
+  const from = { ...ship.position }; const to = { ...(route?.from ?? end.position) };
+  return { ...ship, state, leg: { from, to }, timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
+}
+
+function beginHaulLoading(draft: Draft, ship: Ship): Ship {
+  const route = ship.haulRoute;
+  const source = route ? haulEnd(draft, route.from) : null;
+  const destination = route ? haulEnd(draft, route.to) : null;
+  if (!route || !source || !destination) return { ...ship, state: "holding", timer: 0, leg: null };
+  if (haulStored(destination) >= destination.capacity) return { ...ship, state: "haulWaitingFull", timer: 0, leg: null, cargoMaterial: null };
+  if (source.inventory[route.material] < shipStats(ship.design).hold) return { ...ship, state: "haulWaitingSource", timer: 0, leg: null, cargoMaterial: null };
+  return { ...ship, state: "haulLoading", timer: unloadingSeconds(ship.design), leg: null, cargoMaterial: route.material };
+}
+
+function beginHaulUnloading(draft: Draft, ship: Ship): Ship {
+  const destinationId = haulCargoDestination(ship);
+  const destination = destinationId ? haulEnd(draft, destinationId) : null;
+  return !destination || haulStored(destination) >= destination.capacity
+    ? { ...ship, state: "haulWaitingFull", timer: 0, leg: null }
+    : { ...ship, state: "haulUnloading", timer: unloadingSeconds(ship.design), leg: null };
+}
+
 // Moves a ship partway through its current state, leaving `timer` seconds.
 function progress(draft: Draft, ship: Ship, timer: number): Ship {
   const route = routeOf(ship, draft.dock);
@@ -151,13 +219,17 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     case "holding":
     case "jumpingOut":
     case "jumpingHome":
+    case "haulJumpingOutbound":
+    case "haulJumpingReturning":
       return { ...ship, timer };
     case "outbound":
     case "homebound":
     case "berthing":
     case "moving":
     case "gateHauling":
-    case "gateReturning": {
+    case "gateReturning":
+    case "haulOutbound":
+    case "haulReturning": {
       if (ship.leg) {
         const length = Math.hypot(ship.leg.to.x - ship.leg.from.x, ship.leg.to.y - ship.leg.from.y);
         const total = travelSeconds(length, speedFactor(ship.design));
@@ -190,6 +262,19 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
       const unloaded = unload(draft, ship, ship.cargo - targetCargo);
       return { ...ship, timer, cargo: ship.cargo - unloaded };
     }
+    case "haulLoading": {
+      const hold = shipStats(ship.design).hold;
+      const cargo = ship.cargo + loadHauler(draft, ship, unitsDone(timer, unloadingSeconds(ship.design), hold) - ship.cargo);
+      return { ...ship, timer, cargo };
+    }
+    case "haulUnloading": {
+      const hold = shipStats(ship.design).hold;
+      const targetCargo = Math.min(ship.cargo, hold - unitsDone(timer, unloadingSeconds(ship.design), hold));
+      return { ...ship, timer, cargo: ship.cargo - unloadHauler(draft, ship, ship.cargo - targetCargo) };
+    }
+    case "haulWaitingSource":
+    case "haulWaitingFull":
+      return { ...ship, timer };
   }
 }
 
@@ -263,6 +348,51 @@ function finish(draft: Draft, ship: Ship): Ship {
     case "holding":
       if (ship.order?.kind === "haulGate") return loadGateHauler(draft, ship);
       return ship;
+    case "haulWaitingSource":
+      return beginHaulLoading(draft, ship);
+    case "haulWaitingFull":
+      return ship.cargo > 0 ? beginHaulUnloading(draft, ship) : beginHaulLoading(draft, ship);
+    case "haulLoading":
+      return ship.cargo > 0 && ship.haulRoute
+        ? flyHaul(draft, ship, ship.haulRoute.to, "haulOutbound")
+        : { ...ship, state: "haulWaitingSource", timer: 0, leg: null };
+    case "haulOutbound": {
+      if (!ship.haulRoute) return { ...ship, state: "holding", timer: 0, leg: null };
+      const destinationId = haulCargoDestination(ship);
+      const destination = destinationId ? haulEnd(draft, destinationId) : null;
+      if (!destination) return { ...ship, state: "holding", timer: 0, leg: null };
+      if (ship.sectorId !== destination.sectorId) return { ...ship, state: "haulJumpingOutbound", timer: JUMP_SECONDS,
+        position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
+      return beginHaulUnloading(draft, { ...ship, position: { ...destination.position }, leg: null });
+    }
+    case "haulJumpingOutbound": {
+      const destination = ship.haulRoute ? haulEnd(draft, ship.haulRoute.to) : null;
+      if (!destination) return { ...ship, state: "holding", timer: 0, leg: null };
+      const gate = gateRoute(draft, ship.sectorId, destination.sectorId)?.to;
+      if (!gate) return { ...ship, state: "holding", timer: 0, leg: null };
+      return flyHaul(draft, { ...ship, sectorId: destination.sectorId, position: { ...gate } }, destination.id, "haulOutbound");
+    }
+    case "haulUnloading":
+      if (ship.cargo > 0) return { ...ship, state: "haulWaitingFull", timer: 0, leg: null };
+      return ship.haulRoute
+        ? flyHaul(draft, { ...ship, cargoMaterial: null }, ship.haulRoute.from, "haulReturning")
+        : { ...ship, state: "holding", timer: 0, leg: null };
+    case "haulReturning": {
+      if (!ship.haulRoute) return { ...ship, state: "holding", timer: 0, leg: null };
+      const source = haulEnd(draft, ship.haulRoute.from);
+      if (!source) return { ...ship, state: "holding", timer: 0, leg: null };
+      if (ship.sectorId !== source.sectorId) return { ...ship, state: "haulJumpingReturning", timer: JUMP_SECONDS,
+        position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
+      const arrived = { ...ship, position: { ...source.position }, leg: null };
+      return ship.cargo > 0 ? beginHaulUnloading(draft, arrived) : beginHaulLoading(draft, arrived);
+    }
+    case "haulJumpingReturning": {
+      const source = ship.haulRoute ? haulEnd(draft, ship.haulRoute.from) : null;
+      if (!source) return { ...ship, state: "holding", timer: 0, leg: null };
+      const gate = gateRoute(draft, ship.sectorId, source.sectorId)?.to;
+      if (!gate) return { ...ship, state: "holding", timer: 0, leg: null };
+      return flyHaul(draft, { ...ship, sectorId: source.sectorId, position: { ...gate } }, source.id, "haulReturning");
+    }
     case "jumpingOut": {
       const travel = travelOrder(ship.order);
       const targetSector = ship.target?.sectorId ?? travel?.sectorId ?? ship.sectorId;
@@ -378,7 +508,8 @@ function afterUnloading(draft: Draft, ship: Ship): Ship {
 function nextEvent(draft: Draft): number {
   let soonest = Infinity;
   for (const ship of draft.ships) {
-    if (ship.state !== "idle" && ship.state !== "waiting" && ship.state !== "holding") soonest = Math.min(soonest, ship.timer);
+    if (ship.state !== "idle" && ship.state !== "waiting" && ship.state !== "holding"
+      && ship.state !== "haulWaitingSource" && ship.state !== "haulWaitingFull") soonest = Math.min(soonest, ship.timer);
   }
   for (const respawn of draft.respawns) soonest = Math.min(soonest, respawn.timer);
   if (draft.construction) soonest = Math.min(soonest, draft.construction.timer);
@@ -484,6 +615,7 @@ export function tick(state: SimState, dt: number): SimState {
     nextAsteroidId: state.nextAsteroidId,
     nextShipId: state.nextShipId,
     dock: state.station.dock.position,
+    stationSector: state.station.sectorId,
     storageCapacity: state.station.storage.capacity,
     storageLimits: state.station.storageLimits,
     inventory: state.station.inventory,
