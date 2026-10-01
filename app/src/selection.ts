@@ -1,6 +1,6 @@
 import { MATERIALS, claimSiteBuilt, haulStations, type DefaultBehaviour, type HaulRoute, type HaulStation, type Material, type OrderTarget, type SimState, type Vec } from "sim";
 import { screenToWorld, type Camera, type Hovered, type Viewport } from "./camera";
-import { orderLabel, shipStatus } from "./ships";
+import { intoSite, orderLabel, shipStatus } from "./ships";
 
 const DRAG_THRESHOLD = 4;
 export const ORDER_LINE_SECONDS = 1;
@@ -53,7 +53,7 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
   const defaults = new Set(ships.map((ship) => ship.defaultBehaviour));
   const stations = haulStations(state);
   const routes = new Set(ships.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
-  return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order
+  return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order && !intoSite(ship)
     ? `${orderLabel(ship.order)}${ship.state === "holding" ? " (holding)" : ""}` : shipStatus(state, ship) })),
     defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed",
     materials: defaults.size === 1 && ships[0]!.defaultBehaviour === "mine" ? MATERIALS.map((material) => {

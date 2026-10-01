@@ -84,6 +84,12 @@ function idleMiner(state: SimState, ship: Ship): string {
   return available ? "Idle" : `Waiting: no ${ship.mineMaterials.join(", ")}`;
 }
 
+// Unloading into the construction site reads as unloading even under an order,
+// so the transfer can be watched.
+export function intoSite(ship: Ship): boolean {
+  return ship.state === "unloading" && ship.transfer?.destination === "constructionSite";
+}
+
 export function orderLabel(order: Order): string {
   return order.kind === "supplyBuild" ? "Order: supply construction site" : `Order: ${order.kind}`;
 }
@@ -102,6 +108,7 @@ export function shipStatus(state: SimState, ship: Ship): string {
     return `Unloading ${starting - ship.cargo}/${amount}`;
   }
   if (ship.state === "waiting" || (ship.state === "berthing" && ship.berth === null)) return waitingStatus(state, ship);
+  if (intoSite(ship)) return "Unloading into the construction site";
   if (ship.order) return orderLabel(ship.order);
   const route = ship.haulRoute;
   const source = route ? state.sectors[route.from === "home" ? state.station.sectorId
@@ -121,7 +128,7 @@ export function shipStatus(state: SimState, ship: Ship): string {
       if (ship.defaultBehaviour === "supply") return `Flying to the construction site${ship.cargo > 0 ? ` with ${ship.cargo} ${ship.cargoMaterial ?? "ore"}` : ""}`;
       return `Flying home with ${ship.cargo} ${ship.cargoMaterial ?? "ore"}`;
     case "unloading":
-      return ship.transfer?.destination === "constructionSite" ? "Unloading into the construction site" : "Unloading";
+      return "Unloading";
     case "berthing":
       return "Docking";
     case "moving":

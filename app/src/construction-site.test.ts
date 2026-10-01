@@ -98,6 +98,14 @@ describe("a ship supplying the site", () => {
     expect(shipStatus(unloading, unloading.ships[0]!)).toBe("Unloading into the construction site");
   });
 
+  it("shows the unloading, not the order, while an ordered ship is unloading into the site", () => {
+    const state = withShip({ state: "unloading", cargo: 4, cargoMaterial: "Ice", order: { kind: "supplyBuild", point: { x: 75, y: -60 }, sectorId: 0 },
+      transfer: { startingCargo: 10, amount: 10, destination: "constructionSite" } });
+
+    expect(shipStatus(state, state.ships[0]!)).toBe("Unloading into the construction site");
+    expect(selectionPanel(state, [0])?.rows[0]?.status).toBe("Unloading into the construction site");
+  });
+
   it("reads its once-only order in words", () => {
     const state = withShip({ state: "moving", cargo: 10, cargoMaterial: "Ice", order: { kind: "supplyBuild", point: { x: 75, y: -60 }, sectorId: 0 } });
 
