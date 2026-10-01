@@ -1,17 +1,10 @@
-import { haulCargoDestination } from "./haul";
-import { gateRoute, STORAGE_CAPACITY, type HaulStationId, type Ship, type SimState, type Vec } from "./state";
-import { travelSeconds } from "./motion";
+import { haulCargoDestination, haulStationDetails } from "./haul";
+import { type HaulStationId, type Ship } from "./state";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import type { Draft } from "./tick-mining";
 import { addCargo, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
 
-export function haulEnd(draft: Draft, id: HaulStationId) {
-  if (id === "home") return { id, sectorId: draft.stationSector, position: draft.dock, inventory: draft.inventory, capacity: draft.storageCapacity };
-  const site = draft.claimSites.find((candidate) => `claim:${candidate.id}` === id && candidate.stage >= 2);
-  return site ? { id, sectorId: site.sectorId, position: site.position, inventory: site.delivered, capacity: STORAGE_CAPACITY } : null;
-}
-
-export function haulStored(end: NonNullable<ReturnType<typeof haulEnd>>): number {
+export function haulStored(end: NonNullable<ReturnType<typeof haulStationDetails>>): number {
   return end.inventory.Metal + end.inventory.Ice;
 }
 
@@ -27,7 +20,7 @@ export function changeHaulInventory(draft: Draft, id: HaulStationId, material: "
 
 export function loadHauler(draft: Draft, ship: Ship, units: number): number {
   const route = ship.haulRoute;
-  const source = route ? haulEnd(draft, route.from) : null;
+  const source = route ? haulStationDetails(draft, route.from) : null;
   if (!route || !source || units <= 0) return 0;
   const taken = Math.min(units, source.inventory[route.material]);
   changeHaulInventory(draft, route.from, route.material, -taken);
@@ -36,7 +29,7 @@ export function loadHauler(draft: Draft, ship: Ship, units: number): number {
 
 export function unloadHauler(draft: Draft, ship: Ship, units: number): Ship {
   const destinationId = haulCargoDestination(ship);
-  const destination = destinationId ? haulEnd(draft, destinationId) : null;
+  const destination = destinationId ? haulStationDetails(draft, destinationId) : null;
   if (!destinationId || !destination || units <= 0) return ship;
   let room = Math.max(0, destination.capacity - haulStored(destination));
   return transferCargo(ship, units, (material, amount) => {
@@ -45,16 +38,6 @@ export function unloadHauler(draft: Draft, ship: Ship, units: number): Ship {
     room -= accepted;
     return accepted;
   });
-}
-
-export function flyHaul(draft: Draft, ship: Ship, id: HaulStationId, state: "haulOutbound" | "haulReturning"): Ship {
-  const end = haulEnd(draft, id);
-  if (!end) return { ...ship, state: "holding", timer: 0, leg: null };
-  const route = ship.sectorId === end.sectorId ? null : gateRoute(draft, ship.sectorId, end.sectorId);
-  if (ship.sectorId !== end.sectorId && !route) return { ...ship, state: "holding", timer: 0, leg: null };
-  const from = { ...ship.position }; const to = { ...(route?.from ?? end.position) };
-  return { ...ship, state, berth: null, transfer: null, leg: { from, to },
-    timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
 }
 
 export function startHaulTransfer(draft: Draft, ship: Ship, stationId: HaulStationId, loading: boolean): Ship {
@@ -68,8 +51,8 @@ export function startHaulTransfer(draft: Draft, ship: Ship, stationId: HaulStati
 
 export function beginHaulLoading(draft: Draft, ship: Ship): Ship {
   const route = ship.haulRoute;
-  const source = route ? haulEnd(draft, route.from) : null;
-  const destination = route ? haulEnd(draft, route.to) : null;
+  const source = route ? haulStationDetails(draft, route.from) : null;
+  const destination = route ? haulStationDetails(draft, route.to) : null;
   if (!route || !source || !destination) return { ...ship, state: "holding", timer: 0, leg: null };
   if (haulStored(destination) >= destination.capacity) return { ...ship, state: "haulWaitingFull", timer: 0, leg: null, cargoMaterial: null };
   if (source.inventory[route.material] < shipStats(ship.design).hold) return { ...ship, state: "haulWaitingSource", timer: 0, leg: null, cargoMaterial: null };
@@ -78,10 +61,8 @@ export function beginHaulLoading(draft: Draft, ship: Ship): Ship {
 
 export function beginHaulUnloading(draft: Draft, ship: Ship): Ship {
   const destinationId = haulCargoDestination(ship);
-  const destination = destinationId ? haulEnd(draft, destinationId) : null;
+  const destination = destinationId ? haulStationDetails(draft, destinationId) : null;
   return !destinationId || !destination || haulStored(destination) >= destination.capacity
     ? { ...ship, state: "haulWaitingFull", timer: 0, leg: null }
     : startHaulTransfer(draft, ship, destinationId, false);
 }
-
-// Moves a ship partway through its current state, leaving `timer` seconds.
