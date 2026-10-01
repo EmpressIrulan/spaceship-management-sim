@@ -1,5 +1,6 @@
+import { advanceSites, deliverToSite, nextSiteEvent, settleSites, claimSiteSlots } from "./claim";
 import { distanceAlong, travelSeconds } from "./motion";
-import { afterOrder } from "./orders";
+import { afterOrder, travelOrder } from "./orders";
 import { nextRandom } from "./prng";
 import { shipStats, speedFactor, unloadingSeconds } from "./ship";
 import {
@@ -76,6 +77,7 @@ interface Draft {
   dockCapacity: number;
   sectors: SimState["sectors"];
   gateProjects: SimState["gateProjects"];
+  claimSites: SimState["claimSites"];
 }
 
 // Takes up to `units` of ore from the asteroid a ship is mining and returns
@@ -107,7 +109,7 @@ function storageRemaining(draft: Draft): number {
 }
 
 function berthFree(draft: Draft): boolean {
-  return draft.ships.filter((ship) => ship.state === "unloading").length < draft.dockCapacity;
+  return draft.ships.filter((ship) => ship.state === "unloading" && ship.order?.kind !== "supplySite").length < draft.dockCapacity;
 }
 
 function unload(draft: Draft, ship: Ship, units: number): number {
@@ -165,6 +167,11 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
       return { ...ship, timer: done ? 0 : timer, cargo };
     }
     case "unloading": {
+      if (ship.order?.kind === "supplySite") {
+        const { hold } = shipStats(ship.design);
+        const targetCargo = Math.min(ship.cargo, hold - unitsDone(timer, unloadingSeconds(ship.design), hold));
+        return { ...ship, timer, cargo: ship.cargo - giveToSite(draft, ship, ship.cargo - targetCargo) };
+      }
       // A partial load unloads at the same rate per unit, so it only starts
       // dropping once the countdown reaches what is aboard.
       const { hold } = shipStats(ship.design);
@@ -212,6 +219,30 @@ function loadGateHauler(draft: Draft, ship: Ship): Ship {
     leg: { from, to }, timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
 }
 
+// Puts up to `units` of the ship's cargo into the site it is ordered to and
+// returns how many the site took.
+function giveToSite(draft: Draft, ship: Ship, units: number): number {
+  const siteId = ship.order?.kind === "supplySite" ? ship.order.siteId : -1;
+  const site = draft.claimSites.find((candidate) => candidate.id === siteId);
+  if (!site || !ship.cargoMaterial) return 0;
+  const { site: next, accepted } = deliverToSite(site, ship.cargoMaterial, units);
+  draft.claimSites = draft.claimSites.map((candidate) => (candidate.id === siteId ? next : candidate));
+  return accepted;
+}
+
+// Arrival at a site starts the same unloading countdown as at the Dock.
+function arriveAtSite(draft: Draft, ship: Ship): Ship {
+  return ship.cargo > 0
+    ? { ...ship, state: "unloading", timer: unloadingSeconds(ship.design) }
+    : afterOrder(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+}
+
+// The countdown is over: the site takes what it can of the rest and the ship moves on.
+function finishSupply(draft: Draft, ship: Ship): Ship {
+  const cargo = ship.cargo - giveToSite(draft, ship, ship.cargo);
+  return afterOrder({ ...ship, cargo, cargoMaterial: cargo > 0 ? ship.cargoMaterial : null }, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+}
+
 // Moves a ship whose timer has run out into its next state.
 function finish(draft: Draft, ship: Ship): Ship {
   const route = routeOf(ship, draft.dock);
@@ -222,10 +253,11 @@ function finish(draft: Draft, ship: Ship): Ship {
       if (ship.order?.kind === "haulGate") return loadGateHauler(draft, ship);
       return ship;
     case "jumpingOut": {
-      const targetSector = ship.target?.sectorId ?? (ship.order?.kind === "move" ? ship.order.sectorId : ship.sectorId);
+      const travel = travelOrder(ship.order);
+      const targetSector = ship.target?.sectorId ?? travel?.sectorId ?? ship.sectorId;
       const routeGate = gateRoute(draft, ship.sectorId, targetSector);
       const gate = routeGate?.to ?? draft.sectors[targetSector]!.gate.position;
-      const to = ship.target?.site ?? (ship.order?.kind === "move" ? ship.order.point : gate);
+      const to = ship.target?.site ?? travel?.point ?? gate;
       const length = Math.hypot(to.x - gate.x, to.y - gate.y);
       return { ...ship, sectorId: targetSector, position: { ...gate }, state: ship.target ? "outbound" : "moving", leg: { from: gate, to }, timer: travelSeconds(length, speedFactor(ship.design)) };
     }
@@ -235,9 +267,10 @@ function finish(draft: Draft, ship: Ship): Ship {
       return { ...ship, sectorId: HOME_SECTOR, position: { ...gate }, state: "homebound", leg: { from: gate, to: draft.dock }, timer: travelSeconds(length, speedFactor(ship.design)) };
     }
     case "moving":
-      if (ship.order?.kind === "move" && ship.order.sectorId !== ship.sectorId) {
+      if (ship.order && (travelOrder(ship.order)?.sectorId ?? ship.sectorId) !== ship.sectorId) {
         return { ...ship, state: "jumpingOut", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
       }
+      if (ship.order?.kind === "supplySite") return arriveAtSite(draft, { ...ship, position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null });
       return { ...ship, state: "holding", position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null, timer: 0 };
     case "gateHauling": {
       const gateId = ship.order?.kind === "haulGate" ? ship.order.gateId : -1;
@@ -301,6 +334,7 @@ function finish(draft: Draft, ship: Ship): Ship {
       }
       return { ...ship, state: "unloading", position: { ...draft.dock }, leg: null, timer: unloadingSeconds(ship.design) };
     case "unloading":
+      if (ship.order?.kind === "supplySite") return finishSupply(draft, ship);
       const unloaded = unload(draft, ship, ship.cargo);
       if (unloaded < ship.cargo) {
         const remaining = { ...ship, cargo: ship.cargo - unloaded };
@@ -323,7 +357,7 @@ function nextEvent(draft: Draft): number {
   for (const respawn of draft.respawns) soonest = Math.min(soonest, respawn.timer);
   if (draft.construction) soonest = Math.min(soonest, draft.construction.timer);
   for (const job of draft.shipBuilds) soonest = Math.min(soonest, job.timer);
-  return soonest;
+  return Math.min(soonest, nextSiteEvent(draft.claimSites));
 }
 
 function advance(draft: Draft, seconds: number): void {
@@ -334,11 +368,13 @@ function advance(draft: Draft, seconds: number): void {
     draft.construction = { ...draft.construction, timer: draft.construction.timer - seconds };
   }
   draft.shipBuilds = draft.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds }));
+  draft.claimSites = advanceSites(draft.claimSites, seconds);
 }
 
 // Fires every timer that has reached zero. Respawns go first so a ship that
 // becomes free at the same moment can head for the new asteroid.
 function settle(draft: Draft): void {
+  draft.claimSites = settleSites(draft.claimSites);
   if (draft.construction && draft.construction.timer <= 0) {
     const { timer: _timer, ...module } = draft.construction;
     draft.modules = [...draft.modules, module];
@@ -354,9 +390,13 @@ function settle(draft: Draft): void {
       draft.rng,
       field,
       [respawn.lastPosition, ...draft.asteroids.filter((a) => a.sectorId === respawn.sectorId).map((a) => a.position)],
-      respawn.sectorId === HOME_SECTOR
-        ? [...draft.modules.map((module) => module.position), ...(draft.construction ? [draft.construction.position] : [])]
-        : [],
+      [
+        ...(respawn.sectorId === HOME_SECTOR
+          ? [...draft.modules.map((module) => module.position), ...(draft.construction ? [draft.construction.position] : [])]
+          : []),
+        ...draft.claimSites.filter((site) => site.sectorId === respawn.sectorId)
+          .flatMap((site) => [site.position, ...claimSiteSlots(site).map((slot) => slot.position)]),
+      ],
     );
     if (!placed) {
       // The station covers the field. Ask again later instead of putting the
@@ -429,6 +469,7 @@ export function tick(state: SimState, dt: number): SimState {
     dockCapacity: state.station.dock.capacity,
     sectors: state.sectors,
     gateProjects: state.gateProjects,
+    claimSites: state.claimSites,
   };
 
   // A negative or NaN dt would wind timers backwards, so it counts as no time.
@@ -461,5 +502,6 @@ export function tick(state: SimState, dt: number): SimState {
     respawns: draft.respawns,
     ships: draft.ships,
     gateProjects: draft.gateProjects,
+    claimSites: draft.claimSites,
   };
 }
