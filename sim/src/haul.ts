@@ -5,6 +5,17 @@ import { STORAGE_CAPACITY, berthLayout, gateRoute, toBerth, toParking, type Haul
 
 export interface HaulStation { id: HaulStationId; name: string }
 
+interface HaulStateBase {
+  sectors: SimState["sectors"];
+  claimSites: SimState["claimSites"];
+  gateProjects: SimState["gateProjects"];
+}
+
+export type HaulState = HaulStateBase & (
+  | { station: SimState["station"]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never }
+  | { station?: never; stationSector: number; dock: Vec; inventory: SimState["station"]["inventory"]; storageCapacity: number }
+);
+
 export function haulStations(state: Pick<SimState, "station" | "claimSites" | "sectors">): HaulStation[] {
   const home = state.sectors[state.station.sectorId];
   return [
@@ -16,11 +27,14 @@ export function haulStations(state: Pick<SimState, "station" | "claimSites" | "s
   ];
 }
 
-export function haulStationDetails(state: Pick<SimState, "station" | "claimSites" | "sectors">, id: HaulStationId) {
-  if (id === "home") return {
-    id, sectorId: state.station.sectorId, position: state.station.dock.position,
-    inventory: state.station.inventory, capacity: state.station.storage.capacity,
-  };
+export function haulStationDetails(state: HaulState, id: HaulStationId) {
+  if (id === "home") {
+    if (state.station) return {
+      id, sectorId: state.station.sectorId, position: state.station.dock.position,
+      inventory: state.station.inventory, capacity: state.station.storage.capacity,
+    };
+    return { id, sectorId: state.stationSector, position: state.dock, inventory: state.inventory, capacity: state.storageCapacity };
+  }
   const site = state.claimSites.find((candidate) => `claim:${candidate.id}` === id && claimSiteBuilt(candidate));
   return site ? { id, sectorId: site.sectorId, position: site.position, inventory: site.delivered, capacity: STORAGE_CAPACITY } : null;
 }
@@ -29,7 +43,7 @@ function stored(station: NonNullable<ReturnType<typeof haulStationDetails>>): nu
   return station.inventory.Metal + station.inventory.Ice;
 }
 
-function fly(ship: Ship, state: SimState, stationId: HaulStationId, kind: "outbound" | "returning"): Ship {
+export function flyHaul(ship: Ship, state: HaulState, stationId: HaulStationId, kind: "outbound" | "returning"): Ship {
   const station = haulStationDetails(state, stationId);
   if (!station) return { ...ship, state: "holding", timer: 0, leg: null };
   let to: Vec;
@@ -81,11 +95,11 @@ export function resumeHaulShip(state: SimState, ship: Ship): Ship {
     const destination = destinationId === route.from ? from : to;
     const atDestination = ship.sectorId === destination.sectorId
       && ship.position.x === destination.position.x && ship.position.y === destination.position.y;
-    if (!atDestination) return fly(clean, state, destinationId, destinationId === route.from ? "returning" : "outbound");
+    if (!atDestination) return flyHaul(clean, state, destinationId, destinationId === route.from ? "returning" : "outbound");
     return stored(destination) >= destination.capacity ? { ...clean, state: "haulWaitingFull", timer: 0, leg: null }
       : transferAt(state, clean, destinationId, false);
   }
-  if (!atFrom) return fly(clean, state, route.from, "returning");
+  if (!atFrom) return flyHaul(clean, state, route.from, "returning");
   if (stored(to) >= to.capacity) return { ...clean, state: "haulWaitingFull", timer: 0, leg: null, cargoMaterial: null };
   if (from.inventory[route.material] < shipStats(ship.design).hold) return { ...clean, state: "haulWaitingSource", timer: 0, leg: null, cargoMaterial: null };
   return transferAt(state, clean, route.from, true);

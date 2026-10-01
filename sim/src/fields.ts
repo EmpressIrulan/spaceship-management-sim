@@ -1,5 +1,12 @@
 import { nextRandom } from "./prng";
-import { ASTEROID_MIN_SPACING, ROCK_SPACING, type AsteroidField, type Density, type Vec } from "./state";
+import type { AsteroidField, Density, Vec } from "./state";
+
+// Keeps asteroids from landing on top of each other, or a respawn from landing
+// where the last one ran out. About three asteroid widths.
+export const ASTEROID_MIN_SPACING = 40;
+// Rocks in the same belt or cluster may sit closer than that, or a belt would
+// have no room to fill a gap once one rock is mined out.
+export const ROCK_SPACING = 25;
 
 export const FIELD_LAYOUT = ["belt", "cluster", "belt", "cluster"] as const;
 export const BELT_ROCKS = 5;
