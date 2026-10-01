@@ -64,7 +64,8 @@ import {
   dismissBuildMenuForKey,
   pointerInBuildArea,
 } from "./building";
-import { INITIAL_CLOCK, clockAfterButton, clockAfterKey, gameSeconds, speedButtons, type SpeedButtonId } from "./speed";
+import { INITIAL_CLOCK, clockAfterButton, clockAfterKey, gameSeconds, type SpeedButtonId } from "./speed";
+import { menuButton as button, renderBlueprints, renderSpeedControls } from "./menu-rendering";
 import { shipSprite, slotColor } from "./ships";
 import { renderShipPanel, type ShipPanelContext } from "./ship-panel";
 import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
@@ -331,57 +332,7 @@ speedControls.addEventListener("click", (event) => {
   target.blur();
 });
 
-function renderSpeedControls(): void {
-  const buttons = speedButtons(ui.clock);
-  if (speedControls.children.length !== buttons.length) {
-    speedControls.replaceChildren(...buttons.map((item) => {
-      const element = document.createElement("button");
-      element.dataset.speed = item.id;
-      element.textContent = item.label;
-      return element;
-    }));
-  }
-  buttons.forEach((item, index) => {
-    const element = speedControls.children[index] as HTMLButtonElement;
-    element.classList.toggle("active", item.active);
-    element.setAttribute("aria-pressed", String(item.active));
-  });
-}
-
-function button(text: string, data: Record<string, string>, pressed = false): HTMLButtonElement {
-  const element = document.createElement("button");
-  element.textContent = text;
-  Object.assign(element.dataset, data);
-  if (pressed) element.classList.add("pressed");
-  return element;
-}
-
 const TOOL_BUTTONS = [["erase", "Eraser"], ["fill", "Fill"]] as const;
-
-function renderBlueprints(): void {
-  const list = shipMenu.querySelector<HTMLElement>(".blueprints")!;
-  if (ui.blueprints.length === 0) {
-    const empty = document.createElement("span");
-    empty.className = "hint";
-    empty.textContent = "No saved blueprints";
-    list.replaceChildren(empty);
-    return;
-  }
-  list.replaceChildren(...ui.blueprints.map((blueprint, index) => {
-    const row = document.createElement("div");
-    row.className = "blueprint";
-    const name = document.createElement("span");
-    name.textContent = blueprint.name;
-    const actions = document.createElement("span");
-    actions.className = "row";
-    actions.append(
-      button("Load", { blueprintLoad: String(index) }),
-      button("Delete", { blueprintDelete: String(index) }),
-    );
-    row.append(name, actions);
-    return row;
-  }));
-}
 
 // Built once when the menu opens. The buttons only change which one is
 // pressed afterwards, so the paint canvas and its listeners stay put. The
@@ -424,7 +375,7 @@ function renderShipMenu(): void {
   const build = button("Build", { build: "" });
   build.className = "build";
   shipMenu.replaceChildren(title, modules, tools, ui.paintCanvas, hint, stats, cost, save, blueprintList, build);
-  renderBlueprints();
+  renderBlueprints(shipMenu, ui.blueprints);
   syncShipMenuButtons();
 }
 
@@ -468,7 +419,7 @@ shipMenu.addEventListener("click", (event) => {
     ui.blueprints = saveBlueprint(blueprintStore, input.value, designOf(ui.draft));
     input.value = "";
     target.disabled = true;
-    renderBlueprints();
+    renderBlueprints(shipMenu, ui.blueprints);
   }
   else if (data.blueprintLoad !== undefined) {
     const blueprint = ui.blueprints[Number(data.blueprintLoad)];
@@ -480,7 +431,7 @@ shipMenu.addEventListener("click", (event) => {
     const blueprint = ui.blueprints[Number(data.blueprintDelete)];
     if (!blueprint) return;
     ui.blueprints = deleteBlueprint(blueprintStore, blueprint.name);
-    renderBlueprints();
+    renderBlueprints(shipMenu, ui.blueprints);
   }
   else if (data.build !== undefined) {
     state = startShipBuild(state, ui.shipMenuBuilder, designOf(ui.draft));
@@ -1288,7 +1239,7 @@ function frame(nowMs: number): void {
   // working on a state that simply does not advance.
   const seconds = gameSeconds(ui.clock, dt);
   if (seconds > 0) state = tick(state, seconds);
-  renderSpeedControls();
+  renderSpeedControls(speedControls, ui.clock);
   draw(nowMs / 1000);
   requestAnimationFrame(frame);
 }

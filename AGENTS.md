@@ -45,6 +45,8 @@ npm test            # vitest across every workspace
 
 Never commit to `main`. Branch as `type/short-slug`. Merges happen on the PR page.
 
+Each file and function has one responsibility. Put new code in the file that owns its job, not in `main.ts`, `tick.ts` or `state.ts`.
+
 Never make a check pass by weakening it. If the right fix is unclear, stop and report.
 
 ## CI and merge gate
