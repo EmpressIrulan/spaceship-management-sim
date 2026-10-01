@@ -65,8 +65,9 @@ import {
   pointerInBuildArea,
 } from "./building";
 import { INITIAL_CLOCK, clockAfterButton, clockAfterKey, gameSeconds, speedButtons, type SpeedButtonId } from "./speed";
-import { shipPanel, shipSprite, slotColor } from "./ships";
-import { type MaterialBox, contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
+import { shipSprite, slotColor } from "./ships";
+import { renderShipPanel, type ShipPanelContext } from "./ship-panel";
+import { contextOrderAllowed, isBoxDrag, keyPan, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
 import {
   BRUSH_SIZES,
   applyTool,
@@ -87,7 +88,8 @@ import {
   type ShipDraft,
 } from "./shipyard";
 import { moduleAppearance, stationConnectors } from "./station-appearance";
-import { deleteButtonAction, storagePanelOpenAfterClick, storagePanelRows, type DeleteConfirmation } from "./storage";
+import { deleteButtonAction, storagePanelOpenAfterClick, type DeleteConfirmation } from "./storage";
+import { openStoragePanel, renderStoragePanel } from "./storage-panel";
 import {
   deleteBlueprint,
   draftFromDesign,
@@ -193,46 +195,12 @@ let clock = INITIAL_CLOCK;
 let storagePanelOpen = false;
 const deleteConfirmations = new Map<Material, DeleteConfirmation>();
 
-function openStoragePanel(): void {
-  storagePanelOpen = true;
-  storagePanel.hidden = false;
-  if (storagePanel.children.length > 0) return;
-  const title = document.createElement("h2");
-  title.textContent = "Storage";
-  const rows = storagePanelRows(state).map(({ material }) => {
-    const row = document.createElement("div"); row.className = "storage-row"; row.dataset.material = material;
-    const name = document.createElement("span"); name.className = "material"; name.textContent = material;
-    const amount = document.createElement("span"); amount.className = "amount";
-    const limitLabel = document.createElement("label"); limitLabel.textContent = "Limit";
-    const limit = document.createElement("input"); limit.type = "number"; limit.min = "0"; limit.placeholder = "No limit"; limit.dataset.limit = material; limitLabel.append(limit);
-    const deleteLabel = document.createElement("label"); deleteLabel.textContent = "Amount";
-    const quantity = document.createElement("input"); quantity.type = "number"; quantity.min = "1"; quantity.dataset.deleteAmount = material; deleteLabel.append(quantity);
-    const remove = document.createElement("button"); remove.textContent = "Delete"; remove.dataset.delete = material;
-    row.append(name, amount, limitLabel, deleteLabel, remove);
-    return row;
-  });
-  storagePanel.replaceChildren(title, ...rows);
-}
-
 function closeStoragePanel(): void {
   storagePanelOpen = false;
   storagePanel.hidden = true;
   deleteConfirmations.clear();
 }
 
-function renderStoragePanel(now: number): void {
-  if (!storagePanelOpen) return;
-  for (const row of storagePanelRows(state)) {
-    const element = storagePanel.querySelector<HTMLElement>(`.storage-row[data-material="${row.material}"]`)!;
-    element.querySelector<HTMLElement>(".amount")!.textContent = String(row.amount);
-    const limit = element.querySelector<HTMLInputElement>("input[data-limit]")!;
-    if (document.activeElement !== limit) limit.value = row.limit;
-    const confirmation = deleteConfirmations.get(row.material);
-    const remove = element.querySelector<HTMLButtonElement>("button[data-delete]")!;
-    remove.textContent = confirmation !== undefined && now <= confirmation.until ? "Confirm" : "Delete";
-    if (confirmation !== undefined && now > confirmation.until) deleteConfirmations.delete(row.material);
-  }
-}
 
 storagePanel.addEventListener("change", (event) => {
   const input = (event.target as HTMLElement).closest<HTMLInputElement>("input[data-limit]");
@@ -254,7 +222,7 @@ storagePanel.addEventListener("click", (event) => {
   }
   if (action.confirmation) deleteConfirmations.set(material, action.confirmation);
   else deleteConfirmations.delete(material);
-  renderStoragePanel(performance.now());
+  renderStoragePanel(storagePanel, state, storagePanelOpen, performance.now(), deleteConfirmations);
 });
 
 function closeGateMenu(): void {
@@ -394,19 +362,6 @@ function button(text: string, data: Record<string, string>, pressed = false): HT
   Object.assign(element.dataset, data);
   if (pressed) element.classList.add("pressed");
   return element;
-}
-
-// A small picture of a ship, scaled to fit the panel.
-function thumbnailElement(design: ShipDesign): HTMLElement {
-  const thumb = document.createElement("canvas");
-  thumb.width = design.width;
-  thumb.height = design.height;
-  thumb.className = "ship-thumb";
-  const scale = Math.min(176 / design.width, 120 / design.height, 24);
-  thumb.style.width = `${design.width * scale}px`;
-  thumb.style.height = `${design.height * scale}px`;
-  thumb.getContext("2d")!.drawImage(shipSprite(design), 0, 0);
-  return thumb;
 }
 
 const TOOL_BUTTONS = [["erase", "Eraser"], ["fill", "Fill"]] as const;
@@ -701,7 +656,7 @@ window.addEventListener("mouseup", (event) => {
       const clickedStorage = hovered?.kind === "storage"
         || (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Storage");
       const storageOpen = storagePanelOpenAfterClick(storagePanelOpen, clickedStorage ? "storage" : hovered ? "other" : "empty");
-      if (storageOpen && !storagePanelOpen) openStoragePanel();
+      if (storageOpen && !storagePanelOpen) openStoragePanel(storagePanel, state, () => { storagePanelOpen = true; });
       else if (!storageOpen && storagePanelOpen) closeStoragePanel();
       if (hovered?.kind === "ship") selectedShips = additive ? toggleShip(selectedShips, state.ships[hovered.index]!.id) : [state.ships[hovered.index]!.id];
       else if (!additive) selectedShips = [];
@@ -1006,82 +961,6 @@ function renderPartTip(): void {
   partTip.style.top = `${partHover.at.y + 14}px`;
 }
 
-function renderShipPanel(): void {
-  selectedShips = selectedShips.filter((id) => state.ships.some((ship) => ship.id === id));
-  selectedShip = selectedShips[0] ?? null;
-  const panel = selectedShip === null ? null : shipPanel(state, selectedShip);
-  const list = selectionPanel(state, selectedShips);
-  shipPanelBox.hidden = !panel || !list;
-  // The design is left out of the key, since a capital ship's pixels are too
-  // many to serialise every frame. The ship's id stands in for it.
-  const key = JSON.stringify({ panel: { ...panel, design: null }, list, ship: selectedShip });
-  if (!panel || !list || key === renderedPanel) return;
-  renderedPanel = key;
-  const title = document.createElement("h2");
-  title.textContent = selectedShips.length > 1 ? `${selectedShips.length} ships selected` : `Ship ${panel.size}`;
-  const rows = document.createElement("dl");
-  for (const row of list.rows) {
-    const term = document.createElement("dt"); term.textContent = row.name;
-    const detail = document.createElement("dd"); detail.textContent = row.status; rows.append(term, detail);
-  }
-  for (const [label, value] of selectedShips.length === 1 ? panel.rows : []) {
-    const term = document.createElement("dt");
-    term.textContent = label;
-    const detail = document.createElement("dd");
-    detail.textContent = value;
-    detail.dataset.row = label;
-    rows.append(term, detail);
-  }
-  const select = document.createElement("select"); select.name = "default";
-  for (const [value, label] of [["mine", "Default: Mine for Station"], ["supply", "Default: Supply construction site"], ["haul", "Default: Haul"], ["none", "Default: None"]] as const) {
-    const option = document.createElement("option"); option.value = value; option.textContent = label;
-    if (value === "haul" && !list.canHaul) { option.disabled = true; option.title = list.haulDisabledReason ?? ""; }
-    option.selected = list.defaultBehaviour === value; select.append(option);
-  }
-  if (list.defaultBehaviour === "mixed") { const mixed = document.createElement("option"); mixed.textContent = "Default: Mixed"; mixed.selected = true; select.prepend(mixed); }
-  if (!list.canHaul) select.title = list.haulDisabledReason ?? "";
-  const routeControls: HTMLElement[] = [];
-  if (list.defaultBehaviour === "haul" && list.haulRoute) {
-    const routeSelect = (name: "haul-from" | "haul-to", label: string, value: HaulStationId) => {
-      const wrap = document.createElement("label"); wrap.textContent = `${label} `;
-      const input = document.createElement("select"); input.name = name;
-      for (const station of list.stations) { const option = document.createElement("option"); option.value = station.id; option.textContent = station.name; option.selected = station.id === value; input.append(option); }
-      wrap.append(input); return wrap;
-    };
-    routeControls.push(routeSelect("haul-from", "From", list.haulRoute.from), routeSelect("haul-to", "To", list.haulRoute.to));
-    const material = document.createElement("label"); material.textContent = "Material ";
-    const materialSelect = document.createElement("select"); materialSelect.name = "haul-material";
-    for (const value of ["Metal", "Ice"] as const) { const option = document.createElement("option"); option.value = value; option.textContent = value; option.selected = value === list.haulRoute.material; materialSelect.append(option); }
-    material.append(materialSelect); routeControls.push(material);
-  }
-  const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
-  shipPanelBox.replaceChildren(title, rows, select, ...routeControls, ...materialBoxes(list.materials),
-    ...otherSectorsBox(list.mineOtherSectors), resume, ...(selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
-}
-
-// One tickbox per material for ships on Mine for Station. A box the selected
-// ships disagree on is half-ticked, and clicking it ticks it for all of them.
-function materialBoxes(boxes: MaterialBox[] | null): HTMLElement[] {
-  return (boxes ?? []).map(({ material, ticked }) => {
-    const input = document.createElement("input");
-    input.type = "checkbox"; input.name = "mine-material"; input.value = material;
-    input.checked = ticked === "on"; input.indeterminate = ticked === "mixed";
-    const label = document.createElement("label");
-    label.className = "mine-material"; label.append(input, ` ${material}`);
-    return label;
-  });
-}
-
-function otherSectorsBox(ticked: "on" | "off" | "mixed" | null): HTMLElement[] {
-  if (ticked === null) return [];
-  const input = document.createElement("input");
-  input.type = "checkbox"; input.name = "mine-other-sectors";
-  input.checked = ticked === "on"; input.indeterminate = ticked === "mixed";
-  const label = document.createElement("label");
-  label.className = "mine-material"; label.append(input, " Mine in other sectors");
-  return [label];
-}
-
 // Screen-space so the numbers stay readable at any zoom.
 const GAUGE = { width: 36, height: 12, gap: 4 };
 
@@ -1233,8 +1112,11 @@ function draw(seconds: number): void {
     const gauge = cargoGauge(ship);
     if (gauge) drawGauge(ship.position, gauge, shipSize(ship.design));
   }
-  renderShipPanel();
-  renderStoragePanel(performance.now());
+  const panelContext: ShipPanelContext = renderShipPanel(state, shipPanelBox, { selectedShips, selectedShip, renderedPanel });
+  selectedShips = panelContext.selectedShips;
+  selectedShip = panelContext.selectedShip;
+  renderedPanel = panelContext.renderedPanel;
+  renderStoragePanel(storagePanel, state, storagePanelOpen, performance.now(), deleteConfirmations);
   renderPartTip();
 
   if (sectorNameEl) sectorNameEl.textContent = state.sectors[currentSector]!.name;
