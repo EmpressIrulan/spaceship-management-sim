@@ -29,17 +29,50 @@ export function mousePoint(canvas: HTMLCanvasElement, event: MouseEvent): Vec {
   return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
 }
 
-export function installInput(ui: UiState, getState: () => SimState, setState: (state: SimState) => void,
-  elements: InputElements, actions: InputActions): void {
-  const { canvas, box, infoAction, renameBox, speedControls, storagePanel, ctx } = elements;
+export function installInput(
+  ui: UiState,
+  getState: () => SimState,
+  setState: (state: SimState) => void,
+  elements: InputElements,
+  actions: InputActions,
+): void {
+  const {
+    canvas,
+    box,
+    infoAction,
+    renameBox,
+    speedControls,
+    storagePanel,
+    ctx,
+  } = elements;
   const pointFromEvent = (event: MouseEvent): Vec => mousePoint(canvas, event);
   const startRename = installRenameInput(ui, getState, setState, renameBox);
-  const { closeStoragePanel, closeBuildMenu, closeGateMenu, openShipMenu, closeShipMenu } = actions;
-  const context: InputContext = { ui, getState, setState, canvas, storagePanel, closeStoragePanel, openShipMenu, startRename, mousePoint: pointFromEvent };
+  const {
+    closeStoragePanel,
+    closeBuildMenu,
+    closeGateMenu,
+    openShipMenu,
+    closeShipMenu,
+  } = actions;
+  const context: InputContext = {
+    ui,
+    getState,
+    setState,
+    canvas,
+    storagePanel,
+    closeStoragePanel,
+    openShipMenu,
+    startRename,
+    mousePoint: pointFromEvent,
+  };
 
   installCameraInput(ui, getState, canvas, ctx, pointFromEvent);
   installInfoBoxInput(ui, getState, setState, box, infoAction);
-  installSpeedInput(ui, speedControls, { closeBuildMenu, closeGateMenu, closeShipMenu });
+  installSpeedInput(ui, speedControls, {
+    closeBuildMenu,
+    closeGateMenu,
+    closeShipMenu,
+  });
 
   window.addEventListener("mouseup", (event) => {
     if (event.button === 1) ui.pan = null;
@@ -50,7 +83,11 @@ export function installInput(ui: UiState, getState: () => SimState, setState: (s
     const click = !isBoxDrag(start, end);
     if (click && event.target === canvas && ui.pendingClaim && !ui.mapOpen) {
       placeClaimSite(context, event);
-    } else if (click && event.target === canvas && ui.pendingGate?.targetSector === ui.currentSector) {
+    } else if (
+      click &&
+      event.target === canvas &&
+      ui.pendingGate?.targetSector === ui.currentSector
+    ) {
       placeGate(context, event);
     } else if (selectBox(context, start, end, additive)) {
       return;
