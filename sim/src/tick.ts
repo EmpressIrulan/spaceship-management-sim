@@ -10,6 +10,13 @@ import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { completeDocking, syncDockedShips } from "./hangars";
 import {
+  holdReturnedSupplier,
+  settleQueuedBuild,
+  supplyQueueStatus,
+  unloadSupplierIntoEmptyQueue,
+  waitEmptyQueueSupplier,
+} from "./station-build-queue";
+import {
   ABUNDANT_SHARE,
   DOCK_CAPACITY,
   GATE_COST,
@@ -154,6 +161,8 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     }
     case "unloading": {
       if (ship.transfer?.destination === "constructionSite") {
+        const returning = unloadSupplierIntoEmptyQueue(ship, draft.buildQueue.length, draft.dock);
+        if (returning) return returning;
         const targetCargo = Math.max(0, ship.transfer.startingCargo - transferDone(ship, timer));
         return { ...giveToBuildSite(draft, ship, ship.cargo - targetCargo), timer };
       }
@@ -276,8 +285,8 @@ function resumeAfterBuildOrder(draft: Draft, ship: Ship): Ship {
 
 // A ship on Supply construction site, with no order of its own, takes what it
 // mines to the construction site instead of the Dock.
-function supplying(ship: Ship): boolean {
-  return ship.defaultBehaviour === "supply" && ship.order === null;
+function supplying(draft: Draft, ship: Ship): boolean {
+  return supplyQueueStatus(ship, draft.buildQueue.length) === "supplying";
 }
 
 function samePoint(a: Vec, b: Vec): boolean {
@@ -322,10 +331,14 @@ function finish(draft: Draft, ship: Ship): Ship {
   const route = routeOf(ship, draft.dock);
   switch (ship.state) {
     case "idle":
+      { const waiting = waitEmptyQueueSupplier(ship, draft.buildQueue.length); if (waiting) return waiting; }
       return ship.defaultBehaviour === "none" ? ship
         : resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
     case "holding":
       if (ship.order?.kind === "haulGate") return loadGateHauler(draft, ship);
+      if (supplyQueueStatus(ship, draft.buildQueue.length) === "supplying") {
+        return resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
+      }
       return ship;
     case "docked":
       return ship;
@@ -464,7 +477,7 @@ function finish(draft: Draft, ship: Ship): Ship {
         return { ...ship, state: "homebound", leg: { from: { ...ship.position }, to: { ...gate } }, timer: travelSeconds(length, speedFactor(ship.design)),
           order: ship.order?.kind === "mine" ? { ...ship.order, loaded: true } : ship.order };
       }
-      if (supplying(ship)) return flyTo({ ...ship, cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo) }, ship.position, draft.constructionSite.position);
+      if (supplying(draft, ship)) return flyTo({ ...ship, cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo) }, ship.position, draft.constructionSite.position);
       return {
         ...ship,
         state: "homebound",
@@ -476,11 +489,12 @@ function finish(draft: Draft, ship: Ship): Ship {
       if (ship.sectorId !== HOME_SECTOR) return { ...ship, state: "jumpingHome", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
       const site = draft.constructionSite.position;
       const headingForSite = ship.leg !== null && samePoint(ship.leg.to, site);
-      if (supplying(ship) && (headingForSite || ship.cargo > 0)) {
+      if (supplying(draft, ship) && (headingForSite || ship.cargo > 0)) {
         return headingForSite ? arriveAtBuildSite(draft, ship) : flyTo(ship, draft.dock, site);
       }
       // Heading for the site on a default it has since lost: on to the Dock.
       if (headingForSite) return flyTo(ship, site, draft.dock);
+      { const waiting = holdReturnedSupplier(ship, draft.buildQueue.length, draft.dock); if (waiting) return waiting; }
       if (ship.cargo > 0 && !canProcessCargo(draft, ship)) {
         return toParking(layoutOf(draft), draft.ships, { ...ship, position: { ...draft.dock }, leg: null });
       }
@@ -616,6 +630,7 @@ function settle(draft: Draft): void {
     const ship = draft.ships[i]!;
     if (ship.timer <= 0) draft.ships[i] = finish(draft, ship);
   }
+  settleQueuedBuild(draft);
 }
 
 // Steps from one timer running out to the next, so a large dt (a tab coming
@@ -640,6 +655,7 @@ export function tick(state: SimState, dt: number): SimState {
     ships: state.ships,
     modules: state.station.modules,
     construction: state.station.construction,
+    buildQueue: state.station.buildQueue,
     shipBuilds: state.station.shipBuilds,
     dockCapacity: state.station.dock.capacity,
     sectors: state.sectors,
@@ -672,6 +688,7 @@ export function tick(state: SimState, dt: number): SimState {
       deliveries: draft.deliveries.filter((delivery) => delivery.at > draft.time - INCOME_WINDOW_SECONDS),
       modules: draft.modules,
       construction: draft.construction,
+      buildQueue: draft.buildQueue,
       shipBuilds: draft.shipBuilds,
     },
     asteroids: draft.asteroids,

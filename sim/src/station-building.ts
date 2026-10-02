@@ -2,6 +2,7 @@ import { ASTEROID_MIN_SPACING, BUILD_SECONDS, BUILDER_SIZE, DOCK_SIZE, MODULE_CO
 import { MATERIALS, MODULE_TYPES } from "./model";
 import type { Material, ModuleType, SimState, Size, Vec } from "./model";
 import { distance } from "./fields";
+import { moduleSize, samePosition } from "./station-module-geometry";
 
 export interface ModuleBuildOption {
   type: ModuleType;
@@ -27,10 +28,6 @@ const BUILD_DIRECTIONS: Vec[] = [
   { x: MODULE_SPACING, y: 0 },
 ];
 
-function samePosition(a: Vec, b: Vec): boolean {
-  return a.x === b.x && a.y === b.y;
-}
-
 // A site is offered before the module type is picked, so it has to fit the
 // largest module, the Dock.
 function overlapsFootprint(site: Vec, footprint: { position: Vec; size: Size }): boolean {
@@ -42,10 +39,12 @@ export function availableModuleBuildSites(state: SimState): Vec[] {
   const footprints = [
     ...state.station.modules,
     ...(state.station.construction ? [state.station.construction] : []),
+    ...state.station.buildQueue,
     state.station.constructionSite,
   ];
+  const anchors = [...state.station.modules, ...state.station.buildQueue];
   const sites: Vec[] = [];
-  for (const module of state.station.modules) {
+  for (const module of anchors) {
     for (const direction of BUILD_DIRECTIONS) {
       const site = { x: module.position.x + direction.x, y: module.position.y + direction.y };
       const blocked = footprints.some((footprint) => overlapsFootprint(site, footprint))
@@ -54,12 +53,6 @@ export function availableModuleBuildSites(state: SimState): Vec[] {
     }
   }
   return sites;
-}
-
-function moduleSize(type: ModuleType): Size {
-  if (type === "Dock") return DOCK_SIZE;
-  if (type === "Storage") return STORAGE_SIZE;
-  return BUILDER_SIZE;
 }
 
 export function startModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {

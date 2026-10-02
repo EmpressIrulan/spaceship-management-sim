@@ -22,9 +22,8 @@ export function buildMenuItems(state: SimState): BuildMenuItem[] {
   return availableModuleBuilds(state).map((option) => {
     const short = MATERIALS.filter((material) => option.missing[material] > 0)
       .map((material) => `${option.missing[material]} more ${material}`);
-    const title = short.length > 0 ? `Needs ${short.join(" and ")}`
-      : option.enabled ? "" : "Another module is being built";
-    return { type: option.type, cost, disabled: !option.enabled, title };
+    const title = short.length > 0 ? `Needs ${short.join(" and ")}` : "";
+    return { type: option.type, cost, disabled: false, title };
   });
 }
 
@@ -39,6 +38,7 @@ export function pointerInBuildArea(state: SimState, world: Vec): boolean {
   const slots = [
     ...state.station.modules.map((module) => module.position),
     ...(state.station.construction ? [state.station.construction.position] : []),
+    ...state.station.buildQueue.map((queued) => queued.position),
     ...availableModuleBuildSites(state),
   ];
   const half = MODULE_SPACING / 2;
@@ -60,4 +60,8 @@ export function dismissBuildMenuForClick(insideMenu: boolean, insideControls: bo
 
 export function dismissBuildMenuForKey(key: string): boolean {
   return key === "Escape";
+}
+
+export function queuedBuildIndexAt(state: SimState, position: Vec): number {
+  return state.station.buildQueue.findIndex((queued) => queued.position.x === position.x && queued.position.y === position.y);
 }

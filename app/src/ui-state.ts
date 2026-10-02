@@ -36,6 +36,7 @@ export interface UiState {
   pendingClaim: boolean;
   renamingSector: number | null;
   stickySite: number | null;
+  stickyQueuedBuild: Vec | null;
   infoHovered: boolean;
   clock: Clock;
   storagePanelOpen: boolean;
@@ -75,6 +76,7 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     pendingClaim: false,
     renamingSector: null,
     stickySite: null,
+    stickyQueuedBuild: null,
     infoHovered: false,
     clock: INITIAL_CLOCK,
     storagePanelOpen: false,

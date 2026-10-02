@@ -47,7 +47,8 @@ export function createWorldDrawing(
       stationDrawing.drawStationConnector(connector.from, connector.to);
     }
     for (const module of ui.currentSector === 0 ? getState().station.modules : []) stationDrawing.drawStationModule(module);
-    if (ui.currentSector === 0) stationDrawing.drawConstructionSite();
+    for (const queued of ui.currentSector === 0 ? getState().station.buildQueue : []) stationDrawing.drawQueuedModule(queued);
+    if (ui.currentSector === 0 && getState().station.buildQueue.length > 0) stationDrawing.drawConstructionSite();
     const construction = getState().station.construction;
     if (ui.currentSector === 0 && construction) strokeWorldRect(construction.position, construction.size, "#cbd5e1");
     for (const site of getState().claimSites) {

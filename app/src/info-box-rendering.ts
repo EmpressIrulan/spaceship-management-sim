@@ -1,6 +1,7 @@
 import { bodyOf, hoveredBody, worldToScreen } from "./camera";
 import { infoBox, sectorBox } from "./labels";
 import { mapHit, mapLayout } from "./sectors";
+import { queuedBuildIndexAt } from "./building";
 import type { SimState, Vec } from "sim";
 import type { UiState } from "./ui-state";
 
@@ -23,7 +24,14 @@ export function renderHoverInfo(
   let hovered = ui.mapOpen ? null : hoveredBody(getState(), ui.camera, ui.viewport, ui.pointer, ui.currentSector);
   if (hovered?.kind === "claimSite") ui.stickySite = hovered.id;
   else if (ui.infoHovered && ui.stickySite !== null && !ui.mapOpen) hovered = { kind: "claimSite", id: ui.stickySite };
-  else ui.stickySite = null;
+  else if (ui.infoHovered && ui.stickyQueuedBuild !== null && !ui.mapOpen) {
+    const index = queuedBuildIndexAt(getState(), ui.stickyQueuedBuild);
+    hovered = index < 0 ? null : { kind: "queuedBuild", index };
+  }
+  else {
+    ui.stickySite = null;
+    if (hovered?.kind !== "queuedBuild") ui.stickyQueuedBuild = null;
+  }
 
   // A + cell sits above the canvas, so a ship beside it would never hear the
   // click. While the pointer is on a ship, the cells let clicks through.
@@ -35,11 +43,13 @@ export function renderHoverInfo(
   infoAction.hidden = !info?.action;
   delete infoAction.dataset.site;
   delete infoAction.dataset.carrier;
+  delete infoAction.dataset.queuedBuild;
   if (info?.action) {
     infoAction.textContent = info.action.label;
     infoAction.disabled = !!info.action.disabled;
     if (info.action.siteId !== undefined) infoAction.dataset.site = String(info.action.siteId);
     if (info.action.carrierId !== undefined) infoAction.dataset.carrier = String(info.action.carrierId);
+    if (info.action.queuedBuild !== undefined) infoAction.dataset.queuedBuild = String(info.action.queuedBuild);
   }
   const body = hovered && bodyOf(getState(), hovered);
   if (body && info) {

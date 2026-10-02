@@ -1,4 +1,4 @@
-import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, claimSiteBuilt, claimSiteNeeds, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, shipStats, stationIncome, type Ship, type SimState } from "sim";
+import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, MODULE_COST, claimSiteBuilt, claimSiteNeeds, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, shipStats, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -53,7 +53,7 @@ export interface InfoBox {
   title: string;
   line: string;
   // A button the box carries, for the hovers that can be acted on.
-  action?: { label: string; siteId?: number; carrierId?: number; disabled?: boolean };
+  action?: { label: string; siteId?: number; carrierId?: number; queuedBuild?: number; disabled?: boolean };
 }
 
 function claimSiteBox(state: SimState, id: number): InfoBox | null {
@@ -103,6 +103,26 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     return construction
       ? { title: `Building ${construction.type}`, line: `${Math.ceil(construction.timer)} s` }
       : null;
+  }
+  if (hovered.kind === "queuedBuild") {
+    const queued = state.station.buildQueue[hovered.index];
+    if (!queued) return null;
+    if (hovered.index === 0 && state.station.construction
+      && MATERIALS.every((material) => state.station.constructionSite.inventory[material] >= MODULE_COST[material])) {
+      return {
+        title: `${queued.type}, queued`,
+        line: "Waiting for the module under construction",
+        action: { label: "Cancel", queuedBuild: hovered.index },
+      };
+    }
+    const needs = MATERIALS.map((material) => ({
+      material,
+      amount: hovered.index === 0
+        ? Math.max(0, MODULE_COST[material] - state.station.constructionSite.inventory[material])
+        : MODULE_COST[material],
+    })).filter(({ amount }) => hovered.index > 0 || amount > 0);
+    const line = `Needs ${needs.map(({ material, amount }) => `${amount}${hovered.index === 0 ? " more" : ""} ${material}`).join(" and ")}`;
+    return { title: `${queued.type}, queued`, line, action: { label: "Cancel", queuedBuild: hovered.index } };
   }
   if (hovered.kind === "module") {
     const module = state.station.modules[hovered.index];

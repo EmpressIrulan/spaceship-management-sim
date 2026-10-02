@@ -1,4 +1,4 @@
-import { startModuleBuild, type ModuleType, type SimState, type Vec } from "sim";
+import { queueModuleBuild, type ModuleType, type SimState, type Vec } from "sim";
 import { dismissBuildMenuForClick } from "./building";
 import type { UiState } from "./ui-state";
 
@@ -30,7 +30,7 @@ export function installBuildMenu(
   buildMenu.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-module]");
     if (!button || button.disabled || !ui.selectedBuildSite) return;
-    setState(startModuleBuild(getState(), button.dataset.module as ModuleType, ui.selectedBuildSite));
+    setState(queueModuleBuild(getState(), button.dataset.module as ModuleType, ui.selectedBuildSite));
     closeBuildMenu();
   });
   document.addEventListener("click", (event) => {

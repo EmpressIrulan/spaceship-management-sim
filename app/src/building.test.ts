@@ -4,6 +4,7 @@ import {
   MODULE_SPACING,
   availableModuleBuildSites,
   createInitialState,
+  queueModuleBuild,
   startModuleBuild,
   tick,
 } from "sim";
@@ -14,15 +15,71 @@ import {
   pointerInBuildArea,
   dismissBuildMenuForClick,
   dismissBuildMenuForKey,
+  queuedBuildIndexAt,
 } from "./building";
 import { infoBox } from "./labels";
+import { hoveredBody, worldToScreen, type Camera } from "./camera";
 
 describe("station building controls", () => {
-  it("presents all module choices with their shared cost and disabled state", () => {
+  it("shows front needs, full later cost, and Cancel on ghost modules", () => {
+    const initial = createInitialState(7);
+    let state = queueModuleBuild({ ...initial, station: { ...initial.station,
+      constructionSite: { ...initial.station.constructionSite, inventory: { Metal: 15, Ice: 0 } } } }, "Storage", { x: 80, y: 0 });
+    state = queueModuleBuild(state, "Builder", { x: 120, y: 0 });
+    const camera: Camera = { center: { x: 0, y: 0 }, zoom: 2 };
+    const viewport = { width: 800, height: 600 };
+
+    const front = hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, { x: 80, y: 0 }));
+    const later = hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, { x: 120, y: 0 }));
+    expect(front).toEqual({ kind: "queuedBuild", index: 0 });
+    expect(infoBox(state, front)).toEqual({
+      title: "Storage, queued",
+      line: "Needs 10 more Metal and 25 more Ice",
+      action: { label: "Cancel", queuedBuild: 0 },
+    });
+    expect(infoBox(state, later)).toEqual({
+      title: "Builder, queued",
+      line: "Needs 25 Metal and 25 Ice",
+      action: { label: "Cancel", queuedBuild: 1 },
+    });
+  });
+
+  it("explains when a funded front ghost is waiting for current construction", () => {
+    let state = createInitialState(7);
+    state = { ...state, station: { ...state.station,
+      constructionSite: { ...state.station.constructionSite, inventory: { Metal: 50, Ice: 50 } } } };
+    state = queueModuleBuild(state, "Dock", { x: 80, y: 0 });
+    state = queueModuleBuild(state, "Storage", { x: -40, y: 0 });
+
+    expect(infoBox(state, { kind: "queuedBuild", index: 0 })).toEqual({
+      title: "Storage, queued",
+      line: "Waiting for the module under construction",
+      action: { label: "Cancel", queuedBuild: 0 },
+    });
+  });
+
+  it("finds the same ghost by position after an earlier queue item is promoted", () => {
+    const initial = createInitialState(7);
+    const secondPosition = { x: -40, y: 0 };
+    let state = queueModuleBuild(initial, "Dock", { x: 80, y: 0 });
+    state = queueModuleBuild(state, "Storage", secondPosition);
+    state = { ...state, station: { ...state.station,
+      constructionSite: { ...state.station.constructionSite, inventory: { Metal: 25, Ice: 25 } } } };
+    state = tick(state, 0);
+
+    expect(queuedBuildIndexAt(state, secondPosition)).toBe(0);
+    expect(queuedBuildIndexAt(state, { x: 80, y: 0 })).toBe(-1);
+  });
+
+  it("keeps every module choice enabled even when the site cannot pay", () => {
+    expect(buildMenuItems(createInitialState(7)).every((item) => !item.disabled)).toBe(true);
+  });
+
+  it("presents all module choices with their shared cost and queue-ready state", () => {
     expect(buildMenuItems(createInitialState(7))).toEqual([
-      { type: "Dock", cost: "25 Metal, 25 Ice", disabled: true, title: "Needs 25 more Metal and 25 more Ice" },
-      { type: "Storage", cost: "25 Metal, 25 Ice", disabled: true, title: "Needs 25 more Metal and 25 more Ice" },
-      { type: "Builder", cost: "25 Metal, 25 Ice", disabled: true, title: "Needs 25 more Metal and 25 more Ice" },
+      { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
+      { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
+      { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
     ]);
   });
 
@@ -84,5 +141,11 @@ describe("station building controls", () => {
       expect(cell).toBeCloseTo(MODULE_SPACING * zoom);
       expect(glyph).toBeLessThan(cell);
     }
+  });
+
+  it("keeps the pointer in the build area from a ghost to its + controls", () => {
+    const state = queueModuleBuild(createInitialState(7), "Storage", { x: 80, y: 0 });
+    expect(pointerInBuildArea(state, { x: 100, y: 0 })).toBe(true);
+    expect(availableModuleBuildSites(state)).toContainEqual({ x: 120, y: 0 });
   });
 });

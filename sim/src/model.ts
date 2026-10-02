@@ -113,6 +113,7 @@ export interface Station {
   deliveries: Delivery[];
   modules: StationModule[];
   construction: ModuleConstruction | null;
+  buildQueue: QueuedModuleBuild[];
   shipBuilds: ShipBuild[];
 }
 
@@ -139,6 +140,8 @@ export interface StationModule {
 export interface ModuleConstruction extends StationModule {
   timer: number;
 }
+
+export type QueuedModuleBuild = StationModule;
 
 export interface Asteroid {
   id: number;

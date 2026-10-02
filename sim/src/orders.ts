@@ -1,4 +1,5 @@
 import { claimSiteBuilt } from "./claim";
+import { supplyQueueStatus } from "./station-build-queue";
 import { haulStations, resumeHaulShip, validHaulRoute } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { travelSeconds } from "./motion";
@@ -80,6 +81,12 @@ export function resumeMining(ship: Ship, dock: Vec, asteroids: Asteroid[], secto
 }
 
 export function resumeDefaultShip(state: SimState, ship: Ship): Ship {
+  if (supplyQueueStatus(ship, state.station.buildQueue.length) === "waiting") {
+    const atHome = ship.sectorId === state.station.sectorId
+      && (ship.berth !== null || (ship.position.x === state.station.dock.position.x && ship.position.y === state.station.dock.position.y));
+    return atHome ? hold({ ...ship, position: { ...state.station.dock.position } })
+      : routeHome(ship, state.station.dock.position, state.sectors, state.gateProjects);
+  }
   return ship.defaultBehaviour === "haul" ? resumeHaulShip(state, ship)
     : resumeMining(ship, state.station.dock.position, state.asteroids, state.sectors, state.gateProjects, state.ships);
 }
