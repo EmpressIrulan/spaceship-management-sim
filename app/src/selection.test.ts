@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, startGateBuild } from "sim";
 import { fitCamera, hoveredBody, worldToScreen } from "./camera";
-import { contextOrderAllowed, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip } from "./selection";
+import { contextOrderAllowed, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip, type SelectionPanel } from "./selection";
 
 describe("RTS selection helpers", () => {
   it("box-selects by ship id and shift selection toggles by id", () => {
@@ -111,5 +111,102 @@ describe("RTS selection helpers", () => {
     const hovered = hoveredBody(state, camera, viewport, pointer, gateEnd.sectorId, { includeShips: false });
 
     expect(orderTargetAt(state, hovered, gateEnd.position, gateEnd.sectorId)).toEqual({ kind: "haulGate", gateId: 0 });
+  });
+
+  describe("multi-ship haul route display", () => {
+    function haulState() {
+      const initial = createInitialState(7);
+      return {
+        ...initial,
+        sectors: initial.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
+        claimSites: [
+          { id: 3, sectorId: 1, position: { x: 100, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null },
+          { id: 4, sectorId: 2, position: { x: 200, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null },
+        ],
+      };
+    }
+
+    it("shows shared route when all selected haulers have the same route (criterion 8)", () => {
+      const state = haulState();
+      state.ships = [
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+      ];
+      const panel = selectionPanel(state, [0, 1]);
+      expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+      // No "mixed" sentinel anywhere
+      expect(panel?.haulRoute?.from).not.toBe("mixed");
+      expect(panel?.haulRoute?.to).not.toBe("mixed");
+      expect(panel?.haulRoute?.material).not.toBe("mixed");
+    });
+
+    it("shows Mixed for From when haulers differ on From (criterion 2)", () => {
+      const state = haulState();
+      state.ships = [
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "claim:4" as const, to: "claim:3" as const, material: "Ice" as const } },
+      ];
+      const panel = selectionPanel(state, [0, 1]);
+      expect(panel?.haulRoute?.from).toBe("mixed");
+      expect(panel?.haulRoute?.to).toBe("claim:3");
+      expect(panel?.haulRoute?.material).toBe("Ice");
+    });
+
+    it("shows Mixed for To when haulers differ on To (criterion 2)", () => {
+      const state = haulState();
+      state.ships = [
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Ice" as const } },
+      ];
+      const panel = selectionPanel(state, [0, 1]);
+      expect(panel?.haulRoute?.from).toBe("home");
+      expect(panel?.haulRoute?.to).toBe("mixed");
+      expect(panel?.haulRoute?.material).toBe("Ice");
+    });
+
+    it("shows Mixed for Material when haulers differ on Material (criterion 2)", () => {
+      const state = haulState();
+      state.ships = [
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Metal" as const } },
+      ];
+      const panel = selectionPanel(state, [0, 1]);
+      expect(panel?.haulRoute?.from).toBe("home");
+      expect(panel?.haulRoute?.to).toBe("claim:3");
+      expect(panel?.haulRoute?.material).toBe("mixed");
+    });
+
+    it("shows shared values for agreeing fields and Mixed for disagreeing (criterion 3)", () => {
+      const state = haulState();
+      state.ships = [
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Metal" as const } },
+      ];
+      const panel = selectionPanel(state, [0, 1]);
+      expect(panel?.haulRoute?.from).toBe("home");
+      expect(panel?.haulRoute?.to).toBe("mixed");
+      expect(panel?.haulRoute?.material).toBe("mixed");
+    });
+
+    it("returns haulRoute with Mixed sentinels when defaultBehaviour is mixed but some haulers have routes (criterion 1)", () => {
+      const state = haulState();
+      state.ships = [
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "mine" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+      ];
+      const panel = selectionPanel(state, [0, 1]);
+      expect(panel?.defaultBehaviour).toBe("mixed");
+      expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+    });
+
+    it("returns null haulRoute when no selected ships have a haul route", () => {
+      const state = haulState();
+      state.ships = [
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "mine" as const, haulRoute: undefined },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "mine" as const, haulRoute: undefined },
+      ];
+      const panel = selectionPanel(state, [0, 1]);
+      expect(panel?.haulRoute).toBeNull();
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { type SimState, type ShipDesign, type HaulStationId } from "sim";
-import { selectionPanel, type MaterialBox } from "./selection";
+import { selectionPanel, type MaterialBox, type DisplayHaulRoute } from "./selection";
 import { shipPanel, shipSprite } from "./ships";
 import { hangarPanelRows, launchAllButton } from "./hangar-panel";
 
@@ -60,24 +60,32 @@ export function renderShipPanel(state: SimState, shipPanelBox: HTMLElement, cont
   if (list.defaultBehaviour === "mixed") { const mixed = document.createElement("option"); mixed.textContent = "Default: Mixed"; mixed.selected = true; select.prepend(mixed); }
   if (!list.canHaul) select.title = list.haulDisabledReason ?? "";
   const routeControls: HTMLElement[] = [];
-  if (list.defaultBehaviour === "haul" && list.haulRoute) {
-    const routeSelect = (name: "haul-from" | "haul-to", label: string, value: HaulStationId) => {
-      const wrap = document.createElement("label"); wrap.textContent = `${label} `;
-      const input = document.createElement("select"); input.name = name;
-      for (const station of list.stations) { const option = document.createElement("option"); option.value = station.id; option.textContent = station.name; option.selected = station.id === value; input.append(option); }
-      wrap.append(input); return wrap;
-    };
-    routeControls.push(routeSelect("haul-from", "From", list.haulRoute.from), routeSelect("haul-to", "To", list.haulRoute.to));
-    const material = document.createElement("label"); material.textContent = "Material ";
-    const materialSelect = document.createElement("select"); materialSelect.name = "haul-material";
-    for (const value of ["Metal", "Ice"] as const) { const option = document.createElement("option"); option.value = value; option.textContent = value; option.selected = value === list.haulRoute.material; materialSelect.append(option); }
-    material.append(materialSelect); routeControls.push(material);
+  if ((list.defaultBehaviour === "haul" || list.defaultBehaviour === "mixed") && list.haulRoute) {
+    routeControls.push(routeSelect("haul-from", "From", list.haulRoute.from, list.stations));
+    routeControls.push(routeSelect("haul-to", "To", list.haulRoute.to, list.stations));
+    routeControls.push(materialSelect(list.haulRoute.material));
   }
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
   const launch = context.selectedShips.length === 1 ? launchAllButton(state, shipId) : null;
   shipPanelBox.replaceChildren(title, rows, select, ...routeControls, ...materialBoxes(list.materials),
     ...otherSectorsBox(list.mineOtherSectors), resume, ...(launch ? [launch] : []), ...(context.selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
   return context;
+}
+
+function routeSelect(name: "haul-from" | "haul-to", label: string, value: HaulStationId | "mixed", stations: { id: HaulStationId; name: string }[]): HTMLElement {
+  const wrap = document.createElement("label"); wrap.textContent = `${label} `;
+  const input = document.createElement("select"); input.name = name;
+  for (const station of stations) { const option = document.createElement("option"); option.value = station.id; option.textContent = station.name; option.selected = station.id === value; input.append(option); }
+  if (value === "mixed") { const option = document.createElement("option"); option.value = "mixed"; option.textContent = "Mixed"; option.selected = true; input.prepend(option); }
+  wrap.append(input); return wrap;
+}
+
+function materialSelect(value: "Metal" | "Ice" | "mixed"): HTMLElement {
+  const wrap = document.createElement("label"); wrap.textContent = "Material ";
+  const input = document.createElement("select"); input.name = "haul-material";
+  for (const mat of ["Metal", "Ice"] as const) { const option = document.createElement("option"); option.value = mat; option.textContent = mat; option.selected = mat === value; input.append(option); }
+  if (value === "mixed") { const option = document.createElement("option"); option.value = "mixed"; option.textContent = "Mixed"; option.selected = true; input.prepend(option); }
+  wrap.append(input); return wrap;
 }
 
 // One tickbox per material for ships on Mine for Station. A box the selected

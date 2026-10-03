@@ -4,7 +4,7 @@ import {
   launchAll, type Material, type SimState,
 } from "sim";
 import { deleteButtonAction } from "./storage";
-import { selectionPanel } from "./selection";
+import { selectionPanel, type DisplayHaulRoute } from "./selection";
 import { renderStoragePanel } from "./storage-panel";
 import type { UiState } from "./ui-state";
 
@@ -49,8 +49,11 @@ export function installPanels(
     if (select.name === "default") setState(setDefaultBehaviour(getState(), ui.selectedShips, select.value as DefaultBehaviour));
     if (["haul-from", "haul-to", "haul-material"].includes(select.name)) {
       const panel = selectionPanel(getState(), ui.selectedShips);
-      const route = panel?.haulRoute;
+      const route = panel?.haulRoute as DisplayHaulRoute | null;
       if (!route) return;
+      // Slice A: display only. Slice B will handle mutations when "mixed" is selected.
+      if (route.from === "mixed" || route.to === "mixed" || route.material === "mixed") return;
+      if (select.value === "mixed") return;
       setState(configureHaul(getState(), ui.selectedShips, {
         from: select.name === "haul-from" ? select.value as HaulStationId : route.from,
         to: select.name === "haul-to" ? select.value as HaulStationId : route.to,
