@@ -6,13 +6,16 @@ import {
   createInitialState,
   giveOrder,
   queueModuleBuild,
+  queuedDependents,
   setDefaultBehaviour,
   tick,
   type SimState,
 } from "./index";
 
 const east = { x: 80, y: 0 };
+const farEast = { x: 120, y: 0 };
 const west = { x: -40, y: 0 };
+const farWest = { x: -80, y: 0 };
 
 function withSite(state: SimState, Metal: number, Ice: number): SimState {
   return {
@@ -70,6 +73,42 @@ describe("the station build queue", () => {
     state = cancelQueuedModuleBuild(state, east);
 
     expect(state.station.buildQueue).toMatchObject([{ type: "Dock", position: west }]);
+  });
+
+  it("names every ghost that reaches the station only through the cancelled one", () => {
+    let state = queueModuleBuild(createInitialState(7), "Storage", east);
+    state = queueModuleBuild(state, "Builder", farEast);
+    state = queueModuleBuild(state, "Dock", west);
+    state = queueModuleBuild(state, "Storage", farWest);
+
+    expect(queuedDependents(state.station, 0)).toMatchObject([{ type: "Builder", position: farEast }]);
+    expect(queuedDependents(state.station, 1)).toEqual([]);
+    expect(queuedDependents(state.station, 2)).toMatchObject([{ type: "Storage", position: farWest }]);
+    expect(queuedDependents(state.station, 3)).toEqual([]);
+  });
+
+  it("keeps a ghost that still reaches the station through a built module", () => {
+    let state = queueModuleBuild(createInitialState(7), "Storage", east);
+    state = queueModuleBuild(state, "Builder", farEast);
+    state = queueModuleBuild(state, "Dock", west);
+    state = queueModuleBuild(state, "Storage", farWest);
+
+    const cancelled = cancelQueuedModuleBuild(state, east);
+
+    expect(cancelled.station.buildQueue).toMatchObject([
+      { type: "Dock", position: west },
+      { type: "Storage", position: farWest },
+    ]);
+  });
+
+  it("cancels a ghost nothing depends on on its own", () => {
+    let state = queueModuleBuild(createInitialState(7), "Storage", east);
+    state = queueModuleBuild(state, "Dock", west);
+
+    expect(queuedDependents(state.station, 1)).toEqual([]);
+    expect(cancelQueuedModuleBuild(state, west).station.buildQueue).toMatchObject([
+      { type: "Storage", position: east },
+    ]);
   });
 
   it("keeps a supply ship and its cargo waiting at Home until something is queued", () => {

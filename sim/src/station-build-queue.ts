@@ -8,6 +8,9 @@ import { speedFactor } from "./ship";
 import type { Draft } from "./tick-mining";
 
 type QueueState = Pick<Station, "constructionSite" | "construction" | "buildQueue">;
+// What the queue needs to know about how the station hangs together: the
+// finished modules, the one under construction and what is still waiting.
+type QueueGraph = Pick<Station, "modules" | "construction" | "buildQueue">;
 
 export function supplyQueueStatus(ship: Pick<Ship, "defaultBehaviour" | "order">, queuedCount: number): "waiting" | "supplying" | null {
   if (ship.defaultBehaviour !== "supply" || ship.order !== null) return null;
@@ -71,8 +74,11 @@ function attached(a: Vec, b: Vec): boolean {
   return Math.hypot(a.x - b.x, a.y - b.y) === MODULE_SPACING;
 }
 
-function connectedQueue(station: Station, without: number): QueuedModuleBuild[] {
-  const remaining = station.buildQueue.filter((_, index) => index !== without);
+// The ghosts still waiting once the one at `index` is cancelled: every other
+// queued ghost that still reaches the station, through a built module, the
+// module under construction or another ghost that survives.
+function queueAfterCancel(station: QueueGraph, index: number): QueuedModuleBuild[] {
+  const remaining = station.buildQueue.filter((_, at) => at !== index);
   const anchors = [...station.modules.map((module) => module.position), ...(station.construction ? [station.construction.position] : [])];
   const connected: QueuedModuleBuild[] = [];
   let changed = true;
@@ -89,11 +95,21 @@ function connectedQueue(station: Station, without: number): QueuedModuleBuild[] 
   return remaining.filter((queued) => connected.includes(queued));
 }
 
+// Every ghost that reaches the station only through the one at `index`, so
+// cancelling that ghost takes these with it and nothing is left queued that
+// could never attach. The cancel and the hover highlight read this one set, so
+// the ghosts one promises to highlight are exactly the ghosts one removes.
+export function queuedDependents(station: QueueGraph, index: number): QueuedModuleBuild[] {
+  if (index < 0 || index >= station.buildQueue.length) return [];
+  const kept = queueAfterCancel(station, index);
+  return station.buildQueue.filter((queued, at) => at !== index && !kept.includes(queued));
+}
+
 export function cancelQueuedModuleBuild(state: SimState, target: Vec | number): SimState {
   const index = typeof target === "number"
     ? target
     : state.station.buildQueue.findIndex((queued) => samePosition(queued.position, target));
   if (index < 0 || index >= state.station.buildQueue.length) return state;
-  const station = startNextQueuedModule({ ...state.station, buildQueue: connectedQueue(state.station, index) });
+  const station = startNextQueuedModule({ ...state.station, buildQueue: queueAfterCancel(state.station, index) });
   return { ...state, station };
 }
