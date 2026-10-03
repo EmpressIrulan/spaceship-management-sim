@@ -1,4 +1,5 @@
-import { MATERIALS, cargoByMaterial, toBerth, toParking, type BerthLayout, type Ship, type Vec } from "./state";
+import { MATERIALS, arrived, cargoByMaterial, toBerth, toParking, type BerthLayout, type Ship, type Vec } from "./state";
+import { supplyQueueStatus } from "./station-build-queue";
 import type { Draft } from "./tick-mining";
 
 export function storageRemaining(draft: Draft): number {
@@ -13,6 +14,14 @@ export function layoutOf(draft: Draft): BerthLayout {
 // Puts a ship home with cargo on a free pad, or parks it to wait for one.
 export function berth(draft: Draft, ship: Ship): Ship {
   return toBerth(layoutOf(draft), draft.ships, ship) ?? toParking(layoutOf(draft), draft.ships, ship);
+}
+
+// A supply ship that flew out to a parking spot to wait for a build arrives
+// holding, not waiting: holding is the state that watches the build queue, and a
+// ship on a parking spot is not waiting for a pad.
+export function arrivesAtPark(draft: Draft, ship: Ship): Ship | null {
+  if (ship.berth !== null || supplyQueueStatus(ship, draft.buildQueue.length) !== "waiting") return null;
+  return { ...arrived(ship), state: "holding" };
 }
 
 export function withCargo(ship: Ship, cargo: Record<"Metal" | "Ice", number>): Ship {
