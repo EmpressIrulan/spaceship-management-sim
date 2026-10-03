@@ -96,6 +96,23 @@ describe("building station modules", () => {
     expect(builder.station.modules.at(-1)).toMatchObject({ type: "Builder" });
   });
 
+  it("gives a build that lost its footing back to the site instead of finishing it", () => {
+    const started = startModuleBuild(funded(), "Storage", east);
+    const detached: SimState = {
+      ...started,
+      station: {
+        ...started.station,
+        construction: { type: "Storage", position: { x: 200, y: 0 }, size: { width: 30, height: 40 }, timer: BUILD_SECONDS },
+      },
+    };
+
+    const settled = tick(detached, BUILD_SECONDS);
+
+    expect(settled.station.modules.map((module) => module.position)).not.toContainEqual({ x: 200, y: 0 });
+    expect(settled.station.construction).toBeNull();
+    expect(settled.station.constructionSite.inventory).toEqual({ Metal: 50, Ice: 50 });
+  });
+
   it("leaves a Storage-blocked ship waiting, because a build no longer spends Storage", () => {
     const initial = funded();
     const waiting: SimState = {

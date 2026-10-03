@@ -10,7 +10,9 @@ import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { completeDocking, syncDockedShips } from "./hangars";
 import {
+  constructionAttached,
   holdReturnedSupplier,
+  refundDetachedBuild,
   settleQueuedBuild,
   supplyQueueStatus,
   unloadSupplierIntoEmptyQueue,
@@ -553,16 +555,26 @@ function advance(draft: Draft, seconds: number): void {
   draft.claimSites = advanceSites(draft.claimSites, seconds);
 }
 
+// Stands the module under construction up as part of the station.
+function completeBuild(draft: Draft): void {
+  if (!draft.construction) return;
+  const { timer: _timer, ...module } = draft.construction;
+  draft.modules = [...draft.modules, module];
+  if (module.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
+  if (module.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
+  draft.construction = null;
+}
+
 // Fires every timer that has reached zero. Respawns go first so a ship that
 // becomes free at the same moment can head for the new asteroid.
 function settle(draft: Draft): void {
   draft.claimSites = settleSites(draft.claimSites);
   if (draft.construction && draft.construction.timer <= 0) {
-    const { timer: _timer, ...module } = draft.construction;
-    draft.modules = [...draft.modules, module];
-    if (module.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
-    if (module.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
-    draft.construction = null;
+    // A module that has lost its footing is given back to the site rather than
+    // finished off the station, which is the one place a build can end up
+    // unattached no matter how the queue got there.
+    if (constructionAttached(draft)) completeBuild(draft);
+    else refundDetachedBuild(draft);
   }
   const due = draft.respawns.filter((r) => r.timer <= 0);
   draft.respawns = draft.respawns.filter((r) => r.timer > 0);

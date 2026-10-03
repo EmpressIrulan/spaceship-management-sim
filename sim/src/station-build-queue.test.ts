@@ -10,6 +10,7 @@ import {
   setDefaultBehaviour,
   tick,
   type SimState,
+  type Vec,
 } from "./index";
 
 const east = { x: 80, y: 0 };
@@ -23,6 +24,18 @@ function withSite(state: SimState, Metal: number, Ice: number): SimState {
     station: {
       ...state.station,
       constructionSite: { ...state.station.constructionSite, inventory: { Metal, Ice } },
+    },
+  };
+}
+
+// A module standing two slots west of the Dock, so the three slots between the
+// two are anchored from either end and a ghost in one can hang off the other.
+function withBuilder(state: SimState, position: Vec): SimState {
+  return {
+    ...state,
+    station: {
+      ...state.station,
+      modules: [...state.station.modules, { type: "Builder" as const, position, size: { width: 30, height: 40 } }],
     },
   };
 }
@@ -108,6 +121,28 @@ describe("the station build queue", () => {
     expect(queuedDependents(state.station, 1)).toEqual([]);
     expect(cancelQueuedModuleBuild(state, west).station.buildQueue).toMatchObject([
       { type: "Storage", position: east },
+    ]);
+  });
+
+  it("takes a ghost that would build ahead of the ghost connecting it", () => {
+    // A ghost in the gap reaches the station through the ghost behind it, which
+    // is built after it, so leaving it queued would finish a module unattached.
+    // Seed 17 because seed 7 has an asteroid in the gap.
+    let state = queueModuleBuild(withSite(withBuilder(createInitialState(17), { x: -160, y: 0 }), 0, 0), "Builder", west);
+    state = queueModuleBuild(state, "Builder", { x: -80, y: 0 });
+    state = queueModuleBuild(state, "Builder", { x: -120, y: 0 });
+
+    const cancelled = cancelQueuedModuleBuild(state, west);
+
+    expect(cancelled.station.buildQueue.map((queued) => queued.position)).toEqual([{ x: -120, y: 0 }]);
+
+    let built = tick(withSite(cancelled, 200, 200), BUILD_SECONDS);
+    built = tick(built, BUILD_SECONDS);
+    expect(built.station.modules.map((module) => module.position)).toEqual([
+      { x: 0, y: 0 },
+      { x: 40, y: 0 },
+      { x: -160, y: 0 },
+      { x: -120, y: 0 },
     ]);
   });
 
