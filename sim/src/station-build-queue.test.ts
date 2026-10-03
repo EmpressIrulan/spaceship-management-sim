@@ -12,6 +12,7 @@ import {
   type SimState,
   type Vec,
 } from "./index";
+import { suppliersComingHome } from "./test-ships";
 
 const east = { x: 80, y: 0 };
 const farEast = { x: 120, y: 0 };
@@ -155,9 +156,12 @@ describe("the station build queue", () => {
     };
     const waiting = setDefaultBehaviour(loaded, [0], "supply");
 
-    expect(tick(waiting, 10).ships[0]).toMatchObject({ state: "holding", cargo: 7 });
+    // Out to the parking spot it waits on, where it sits with its cargo.
+    const flying = tick(waiting, 10);
+    const parked = tick(flying, flying.ships[0]!.timer);
+    expect(parked.ships[0]).toMatchObject({ state: "holding", cargo: 7 });
 
-    const resumed = tick(queueModuleBuild(waiting, "Storage", east), 0);
+    const resumed = tick(queueModuleBuild(parked, "Storage", east), 0);
     expect(resumed.ships[0]).toMatchObject({ state: "homebound", cargo: 7 });
   });
 
@@ -176,9 +180,37 @@ describe("the station build queue", () => {
     const returning = tick(cancelled, 0);
     expect(returning.ships[0]).toMatchObject({ state: "homebound", cargo: 7 });
 
-    const waiting = tick(returning, returning.ships[0]!.timer);
+    // Home, and then out to the parking spot it waits on.
+    const flying = tick(returning, returning.ships[0]!.timer);
+    const waiting = tick(flying, flying.ships[0]!.timer);
     expect(waiting.ships[0]).toMatchObject({ state: "holding", cargo: 7 });
     expect(waiting.station.constructionSite.inventory).toEqual({ Metal: 0, Ice: 0 });
+  });
+
+  it("sends three parked suppliers to the site as soon as a module is queued", () => {
+    let parked = tick(suppliersComingHome(3), 0);
+    for (let i = 0; i < 400 && !parked.ships.every((ship) => ship.state === "holding"); i += 1) {
+      parked = tick(parked, 0.5);
+    }
+    expect(parked.ships.map((ship) => ship.state)).toEqual(Array(3).fill("holding"));
+    const site = parked.station.constructionSite.inventory;
+    // The site cannot pay for this one, so it stays a ghost and the suppliers
+    // are wanted again.
+    const queued = queueModuleBuild(parked, "Storage", east);
+
+    const leaving = tick(queued, 0);
+    // Each leaves from the spot it parked on, so three ships leave three spots.
+    const left = leaving.ships.map((ship) => `${ship.leg?.from?.x},${ship.leg?.from?.y}`);
+    expect(leaving.ships).toMatchObject(Array(3).fill({ state: "homebound", cargo: 7 }));
+    expect(left).toEqual(parked.ships.map((ship) => `${ship.position.x},${ship.position.y}`));
+    expect(new Set(left).size).toBe(3);
+
+    let delivered = leaving;
+    for (let i = 0; i < 2000 && delivered.station.constructionSite.inventory.Metal < site.Metal + 21; i += 1) {
+      delivered = tick(delivered, 0.5);
+    }
+    expect(delivered.station.constructionSite.inventory.Metal).toBe(site.Metal + 21);
+    expect(delivered.ships.map((ship) => ship.cargo)).toEqual([0, 0, 0]);
   });
 
   it("leaves a supply ship at its Move destination while a build is queued", () => {

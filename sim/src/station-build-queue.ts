@@ -17,14 +17,15 @@ export function supplyQueueStatus(ship: Pick<Ship, "defaultBehaviour" | "order">
   return queuedCount === 0 ? "waiting" : "supplying";
 }
 
-export function waitEmptyQueueSupplier(ship: Ship, queuedCount: number): Ship | null {
-  if (supplyQueueStatus(ship, queuedCount) !== "waiting" || ship.state !== "idle") return null;
-  return { ...ship, state: "holding", timer: 0, leg: null, target: null };
-}
-
-export function holdReturnedSupplier(ship: Ship, queuedCount: number, dock: Vec): Ship | null {
-  if (supplyQueueStatus(ship, queuedCount) !== "waiting" || ship.state !== "homebound") return null;
-  return { ...ship, state: "holding", position: { ...dock }, timer: 0, leg: null, target: null, berth: null, transfer: null };
+// True for a supply ship with nothing queued that has run out of reason to sit
+// at the Dock: idle, or home with nothing left to deliver. Such a ship waits out
+// the empty queue from a parking spot beside the Dock rather than on the Dock
+// itself, so several of them wait in a row where each can be picked out on its
+// own. The spot itself is chosen by the caller, the one place that knows where
+// the other ships are.
+export function parksForEmptyQueue(ship: Ship, queuedCount: number): boolean {
+  if (supplyQueueStatus(ship, queuedCount) !== "waiting") return false;
+  return ship.state === "idle" || ship.state === "homebound";
 }
 
 export function unloadSupplierIntoEmptyQueue(ship: Ship, queuedCount: number, dock: Vec): Ship | null {

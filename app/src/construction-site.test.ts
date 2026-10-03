@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, queueModuleBuild, type Ship, type SimState } from "sim";
+import { createInitialState, queueModuleBuild, tick, type Ship, type SimState } from "sim";
 import { buildMenuItems } from "./building";
 import { hoveredBody, bodyOf, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
@@ -17,6 +17,26 @@ function withSite(inventory: SimState["station"]["constructionSite"]["inventory"
 function withShip(patch: Partial<Ship>): SimState {
   const state = createInitialState(7);
   return { ...state, ships: [{ ...state.ships[0]!, ...patch }] };
+}
+
+// Three supply ships home with nothing queued, ticked once so the sim parks
+// them wherever it parks them.
+function withParkedSuppliers(): SimState {
+  const base = createInitialState(7);
+  const dock = base.station.dock.position;
+  const ships = Array.from({ length: 3 }, (_, id): Ship => ({
+    ...base.ships[0]!,
+    id,
+    defaultBehaviour: "supply",
+    state: "homebound",
+    timer: 0,
+    position: { ...dock },
+    leg: null,
+    target: null,
+    berth: null,
+    transfer: null,
+  }));
+  return tick(tick({ ...base, ships, nextShipId: 3 }, 0), 30);
 }
 
 describe("the construction site on screen", () => {
@@ -138,5 +158,24 @@ describe("a ship supplying the site", () => {
 
     expect(shipStatus(state, state.ships[0]!)).toBe("Order: supply construction site");
     expect(selectionPanel(state, [0])?.rows[0]?.status).toBe("Order: supply construction site");
+  });
+
+  it("picks out each supply ship parked beside the Dock, one click each", () => {
+    const state = withParkedSuppliers();
+
+    for (const [index, ship] of state.ships.entries()) {
+      const pointer = worldToScreen(camera, viewport, ship.position);
+      expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index });
+      expect(infoBox(state, { kind: "ship", index })?.title).toBe("Ship");
+    }
+  });
+
+  it("reads every parked supply ship as waiting at Home, wherever it parked", () => {
+    const state = withParkedSuppliers();
+
+    for (const ship of state.ships) {
+      expect(ship.state).toBe("holding");
+      expect(shipStatus(state, ship)).toBe("Waiting at Home: nothing queued");
+    }
   });
 });

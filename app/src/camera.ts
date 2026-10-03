@@ -140,8 +140,9 @@ export function hoveredBody(
     });
   };
   // Ships parked at the Dock have their own useful status, so they win over
-  // the Dock beneath them.
-  const parked = (index: number) => ["waiting", "idle", "berthing", "unloading"].includes(state.ships[index]!.state);
+  // the Dock beneath them. Holding covers a supply ship parked on a spot
+  // beside the Dock, which is off the hull and so reaches this line alone.
+  const parked = (index: number) => ["waiting", "idle", "berthing", "unloading", "holding"].includes(state.ships[index]!.state);
   // Zoomed out, the hover boxes of neighbouring ships overlap, so the pointer
   // goes to the ship whose centre is closest.
   const closest = (candidates: { index: number }[]): { kind: "ship"; index: number } | null => {

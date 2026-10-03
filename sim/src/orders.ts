@@ -84,7 +84,10 @@ export function resumeDefaultShip(state: SimState, ship: Ship): Ship {
   if (supplyQueueStatus(ship, state.station.buildQueue.length) === "waiting") {
     const atHome = ship.sectorId === state.station.sectorId
       && (ship.berth !== null || (ship.position.x === state.station.dock.position.x && ship.position.y === state.station.dock.position.y));
-    return atHome ? hold({ ...ship, position: { ...state.station.dock.position } })
+    // Idle where it already stands, so the tick sends it out to a parking spot
+    // of its own. Holding it here would leave it on the Dock's middle, piled up
+    // with every other waiting supplier.
+    return atHome ? { ...ship, state: "idle", timer: 0, leg: null, target: null, berth: null, transfer: null }
       : routeHome(ship, state.station.dock.position, state.sectors, state.gateProjects);
   }
   return ship.defaultBehaviour === "haul" ? resumeHaulShip(state, ship)
