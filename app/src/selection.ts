@@ -58,23 +58,24 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
   const ships = ids.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship] : []; });
   if (!ships.length) return null;
   const defaults = new Set(ships.map((ship) => ship.defaultBehaviour));
+  const haulers = ships.filter((ship) => ship.defaultBehaviour === "haul");
   const stations = haulStations(state);
-  const routes = new Set(ships.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
+  const routes = new Set(haulers.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
   const otherSectorSettings = new Set(ships.map((ship) => !!ship.mineOtherSectors));
   // Compute mixed haul route when selected ships have different routes.
   let haulRoute: DisplayHaulRoute | null = null;
   if (routes.size === 1) {
-    const route = ships[0]!.haulRoute ?? null;
+    const route = haulers[0]?.haulRoute ?? null;
     haulRoute = route ? { from: route.from, to: route.to, material: route.material } : null;
   } else if (routes.size > 1) {
     // Multiple different routes: compute per-field agreement.
-    const fromValues = new Set(ships.map((ship) => ship.haulRoute?.from ?? null));
-    const toValues = new Set(ships.map((ship) => ship.haulRoute?.to ?? null));
-    const materialValues = new Set(ships.map((ship) => ship.haulRoute?.material ?? null));
+    const fromValues = new Set(haulers.map((ship) => ship.haulRoute?.from ?? null));
+    const toValues = new Set(haulers.map((ship) => ship.haulRoute?.to ?? null));
+    const materialValues = new Set(haulers.map((ship) => ship.haulRoute?.material ?? null));
     haulRoute = {
-      from: fromValues.size === 1 ? (fromValues.values().next().value as HaulStationId | null) ?? "mixed" : "mixed",
-      to: toValues.size === 1 ? (toValues.values().next().value as HaulStationId | null) ?? "mixed" : "mixed",
-      material: materialValues.size === 1 ? (materialValues.values().next().value as Material | null) ?? "mixed" : "mixed",
+      from: fromValues.size === 1 ? haulers.find((ship) => ship.haulRoute?.from)?.haulRoute?.from ?? "mixed" : "mixed",
+      to: toValues.size === 1 ? haulers.find((ship) => ship.haulRoute?.to)?.haulRoute?.to ?? "mixed" : "mixed",
+      material: materialValues.size === 1 ? haulers.find((ship) => ship.haulRoute?.material)?.haulRoute?.material ?? "mixed" : "mixed",
     };
   }
   return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order && !intoSite(ship)

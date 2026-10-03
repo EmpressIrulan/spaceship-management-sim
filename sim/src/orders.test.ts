@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { miningStart } from "./test-ships";
 import { JUMP_SECONDS, startGateBuild, type SimState } from "./state";
 import { tick } from "./tick";
-import { configureHaul, giveOrder, formation, resumeDefault, setDefaultBehaviour, validHaulRoute } from "./orders";
+import { configureHaul, giveOrder, formation, resumeDefault, setDefaultBehaviour } from "./orders";
+import { validHaulRoute } from "./haul";
 
 function fleet(count: number): SimState {
   const state = miningStart(7);
