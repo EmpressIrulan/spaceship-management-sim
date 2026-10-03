@@ -1,4 +1,4 @@
-import { MATERIALS, claimSiteBuilt, haulStations, type DefaultBehaviour, type HaulRoute, type HaulStation, type Material, type OrderTarget, type SimState, type Vec } from "sim";
+import { MATERIALS, claimSiteBuilt, haulStations, type DefaultBehaviour, type HaulRoute, type HaulStation, type HaulStationId, type Material, type OrderTarget, type SimState, type Vec } from "sim";
 import { screenToWorld, type Camera, type Hovered, type Viewport } from "./camera";
 import { intoSite, orderLabel, shipStatus } from "./ships";
 
@@ -37,6 +37,12 @@ export function keyPan(keys: ReadonlySet<string>, dt: number): Vec {
 export function orderLineAlpha(elapsed: number): number { return Math.max(0, 1 - elapsed / ORDER_LINE_SECONDS); }
 // "mixed" is the half-ticked box, where the selected ships disagree.
 export interface MaterialBox { material: Material; ticked: "on" | "off" | "mixed" }
+// Display version of HaulRoute that allows "mixed" sentinels for divergent fields.
+export interface DisplayHaulRoute {
+  from: HaulStationId | "mixed";
+  to: HaulStationId | "mixed";
+  material: Material | "mixed";
+}
 export interface SelectionPanel {
   rows: { id: number; name: string; status: string }[];
   defaultBehaviour: DefaultBehaviour | "mixed";
@@ -46,15 +52,32 @@ export interface SelectionPanel {
   canHaul: boolean;
   haulDisabledReason: string | null;
   stations: HaulStation[];
-  haulRoute: HaulRoute | null;
+  haulRoute: DisplayHaulRoute | null;
 }
 export function selectionPanel(state: SimState, ids: number[]): SelectionPanel | null {
   const ships = ids.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship] : []; });
   if (!ships.length) return null;
   const defaults = new Set(ships.map((ship) => ship.defaultBehaviour));
+  const haulers = ships.filter((ship) => ship.defaultBehaviour === "haul");
   const stations = haulStations(state);
-  const routes = new Set(ships.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
+  const routes = new Set(haulers.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
   const otherSectorSettings = new Set(ships.map((ship) => !!ship.mineOtherSectors));
+  // Compute mixed haul route when selected ships have different routes.
+  let haulRoute: DisplayHaulRoute | null = null;
+  if (routes.size === 1) {
+    const route = haulers[0]?.haulRoute ?? null;
+    haulRoute = route ? { from: route.from, to: route.to, material: route.material } : null;
+  } else if (routes.size > 1) {
+    // Multiple different routes: compute per-field agreement.
+    const fromValues = new Set(haulers.map((ship) => ship.haulRoute?.from ?? null));
+    const toValues = new Set(haulers.map((ship) => ship.haulRoute?.to ?? null));
+    const materialValues = new Set(haulers.map((ship) => ship.haulRoute?.material ?? null));
+    haulRoute = {
+      from: fromValues.size === 1 ? haulers.find((ship) => ship.haulRoute?.from)?.haulRoute?.from ?? "mixed" : "mixed",
+      to: toValues.size === 1 ? haulers.find((ship) => ship.haulRoute?.to)?.haulRoute?.to ?? "mixed" : "mixed",
+      material: materialValues.size === 1 ? haulers.find((ship) => ship.haulRoute?.material)?.haulRoute?.material ?? "mixed" : "mixed",
+    };
+  }
   return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order && !intoSite(ship)
     ? `${orderLabel(ship.order)}${ship.state === "holding" ? " (holding)" : ""}` : shipStatus(state, ship) })),
     defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed",
@@ -67,5 +90,5 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
       : null,
     canResume: ships.some((ship) => ship.order !== null),
     canHaul: stations.length >= 2, haulDisabledReason: stations.length >= 2 ? null : "Needs two stations", stations,
-    haulRoute: routes.size === 1 ? ships[0]!.haulRoute ?? null : null };
+    haulRoute };
 }

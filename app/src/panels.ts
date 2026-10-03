@@ -1,12 +1,13 @@
 import {
-  configureHaul, deleteStock, resumeDefault, setDefaultBehaviour, setMineMaterial,
-  setMineOtherSectors, setStorageLimit, type DefaultBehaviour, type HaulStationId,
+  deleteStock, resumeDefault, setDefaultBehaviour, setMineMaterial,
+  setMineOtherSectors, setStorageLimit, type DefaultBehaviour,
   launchAll, type Material, type SimState,
 } from "sim";
 import { deleteButtonAction } from "./storage";
 import { selectionPanel } from "./selection";
 import { renderStoragePanel } from "./storage-panel";
 import type { UiState } from "./ui-state";
+import { applyHaulRouteFieldChange } from "./haul-route";
 
 export function installPanels(
   ui: UiState,
@@ -49,12 +50,17 @@ export function installPanels(
     if (select.name === "default") setState(setDefaultBehaviour(getState(), ui.selectedShips, select.value as DefaultBehaviour));
     if (["haul-from", "haul-to", "haul-material"].includes(select.name)) {
       const panel = selectionPanel(getState(), ui.selectedShips);
-      const route = panel?.haulRoute;
-      if (!route) return;
-      setState(configureHaul(getState(), ui.selectedShips, {
-        from: select.name === "haul-from" ? select.value as HaulStationId : route.from,
-        to: select.name === "haul-to" ? select.value as HaulStationId : route.to,
-        material: select.name === "haul-material" ? select.value as Material : route.material,
+      if (!panel?.haulRoute) return;
+      if (select.value === "mixed") return;
+      if (select.name === "haul-material") {
+        if (select.value !== "Metal" && select.value !== "Ice") return;
+        setState(applyHaulRouteFieldChange(getState(), ui.selectedShips, { field: "material", value: select.value }));
+        return;
+      }
+      const station = panel.stations.find(({ id }) => id === select.value);
+      if (!station) return;
+      setState(applyHaulRouteFieldChange(getState(), ui.selectedShips, {
+        field: select.name === "haul-from" ? "from" : "to", value: station.id,
       }));
     }
   });
