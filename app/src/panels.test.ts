@@ -91,4 +91,59 @@ describe("applyHaulRouteFieldChange (Slice B)", () => {
     expect(nextState.ships[0]!.haulRoute).toBeUndefined();
     expect(nextState.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
   });
+
+  it("after mixed change, selecting each ship alone shows new value and its own old values (criterion 6)", () => {
+    let state = haulState();
+    // Ship 0: Home -> Claim:3, Ice
+    // Ship 1: Home -> Claim:4, Metal
+    // Change Material to Metal for both
+    state = applyHaulRouteFieldChange(state, [0, 1], "material", "Metal");
+
+    // Verify the multi-select panel shows the new shared Material and Mixed for differing fields
+    let panel = selectionPanel(state, [0, 1]);
+    expect(panel?.haulRoute?.material).toBe("Metal");
+    expect(panel?.haulRoute?.from).toBe("home");
+    expect(panel?.haulRoute?.to).toBe("mixed");
+
+    // Select ship 0 alone - should show new Material (Metal) and its own old From/To (Home -> Claim:3)
+    panel = selectionPanel(state, [0]);
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
+
+    // Select ship 1 alone - should show new Material (Metal) and its own old From/To (Home -> Claim:4)
+    panel = selectionPanel(state, [1]);
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:4", material: "Metal" });
+  });
+
+  it("after mixed From change, selecting each ship alone shows new From and its own old To/Material (criterion 6)", () => {
+    let state = haulState();
+    // Ship 0: Home -> Claim:3, Ice
+    // Ship 1: Claim:4 -> Claim:3, Metal  (different From, so change to Home is valid for both)
+    state.ships[1] = { ...state.ships[1]!, haulRoute: { from: "claim:4", to: "claim:3", material: "Metal" } };
+    // Change From to Home for both
+    state = applyHaulRouteFieldChange(state, [0, 1], "from", "home");
+
+    // Select ship 0 alone - should show new From (Home) and its own old To/Material (Claim:3, Ice)
+    let panel = selectionPanel(state, [0]);
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+
+    // Select ship 1 alone - should show new From (Home) and its own old To/Material (Claim:3, Metal)
+    panel = selectionPanel(state, [1]);
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
+  });
+
+  it("after mixed To change, selecting each ship alone shows new To and its own old From/Material (criterion 6)", () => {
+    let state = haulState();
+    // Ship 0: Home -> Claim:3, Ice
+    // Ship 1: Home -> Claim:4, Metal
+    // Change To to Claim:3 for both
+    state = applyHaulRouteFieldChange(state, [0, 1], "to", "claim:3");
+
+    // Select ship 0 alone - should show new To (Claim:3) and its own old From/Material (Home, Ice)
+    let panel = selectionPanel(state, [0]);
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+
+    // Select ship 1 alone - should show new To (Claim:3) and its own old From/Material (Home, Metal)
+    panel = selectionPanel(state, [1]);
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
+  });
 });
