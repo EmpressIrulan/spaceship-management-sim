@@ -1,12 +1,39 @@
 import {
   configureHaul, deleteStock, resumeDefault, setDefaultBehaviour, setMineMaterial,
-  setMineOtherSectors, setStorageLimit, type DefaultBehaviour, type HaulStationId,
+  setMineOtherSectors, setStorageLimit, type DefaultBehaviour, type HaulRoute, type HaulStationId,
   launchAll, type Material, type SimState,
 } from "sim";
 import { deleteButtonAction } from "./storage";
 import { selectionPanel, type DisplayHaulRoute } from "./selection";
 import { renderStoragePanel } from "./storage-panel";
 import type { UiState } from "./ui-state";
+
+/**
+ * Applies a haul route field change to all selected ships.
+ * For each ship, preserves its other field values and only updates the changed field.
+ * Ships that would end up with same From and To reject the change.
+ */
+export function applyHaulRouteFieldChange(
+  state: SimState,
+  selectedShipIds: number[],
+  field: "from" | "to" | "material",
+  newValue: HaulStationId | Material,
+): SimState {
+  let nextState = state;
+  for (const shipId of selectedShipIds) {
+    const ship = nextState.ships.find((s) => s.id === shipId);
+    if (!ship || !ship.haulRoute) continue;
+    const currentRoute = ship.haulRoute;
+    const mergedRoute: HaulRoute = {
+      from: field === "from" ? (newValue as HaulStationId) : currentRoute.from,
+      to: field === "to" ? (newValue as HaulStationId) : currentRoute.to,
+      material: field === "material" ? (newValue as Material) : currentRoute.material,
+    };
+    // configureHaul validates the route (rejects same From/To) and applies per-ship
+    nextState = configureHaul(nextState, [shipId], mergedRoute);
+  }
+  return nextState;
+}
 
 export function installPanels(
   ui: UiState,
@@ -51,14 +78,12 @@ export function installPanels(
       const panel = selectionPanel(getState(), ui.selectedShips);
       const route = panel?.haulRoute as DisplayHaulRoute | null;
       if (!route) return;
-      // Slice A: display only. Slice B will handle mutations when "mixed" is selected.
-      if (route.from === "mixed" || route.to === "mixed" || route.material === "mixed") return;
       if (select.value === "mixed") return;
-      setState(configureHaul(getState(), ui.selectedShips, {
-        from: select.name === "haul-from" ? select.value as HaulStationId : route.from,
-        to: select.name === "haul-to" ? select.value as HaulStationId : route.to,
-        material: select.name === "haul-material" ? select.value as Material : route.material,
-      }));
+      const field = select.name === "haul-from" ? "from" : select.name === "haul-to" ? "to" : "material";
+      const newValue = select.name === "haul-material"
+        ? (select.value as Material)
+        : (select.value as HaulStationId);
+      setState(applyHaulRouteFieldChange(getState(), ui.selectedShips, field, newValue));
     }
   });
   shipPanelBox.addEventListener("change", (event) => {

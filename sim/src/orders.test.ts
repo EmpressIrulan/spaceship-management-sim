@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { miningStart } from "./test-ships";
 import { JUMP_SECONDS, startGateBuild, type SimState } from "./state";
 import { tick } from "./tick";
-import { giveOrder, formation, resumeDefault, setDefaultBehaviour } from "./orders";
+import { configureHaul, giveOrder, formation, resumeDefault, setDefaultBehaviour, validHaulRoute } from "./orders";
 
 function fleet(count: number): SimState {
   const state = miningStart(7);
@@ -334,5 +334,76 @@ describe("RTS ship orders", () => {
       leg: { to: point },
       order: { kind: "move", point, sectorId: 0 },
     });
+  });
+});
+
+describe("multi-ship haul route configuration", () => {
+  function multiHaulState(): SimState {
+    const state = miningStart(7);
+    return {
+      ...state,
+      sectors: state.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
+      claimSites: [
+        { id: 3, sectorId: 1, position: { x: 100, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null },
+        { id: 4, sectorId: 2, position: { x: 200, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null },
+      ],
+      station: { ...state.station, inventory: { Metal: 100, Ice: 100 } },
+      ships: [
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Metal" as const } },
+      ],
+    };
+  }
+
+  it("validHaulRoute rejects same From and To (criterion 7)", () => {
+    const state = multiHaulState();
+    expect(validHaulRoute(state, { from: "home", to: "home", material: "Metal" })).toBe(false);
+    expect(validHaulRoute(state, { from: "claim:3", to: "claim:3", material: "Ice" })).toBe(false);
+    expect(validHaulRoute(state, { from: "home", to: "claim:3", material: "Metal" })).toBe(true);
+  });
+
+  it("configures different From for each ship while preserving their To and Material (criteria 4, 5)", () => {
+    let state = multiHaulState();
+    // Ship 0: from=home, to=claim:3, material=Ice
+    // Ship 1: from=home, to=claim:4, material=Metal
+    // Change From to claim:4 for both (valid for both: ship 0 to=claim:3, ship 1 to=claim:4 -> wait, ship 1 would have from=claim:4, to=claim:4 which is invalid)
+    // Let's use a different From value that works for both
+    state = configureHaul(state, [0], { from: "claim:4", to: "claim:3", material: "Ice" });
+    state = configureHaul(state, [1], { from: "claim:4", to: "claim:4", material: "Metal" }); // This would be invalid for ship 1
+    // Actually, let's test with a From that works for both
+    state = multiHaulState();
+    state = configureHaul(state, [0], { from: "claim:4", to: "claim:3", material: "Ice" });
+    state = configureHaul(state, [1], { from: "claim:3", to: "claim:4", material: "Metal" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "claim:4", to: "claim:3", material: "Ice" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "claim:3", to: "claim:4", material: "Metal" });
+  });
+
+  it("configures different To for each ship while preserving their From and Material (criteria 4, 5)", () => {
+    let state = multiHaulState();
+    // Change To to claim:3 for ship 0 (already claim:3, no change), claim:3 for ship 1 (different from claim:4)
+    state = configureHaul(state, [0], { from: "home", to: "claim:3", material: "Ice" });
+    state = configureHaul(state, [1], { from: "home", to: "claim:3", material: "Metal" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
+  });
+
+  it("configures different Material for each ship while preserving their From and To (criteria 4, 5)", () => {
+    let state = multiHaulState();
+    // Change Material to Metal for both
+    state = configureHaul(state, [0], { from: "home", to: "claim:3", material: "Metal" });
+    state = configureHaul(state, [1], { from: "home", to: "claim:4", material: "Metal" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:4", material: "Metal" });
+  });
+
+  it("rejects configuration that would give a ship same From and To (criterion 7)", () => {
+    let state = multiHaulState();
+    // Ship 0 has from=home, to=claim:3. Try to set From to claim:3 (same as its To)
+    state = configureHaul(state, [0], { from: "claim:3", to: "claim:3", material: "Ice" });
+    // Should be rejected, ship 0 keeps its original route
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+    // Ship 1 has from=home, to=claim:4. Try to set To to home (same as its From)
+    state = configureHaul(state, [1], { from: "home", to: "home", material: "Metal" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:4", material: "Metal" });
   });
 });

@@ -226,7 +226,7 @@ export function configureHaul(state: SimState, ids: number[], route: HaulRoute):
   }) };
 }
 
-export { haulStations };
+export { haulStations, validHaulRoute };
 
 // Ticks or unticks a material for each named ship. A ship on its own default
 // that is flying to or mining a rock it may no longer take drops it, and
