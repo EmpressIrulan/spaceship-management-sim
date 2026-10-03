@@ -10,11 +10,12 @@ import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { completeDocking, syncDockedShips } from "./hangars";
 import {
-  holdReturnedSupplier,
+  constructionAttached,
+  parksForEmptyQueue,
+  refundDetachedBuild,
   settleQueuedBuild,
   supplyQueueStatus,
   unloadSupplierIntoEmptyQueue,
-  waitEmptyQueueSupplier,
 } from "./station-build-queue";
 import {
   ABUNDANT_SHARE,
@@ -298,6 +299,14 @@ function flyTo(ship: Ship, from: Vec, to: Vec): Ship {
     timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
 }
 
+// A supply ship that flew out to a parking spot to wait for a build arrives
+// holding, not waiting: holding is the state that watches the build queue, and a
+// ship on a parking spot is not waiting for a pad.
+function arrivesAtPark(draft: Draft, ship: Ship): Ship | null {
+  if (ship.berth !== null || supplyQueueStatus(ship, draft.buildQueue.length) !== "waiting") return null;
+  return { ...arrived(ship), state: "holding" };
+}
+
 // Arrival at the construction site starts the same unloading countdown as at
 // the Dock, but takes no berth.
 function arriveAtBuildSite(draft: Draft, ship: Ship): Ship {
@@ -331,7 +340,9 @@ function finish(draft: Draft, ship: Ship): Ship {
   const route = routeOf(ship, draft.dock);
   switch (ship.state) {
     case "idle":
-      { const waiting = waitEmptyQueueSupplier(ship, draft.buildQueue.length); if (waiting) return waiting; }
+      // Nothing queued: a supply ship waits it out on a parking spot beside the
+      // Dock, in a row of its own rather than piled on the Dock.
+      if (parksForEmptyQueue(ship, draft.buildQueue.length)) return toParking(layoutOf(draft), draft.ships, ship);
       return ship.defaultBehaviour === "none" ? ship
         : resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
     case "holding":
@@ -440,8 +451,13 @@ function finish(draft: Draft, ship: Ship): Ship {
         ? berth(draft, { ...ship, position: { ...draft.dock }, leg: null })
         : loadGateHauler(draft, { ...ship, position: { ...draft.dock }, leg: null });
     case "berthing":
-      return arrived(ship);
+      return arrivesAtPark(draft, ship) ?? arrived(ship);
     case "waiting":
+      // A module queued while this ship was still flying out to park, or while
+      // it was waiting for a pad, means it has somewhere to be.
+      if (supplyQueueStatus(ship, draft.buildQueue.length) === "supplying") {
+        return resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
+      }
       // Room can appear without any ship moving, when a Storage module
       // completes, and a berth frees up when another ship finishes unloading.
       if (ship.cargo > 0 && canProcessCargo(draft, ship)) {
@@ -494,7 +510,10 @@ function finish(draft: Draft, ship: Ship): Ship {
       }
       // Heading for the site on a default it has since lost: on to the Dock.
       if (headingForSite) return flyTo(ship, site, draft.dock);
-      { const waiting = holdReturnedSupplier(ship, draft.buildQueue.length, draft.dock); if (waiting) return waiting; }
+      // A supply ship home with nothing queued waits on a parking spot instead.
+      if (parksForEmptyQueue(ship, draft.buildQueue.length)) {
+        return toParking(layoutOf(draft), draft.ships, { ...ship, position: { ...draft.dock }, leg: null });
+      }
       if (ship.cargo > 0 && !canProcessCargo(draft, ship)) {
         return toParking(layoutOf(draft), draft.ships, { ...ship, position: { ...draft.dock }, leg: null });
       }
@@ -553,16 +572,26 @@ function advance(draft: Draft, seconds: number): void {
   draft.claimSites = advanceSites(draft.claimSites, seconds);
 }
 
+// Stands the module under construction up as part of the station.
+function completeBuild(draft: Draft): void {
+  if (!draft.construction) return;
+  const { timer: _timer, ...module } = draft.construction;
+  draft.modules = [...draft.modules, module];
+  if (module.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
+  if (module.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
+  draft.construction = null;
+}
+
 // Fires every timer that has reached zero. Respawns go first so a ship that
 // becomes free at the same moment can head for the new asteroid.
 function settle(draft: Draft): void {
   draft.claimSites = settleSites(draft.claimSites);
   if (draft.construction && draft.construction.timer <= 0) {
-    const { timer: _timer, ...module } = draft.construction;
-    draft.modules = [...draft.modules, module];
-    if (module.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
-    if (module.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
-    draft.construction = null;
+    // A module that has lost its footing is given back to the site rather than
+    // finished off the station, which is the one place a build can end up
+    // unattached no matter how the queue got there.
+    if (constructionAttached(draft)) completeBuild(draft);
+    else refundDetachedBuild(draft);
   }
   const due = draft.respawns.filter((r) => r.timer <= 0);
   draft.respawns = draft.respawns.filter((r) => r.timer > 0);

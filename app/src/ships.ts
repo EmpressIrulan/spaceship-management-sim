@@ -145,9 +145,10 @@ export function shipStatus(state: SimState, ship: Ship): string {
     case "moving":
       return "Moving";
     case "holding":
+      // A waiting supply ship is parked on a spot beside the Dock, so this asks
+      // whether it is at Home rather than where exactly it stopped.
       if (supplyQueueStatus(ship, state.station.buildQueue.length) === "waiting"
-        && ship.sectorId === state.station.sectorId
-        && ship.position.x === state.station.dock.position.x && ship.position.y === state.station.dock.position.y) return "Waiting at Home: nothing queued";
+        && ship.sectorId === state.station.sectorId) return "Waiting at Home: nothing queued";
       return "Holding";
     case "docking":
       return "Docking with carrier";

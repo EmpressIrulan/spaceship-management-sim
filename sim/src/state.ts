@@ -400,7 +400,7 @@ export const BERTH_PAD_SIZE = 13;
 const PAD_COLUMNS = [-10, 10] as const;
 const PAD_ROWS = [-24, 0, 24] as const;
 // Parking spots fan out west of the Dock, six to an arc, one arc further out
-// for each six ships waiting.
+// for each six ships parked.
 const PARKING_RADIUS = 70;
 const PARKING_ARC_STEP = 22;
 const PARKING_ARC_SLOTS = 6;
@@ -459,15 +459,23 @@ export function toBerth(layout: BerthLayout, ships: Ship[], ship: Ship): Ship | 
   return index === null ? null : hop(ship, berthPoint(layout, index), index);
 }
 
-// Sends a ship to the first parking spot nobody is on or flying to.
-export function toParking(layout: BerthLayout, ships: Ship[], ship: Ship): Ship {
+// The first parking spot nobody is on or flying to. `ship` is left out of the
+// count, so a ship choosing a spot ignores the one it is standing on. A ship
+// holding counts as being on its spot, which is what keeps a supply ship parked
+// for want of a build and a ship waiting for a pad off one another.
+function freeParkingSpot(layout: BerthLayout, ships: Ship[], ship: Ship): Vec {
   const claimed = ships
     .filter((other) => other.id !== ship.id)
-    .flatMap((other) => other.state === "waiting" ? [other.position]
+    .flatMap((other) => other.state === "waiting" || other.state === "holding" ? [other.position]
       : other.state === "berthing" && other.berth === null && other.leg ? [other.leg.to] : []);
   let index = 0;
   while (claimed.some((spot) => distance(spot, parkingPoint(layout.dock, index)) < 1)) index += 1;
-  return hop(ship, parkingPoint(layout.dock, index), null);
+  return parkingPoint(layout.dock, index);
+}
+
+// Sends a ship to the first parking spot nobody is on or flying to.
+export function toParking(layout: BerthLayout, ships: Ship[], ship: Ship): Ship {
+  return hop(ship, freeParkingSpot(layout, ships, ship), null);
 }
 
 // A ship that has reached its parking spot or pad.

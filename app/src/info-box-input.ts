@@ -8,6 +8,7 @@ export function installInfoBoxInput(ui: UiState, getState: () => import("sim").S
     else if (infoAction.dataset.queuedBuild !== undefined) setState(cancelQueuedModuleBuild(getState(), Number(infoAction.dataset.queuedBuild)));
     ui.stickySite = null;
     ui.stickyQueuedBuild = null;
+    ui.cancelHoveredBuild = null;
     ui.infoHovered = false;
   });
   box.addEventListener("pointerenter", () => { ui.infoHovered = true; });

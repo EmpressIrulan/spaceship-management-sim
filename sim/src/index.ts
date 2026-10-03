@@ -74,7 +74,7 @@ export {
   type Target,
   type Vec,
 } from "./state";
-export { cancelQueuedModuleBuild, queueModuleBuild, startNextQueuedModule } from "./station-build-queue";
+export { cancelQueuedModuleBuild, queueModuleBuild, queuedDependents, startNextQueuedModule } from "./station-build-queue";
 export { supplyQueueStatus } from "./station-build-queue";
 export {
   PIXEL_SIZE,

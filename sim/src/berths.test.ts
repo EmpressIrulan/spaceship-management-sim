@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DOCK_CAPACITY, DOCK_SIZE, MATERIALS, createInitialState, dockBerths, shipSize, tick, type Ship, type ShipDesign, type SimState, type Vec } from "./index";
+import { suppliersComingHome } from "./test-ships";
 
 const homeWithOre = { state: "homebound" as const, timer: 0, cargo: 20, cargoMaterial: "Metal" as const };
 
@@ -96,6 +97,35 @@ describe("Dock berths", () => {
     for (let i = 0; i < waiting.length; i += 1) {
       for (let j = i + 1; j < waiting.length; j += 1) expect(apart(at(waiting[i]!), at(waiting[j]!))).toBeGreaterThan(width);
     }
+  });
+
+  it("keeps every pad free while three supply ships wait, so a miner can berth and unload", () => {
+    const suppliers = suppliersComingHome(3);
+    const miner = {
+      ...suppliers.ships[0]!, id: 3, defaultBehaviour: "mine" as const, cargo: 20,
+      cargoByMaterial: { Metal: 20, Ice: 0 }, mineMaterials: [...MATERIALS],
+    };
+    const flying = tick({ ...suppliers, ships: [...suppliers.ships, miner] }, 0);
+    let settled = flying;
+    for (let i = 0; i < 400 && !settled.ships.every((ship) => ship.state === "holding" || ship.state === "unloading"); i += 1) {
+      settled = tick(settled, 0.5);
+    }
+    const dock = settled.station.dock.position;
+    const pads = dockBerths(dock);
+    const waiting = settled.ships.filter((ship) => ship.state === "holding");
+
+    // Waiting clear of the hull, so not one of them is standing on a pad.
+    expect(waiting).toHaveLength(3);
+    for (const ship of waiting) {
+      expect(ship.berth).toBeNull();
+      const onTheHull = Math.abs(at(ship).x - dock.x) <= DOCK_SIZE.width / 2
+        && Math.abs(at(ship).y - dock.y) <= DOCK_SIZE.height / 2;
+      expect(onTheHull).toBe(false);
+    }
+    // And the miner gets a pad of its own and unloads there.
+    expect(at(settled.ships[3]!)).toEqual(pads[0]);
+    expect(settled.ships[3]!).toMatchObject({ state: "unloading", berth: 0 });
+    expect(settled.ships[3]!.cargo).toBeLessThan(20);
   });
 
   it("flies a waiting ship onto the pad that frees up", () => {

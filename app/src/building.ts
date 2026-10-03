@@ -4,7 +4,9 @@ import {
   MODULE_SPACING,
   availableModuleBuildSites,
   availableModuleBuilds,
+  queuedDependents,
   type ModuleType,
+  type QueuedModuleBuild,
   type SimState,
   type Vec,
 } from "sim";
@@ -64,4 +66,16 @@ export function dismissBuildMenuForKey(key: string): boolean {
 
 export function queuedBuildIndexAt(state: SimState, position: Vec): number {
   return state.station.buildQueue.findIndex((queued) => queued.position.x === position.x && queued.position.y === position.y);
+}
+
+// Every other ghost that would go with the one whose Cancel the pointer is on.
+// It reads the same dependents query the cancel uses, so what the highlight
+// promises is exactly what the click removes. The hovered ghost is named by
+// position, not by index, because the queue shifts as builds finish underneath
+// a pointer that has not moved. Null, or a ghost no longer waiting, highlights
+// nothing.
+export function cancelDependentsAt(state: SimState, hovered: Vec | null): QueuedModuleBuild[] {
+  if (hovered === null) return [];
+  const index = queuedBuildIndexAt(state, hovered);
+  return index < 0 ? [] : queuedDependents(state.station, index);
 }

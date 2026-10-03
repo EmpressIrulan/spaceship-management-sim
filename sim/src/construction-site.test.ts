@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { oneStorageStart } from "./test-ships";
+import { oneStorageStart, suppliersComingHome } from "./test-ships";
 import {
+  DOCK_SIZE,
   MATERIALS,
   availableModuleBuildSites,
   availableModuleBuilds,
   availableShipBuild,
   cargoTransferSeconds,
   createInitialState,
+  dockBerths,
   giveOrder,
   queueModuleBuild,
+  resumeDefault,
   setDefaultBehaviour,
+  shipSize,
   startModuleBuild,
   startShipBuild,
   tick,
@@ -23,6 +27,7 @@ import { depart } from "./state";
 const site = (state: SimState) => state.station.constructionSite;
 const siteTotal = (state: SimState) => site(state).inventory.Metal + site(state).inventory.Ice;
 const near = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.y - b.y) < 0.5;
+const apart = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.y - b.y);
 
 // Ticks in small steps until `done` holds, so a test can stop at the moment a
 // ship changes state.
@@ -293,5 +298,85 @@ describe("unloading a ship into the site at the end of a trip", () => {
 
     expect(done.ships[0]).toMatchObject({ order: null, defaultBehaviour: "haul", cargo: 0, state: "haulReturning" });
     expect(done.ships[0]!.target).toBeNull();
+  });
+});
+
+describe("supply ships with nothing queued", () => {
+  it("parks three of them in a spaced row beside the Dock, clear of its pads", () => {
+    const flying = tick(suppliersComingHome(3), 0);
+    const parked = until(flying, (now) => now.ships.every((ship) => ship.state === "holding"));
+    const dock = parked.station.dock.position;
+    const pads = dockBerths(dock);
+    const width = shipSize(parked.ships[0]!.design).width;
+    const waiting = parked.ships.filter((ship) => ship.state === "holding");
+
+    expect(waiting).toHaveLength(3);
+    for (const ship of waiting) {
+      // Still holding its cargo, and on no pad of its own.
+      expect(ship).toMatchObject({ berth: null, cargo: 7 });
+      // Beside the Dock rather than on it: clear of the hull, and close enough
+      // to read as part of the same berth.
+      expect(apart(ship.position, dock)).toBeGreaterThan(DOCK_SIZE.width / 2 + width);
+      expect(apart(ship.position, dock)).toBeLessThan(150);
+      for (const pad of pads) expect(apart(ship.position, pad)).toBeGreaterThan(width);
+    }
+    // A row, not a pile: every ship sits where it can be picked out on its own.
+    for (let i = 0; i < waiting.length; i += 1) {
+      for (let j = i + 1; j < waiting.length; j += 1) expect(apart(waiting[i]!.position, waiting[j]!.position)).toBeGreaterThan(width);
+    }
+  });
+
+  it("parks them in the row when they are switched to Supply at the Dock", () => {
+    const base = createInitialState(7);
+    const dock = base.station.dock.position;
+    const idle: Ship[] = Array.from({ length: 3 }, (_, id) => ({
+      ...base.ships[0]!,
+      id,
+      state: "idle",
+      position: { ...dock },
+      leg: null,
+      target: null,
+      berth: null,
+      transfer: null,
+      timer: 0,
+      cargo: 0,
+      cargoByMaterial: { Metal: 0, Ice: 0 },
+      cargoMaterial: null,
+    }));
+
+    const switched = setDefaultBehaviour({ ...base, ships: idle, nextShipId: 3 }, [0, 1, 2], "supply");
+    const parked = until(tick(switched, 0), (now) => now.ships.every((ship) => ship.state === "holding"));
+    const held = parked.ships.filter((ship) => ship.state === "holding");
+
+    expect(held).toHaveLength(3);
+    expect(new Set(held.map((ship) => `${ship.position.x},${ship.position.y}`)).size).toBe(3);
+    for (const ship of held) expect(apart(ship.position, dock)).toBeGreaterThan(DOCK_SIZE.width / 2);
+  });
+
+  it("parks them in the row when an order is cleared at the Dock", () => {
+    const base = createInitialState(7);
+    const dock = base.station.dock.position;
+    const ordered: Ship[] = Array.from({ length: 3 }, (_, id) => ({
+      ...base.ships[0]!,
+      id,
+      defaultBehaviour: "supply",
+      state: "holding",
+      position: { ...dock },
+      order: { kind: "move", point: { ...dock }, sectorId: 0 },
+      leg: null,
+      target: null,
+      berth: null,
+      transfer: null,
+      timer: 0,
+      cargo: 0,
+      cargoByMaterial: { Metal: 0, Ice: 0 },
+      cargoMaterial: null,
+    }));
+
+    const cleared = resumeDefault({ ...base, ships: ordered, nextShipId: 3 }, [0, 1, 2]);
+    const parked = until(tick(cleared, 0), (now) => now.ships.every((ship) => ship.state === "holding"));
+
+    expect(parked.ships.map((ship) => ship.order)).toEqual([null, null, null]);
+    expect(new Set(parked.ships.map((ship) => `${ship.position.x},${ship.position.y}`)).size).toBe(3);
   });
 });
