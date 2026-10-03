@@ -3,7 +3,7 @@ import { flyHaul, haulCargoDestination, haulStationDetails } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { asteroidGone, mine, miningSeconds, type Draft } from "./tick-mining";
 import { beginHaulLoading, beginHaulUnloading, loadHauler, unloadHauler } from "./tick-hauling";
-import { addCargo, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
+import { addCargo, arrivesAtPark, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
 import { distanceAlong, travelSeconds } from "./motion";
 import { afterOrder, nextMiningRock, resumeMining, startMining, travelOrder } from "./orders";
 import { nextRandom } from "./prng";
@@ -11,6 +11,7 @@ import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { completeDocking, syncDockedShips } from "./hangars";
 import {
   constructionAttached,
+  completeBuild,
   parksForEmptyQueue,
   refundDetachedBuild,
   settleQueuedBuild,
@@ -19,14 +20,12 @@ import {
 } from "./station-build-queue";
 import {
   ABUNDANT_SHARE,
-  DOCK_CAPACITY,
   GATE_COST,
   JUMP_SECONDS,
   HOME_SECTOR,
   INCOME_WINDOW_SECONDS,
   MATERIALS,
   RESPAWN_SECONDS,
-  STORAGE_CAPACITY,
   arrived,
   depart,
   cargoByMaterial,
@@ -299,14 +298,6 @@ function flyTo(ship: Ship, from: Vec, to: Vec): Ship {
     timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
 }
 
-// A supply ship that flew out to a parking spot to wait for a build arrives
-// holding, not waiting: holding is the state that watches the build queue, and a
-// ship on a parking spot is not waiting for a pad.
-function arrivesAtPark(draft: Draft, ship: Ship): Ship | null {
-  if (ship.berth !== null || supplyQueueStatus(ship, draft.buildQueue.length) !== "waiting") return null;
-  return { ...arrived(ship), state: "holding" };
-}
-
 // Arrival at the construction site starts the same unloading countdown as at
 // the Dock, but takes no berth.
 function arriveAtBuildSite(draft: Draft, ship: Ship): Ship {
@@ -570,16 +561,6 @@ function advance(draft: Draft, seconds: number): void {
   }
   draft.shipBuilds = draft.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds }));
   draft.claimSites = advanceSites(draft.claimSites, seconds);
-}
-
-// Stands the module under construction up as part of the station.
-function completeBuild(draft: Draft): void {
-  if (!draft.construction) return;
-  const { timer: _timer, ...module } = draft.construction;
-  draft.modules = [...draft.modules, module];
-  if (module.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
-  if (module.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
-  draft.construction = null;
 }
 
 // Fires every timer that has reached zero. Respawns go first so a ship that
