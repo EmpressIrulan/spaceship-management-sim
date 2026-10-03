@@ -3,15 +3,19 @@ import {
   BUILD_SECONDS,
   MODULE_SPACING,
   availableModuleBuildSites,
+  cancelQueuedModuleBuild,
   createInitialState,
   queueModuleBuild,
   startModuleBuild,
   tick,
+  type SimState,
+  type Vec,
 } from "sim";
 import {
   buildControlSize,
   buildControlsVisible,
   buildMenuItems,
+  cancelDependentsAt,
   pointerInBuildArea,
   dismissBuildMenuForClick,
   dismissBuildMenuForKey,
@@ -19,6 +23,32 @@ import {
 } from "./building";
 import { infoBox } from "./labels";
 import { hoveredBody, worldToScreen, type Camera } from "./camera";
+
+const east = { x: 80, y: 0 };
+const farEast = { x: 120, y: 0 };
+const west = { x: -40, y: 0 };
+const farWest = { x: -80, y: 0 };
+
+// A row of ghosts hung off the Dock: farEast reaches the station only through
+// east and farWest only through west, while both near ends touch a built module.
+function chainedGhosts(): SimState {
+  let state = queueModuleBuild(createInitialState(7), "Storage", east);
+  state = queueModuleBuild(state, "Builder", farEast);
+  state = queueModuleBuild(state, "Dock", west);
+  return queueModuleBuild(state, "Storage", farWest);
+}
+
+const sameSlot = (a: Vec, b: Vec): boolean => a.x === b.x && a.y === b.y;
+
+function withStandingBuilder(state: SimState, position: Vec): SimState {
+  return {
+    ...state,
+    station: {
+      ...state.station,
+      modules: [...state.station.modules, { type: "Builder" as const, position, size: { width: 30, height: 40 } }],
+    },
+  };
+}
 
 describe("station building controls", () => {
   it("shows front needs, full later cost, and Cancel on ghost modules", () => {
@@ -147,5 +177,41 @@ describe("station building controls", () => {
     const state = queueModuleBuild(createInitialState(7), "Storage", { x: 80, y: 0 });
     expect(pointerInBuildArea(state, { x: 100, y: 0 })).toBe(true);
     expect(availableModuleBuildSites(state)).toContainEqual({ x: 120, y: 0 });
+  });
+});
+
+describe("the ghost cancel hover highlight", () => {
+  it("highlights the ghosts the hovered cancel takes, and leaves the survivors alone", () => {
+    const state = chainedGhosts();
+    const afterCancel = cancelQueuedModuleBuild(state, east);
+    const removed = state.station.buildQueue
+      .filter((queued) => !afterCancel.station.buildQueue.includes(queued))
+      .map((queued) => queued.position);
+
+    expect(cancelDependentsAt(state, east)).toMatchObject([{ type: "Builder", position: farEast }]);
+    // Every ghost the click takes beyond the hovered one, and no other, is lit.
+    expect(cancelDependentsAt(state, east).map((queued) => queued.position))
+      .toEqual(removed.filter((position) => !sameSlot(position, east)));
+    expect(afterCancel.station.buildQueue.map((queued) => queued.position)).toEqual([west, farWest]);
+  });
+
+  it("leaves a ghost that still reaches the station through a built module unlit", () => {
+    // Seed 17 because seed 7 has an asteroid in the gap. The Builder standing
+    // two slots past the far end keeps that ghost attached once the near one goes.
+    let state = queueModuleBuild(withStandingBuilder(createInitialState(17), { x: -160, y: 0 }), "Builder", west);
+    state = queueModuleBuild(state, "Builder", farWest);
+    state = queueModuleBuild(state, "Builder", { x: -120, y: 0 });
+
+    expect(cancelDependentsAt(state, west).map((queued) => queued.position)).toEqual([farWest]);
+    expect(cancelDependentsAt(state, farWest)).toEqual([]);
+  });
+
+  it("highlights nothing with no control hovered, and nothing once the ghost has gone", () => {
+    const state = chainedGhosts();
+
+    expect(cancelDependentsAt(state, null)).toEqual([]);
+    // The ghost left the queue while the pointer sat still on its Cancel, e.g.
+    // the build behind it finished and promoted it.
+    expect(cancelDependentsAt(state, { x: 200, y: 0 })).toEqual([]);
   });
 });

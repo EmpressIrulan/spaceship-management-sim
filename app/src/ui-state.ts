@@ -37,6 +37,9 @@ export interface UiState {
   renamingSector: number | null;
   stickySite: number | null;
   stickyQueuedBuild: Vec | null;
+  // The ghost whose Cancel control the pointer is on, so the ghosts that would
+  // go with it can be highlighted. Position, not index: the queue shifts.
+  cancelHoveredBuild: Vec | null;
   infoHovered: boolean;
   clock: Clock;
   storagePanelOpen: boolean;
@@ -77,6 +80,7 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     renamingSector: null,
     stickySite: null,
     stickyQueuedBuild: null,
+    cancelHoveredBuild: null,
     infoHovered: false,
     clock: INITIAL_CLOCK,
     storagePanelOpen: false,

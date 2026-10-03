@@ -3,6 +3,7 @@ import type { UiState } from "./ui-state";
 import type { InputActions, InputContext } from "./input-context";
 import { installCameraInput } from "./camera-input";
 import { installInfoBoxInput } from "./info-box-input";
+import { installCancelHoverInput } from "./cancel-hover-input";
 import { installRenameInput } from "./rename-input";
 import { installSpeedInput } from "./speed-input";
 import { isBoxDrag } from "./selection";
@@ -68,6 +69,7 @@ export function installInput(
 
   installCameraInput(ui, getState, canvas, ctx, pointFromEvent);
   installInfoBoxInput(ui, getState, setState, box, infoAction);
+  installCancelHoverInput(ui, getState, infoAction);
   installSpeedInput(ui, speedControls, {
     closeBuildMenu,
     closeGateMenu,

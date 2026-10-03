@@ -38,7 +38,12 @@ export function renderHoverInfo(
   controls.classList.toggle("over-ship", hovered?.kind === "ship");
   const info = infoBox(getState(), hovered);
   box.hidden = info === null;
-  if (info === null) ui.infoHovered = false;
+  // Hiding the box under the pointer need not raise pointerleave, so the hover
+  // highlight is dropped here with the rest of the box state.
+  if (info === null) {
+    ui.infoHovered = false;
+    ui.cancelHoveredBuild = null;
+  }
   box.style.pointerEvents = info?.action ? "auto" : "none";
   infoAction.hidden = !info?.action;
   delete infoAction.dataset.site;

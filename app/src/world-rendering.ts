@@ -2,11 +2,14 @@ import { laserBeam, shipSize, type SimState, type Vec, type Size } from "sim";
 import { worldToScreen } from "./camera";
 import { asteroidColor } from "./asteroid";
 import { cargoGauge } from "./labels";
+import { cancelDependentsAt } from "./building";
 import { stationConnectors } from "./station-appearance";
 import { createStationDrawing } from "./station-rendering";
 import { createShipDrawing } from "./ship-rendering";
 import { createOverlayDrawing } from "./overlay-rendering";
 import type { UiState } from "./ui-state";
+
+const slotKey = ({ x, y }: Vec): string => `${x},${y}`;
 
 export interface WorldDrawing {
   draw: (seconds: number) => { sectorRocks: SimState["asteroids"]; legacyGateVisible: boolean; gate: SimState["sectors"][number]["gate"]; gateScreen: Vec };
@@ -47,7 +50,15 @@ export function createWorldDrawing(
       stationDrawing.drawStationConnector(connector.from, connector.to);
     }
     for (const module of ui.currentSector === 0 ? getState().station.modules : []) stationDrawing.drawStationModule(module);
-    for (const queued of ui.currentSector === 0 ? getState().station.buildQueue : []) stationDrawing.drawQueuedModule(queued);
+    // The Cancel under the pointer names the ghosts it would take with it, so the
+    // hover highlight and the click read the one set and cannot disagree. Slots
+    // are keyed by position, since that is how the hover names its ghost.
+    const taking = new Set(ui.currentSector === 0
+      ? cancelDependentsAt(getState(), ui.cancelHoveredBuild).map((queued) => slotKey(queued.position))
+      : []);
+    for (const queued of ui.currentSector === 0 ? getState().station.buildQueue : []) {
+      stationDrawing.drawQueuedModule(queued, taking.has(slotKey(queued.position)));
+    }
     if (ui.currentSector === 0 && getState().station.buildQueue.length > 0) stationDrawing.drawConstructionSite();
     const construction = getState().station.construction;
     if (ui.currentSector === 0 && construction) strokeWorldRect(construction.position, construction.size, "#cbd5e1");

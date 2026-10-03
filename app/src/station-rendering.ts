@@ -19,7 +19,7 @@ export interface StationDrawing {
   drawStationConnector: (from: Vec, to: Vec) => void;
   drawStationModule: (module: StationModule) => void;
   drawConstructionSite: () => void;
-  drawQueuedModule: (module: StationModule) => void;
+  drawQueuedModule: (module: StationModule, highlighted?: boolean) => void;
   drawClaimSite: (site: SimState["claimSites"][number]) => void;
 }
 export function createStationDrawing(
@@ -147,10 +147,22 @@ export function createStationDrawing(
     ctx.restore();
   }
 
-  function drawQueuedModule(module: StationModule): void {
+  // A ghost the Cancel under the pointer would take with it: drawn solid rather
+  // than faint, and ringed, so it reads as going with the click.
+  function drawQueuedModule(module: StationModule, highlighted = false): void {
     ctx.save();
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = highlighted ? 0.85 : 0.3;
     drawStationModule(module);
+    ctx.restore();
+    if (!highlighted) return;
+    const center = worldToScreen(ui.camera, ui.viewport, module.position);
+    const radius = (Math.hypot(module.size.width, module.size.height) / 2) * ui.camera.zoom + 5;
+    ctx.save();
+    ctx.strokeStyle = "#4ade80";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
+    ctx.stroke();
     ctx.restore();
   }
 
