@@ -1,6 +1,7 @@
 import { BUILD_SECONDS, MODULE_COST, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
+import { DOCK_CAPACITY, STORAGE_CAPACITY } from "./state";
 import { availableModuleBuildSites } from "./station-building";
 import { moduleSize, samePosition } from "./station-module-geometry";
 import { travelSeconds } from "./motion";
@@ -49,12 +50,13 @@ export function settleQueuedBuild(draft: Pick<Draft, "constructionSite" | "const
 // behind a build that can never finish.
 export function refundDetachedBuild(draft: Pick<Draft, "construction" | "constructionSite">): void {
   if (!draft.construction) return;
-  const inventory = Object.fromEntries(MATERIALS.map((material) => [
-    material,
-    draft.constructionSite.inventory[material] + MODULE_COST[material],
-  ])) as Record<Material, number>;
+  const inventory = adjustInventory(draft.constructionSite.inventory, 1);
   draft.construction = null;
   draft.constructionSite = { ...draft.constructionSite, inventory };
+}
+
+function adjustInventory(inventory: Record<Material, number>, direction: 1 | -1): Record<Material, number> {
+  return Object.fromEntries(MATERIALS.map((material) => [material, inventory[material] + direction * MODULE_COST[material]])) as Record<Material, number>;
 }
 
 function canPay(inventory: Record<Material, number>): boolean {
@@ -64,10 +66,7 @@ function canPay(inventory: Record<Material, number>): boolean {
 export function startNextQueuedModule<T extends QueueState>(station: T): T {
   const next = station.buildQueue[0];
   if (station.construction || !next || !canPay(station.constructionSite.inventory)) return station;
-  const inventory = Object.fromEntries(MATERIALS.map((material) => [
-    material,
-    station.constructionSite.inventory[material] - MODULE_COST[material],
-  ])) as Record<Material, number>;
+  const inventory = adjustInventory(station.constructionSite.inventory, -1);
   const construction: ModuleConstruction = { ...next, timer: BUILD_SECONDS };
   return {
     ...station,
@@ -75,6 +74,16 @@ export function startNextQueuedModule<T extends QueueState>(station: T): T {
     construction,
     buildQueue: station.buildQueue.slice(1),
   };
+}
+
+// Stands the module under construction up as part of the station.
+export function completeBuild(draft: Draft): void {
+  if (!draft.construction) return;
+  const { timer: _timer, ...module } = draft.construction;
+  draft.modules = [...draft.modules, module];
+  if (module.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
+  if (module.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
+  draft.construction = null;
 }
 
 export function queueModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {
