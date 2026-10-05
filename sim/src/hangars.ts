@@ -31,13 +31,26 @@ export function hangarIncoming(state: SimState, carrierId: number): number {
 }
 
 export function giveDockOrder(state: SimState, ids: number[], carrierId: number): SimState {
+  return giveDockOrderWithFeedback(state, ids, carrierId).state;
+}
+
+export function giveDockOrderWithFeedback(state: SimState, ids: number[], carrierId: number): { state: SimState; refused: string[] } {
   const carrier = state.ships.find((ship) => ship.id === carrierId);
-  if (!carrier || carrier.hangarId != null || hangarCapacity(carrier.design) === 0) return state;
+  if (!carrier || carrier.hangarId != null || hangarCapacity(carrier.design) === 0) return { state, refused: [] };
+  const eligible = state.ships.filter((ship) => ids.includes(ship.id) && ship.id !== carrierId && ship.hangarId == null && ship.sectorId === carrier.sectorId);
+  if (carrier.order?.kind === "dock") {
+    return { state, refused: eligible.map((ship) => `Ship ${ship.id + 1}: carrier is docking elsewhere`) };
+  }
   let room = hangarCapacity(carrier.design) - reserved(state.ships, carrierId);
   let accepted = false;
+  const refused: string[] = [];
   const ships = state.ships.map((ship) => {
     const size = pixelCount(ship.design);
-    if (!ids.includes(ship.id) || ship.id === carrierId || ship.hangarId != null || ship.sectorId !== carrier.sectorId || size > room) return ship;
+    if (!ids.includes(ship.id) || ship.id === carrierId || ship.hangarId != null || ship.sectorId !== carrier.sectorId) return ship;
+    if (size > room) {
+      refused.push(`Ship ${ship.id + 1}: hangar is full`);
+      return ship;
+    }
     room -= size;
     accepted = true;
     const from = { ...ship.position };
@@ -53,7 +66,7 @@ export function giveDockOrder(state: SimState, ids: number[], carrierId: number)
       timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)),
     };
   });
-  return accepted ? { ...state, ships } : state;
+  return { state: accepted ? { ...state, ships } : state, refused };
 }
 
 export function completeDocking(ships: Ship[], ship: Ship): Ship {
@@ -61,7 +74,7 @@ export function completeDocking(ships: Ship[], ship: Ship): Ship {
   const carrier = ships.find((candidate) => candidate.id === carrierId);
   const occupied = carrierId === null ? Infinity : ships.filter((candidate) => candidate.id !== ship.id && candidate.hangarId === carrierId)
     .reduce((sum, candidate) => sum + pixelCount(candidate.design), 0);
-  if (!carrier || carrier.hangarId != null || occupied + pixelCount(ship.design) > hangarCapacity(carrier.design)) {
+  if (!carrier || carrier.hangarId != null || carrier.order?.kind === "dock" || occupied + pixelCount(ship.design) > hangarCapacity(carrier.design)) {
     return { ...ship, state: "holding", order: null, leg: null, timer: 0 };
   }
   if (carrier.sectorId !== ship.sectorId) return { ...ship, state: "holding", order: null, leg: null, timer: 0 };
@@ -77,7 +90,15 @@ export function completeDocking(ships: Ship[], ship: Ship): Ship {
 
 export function syncDockedShips(ships: Ship[]): Ship[] {
   return ships.map((ship) => {
-    if (ship.hangarId == null) return ship;
+    if (ship.hangarId == null) {
+      if (ship.order?.kind !== "dock") return ship;
+      const carrierId = ship.order.carrierId;
+      const carrier = ships.find((candidate) => candidate.id === carrierId);
+      if (!carrier || carrier.order?.kind === "dock" || carrier.state === "jumpingOut" || carrier.state === "jumpingHome" || carrier.sectorId !== ship.sectorId) {
+        return { ...ship, state: "holding", order: null, leg: null, timer: 0 };
+      }
+      return ship;
+    }
     const carrier = ships.find((candidate) => candidate.id === ship.hangarId);
     return carrier ? { ...ship, sectorId: carrier.sectorId, position: { ...carrier.position } }
       : { ...ship, hangarId: null, state: "holding", timer: 0 };
