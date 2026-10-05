@@ -5,5 +5,6 @@ export function dockAtHoveredCarrier(state: SimState, selectedShips: number[], h
   if (hovered?.kind !== "ship") return null;
   const carrier = state.ships[hovered.index];
   if (!carrier || selectedShips.includes(carrier.id) || hangarCapacity(carrier.design) === 0) return null;
-  return giveDockOrderWithFeedback(state, selectedShips, carrier.id);
+  const result = giveDockOrderWithFeedback(state, selectedShips, carrier.id);
+  return result.state === state && result.refused.length === 0 ? null : result;
 }
