@@ -138,10 +138,10 @@ export function createRenderer(
     syncBuildMenuItems(ui, getState, buildMenu);
 
     claimButton.hidden = !ui.mapOpen;
-    hint.hidden = !ui.pendingClaim;
-    hint.textContent = ui.mapOpen
+    hint.hidden = !ui.pendingClaim && !ui.routeRefusalMessage;
+    hint.textContent = ui.routeRefusalMessage ?? (ui.mapOpen
       ? "Pick the sector for the claim station"
-      : "Click a spot for the construction site. Esc cancels.";
+      : "Click a spot for the construction site. Esc cancels.");
     renameBox.hidden = ui.renamingSector === null || !ui.mapOpen;
     if (renameBox.hidden) ui.renamingSector = null;
 

@@ -7,7 +7,7 @@ import { deleteButtonAction } from "./storage";
 import { selectionPanel } from "./selection";
 import { renderStoragePanel } from "./storage-panel";
 import type { UiState } from "./ui-state";
-import { applyHaulRouteFieldChange } from "./haul-route";
+import { applyHaulRouteFieldChangeWithFeedback } from "./haul-route";
 
 export function installPanels(
   ui: UiState,
@@ -49,19 +49,20 @@ export function installPanels(
     const select = event.target as HTMLSelectElement;
     if (select.name === "default") setState(setDefaultBehaviour(getState(), ui.selectedShips, select.value as DefaultBehaviour));
     if (["haul-from", "haul-to", "haul-material"].includes(select.name)) {
+      ui.routeRefusalMessage = null;
       const panel = selectionPanel(getState(), ui.selectedShips);
       if (!panel?.haulRoute) return;
       if (select.value === "mixed") return;
       if (select.name === "haul-material") {
         if (select.value !== "Metal" && select.value !== "Ice") return;
-        setState(applyHaulRouteFieldChange(getState(), ui.selectedShips, { field: "material", value: select.value }));
+        applyRouteChange(ui, getState, setState, { field: "material", value: select.value });
         return;
       }
       const station = panel.stations.find(({ id }) => id === select.value);
       if (!station) return;
-      setState(applyHaulRouteFieldChange(getState(), ui.selectedShips, {
+      applyRouteChange(ui, getState, setState, {
         field: select.name === "haul-from" ? "from" : "to", value: station.id,
-      }));
+      });
     }
   });
   shipPanelBox.addEventListener("change", (event) => {
@@ -76,4 +77,18 @@ export function installPanels(
   });
 
   return closeStoragePanel;
+}
+
+function applyRouteChange(
+  ui: UiState,
+  getState: () => SimState,
+  setState: (state: SimState) => void,
+  change: Parameters<typeof applyHaulRouteFieldChangeWithFeedback>[2],
+): void {
+  const result = applyHaulRouteFieldChangeWithFeedback(getState(), ui.selectedShips, change);
+  setState(result.state);
+  if (result.skipped.length > 0) {
+    ui.routeRefusalMessage = `Skipped ${result.skipped.join(", ")}.`;
+    ui.renderedPanel = "";
+  }
 }
