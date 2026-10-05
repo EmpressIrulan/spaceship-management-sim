@@ -28,6 +28,7 @@ export interface UiState {
   selectedShip: number | null;
   selectedShips: number[];
   renderedPanel: string;
+  routeRefusalMessage: string | null;
   heldKeys: Set<string>;
   pan: { last: Vec } | null;
   dragBox: { start: Vec; end: Vec; additive: boolean } | null;
@@ -71,6 +72,7 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     selectedShip: null,
     selectedShips: [],
     renderedPanel: "",
+    routeRefusalMessage: null,
     heldKeys: new Set<string>(),
     pan: null,
     dragBox: null,

@@ -9,17 +9,29 @@ export function applyHaulRouteFieldChange(
   selectedShipIds: number[],
   change: HaulRouteFieldChange,
 ): SimState {
+  return applyHaulRouteFieldChangeWithFeedback(state, selectedShipIds, change).state;
+}
+
+export function applyHaulRouteFieldChangeWithFeedback(
+  state: SimState,
+  selectedShipIds: number[],
+  change: HaulRouteFieldChange,
+): { state: SimState; skipped: string[] } {
   let nextState = state;
+  const skipped: string[] = [];
   for (const shipId of selectedShipIds) {
-    const ship = nextState.ships.find((s) => s.id === shipId);
+    const ship = nextState.ships.find((candidate) => candidate.id === shipId);
     if (!ship || ship.defaultBehaviour !== "haul" || !ship.haulRoute) continue;
-    const currentRoute = ship.haulRoute;
-    const mergedRoute: HaulRoute = {
-      from: change.field === "from" ? change.value : currentRoute.from,
-      to: change.field === "to" ? change.value : currentRoute.to,
-      material: change.field === "material" ? change.value : currentRoute.material,
+    const route: HaulRoute = {
+      from: change.field === "from" ? change.value : ship.haulRoute.from,
+      to: change.field === "to" ? change.value : ship.haulRoute.to,
+      material: change.field === "material" ? change.value : ship.haulRoute.material,
     };
-    nextState = configureHaul(nextState, [shipId], mergedRoute);
+    const updated = configureHaul(nextState, [shipId], route);
+    if (updated === nextState) {
+      const reason = route.from === route.to ? "From and To must be different" : "route is not available";
+      skipped.push(`Ship ${shipId + 1}: ${reason}`);
+    } else nextState = updated;
   }
-  return nextState;
+  return { state: nextState, skipped };
 }

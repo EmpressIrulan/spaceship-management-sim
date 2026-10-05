@@ -253,6 +253,31 @@ describe("haul route panel", () => {
     listener!({ target: { name: "haul-material", value: "mixed" } } as unknown as Event);
     expect(current).toBe(state);
   });
+
+  it("reports skipped haulers by name and reason while applying the route to eligible ships", () => {
+    const state = haulStateForPanel();
+    state.ships[1] = { ...state.ships[1]!, haulRoute: { from: "claim:3", to: "claim:4", material: "Metal" } };
+    const shipPanelBox = new FakeElement();
+    const ui = { ...createUiState([]), selectedShips: [0, 1] };
+    let current = state;
+    installPanels(ui, () => current, (next) => { current = next; }, new FakeElement() as unknown as HTMLElement, shipPanelBox as unknown as HTMLElement);
+    shipPanelBox.listeners.get("change")![0]!({ target: { name: "haul-to", value: "home" } } as unknown as Event);
+    expect(current.ships[0]!.haulRoute?.to).toBe("claim:3");
+    expect(current.ships[1]!.haulRoute?.to).toBe("home");
+    expect(ui.routeRefusalMessage).toBe("Skipped Ship 1: From and To must be different.");
+    expect(ui.renderedPanel).toBe("");
+  });
+
+  it("clears refusal feedback on the next route pick and leaves all-valid picks quiet", () => {
+    const state = haulStateForPanel();
+    const shipPanelBox = new FakeElement();
+    const ui = { ...createUiState([]), selectedShips: [0, 1], routeRefusalMessage: "old message" };
+    let current = state;
+    installPanels(ui, () => current, (next) => { current = next; }, new FakeElement() as unknown as HTMLElement, shipPanelBox as unknown as HTMLElement);
+    shipPanelBox.listeners.get("change")![0]!({ target: { name: "haul-to", value: "claim:4" } } as unknown as Event);
+    expect(current.ships.map((ship) => ship.haulRoute?.to)).toEqual(["claim:4", "claim:4"]);
+    expect(ui.routeRefusalMessage).toBeNull();
+  });
 });
 
 function haulStateForPanel(): SimState {
