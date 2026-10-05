@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   createInitialState,
   giveDockOrder,
+  giveDockOrderWithFeedback,
   giveOrder,
   hangarCapacity,
   hangarContents,
+  hangarReserved,
   launchAll,
   pixelCount,
   tick,
@@ -47,6 +49,35 @@ function fleet(count = 11) {
 }
 
 describe("carrier hangars", () => {
+  it("refuses docking at a carrier with a dock order and explains why", () => {
+    const base = fleet(1);
+    const ships: Ship[] = [
+      { ...base.ships[0]!, design: { ...CARRIER, slots: ["Engine", ...Array<ShipDesign["slots"][number]>(50).fill("Hangar")] } },
+      { ...base.ships[1]!, id: 2, design: CARRIER },
+      { ...base.ships[1]!, id: 3, design: FIGHTER },
+    ];
+    const state = { ...base, ships };
+    const carrierOnRoute = giveDockOrder(state, [2], 1);
+
+    const result = giveDockOrderWithFeedback(carrierOnRoute, [3], 2);
+
+    expect(result.state).toBe(carrierOnRoute);
+    expect(result.refused).toEqual(["Ship 4: carrier is docking elsewhere"]);
+  });
+
+  it("frees incoming hangar reservations as soon as the carrier starts leaving", () => {
+    const ordered = giveDockOrder(fleet(1), [2], 1);
+    expect(hangarReserved(ordered, 1)).toBe(4);
+    const leaving = { ...ordered, ships: ordered.ships.map((ship) => ship.id === 1
+      ? { ...ship, state: "jumpingOut" as const, timer: 10 }
+      : ship) };
+
+    const advanced = tick(leaving, 0);
+
+    expect(hangarReserved(advanced, 1)).toBe(0);
+    expect(advanced.ships.find((ship) => ship.id === 2)).toMatchObject({ state: "holding", order: null, leg: null });
+  });
+
   it("holds ships up to the number of Hangar pixels", () => {
     let state = fleet();
     expect(hangarCapacity(state.ships[0]!.design)).toBe(40);
