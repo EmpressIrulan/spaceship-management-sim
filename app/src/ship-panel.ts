@@ -60,6 +60,15 @@ export function renderShipPanel(state: SimState, shipPanelBox: HTMLElement, cont
   if (list.defaultBehaviour === "mixed") { const mixed = document.createElement("option"); mixed.textContent = "Default: Mixed"; mixed.selected = true; select.prepend(mixed); }
   if (!list.canHaul) select.title = list.haulDisabledReason ?? "";
   const routeControls: HTMLElement[] = [];
+  const home = document.createElement("label"); home.textContent = "Home: ";
+  const homeSelect = document.createElement("select"); homeSelect.name = "ship-home";
+  const none = document.createElement("option"); none.value = "none"; none.textContent = "None"; none.selected = list.homeStation === null; homeSelect.append(none);
+  for (const station of state.stations) {
+    const option = document.createElement("option"); option.value = String(station.id); option.textContent = station.name;
+    option.selected = list.homeStation === station.id; homeSelect.append(option);
+  }
+  if (list.homeStation === "mixed") { const option = document.createElement("option"); option.value = "mixed"; option.textContent = "Mixed"; option.selected = true; homeSelect.prepend(option); }
+  home.append(homeSelect);
   if ((list.defaultBehaviour === "haul" || list.defaultBehaviour === "mixed") && list.haulRoute) {
     routeControls.push(routeSelect("haul-from", "From", list.haulRoute.from, list.stations));
     routeControls.push(routeSelect("haul-to", "To", list.haulRoute.to, list.stations));
@@ -67,7 +76,7 @@ export function renderShipPanel(state: SimState, shipPanelBox: HTMLElement, cont
   }
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
   const launch = context.selectedShips.length === 1 ? launchAllButton(state, shipId) : null;
-  shipPanelBox.replaceChildren(title, rows, select, ...routeControls, ...materialBoxes(list.materials),
+  shipPanelBox.replaceChildren(title, rows, home, select, ...routeControls, ...materialBoxes(list.materials),
     ...otherSectorsBox(list.mineOtherSectors), resume, ...(launch ? [launch] : []), ...(context.selectedShips.length === 1 ? [thumbnailElement(panel.design)] : []));
   return context;
 }

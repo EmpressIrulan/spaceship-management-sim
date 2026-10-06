@@ -60,6 +60,60 @@ function routeOf(ship: Ship, dock: Vec): Route | null {
   return { dock, site, length, factor, legSeconds: travelSeconds(length, factor) };
 }
 
+const stationKeys = ["deliveries", "dock", "stationSector", "storageCapacity", "storageLimits", "inventory", "constructionSite", "modules", "construction", "buildQueue", "shipBuilds", "dockCapacity"] as const;
+type StationKey = typeof stationKeys[number];
+type StationContext = Pick<Draft, StationKey>;
+
+function currentStationContext(draft: Draft): StationContext {
+  return Object.fromEntries(stationKeys.map((key) => [key, draft[key]])) as StationContext;
+}
+
+function setStationContext(draft: Draft, context: StationContext): void {
+  Object.assign(draft, context);
+}
+
+function saveStationContext(draft: Draft, stationId: number): void {
+  const context = currentStationContext(draft);
+  if (stationId === 0) return;
+  draft.others = draft.others.map((station) => station.id === stationId ? {
+    ...station, deliveries: context.deliveries,
+    dock: { ...station.dock, capacity: context.dockCapacity }, sectorId: context.stationSector,
+    storage: { ...station.storage, capacity: context.storageCapacity }, storageLimits: context.storageLimits,
+    inventory: context.inventory, constructionSite: context.constructionSite, modules: context.modules,
+    construction: context.construction, buildQueue: context.buildQueue, shipBuilds: context.shipBuilds,
+  } : station);
+}
+
+function stationContext(draft: Draft, stationId: number): StationContext | null {
+  if (stationId === draft.activeStationId) return currentStationContext(draft);
+  const station = stationId === 0 ? null : draft.others.find((candidate) => candidate.id === stationId);
+  if (stationId !== 0 && !station) return null;
+  return stationId === 0 ? currentStationContext(draft) : {
+    deliveries: station!.deliveries, dock: station!.dock.position, stationSector: station!.sectorId,
+    storageCapacity: station!.storage.capacity, storageLimits: station!.storageLimits,
+    inventory: station!.inventory, constructionSite: station!.constructionSite, modules: station!.modules,
+    construction: station!.construction, buildQueue: station!.buildQueue, shipBuilds: station!.shipBuilds,
+    dockCapacity: station!.dock.capacity,
+  };
+}
+
+function forShipHome<T>(draft: Draft, ship: Ship, action: () => T): T {
+  const id = ship.homeStationId ?? 0;
+  if (id === draft.activeStationId) return action();
+  const home = stationContext(draft, id);
+  if (!home) return action();
+  const prior = currentStationContext(draft);
+  const priorId = draft.activeStationId;
+  saveStationContext(draft, priorId);
+  setStationContext(draft, home);
+  draft.activeStationId = id;
+  const result = action();
+  saveStationContext(draft, id);
+  setStationContext(draft, prior);
+  draft.activeStationId = priorId;
+  return result;
+}
+
 function pointAlong(from: Vec, to: Vec, route: Route, elapsed: number): Vec {
   const fraction = distanceAlong(route.length, elapsed, route.factor) / route.length;
   return { x: from.x + (to.x - from.x) * fraction, y: from.y + (to.y - from.y) * fraction };
@@ -244,6 +298,7 @@ function giveToGate(draft: Draft, ship: Ship, units: number): Ship {
 // the ship's supplyBuild order, else the one the supply default targets.
 function deliverySiteStation(draft: Draft, ship: Ship): number {
   if (ship.order?.kind === "supplyBuild") return ship.order.stationId;
+  if (draft.storageCapacity <= 0) return draft.activeStationId;
   return draft.supplyStation;
 }
 
@@ -263,7 +318,7 @@ function giveToBuildSite(draft: Draft, ship: Ship, units: number, stationId: num
     inventory[material] += amount;
     return amount;
   });
-  if (stationId === 0) draft.constructionSite = { ...draft.constructionSite, inventory };
+  if (stationId === draft.activeStationId) draft.constructionSite = { ...draft.constructionSite, inventory };
   else draft.others = draft.others.map((station) => (station.id === stationId
     ? { ...station, constructionSite: { ...station.constructionSite, inventory } } : station));
   return next;
@@ -274,7 +329,7 @@ function giveToBuildSite(draft: Draft, ship: Ship, units: number, stationId: num
 function resumeAfterBuildOrder(draft: Draft, ship: Ship): Ship {
   const done = { ...ship, order: null, target: null };
   const route = done.haulRoute;
-  if (done.defaultBehaviour !== "haul") return afterOrder(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+  if (done.defaultBehaviour !== "haul") return afterOrder(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.stationSector);
   const from = route ? haulStationDetails(draft, route.from) : null;
   if (!route || !from || !haulStationDetails(draft, route.to)) return { ...done, state: "holding", timer: 0, leg: null };
   const atFrom = done.sectorId === from.sectorId && samePoint(done.position, from.position);
@@ -342,11 +397,11 @@ function finish(draft: Draft, ship: Ship): Ship {
       // Dock, in a row of its own rather than piled on the Dock.
       if (parksForEmptyQueue(ship, draft.supplyQueue)) return toParking(layoutOf(draft), draft.ships, ship);
       return ship.defaultBehaviour === "none" ? ship
-        : resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
+        : resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships, draft.stationSector);
     case "holding":
       if (ship.order?.kind === "haulGate") return loadGateHauler(draft, ship);
       if (supplyQueueStatus(ship, draft.supplyQueue) === "supplying") {
-        return resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
+        return resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships, draft.stationSector);
       }
       return ship;
     case "docked":
@@ -412,9 +467,9 @@ function finish(draft: Draft, ship: Ship): Ship {
       return { ...ship, sectorId: targetSector, position: { ...gate }, state: ship.target ? "outbound" : "moving", leg: { from: gate, to }, timer: travelSeconds(length, speedFactor(ship.design)) };
     }
     case "jumpingHome": {
-      const gate = gateRoute(draft, ship.sectorId, HOME_SECTOR)?.to ?? draft.sectors[HOME_SECTOR]!.gate.position;
+      const gate = gateRoute(draft, ship.sectorId, draft.stationSector)?.to ?? draft.sectors[draft.stationSector]!.gate.position;
       const length = Math.hypot(draft.dock.x - gate.x, draft.dock.y - gate.y);
-      return { ...ship, sectorId: HOME_SECTOR, position: { ...gate }, state: "homebound", leg: { from: gate, to: draft.dock }, timer: travelSeconds(length, speedFactor(ship.design)) };
+      return { ...ship, sectorId: draft.stationSector, position: { ...gate }, state: "homebound", leg: { from: gate, to: draft.dock }, timer: travelSeconds(length, speedFactor(ship.design)) };
     }
     case "moving":
       if (ship.order && (travelOrder(ship.order)?.sectorId ?? ship.sectorId) !== ship.sectorId) {
@@ -453,7 +508,7 @@ function finish(draft: Draft, ship: Ship): Ship {
       // A module queued while this ship was still flying out to park, or while
       // it was waiting for a pad, means it has somewhere to be.
       if (supplyQueueStatus(ship, draft.supplyQueue) === "supplying") {
-        return resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
+        return resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships, draft.stationSector);
       }
       // Room can appear without any ship moving, when a Storage module
       // completes, and a berth frees up when another ship finishes unloading.
@@ -484,8 +539,8 @@ function finish(draft: Draft, ship: Ship): Ship {
         const rock = nextMiningRock(ship, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships, ship.order?.kind === "mine");
         if (rock) return startMining(ship, rock, draft.dock, draft.sectors, draft.gateProjects);
       }
-      if (ship.sectorId !== HOME_SECTOR) {
-        const gate = gateRoute(draft, ship.sectorId, HOME_SECTOR)?.from ?? draft.sectors[ship.sectorId]!.gate.position;
+      if (ship.sectorId !== draft.stationSector) {
+        const gate = gateRoute(draft, ship.sectorId, draft.stationSector)?.from ?? draft.sectors[ship.sectorId]!.gate.position;
         const length = Math.hypot(gate.x - ship.position.x, gate.y - ship.position.y);
         return { ...ship, state: "homebound", leg: { from: { ...ship.position }, to: { ...gate } }, timer: travelSeconds(length, speedFactor(ship.design)),
           order: ship.order?.kind === "mine" ? { ...ship.order, loaded: true } : ship.order };
@@ -502,12 +557,17 @@ function finish(draft: Draft, ship: Ship): Ship {
       };
     case "homebound":
       {
+        if (draft.storageCapacity <= 0 && ship.cargo > 0) {
+          const ownSite = buildSiteOf(draft, draft.activeStationId);
+          if (!samePoint(ship.position, ownSite.position)) return flyTo(ship, ship.position, ownSite.position);
+          return arriveAtBuildSite(draft, ship);
+        }
         const site = buildSiteOf(draft, draft.supplyStation).position;
         const headingForSite = ship.leg !== null && samePoint(ship.leg.to, site);
         if (supplying(draft, ship) && (headingForSite || ship.cargo > 0)) {
           return headingForSite ? arriveAtBuildSite(draft, ship) : headForBuildSite(draft, ship);
         }
-        if (ship.sectorId !== HOME_SECTOR) return { ...ship, state: "jumpingHome", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
+        if (ship.sectorId !== draft.stationSector) return { ...ship, state: "jumpingHome", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
         // Heading for the site on a default it has since lost: on to the Dock.
         if (headingForSite) return flyTo(ship, ship.position, draft.dock);
       }
@@ -543,9 +603,9 @@ function afterUnloading(draft: Draft, ship: Ship): Ship {
   }
   const empty = { ...remaining, cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 }, cargoMaterial: null };
   if (ship.order?.kind === "haulGate") return loadGateHauler(draft, empty);
-  return ship.order ? afterOrder(empty, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects)
+  return ship.order ? afterOrder(empty, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.stationSector)
     : ship.defaultBehaviour === "none" ? { ...empty, state: "holding", order: null, leg: null, timer: 0 }
-      : resumeMining(empty, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
+      : resumeMining(empty, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships, draft.stationSector);
 }
 
 // Seconds until the next timer anywhere in the sector runs out.
@@ -567,7 +627,7 @@ function nextEvent(draft: Draft): number {
 function advance(draft: Draft, seconds: number): void {
   draft.time += seconds;
   draft.respawns = draft.respawns.map((r) => ({ ...r, timer: r.timer - seconds }));
-  draft.ships = draft.ships.map((ship) => progress(draft, ship, ship.timer - seconds));
+  draft.ships = draft.ships.map((ship) => forShipHome(draft, ship, () => progress(draft, ship, ship.timer - seconds)));
   if (draft.construction) {
     draft.construction = { ...draft.construction, timer: draft.construction.timer - seconds };
   }
@@ -660,7 +720,7 @@ function settle(draft: Draft): void {
   draft.ships = [...draft.ships];
   for (let i = 0; i < draft.ships.length; i += 1) {
     const ship = draft.ships[i]!;
-    if (ship.timer <= 0) draft.ships[i] = finish(draft, ship);
+    if (ship.timer <= 0) draft.ships[i] = forShipHome(draft, ship, () => finish(draft, ship));
   }
   settleQueuedBuild(draft);
 }
@@ -672,6 +732,7 @@ export function tick(state: SimState, dt: number): SimState {
   const home = homeStation(state);
   const draft: Draft = {
     time: state.time,
+    activeStationId: 0,
     deliveries: home.deliveries,
     rng: state.rng,
     nextAsteroidId: state.nextAsteroidId,

@@ -80,13 +80,15 @@ export function removeStation(state: SimState, stationId: number): SimState {
   const station = state.stations.find((candidate) => candidate.id === stationId);
   if (!station) return state;
   const ships = state.ships.map((ship) => {
+    const losingHome = ship.homeStationId === stationId;
     const buildingThere = ship.order?.kind === "supplyBuild" && ship.order.stationId === stationId;
     const dockedHere = ship.sectorId === station.sectorId && ship.state === "docked"
       && Math.abs(ship.position.x - station.dock.position.x) <= station.dock.size.width / 2
       && Math.abs(ship.position.y - station.dock.position.y) <= station.dock.size.height / 2;
-    if (!buildingThere && !dockedHere) return ship;
+    if (!losingHome && !buildingThere && !dockedHere) return ship;
+    if (losingHome && !buildingThere && !dockedHere) return { ...ship, homeStationId: null, defaultBehaviour: "none" as const, state: "holding" as const, order: null, target: null, leg: null, berth: null, transfer: null, timer: 0 };
     const nearby = { x: station.dock.position.x + station.dock.size.width / 2 + 12, y: station.dock.position.y };
-    return { ...ship, sectorId: station.sectorId, position: nearby, state: "holding" as const, order: null, target: null, leg: null, berth: null, transfer: null, timer: 0 };
+    return { ...ship, homeStationId: losingHome ? null : ship.homeStationId, defaultBehaviour: losingHome ? "none" as const : ship.defaultBehaviour, sectorId: station.sectorId, position: nearby, state: "holding" as const, order: null, target: null, leg: null, berth: null, transfer: null, timer: 0 };
   });
   const stations = state.stations.filter((candidate) => candidate.id !== stationId);
   const supplyStation = state.supplyStation === stationId ? (stations[0]?.id ?? 0) : state.supplyStation;

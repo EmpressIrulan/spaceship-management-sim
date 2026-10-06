@@ -56,6 +56,8 @@ export interface Target {
 
 export interface Ship {
   id: number;
+  // Station this ship treats as home. Missing on older fixtures means Home (id 0).
+  homeStationId?: number | null;
   design: ShipDesign;
   state: ShipState;
   sectorId: number;

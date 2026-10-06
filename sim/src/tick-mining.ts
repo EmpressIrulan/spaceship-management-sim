@@ -10,6 +10,7 @@ export function miningSeconds(ship: Ship): number {
 // from the input, so the caller's state is never touched.
 export interface Draft {
   time: number;
+  activeStationId: number;
   deliveries: Station["deliveries"];
   rng: number;
   nextAsteroidId: number;

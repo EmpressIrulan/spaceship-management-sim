@@ -111,6 +111,6 @@ export {
   stationFounded,
 } from "./station-placement";
 export { tick } from "./tick";
-export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, setMineOtherSectors, type OrderTarget } from "./orders";
+export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, setMineOtherSectors, setShipHome, type OrderTarget } from "./orders";
 export { giveDockOrder, giveDockOrderWithFeedback, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, hangarUsed, launchAll } from "./hangars";
 export { haulStationDetails, type HaulStation } from "./haul";

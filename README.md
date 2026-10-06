@@ -20,3 +20,7 @@ npm run dev      # then open the printed URL
 ```
 
 `npm run build` writes `dist/index.html`, one self-contained file that opens from the filesystem with no server.
+
+## Stations and ships
+
+Use **Build station** to place construction sites in any sector. Select a site to direct supply ships to it; once its first Dock is built, the station can grow from its own site stock. Stations have generated names and can be renamed or removed from their Dock panel. Ship panels show each ship's home station and allow changing it; removing a station clears the home of ships assigned there.
