@@ -382,6 +382,7 @@ export function createInitialState(seed: number): SimState {
     nextShipId: 1,
     stations: [{
       id: 0,
+      name: "Home",
       founding: false,
       sectorId: HOME_SECTOR,
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },

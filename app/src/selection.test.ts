@@ -57,7 +57,7 @@ describe("RTS selection helpers", () => {
     };
     expect(selectionPanel(state, [0])).toMatchObject({
       canHaul: true,
-      stations: [{ id: "home", name: "Home" }, { id: "station:3", name: "Kessel" }],
+      stations: [{ id: "home", name: "Home" }, { id: "station:3", name: "Station 3" }],
       haulRoute: { from: "home", to: "station:3", material: "Ice" },
     });
   });

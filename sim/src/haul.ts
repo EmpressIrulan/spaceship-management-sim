@@ -17,14 +17,13 @@ export type HaulState = HaulStateBase & (
 
 // Every station with a Dock of its own joins Home as a haul stop. A site still
 // founding has no Dock, so it does not appear until it owns one. Names come
-// from the station's sector until #85's generated names arrive.
+// from the station's generated name.
 export function haulStations(state: Pick<SimState, "stations" | "sectors">): HaulStation[] {
-  const home = state.sectors[homeStation(state).sectorId];
   return [
-    { id: "home", name: home?.name ?? "Home" },
+    { id: "home", name: homeStation(state).name },
     ...state.stations.filter((station) => station.id !== 0 && stationFounded(station)).map((station) => ({
       id: `station:${station.id}` as const,
-      name: state.sectors[station.sectorId]?.name ?? `Station ${station.id}`,
+      name: station.name,
     })),
   ];
 }

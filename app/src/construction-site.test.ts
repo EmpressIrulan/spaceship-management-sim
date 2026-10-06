@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, queueModuleBuild, tick, type Ship, type SimState, type Station } from "sim";
+import { createInitialState, placeStation, queueModuleBuild, tick, type Ship, type SimState, type Station } from "sim";
 import { buildMenuItems } from "./building";
 import { hoveredBody, bodyOf, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
@@ -116,6 +116,21 @@ describe("the + menu", () => {
     const building = { ...state, stations: [{ ...state.stations[0]!, construction: { type: "Dock" as const, position: { x: 80, y: 0 }, size: { width: 40, height: 70 }, timer: 5 } }] };
 
     expect(buildMenuItems(building, 0)[0]).toMatchObject({ disabled: false, title: "" });
+  });
+
+  it("offers the same + menu choices using the selected station's own construction site", () => {
+    const placed = placeStation(createInitialState(7), 1, { x: 0, y: 0 });
+    const station = placed.stations[1]!;
+    const funded = { ...placed, stations: placed.stations.map((candidate) => candidate.id === station.id
+      ? { ...candidate, constructionSite: { ...candidate.constructionSite, inventory: { Metal: 25, Ice: 25 } } }
+      : candidate) };
+
+    expect(buildMenuItems(funded, station.id)).toEqual([
+      { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
+      { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
+      { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
+    ]);
+    expect(buildMenuItems(placed, station.id)[0]?.title).toBe("Needs 25 more Metal and 25 more Ice");
   });
 });
 

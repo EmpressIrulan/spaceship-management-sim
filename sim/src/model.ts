@@ -89,6 +89,7 @@ export interface Ship {
 export interface Station {
   // Home carries 0; each placed station gets the next count up.
   id: number;
+  name: string;
   // True while the station is still building itself up the way the game
   // starts: a Dock, then a Storage, from whatever ships bring to its site.
   founding: boolean;

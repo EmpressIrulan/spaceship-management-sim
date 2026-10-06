@@ -39,11 +39,11 @@ function until(state: SimState, done: (state: SimState) => boolean): SimState {
 }
 
 describe("Haul default", () => {
-  it("lists founded stations by sector name", () => {
+  it("lists founded stations by station name", () => {
     const state = twoStations();
     expect(haulStations(state)).toEqual([
       { id: "home", name: "Home" },
-      { id: "station:1", name: "Kessel" },
+      { id: "station:1", name: "Station 1" },
     ]);
   });
 

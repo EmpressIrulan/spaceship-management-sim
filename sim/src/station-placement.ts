@@ -1,19 +1,23 @@
 import { ASTEROID_MIN_SPACING, DOCK_SIZE, MODULE_COST, MODULE_SPACING, STORAGE_SIZE } from "./build-constants";
 import type { SimState, Size, Station, Vec } from "./model";
+import { nextRandom } from "./prng";
 import { CONSTRUCTION_SITE_SIZE } from "./state";
 
 // A placed site spans the pair of slots its first Dock and Storage will stand
 // in, with the pointer landing on the middle of the pair, like a claim site
 // did before it was replaced.
 export const STATION_SITE_SIZE: Size = { width: DOCK_SIZE.width + MODULE_SPACING, height: DOCK_SIZE.height };
+const STATION_NAME_WORDS = ["Kestrel", "Meridian", "Aster", "Vega", "Pioneer", "Solace", "Atlas", "Juniper", "Cinder", "Lumen"];
 
 export function placeStation(state: SimState, sectorId: number, position: Vec): SimState {
   if (!state.sectors[sectorId]) return state;
   if (blockedByRock(state, sectorId, position) || blockedByStationBody(state, sectorId, position)) return state;
+  const nameRoll = nextRandom(state.rng);
   const dockPosition = { x: position.x - MODULE_SPACING / 2, y: position.y };
   const storagePosition = { x: position.x + MODULE_SPACING / 2, y: position.y };
   const station: Station = {
     id: state.nextStationId,
+    name: `${STATION_NAME_WORDS[Math.floor(nameRoll.value * STATION_NAME_WORDS.length)]} Station`,
     founding: true,
     sectorId,
     dock: { position: dockPosition, size: DOCK_SIZE, capacity: 0 },
@@ -30,7 +34,7 @@ export function placeStation(state: SimState, sectorId: number, position: Vec): 
     ],
     shipBuilds: [],
   };
-  return { ...state, nextStationId: state.nextStationId + 1, stations: [...state.stations, station] };
+  return { ...state, rng: nameRoll.state, nextStationId: state.nextStationId + 1, stations: [...state.stations, station] };
 }
 
 function overlap(a: Vec, b: Vec, aSize: Size, bSize: Size, margin: number): boolean {

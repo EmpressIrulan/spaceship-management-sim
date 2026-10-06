@@ -73,6 +73,7 @@ export function foundedStation(id: number, sectorId: number, x: number, y: numbe
   const dock = { x: x - MODULE_SPACING / 2, y };
   return {
     id,
+    name: id === 0 ? "Home" : `Station ${id}`,
     founding: false,
     sectorId,
     dock: { position: dock, size: DOCK_SIZE, capacity: DOCK_CAPACITY },

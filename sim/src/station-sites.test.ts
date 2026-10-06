@@ -8,10 +8,22 @@ import {
   type SimState,
 } from "sim";
 import { placeStation, renameSector, setSupplyStation } from "./station-placement";
-import { availableModuleBuildSites } from "./station-building";
+import { availableModuleBuildSites, startModuleBuild } from "./station-building";
 import { giveOrder } from "./orders";
 import { haulStationDetails, haulStations } from "./haul";
 import { tick } from "./tick";
+
+describe("generated station names", () => {
+  it("uses a replayable one-word name and keeps Home named Home", () => {
+    const initial = createInitialState(7);
+    const first = placeStation(initial, 1, { x: 0, y: 0 });
+    const replay = placeStation(createInitialState(7), 1, { x: 0, y: 0 });
+
+    expect(initial.stations[0]!.name).toBe("Home");
+    expect(first.stations[1]!.name).toMatch(/^\w+ Station$/);
+    expect(replay.stations[1]!.name).toBe(first.stations[1]!.name);
+  });
+});
 
 function until(state: SimState, done: (state: SimState) => boolean, limit = 600): SimState {
   let next = state;
@@ -91,6 +103,21 @@ describe("criterion 1: Build station places a construction site", () => {
 });
 
 describe("criterion 2: ships supply the site and a Dock builds", () => {
+  it("pays for later modules from that station's site, not Home's", () => {
+    let state = spot(createInitialState(7), 1).state;
+    const id = state.nextStationId - 1;
+    state = fundSite(state, id);
+    state = { ...state, stations: state.stations.map((station) => station.id === id
+      ? { ...station, constructionSite: { ...station.constructionSite, inventory: { Metal: 50, Ice: 50 } } }
+      : station) };
+    const station = stationById(state, id)!;
+    const built = startModuleBuild(state, id, "Storage", availableModuleBuildSites(state, id)[0]!);
+
+    expect(stationById(built, id)!.constructionSite.inventory).toEqual({ Metal: 25, Ice: 25 });
+    expect(homeStation(built).constructionSite.inventory).toEqual(homeStation(state).constructionSite.inventory);
+    expect(stationById(built, id)!.construction?.type).toBe("Storage");
+  });
+
   it("a fully supplied site starts and finishes the Dock build from the queue", () => {
     let state = spot(createInitialState(7), 1).state;
     const id = state.nextStationId - 1;
@@ -204,7 +231,7 @@ describe("criterion 8: claim sites retire, renaming and haul names survive", () 
     expect(renameSector(founded, 1, sectorName)).toBe(founded);
   });
 
-  it("haul routes list founded stations and name them from their sector", () => {
+  it("haul routes list founded stations by their station names", () => {
     let state = spot(createInitialState(7), 1).state;
     const id = state.nextStationId - 1;
     // The ghost site appears as a station once it owns a Dock.
@@ -213,7 +240,7 @@ describe("criterion 8: claim sites retire, renaming and haul names survive", () 
     const renamed = renameSector(founded, 1, "Nova");
     const stations = haulStations(renamed);
     expect(stations.map((entry) => entry.id)).toEqual(["home", `station:${id}`]);
-    expect(stations[1]!.name).toBe("Nova");
+    expect(stations[1]!.name).toBe(renamed.stations.find((station) => station.id === id)!.name);
     const details = haulStationDetails(renamed, `station:${id}`)!;
     expect(details.sectorId).toBe(1);
     expect(details.position).toEqual(stationById(renamed, id)!.dock.position);
