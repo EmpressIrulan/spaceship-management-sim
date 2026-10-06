@@ -28,6 +28,7 @@ export interface RendererElements {
   renameBox: HTMLInputElement;
   shipMenu: HTMLElement;
   storagePanel: HTMLElement;
+  stationPanel: HTMLElement;
   paintViewport: () => Viewport;
   paintPointAt: (point: Vec) => Vec;
 }
@@ -54,6 +55,7 @@ export function createRenderer(
     renameBox,
     shipMenu,
     storagePanel,
+    stationPanel,
     paintViewport,
     paintPointAt,
   } = elements;
@@ -107,7 +109,7 @@ export function createRenderer(
   function draw(seconds: number): void {
     const { sectorRocks, legacyGateVisible, gate, gateScreen } =
       worldDrawing.draw(seconds);
-    refreshPanels(ui, getState, shipPanelBox, storagePanel);
+    refreshPanels(ui, getState, shipPanelBox, storagePanel, stationPanel);
     paintRendering.renderPartTip();
 
     updateCanvasLabel(

@@ -7,7 +7,7 @@ import {
   stationById,
   type SimState,
 } from "sim";
-import { placeStation, renameSector, setSupplyStation } from "./station-placement";
+import { placeStation, renameSector, setSupplyStation, renameStation, removeStation } from "./station-placement";
 import { availableModuleBuildSites, startModuleBuild } from "./station-building";
 import { giveOrder } from "./orders";
 import { haulStationDetails, haulStations } from "./haul";
@@ -22,6 +22,27 @@ describe("generated station names", () => {
     expect(initial.stations[0]!.name).toBe("Home");
     expect(first.stations[1]!.name).toMatch(/^\w+ Station$/);
     expect(replay.stations[1]!.name).toBe(first.stations[1]!.name);
+  });
+});
+
+describe("station management", () => {
+  it("renames any station, including Home, after trimming whitespace", () => {
+    const placed = spot(createInitialState(7), 1);
+    expect(renameStation(placed.state, placed.id, "  Kestrel  ").stations.find((s) => s.id === placed.id)?.name).toBe("Kestrel");
+    expect(renameStation(placed.state, 0, "New Home").stations[0]?.name).toBe("New Home");
+    expect(renameStation(placed.state, placed.id, " ")).toBe(placed.state);
+  });
+
+  it("removes any station and holds ships docked or building there beside its former Dock", () => {
+    const placed = spot(createInitialState(7), 1);
+    const station = placed.state.stations.find((s) => s.id === placed.id)!;
+    const state = { ...placed.state, ships: placed.state.ships.map((ship, index) => index === 0
+      ? { ...ship, sectorId: station.sectorId, state: "docked" as const, position: { ...station.dock.position }, order: { kind: "supplyBuild" as const, stationId: station.id, point: station.dock.position, sectorId: station.sectorId } }
+      : ship) };
+    const removed = removeStation(state, station.id);
+    expect(removed.stations.some((s) => s.id === station.id)).toBe(false);
+    expect(removed.ships[0]).toMatchObject({ sectorId: station.sectorId, state: "holding", position: { x: station.dock.position.x + station.dock.size.width / 2 + 12, y: station.dock.position.y }, order: null, leg: null, berth: null });
+    expect(removeStation(state, -1)).toBe(state);
   });
 });
 

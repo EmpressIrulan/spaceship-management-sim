@@ -141,7 +141,7 @@ describe("hover box", () => {
     const unloading = { ...ship("unloading", 7), berth: 1, transfer: { startingCargo: 10, amount: 10 } };
     const transferring = { ...state, ships: [loading, unloading] };
 
-    expect(infoBox(transferring, { kind: "dock" })).toEqual({ title: "Dock", line: "Occupied 2 / 6" });
+    expect(infoBox(transferring, { kind: "dock", stationId: 0 })).toEqual({ title: "Home", line: "Occupied 2 / 6" });
   });
 
   it("shows the destination name instead of materials once a gate is complete", () => {

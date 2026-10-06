@@ -1,7 +1,7 @@
 import { ASTEROID_MIN_SPACING, DOCK_SIZE, MODULE_COST, MODULE_SPACING, STORAGE_SIZE } from "./build-constants";
 import type { SimState, Size, Station, Vec } from "./model";
 import { nextRandom } from "./prng";
-import { CONSTRUCTION_SITE_SIZE } from "./state";
+import { CONSTRUCTION_SITE_SIZE, replaceStation } from "./state";
 
 // A placed site spans the pair of slots its first Dock and Storage will stand
 // in, with the pointer landing on the middle of the pair, like a claim site
@@ -68,6 +68,27 @@ export function setSupplyStation(state: SimState, stationId: number): SimState {
   return state.stations.some((station) => station.id === stationId)
     ? { ...state, supplyStation: stationId }
     : state;
+}
+
+export function renameStation(state: SimState, stationId: number, name: string): SimState {
+  const station = state.stations.find((candidate) => candidate.id === stationId);
+  const trimmed = name.trim();
+  return !station || !trimmed || station.name === trimmed ? state : replaceStation(state, { ...station, name: trimmed });
+}
+
+export function removeStation(state: SimState, stationId: number): SimState {
+  const station = state.stations.find((candidate) => candidate.id === stationId);
+  if (!station) return state;
+  const ships = state.ships.map((ship) => {
+    const buildingThere = ship.order?.kind === "supplyBuild" && ship.order.stationId === stationId;
+    const dockedHere = ship.state === "docked"
+      && Math.abs(ship.position.x - station.dock.position.x) <= station.dock.size.width / 2
+      && Math.abs(ship.position.y - station.dock.position.y) <= station.dock.size.height / 2;
+    if (ship.sectorId !== station.sectorId || (!buildingThere && !dockedHere)) return ship;
+    const nearby = { x: station.dock.position.x + station.dock.size.width / 2 + 12, y: station.dock.position.y };
+    return { ...ship, sectorId: station.sectorId, position: nearby, state: "holding" as const, order: null, target: null, leg: null, berth: null, transfer: null, timer: 0 };
+  });
+  return { ...state, stations: state.stations.filter((candidate) => candidate.id !== stationId), ships };
 }
 
 // A station is founded once it stands on its own Dock: that is when it can

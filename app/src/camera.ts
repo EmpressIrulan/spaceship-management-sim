@@ -100,7 +100,7 @@ const MIN_HOVER_PX = 16;
 const MIN_SHIP_HOVER_PX = 8;
 
 export type Hovered =
-  | { kind: "dock" }
+  | { kind: "dock"; stationId: number }
   | { kind: "storage" }
   | { kind: "module"; index: number }
   | { kind: "construction" }
@@ -191,7 +191,9 @@ export function hoveredBody(
       return { kind: "constructionSite", id: station.id };
     }
   }
-  if (stationVisible && insideRect(world, home.dock.position, home.dock.size)) return { kind: "dock" };
+  for (const station of state.stations) {
+    if (station.sectorId === currentSector && insideRect(world, station.dock.position, station.dock.size)) return { kind: "dock", stationId: station.id };
+  }
   if (stationVisible && insideRect(world, home.storage.position, home.storage.size)) {
     return { kind: "storage" };
   }
@@ -236,7 +238,7 @@ export function bodyOf(
   state: SimState,
   hovered: Hovered,
 ): { position: Vec; size: Size } | null {
-  if (hovered.kind === "dock") return homeStation(state).dock;
+  if (hovered.kind === "dock") return stationById(state, hovered.stationId)?.dock ?? null;
   if (hovered.kind === "storage") return homeStation(state).storage;
   if (hovered.kind === "construction") return homeStation(state).construction;
   if (hovered.kind === "constructionSite") return stationById(state, hovered.id)?.constructionSite ?? homeStation(state).constructionSite;

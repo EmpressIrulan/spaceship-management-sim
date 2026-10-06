@@ -123,7 +123,7 @@ describe("hovering", () => {
     for (const camera of cameras) {
       const dockSurface = { x: state.stations[0]!.dock.position.x + 12, y: state.stations[0]!.dock.position.y };
       const onScreen = worldToScreen(camera, viewport, dockSurface);
-      expect(hoveredBody(state, camera, viewport, onScreen)).toEqual({ kind: "dock" });
+      expect(hoveredBody(state, camera, viewport, onScreen)).toEqual({ kind: "dock", stationId: 0 });
     }
   });
 

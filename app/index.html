@@ -93,7 +93,7 @@
         background: #1e293b;
         cursor: not-allowed;
       }
-      #ship-menu, #ship-panel, #storage-panel {
+      #ship-menu, #ship-panel, #storage-panel, #station-panel {
         position: absolute;
         z-index: 2;
         box-sizing: border-box;
@@ -117,9 +117,10 @@
       #ship-menu .cost .short { color: #f87171; font-weight: bold; }
       #ship-menu .stats { white-space: pre-line; }
       #ship-panel { top: 56px; right: 12px; width: 200px; }
+      #station-panel { top: 56px; left: 12px; width: 230px; }
       #storage-panel { top: 56px; left: 12px; width: min(390px, calc(100vw - 24px)); }
-      #ship-menu[hidden], #ship-panel[hidden], #storage-panel[hidden] { display: none; }
-      #ship-menu h2, #ship-panel h2, #storage-panel h2 { margin: 0; font-size: 14px; }
+      #ship-menu[hidden], #ship-panel[hidden], #storage-panel[hidden], #station-panel[hidden] { display: none; }
+      #ship-menu h2, #ship-panel h2, #storage-panel h2, #station-panel h2 { margin: 0; font-size: 14px; }
       #ship-menu .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
       #ship-menu button {
         padding: 4px 7px;
@@ -179,6 +180,7 @@
     <div id="speed-controls"></div>
     <aside id="ship-panel" hidden></aside>
     <aside id="storage-panel" hidden></aside>
+    <aside id="station-panel" hidden></aside>
     <button id="station-button" hidden>Build station</button>
     <div id="hint" hidden></div>
     <input id="rename-box" hidden maxlength="24" aria-label="Sector name" />

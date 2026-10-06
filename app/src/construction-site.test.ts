@@ -77,7 +77,7 @@ describe("the construction site on screen", () => {
   it("does not count a ship unloading there against the Dock's berths", () => {
     const state = withShip({ state: "unloading", cargo: 5, cargoMaterial: "Metal", transfer: { startingCargo: 5, amount: 5, destination: "constructionSite" } });
 
-    expect(infoBox(state, { kind: "dock" })?.line).toBe("Occupied 0 / 6");
+    expect(infoBox(state, { kind: "dock", stationId: 0 })?.line).toBe("Occupied 0 / 6");
   });
 
   it("takes a right-click as an order to supply it", () => {

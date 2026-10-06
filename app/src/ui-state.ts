@@ -45,6 +45,9 @@ export interface UiState {
   infoHovered: boolean;
   clock: Clock;
   storagePanelOpen: boolean;
+  stationPanelId: number | null;
+  removeStationConfirmation: number | null;
+  renderedStationPanel: string;
   deleteConfirmations: Map<Material, DeleteConfirmation>;
   camera: Camera;
   lastTimeMs: number;
@@ -86,6 +89,9 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     infoHovered: false,
     clock: INITIAL_CLOCK,
     storagePanelOpen: false,
+    stationPanelId: null,
+    removeStationConfirmation: null,
+    renderedStationPanel: "",
     deleteConfirmations: new Map<Material, DeleteConfirmation>(),
     camera: fitCamera({ width: 0, height: 0 }, []),
     lastTimeMs: performance.now(),

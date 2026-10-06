@@ -69,13 +69,13 @@ describe("station module hover", () => {
       y: unloading.stations[0]!.dock.position.y,
     };
 
-    expect(hoveredBody(unloading, camera, viewport, worldToScreen(camera, viewport, dockEdge))).toEqual({ kind: "dock" });
+    expect(hoveredBody(unloading, camera, viewport, worldToScreen(camera, viewport, dockEdge))).toEqual({ kind: "dock", stationId: 0 });
   });
 
   it("shows Dock berth use increasing from zero to one out of six", () => {
     const empty = createInitialState(7);
-    expect(infoBox(empty, { kind: "dock" })).toEqual({
-      title: "Dock",
+    expect(infoBox(empty, { kind: "dock", stationId: 0 })).toEqual({
+      title: "Home",
       line: "Occupied 0 / 6",
     });
 
@@ -89,8 +89,8 @@ describe("station module hover", () => {
         },
       ],
     };
-    expect(infoBox(unloading, { kind: "dock" })).toEqual({
-      title: "Dock",
+    expect(infoBox(unloading, { kind: "dock", stationId: 0 })).toEqual({
+      title: "Home",
       line: "Occupied 1 / 6",
     });
   });

@@ -104,6 +104,8 @@ export {
   STATION_SITE_SIZE,
   placeStation,
   setSupplyStation,
+  renameStation,
+  removeStation,
   renameSector,
   sectorClaimed,
   stationFounded,
