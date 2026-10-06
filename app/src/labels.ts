@@ -119,10 +119,11 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     return { title: `${queued.type}, queued`, line, action: { label: "Cancel", queuedBuild: hovered.index } };
   }
   if (hovered.kind === "module") {
-    const module = homeStation(state).modules[hovered.index];
+    const station = state.stations.find((candidate) => candidate.id === hovered.stationId);
+    const module = station?.modules[hovered.index];
     if (!module) return null;
     if (module.type === "Builder") {
-      const job = homeStation(state).shipBuilds.find((candidate) => candidate.builder === hovered.index);
+      const job = station?.shipBuilds.find((candidate) => candidate.builder === hovered.index);
       if (!job) return { title: "Builder", line: "Idle" };
       const size = `${job.design.width}x${job.design.height}`;
       return { title: "Builder", line: `Building ${size}: ${formatDuration(Math.ceil(job.timer))}` };

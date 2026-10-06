@@ -103,7 +103,7 @@ describe("hover box", () => {
     };
     const expected = { title: "Storage", line: "Stored 110 / 200\nMetal: 70\nIce: 40\nIncome: Metal +0/min, Ice +0/min" };
     expect(infoBox(grown, { kind: "storage" })).toEqual(expected);
-    expect(infoBox(grown, { kind: "module", index: 2 })).toEqual(expected);
+    expect(infoBox(grown, { kind: "module", index: 2, stationId: 0 })).toEqual(expected);
   });
 
   it("shows an asteroid's material and ore left, titled Asteroid", () => {
@@ -180,6 +180,6 @@ describe("storage income", () => {
   it("shows on a built Storage module as well", () => {
     const state = delivered([{ at: 90, material: "Ice", amount: 5 }], 100);
     const index = state.stations[0]!.modules.findIndex((module) => module.type === "Storage");
-    expect(infoBox(state, { kind: "module", index })?.line).toContain("Ice +5/min");
+    expect(infoBox(state, { kind: "module", index, stationId: 0 })?.line).toContain("Ice +5/min");
   });
 });

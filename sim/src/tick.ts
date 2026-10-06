@@ -619,6 +619,7 @@ function nextEvent(draft: Draft): number {
   if (draft.construction) soonest = Math.min(soonest, draft.construction.timer);
   for (const station of draft.others) {
     if (station.construction) soonest = Math.min(soonest, station.construction.timer);
+    for (const job of station.shipBuilds) soonest = Math.min(soonest, job.timer);
   }
   for (const job of draft.shipBuilds) soonest = Math.min(soonest, job.timer);
   return soonest;
@@ -634,8 +635,8 @@ function advance(draft: Draft, seconds: number): void {
   draft.shipBuilds = draft.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds }));
   // A founding station's own first Dock and Storage build on its site stock.
   draft.others = draft.others.map((station) => (station.construction
-    ? { ...station, construction: { ...station.construction, timer: station.construction.timer - seconds } }
-    : station));
+    ? { ...station, construction: { ...station.construction, timer: station.construction.timer - seconds }, shipBuilds: station.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds })) }
+    : { ...station, shipBuilds: station.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds })) }));
 }
 
 // Fires every timer that has reached zero. Respawns go first so a ship that
@@ -692,13 +693,20 @@ function settle(draft: Draft): void {
   }
   // A finished ship appears at the Dock with nothing to do, and the loop
   // below sends it out in the same step.
-  for (const job of draft.shipBuilds.filter((j) => j.timer <= 0)) {
+  const completedShipBuilds = [
+    ...draft.shipBuilds.filter((job) => job.timer <= 0).map((job) => ({ ...job, stationId: job.stationId ?? 0 })),
+    ...draft.others.flatMap((station) => station.shipBuilds.filter((job) => job.timer <= 0).map((job) => ({ ...job, stationId: station.id }))),
+  ];
+  for (const job of completedShipBuilds) {
+    const station = job.stationId === 0 ? null : draft.others.find((candidate) => candidate.id === job.stationId);
+    const dock = station?.dock.position ?? draft.dock;
     draft.ships = [...draft.ships, {
       id: draft.nextShipId,
-      sectorId: 0,
+      homeStationId: job.stationId,
+      sectorId: station?.sectorId ?? draft.stationSector,
       design: job.design,
       state: "idle",
-      position: { ...draft.dock },
+      position: { ...dock },
       timer: 0,
       cargo: 0,
       cargoByMaterial: { Metal: 0, Ice: 0 },
@@ -715,6 +723,7 @@ function settle(draft: Draft): void {
     draft.nextShipId += 1;
   }
   draft.shipBuilds = draft.shipBuilds.filter((job) => job.timer > 0);
+  draft.others = draft.others.map((station) => ({ ...station, shipBuilds: station.shipBuilds.filter((job) => job.timer > 0) }));
   // In place and in fleet order, so each ship sees the berths and rocks the
   // ships before it have just taken.
   draft.ships = [...draft.ships];

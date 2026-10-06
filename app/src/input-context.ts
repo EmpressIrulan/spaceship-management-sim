@@ -5,7 +5,7 @@ export interface InputActions {
   closeStoragePanel: () => void;
   closeBuildMenu: () => void;
   closeGateMenu: () => void;
-  openShipMenu: (builder: number) => void;
+  openShipMenu: (builder: number, stationId?: number) => void;
   closeShipMenu: () => void;
 }
 
@@ -16,7 +16,7 @@ export interface InputContext {
   canvas: HTMLCanvasElement;
   storagePanel: HTMLElement;
   closeStoragePanel: () => void;
-  openShipMenu: (builder: number) => void;
+  openShipMenu: (builder: number, stationId?: number) => void;
   startRename: (sectorId: number) => void;
   mousePoint: (event: MouseEvent) => { x: number; y: number };
 }

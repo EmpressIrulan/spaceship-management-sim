@@ -23,9 +23,9 @@ export function selectClick(context: InputContext, event: MouseEvent, additive: 
   else if (!additive) ui.selectedShips = [];
   if (ui.selectedShips.join(",") !== priorSelection) ui.routeRefusalMessage = null;
   ui.selectedShip = ui.selectedShips[0] ?? null;
-  if (hovered?.kind === "module" && homeStation(getState()).modules[hovered.index]?.type === "Builder") openShipMenu(hovered.index);
+  if (hovered?.kind === "module" && stationById(getState(), hovered.stationId)?.modules[hovered.index]?.type === "Builder") openShipMenu(hovered.index, hovered.stationId);
   const stationDockId = hovered?.kind === "dock" ? hovered.stationId
-    : hovered?.kind === "module" && homeStation(getState()).modules[hovered.index]?.type === "Dock" ? 0 : null;
+    : hovered?.kind === "module" && stationById(getState(), hovered.stationId)?.modules[hovered.index]?.type === "Dock" ? hovered.stationId : null;
   if (stationDockId !== null) {
     ui.stationPanelId = stationById(getState(), stationDockId) ? stationDockId : null;
     ui.removeStationConfirmation = null;

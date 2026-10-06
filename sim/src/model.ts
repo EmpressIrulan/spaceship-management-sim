@@ -121,6 +121,7 @@ export interface Delivery {
 }
 
 export interface ShipBuild {
+  stationId?: number;
   // Index of the Builder in `modules`. Modules are only ever appended.
   builder: number;
   design: ShipDesign;

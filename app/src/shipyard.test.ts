@@ -291,11 +291,11 @@ describe("Builder hover", () => {
     const draft = withSize(withModule(emptyDraft(), "Hull"), 5);
     applyTool(draft, { x: 0, y: 0 });
     const building = tick(startShipBuild(withBuilder(), BUILDER, designOf(draft)), 7);
-    expect(infoBox(building, { kind: "module", index: BUILDER })).toEqual({
+    expect(infoBox(building, { kind: "module", index: BUILDER, stationId: 0 })).toEqual({
       title: "Builder",
       line: "Building 5x5: 18 s",
     });
-    expect(infoBox(withBuilder(), { kind: "module", index: BUILDER })).toEqual({
+    expect(infoBox(withBuilder(), { kind: "module", index: BUILDER, stationId: 0 })).toEqual({
       title: "Builder",
       line: "Idle",
     });

@@ -102,7 +102,7 @@ const MIN_SHIP_HOVER_PX = 8;
 export type Hovered =
   | { kind: "dock"; stationId: number }
   | { kind: "storage" }
-  | { kind: "module"; index: number }
+  | { kind: "module"; index: number; stationId: number }
   | { kind: "construction" }
   // A construction site's stock. 0 is Home's; placed founding sites carry
   // their station's id.
@@ -161,9 +161,9 @@ export function hoveredBody(
   const stationVisible = home.sectorId === currentSector;
   const atStationOrGate = (index: number): boolean => {
     const position = state.ships[index]!.position;
-    if (stationVisible && [home.dock, home.storage, ...home.modules,
-      ...(home.construction ? [home.construction] : []), ...home.buildQueue,
-      ...(home.buildQueue.length > 0 ? [home.constructionSite] : [])]
+    if ([...state.stations.filter((station) => station.sectorId === currentSector).flatMap((station) => [station.dock, station.storage, ...station.modules,
+      ...(station.construction ? [station.construction] : []), ...station.buildQueue,
+      ...(station.buildQueue.length > 0 ? [station.constructionSite] : [])])]
       .some((body) => insideRect(position, body.position, body.size))) return true;
     if (state.stations.some((station) => station.sectorId === currentSector && station.id !== 0
       && insideRect(position, station.constructionSite.position, station.constructionSite.size))) return true;
@@ -209,9 +209,12 @@ export function hoveredBody(
   if (stationVisible && home.buildQueue.length > 0 && insideRect(world, home.constructionSite.position, home.constructionSite.size)) {
     return { kind: "constructionSite", id: 0 };
   }
-  for (let index = 2; stationVisible && index < home.modules.length; index += 1) {
-    const module = home.modules[index]!;
-    if (insideRect(world, module.position, module.size)) return { kind: "module", index };
+  for (const station of state.stations) {
+    if (station.sectorId !== currentSector) continue;
+    for (let index = 2; index < station.modules.length; index += 1) {
+      const module = station.modules[index]!;
+      if (insideRect(world, module.position, module.size)) return { kind: "module", index, stationId: station.id };
+    }
   }
   for (const asteroid of state.asteroids) {
     if (asteroid.sectorId !== currentSector) continue;

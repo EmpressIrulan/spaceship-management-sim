@@ -245,7 +245,7 @@ export interface ShipMenuView {
   canBuild: boolean;
 }
 
-export function shipMenuView(state: SimState, builder: number, draft: ShipDraft): ShipMenuView {
+export function shipMenuView(state: SimState, builder: number, draft: ShipDraft, stationId = 0): ShipMenuView {
   const design = designOf(draft);
   const cost = shipBuildCost(design);
   const counts = shipModuleCounts(design);
@@ -260,7 +260,7 @@ export function shipMenuView(state: SimState, builder: number, draft: ShipDraft)
       amount: cost[material],
       short: homeStation(state).inventory[material] < cost[material],
     })),
-    canBuild: availableShipBuild(state, builder, design),
+    canBuild: availableShipBuild(state, builder, design, stationId),
   };
 }
 import { homeStation } from "sim";

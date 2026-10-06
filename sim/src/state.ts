@@ -563,8 +563,9 @@ export function deleteStock(state: SimState, material: Material, amount: number)
 }
 
 // A Builder can take a job when it is built, idle, and Storage can pay.
-export function availableShipBuild(state: SimState, builder: number, design: ShipDesign): boolean {
-  const home = homeStation(state);
+export function availableShipBuild(state: SimState, builder: number, design: ShipDesign, stationId = 0): boolean {
+  const home = stationById(state, stationId);
+  if (!home) return false;
   const module = home.modules[builder];
   if (module?.type !== "Builder" || !validDesign(design)) return false;
   if (home.shipBuilds.some((job) => job.builder === builder)) return false;
@@ -572,20 +573,22 @@ export function availableShipBuild(state: SimState, builder: number, design: Shi
   return MATERIALS.every((material) => home.inventory[material] >= cost[material]);
 }
 
-export function startShipBuild(state: SimState, builder: number, design: ShipDesign): SimState {
-  if (!availableShipBuild(state, builder, design)) return state;
-  const home = homeStation(state);
+export function startShipBuild(state: SimState, builder: number, design: ShipDesign, stationId = 0): SimState {
+  if (!availableShipBuild(state, builder, design, stationId)) return state;
+  const home = stationById(state, stationId)!;
   const cost = shipBuildCost(design);
   const inventory = Object.fromEntries(
     MATERIALS.map((material) => [material, home.inventory[material] - cost[material]]),
   ) as Record<Material, number>;
   const job: ShipBuild = {
+    stationId,
     builder,
     design: { ...design, slots: [...design.slots] },
     timer: shipBuildSeconds(design),
   };
   const station = { ...home, inventory, shipBuilds: [...home.shipBuilds, job] };
-  return { ...replaceHomeStation(state, station), ships: dockWaitingShips(station, state.ships) };
+  const next = { ...replaceStation(state, station), ships: dockWaitingShips(station, state.ships) };
+  return stationId === 0 ? { ...replaceHomeStation(next, station), ships: dockWaitingShips(station, state.ships) } : next;
 }
 
 // A mining ship's laser, from the ship to the near edge of the rock it is

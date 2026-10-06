@@ -4,7 +4,7 @@ import type { UiState } from "./ui-state";
 
 export function syncShipMenuStats(ui: UiState, getState: () => SimState, shipMenu: HTMLElement): void {
   if (ui.shipMenuBuilder === null) return;
-  const view = shipMenuView(getState(), ui.shipMenuBuilder, ui.draft);
+  const view = shipMenuView(getState(), ui.shipMenuBuilder, ui.draft, ui.shipMenuStation);
   const stats = shipMenu.querySelector<HTMLElement>(".stats")!;
   const text = `Pixels ${view.pixels}\nSpeed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;
   if (stats.textContent !== text) stats.textContent = text;

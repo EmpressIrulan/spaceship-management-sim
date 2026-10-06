@@ -17,6 +17,7 @@ export interface UiState {
   controlsHovered: boolean;
   selectedBuildSite: Vec | null;
   shipMenuBuilder: number | null;
+  shipMenuStation: number;
   draft: ShipDraft;
   blueprints: Blueprint[];
   paintView: Camera;
@@ -65,6 +66,7 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     controlsHovered: false,
     selectedBuildSite: null,
     shipMenuBuilder: null,
+    shipMenuStation: 0,
     draft: emptyDraft(),
     blueprints,
     paintView: emptyView(),

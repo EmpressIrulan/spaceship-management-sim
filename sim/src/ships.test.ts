@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { miningStart } from "./test-ships";
+import { foundedStation, miningStart } from "./test-ships";
 import {
   PIXEL_SIZE,
   SHIP_MODULES,
@@ -168,7 +168,7 @@ describe("building a ship", () => {
 
     expect(state.stations[0]!.inventory).toEqual({ Metal: 760, Ice: 840 });
     expect(state.stations[0]!.shipBuilds).toEqual([
-      { builder: FIRST_BUILDER, design: miner, timer: shipBuildSeconds(miner) },
+      { stationId: 0, builder: FIRST_BUILDER, design: miner, timer: shipBuildSeconds(miner) },
     ]);
     expect(availableShipBuild(state, FIRST_BUILDER, miner)).toBe(false);
     expect(availableShipBuild(state, SECOND_BUILDER, miner)).toBe(true);
@@ -190,6 +190,20 @@ describe("building a ship", () => {
     const done = tick(state, shipBuildSeconds(miner));
     expect(done.stations[0]!.shipBuilds).toEqual([]);
     expect(done.ships).toHaveLength(3);
+  });
+
+  it("builds at a non-Home Builder and gives the ship that station as its home", () => {
+    const state = shipyard();
+    const origin = foundedStation(1, 2, 900, 900, { Metal: 1000, Ice: 1000 });
+    origin.modules.push({ type: "Builder", position: { x: 940, y: 900 }, size: { width: 30, height: 40 } });
+    const withStation = { ...state, stations: [...state.stations, origin] };
+    const building = startShipBuild(withStation, 2, miner, 1);
+    const done = tick(building, shipBuildSeconds(miner));
+    const built = done.ships.at(-1)!;
+
+    expect(built.homeStationId).toBe(1);
+    expect(built.sectorId).toBe(2);
+    expect(built.position).toEqual(origin.dock.position);
   });
 
   it("launches the new ship from the Dock with nothing ticked, and it mines once a material is", () => {
