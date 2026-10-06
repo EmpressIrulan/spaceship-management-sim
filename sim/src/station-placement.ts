@@ -81,14 +81,16 @@ export function removeStation(state: SimState, stationId: number): SimState {
   if (!station) return state;
   const ships = state.ships.map((ship) => {
     const buildingThere = ship.order?.kind === "supplyBuild" && ship.order.stationId === stationId;
-    const dockedHere = ship.state === "docked"
+    const dockedHere = ship.sectorId === station.sectorId && ship.state === "docked"
       && Math.abs(ship.position.x - station.dock.position.x) <= station.dock.size.width / 2
       && Math.abs(ship.position.y - station.dock.position.y) <= station.dock.size.height / 2;
-    if (ship.sectorId !== station.sectorId || (!buildingThere && !dockedHere)) return ship;
+    if (!buildingThere && !dockedHere) return ship;
     const nearby = { x: station.dock.position.x + station.dock.size.width / 2 + 12, y: station.dock.position.y };
     return { ...ship, sectorId: station.sectorId, position: nearby, state: "holding" as const, order: null, target: null, leg: null, berth: null, transfer: null, timer: 0 };
   });
-  return { ...state, stations: state.stations.filter((candidate) => candidate.id !== stationId), ships };
+  const stations = state.stations.filter((candidate) => candidate.id !== stationId);
+  const supplyStation = state.supplyStation === stationId ? (stations[0]?.id ?? 0) : state.supplyStation;
+  return { ...state, stations, ships, supplyStation };
 }
 
 // A station is founded once it stands on its own Dock: that is when it can

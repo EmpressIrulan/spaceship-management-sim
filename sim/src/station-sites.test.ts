@@ -36,13 +36,24 @@ describe("station management", () => {
   it("removes any station and holds ships docked or building there beside its former Dock", () => {
     const placed = spot(createInitialState(7), 1);
     const station = placed.state.stations.find((s) => s.id === placed.id)!;
-    const state = { ...placed.state, ships: placed.state.ships.map((ship, index) => index === 0
-      ? { ...ship, sectorId: station.sectorId, state: "docked" as const, position: { ...station.dock.position }, order: { kind: "supplyBuild" as const, stationId: station.id, point: station.dock.position, sectorId: station.sectorId } }
-      : ship) };
+    const docked = placed.state.ships[0]!;
+    const state = { ...placed.state, ships: [
+      { ...docked, sectorId: station.sectorId, state: "docked" as const, position: { ...station.dock.position }, order: { kind: "supplyBuild" as const, stationId: station.id, point: station.dock.position, sectorId: station.sectorId } },
+      { ...docked, id: docked.id + 1, state: "holding" as const, order: { kind: "supplyBuild" as const, stationId: station.id, point: station.dock.position, sectorId: station.sectorId } },
+    ] };
     const removed = removeStation(state, station.id);
     expect(removed.stations.some((s) => s.id === station.id)).toBe(false);
     expect(removed.ships[0]).toMatchObject({ sectorId: station.sectorId, state: "holding", position: { x: station.dock.position.x + station.dock.size.width / 2 + 12, y: station.dock.position.y }, order: null, leg: null, berth: null });
+    expect(removed.ships[1]).toMatchObject({ sectorId: station.sectorId, state: "holding", position: { x: station.dock.position.x + station.dock.size.width / 2 + 12, y: station.dock.position.y }, order: null });
     expect(removeStation(state, -1)).toBe(state);
+  });
+
+  it("can remove Home and redirects the selected supply site to a surviving station", () => {
+    const placed = spot(createInitialState(7), 1);
+    const selected = setSupplyStation(placed.state, placed.id);
+    const removed = removeStation(selected, 0);
+    expect(removed.stations.some((station) => station.id === 0)).toBe(false);
+    expect(removed.supplyStation).toBe(placed.id);
   });
 });
 
