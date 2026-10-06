@@ -2,7 +2,7 @@ import { hoveredBody } from "./camera";
 import { storagePanelOpenAfterClick } from "./storage";
 import { openStoragePanel } from "./storage-panel";
 import { toggleShip } from "./selection";
-import { stationById } from "sim";
+import { homeStation, stationById } from "sim";
 import type { InputContext } from "./input-context";
 
 export function selectClick(context: InputContext, event: MouseEvent, additive: boolean): void {
@@ -29,9 +29,8 @@ export function selectClick(context: InputContext, event: MouseEvent, additive: 
   if (stationDockId !== null) {
     ui.stationPanelId = stationById(getState(), stationDockId) ? stationDockId : null;
     ui.removeStationConfirmation = null;
-  } else if (hovered?.kind !== "storage" && !(hovered?.kind === "module" && homeStation(getState()).modules[hovered.index]?.type === "Builder")) {
+  } else {
     ui.stationPanelId = null;
     ui.removeStationConfirmation = null;
   }
 }
-import { homeStation } from "sim";

@@ -78,17 +78,18 @@ function storageBox(state: SimState): InfoBox {
   };
 }
 
-function dockBox(state: SimState): InfoBox {
+function dockBox(state: SimState, stationId = 0): InfoBox {
   const transferring = state.ships.filter((ship) => ship.state === "loading"
     || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
     || (ship.state === "unloading" && ship.transfer?.destination !== "constructionSite")).length;
-  return { title: "Dock", line: `Occupied ${transferring} / ${homeStation(state).dock.capacity}` };
+  const station = stationById(state, stationId) ?? homeStation(state);
+  return { title: station.name, line: `Occupied ${transferring} / ${station.dock.capacity}` };
 }
 
 // Null closes the box, including when the hovered asteroid has just gone.
 export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | null {
   if (!hovered) return null;
-  if (hovered.kind === "dock") return dockBox(state);
+  if (hovered.kind === "dock") return dockBox(state, hovered.stationId);
   if (hovered.kind === "storage") return storageBox(state);
   if (hovered.kind === "constructionSite") return siteBox(state, hovered.id);
   if (hovered.kind === "construction") {
