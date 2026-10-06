@@ -1,4 +1,4 @@
-import { giveOrder, HOME_SECTOR, type SimState, type Vec } from "sim";
+import { giveOrder, HOME_SECTOR, stationById, type SimState, type Vec } from "sim";
 import { hoveredBody, screenToWorld } from "./camera";
 import { dismissGatePlacement } from "./sectors";
 import { contextOrderAllowed, orderTargetAt } from "./selection";
@@ -11,7 +11,7 @@ export function installContextMenu(
   setState: (state: SimState) => void,
   canvas: HTMLCanvasElement,
   gateMenu: HTMLElement,
-  claimButton: HTMLButtonElement,
+  stationButton: HTMLButtonElement,
   mousePoint: (event: MouseEvent) => Vec,
 ): () => void {
   const closeGateMenu = (): void => {
@@ -24,8 +24,8 @@ export function installContextMenu(
   window.addEventListener("mousedown", (event) => {
     if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
   }, true);
-  claimButton.addEventListener("click", () => {
-    ui.pendingClaim = true;
+  stationButton.addEventListener("click", () => {
+    ui.pendingStation = true;
     closeGateMenu();
   });
   gateMenu.addEventListener("click", () => {
@@ -61,7 +61,9 @@ export function installContextMenu(
     const world = screenToWorld(ui.camera, ui.viewport, point);
     const target = orderTargetAt(state, hovered, world, ui.currentSector);
     const to = target.kind === "move" ? target.point : target.kind === "home" ? homeStation(state).dock.position
-      : target.kind === "haulGate" ? world : target.kind === "supplyBuild" ? homeStation(state).constructionSite.position : target.kind === "supplySite" ? state.claimSites.find((site) => site.id === target.siteId)?.position ?? world : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
+      : target.kind === "haulGate" ? world
+      : target.kind === "supplyBuild" ? stationById(state, target.stationId)?.constructionSite.position ?? world
+      : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
     ui.orderLines = { from: ui.selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
     setState(giveOrder(state, ui.selectedShips, target));
     ui.routeRefusalMessage = null;

@@ -1,7 +1,6 @@
 import {
-  MATERIALS,
+  MATERIALS, MODULE_SPACING,
   MODULE_COST,
-  MODULE_SPACING,
   availableModuleBuildSites,
   availableModuleBuilds,
   queuedDependents,
@@ -10,6 +9,7 @@ import {
   type SimState,
   type Vec,
 } from "sim";
+import { homeStation } from "sim";
 
 export interface BuildMenuItem {
   type: ModuleType;
@@ -19,9 +19,11 @@ export interface BuildMenuItem {
   title: string;
 }
 
-export function buildMenuItems(state: SimState): BuildMenuItem[] {
+// The + menu reads its stock from the station it grows, so every question is
+// about that one station.
+export function buildMenuItems(state: SimState, stationId: number): BuildMenuItem[] {
   const cost = MATERIALS.map((material) => `${MODULE_COST[material]} ${material}`).join(", ");
-  return availableModuleBuilds(state).map((option) => {
+  return availableModuleBuilds(state, stationId).map((option) => {
     const short = MATERIALS.filter((material) => option.missing[material] > 0)
       .map((material) => `${option.missing[material]} more ${material}`);
     const title = short.length > 0 ? `Needs ${short.join(" and ")}` : "";
@@ -33,19 +35,28 @@ export function buildControlsVisible(stationHovered: boolean, controlsHovered: b
   return stationHovered || controlsHovered;
 }
 
-// Every module, the construction and every empty site owns one slot-sized
-// square. The squares tile, so the pointer can cross from a module to a +
-// without leaving them at any zoom.
-export function pointerInBuildArea(state: SimState, world: Vec): boolean {
-  const home = homeStation(state);
-  const slots = [
-    ...home.modules.map((module) => module.position),
-    ...(home.construction ? [home.construction.position] : []),
-    ...home.buildQueue.map((queued) => queued.position),
-    ...availableModuleBuildSites(state),
-  ];
-  const half = MODULE_SPACING / 2;
-  return slots.some((slot) => Math.abs(world.x - slot.x) <= half && Math.abs(world.y - slot.y) <= half);
+// Whichever station's build area the pointer is over: its modules, its builds
+// and the + sites round them. Null when none is near, so each station's
+// controls only show around it.
+export function buildAreaStation(state: SimState, world: Vec): number | null {
+  const inBuildArea = (stationId: number): boolean => {
+    const station = stationId === 0 ? homeStation(state) : state.stations.find((candidate) => candidate.id === stationId)!;
+    const slots = [
+      ...station.modules.map((module) => module.position),
+      ...(station.construction ? [station.construction.position] : []),
+      ...station.buildQueue.map((queued) => queued.position),
+      ...availableModuleBuildSites(state, stationId),
+    ];
+    const half = MODULE_SPACING / 2;
+    return slots.some((slot) => Math.abs(world.x - slot.x) <= half && Math.abs(world.y - slot.y) <= half);
+  };
+  // Home first, so an overlapping pair of build areas favours the starting
+  // station.
+  const ordered = [homeStation(state), ...state.stations.slice(1)];
+  for (const station of ordered) {
+    if (inBuildArea(station.id)) return station.id;
+  }
+  return null;
 }
 
 // Screen pixels for a + control: the clickable cell fills its slot, and the
@@ -80,4 +91,3 @@ export function cancelDependentsAt(state: SimState, hovered: Vec | null): Queued
   const index = queuedBuildIndexAt(state, hovered);
   return index < 0 ? [] : queuedDependents(homeStation(state), index);
 }
-import { homeStation } from "sim";

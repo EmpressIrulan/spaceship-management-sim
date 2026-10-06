@@ -46,24 +46,26 @@ export function createWorldDrawing(
       else strokeWorldRect(end.position, { width: 24, height: 24 }, "#22d3ee");
     }
     for (const asteroid of sectorRocks) fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material, asteroid.rich));
-    for (const connector of ui.currentSector === 0 ? stationConnectors(homeStation(getState()).modules) : []) {
-      stationDrawing.drawStationConnector(connector.from, connector.to);
-    }
-    for (const module of ui.currentSector === 0 ? homeStation(getState()).modules : []) stationDrawing.drawStationModule(module);
-    // The Cancel under the pointer names the ghosts it would take with it, so the
-    // hover highlight and the click read the one set and cannot disagree. Slots
-    // are keyed by position, since that is how the hover names its ghost.
-    const taking = new Set(ui.currentSector === 0
-      ? cancelDependentsAt(getState(), ui.cancelHoveredBuild).map((queued) => slotKey(queued.position))
-      : []);
-    for (const queued of ui.currentSector === 0 ? homeStation(getState()).buildQueue : []) {
-      stationDrawing.drawQueuedModule(queued, taking.has(slotKey(queued.position)));
-    }
-    if (ui.currentSector === 0 && homeStation(getState()).buildQueue.length > 0) stationDrawing.drawConstructionSite();
-    const construction = homeStation(getState()).construction;
-    if (ui.currentSector === 0 && construction) strokeWorldRect(construction.position, construction.size, "#cbd5e1");
-    for (const site of getState().claimSites) {
-      if (site.sectorId === ui.currentSector) stationDrawing.drawClaimSite(site);
+    const state = getState();
+    // Every station in the sector draws whole, so a founding one shows its
+    // ghosts, its build and its site marker exactly the way Home does.
+    for (const station of state.stations) {
+      if (station.sectorId !== ui.currentSector) continue;
+      const home = station.id === 0;
+      for (const connector of stationConnectors(station.modules)) stationDrawing.drawStationConnector(connector.from, connector.to);
+      for (const module of station.modules) stationDrawing.drawStationModule(module);
+      // The Cancel under the pointer names the ghosts it would take with it, so
+      // the hover highlight and the click read the one set and cannot disagree.
+      // Slots are keyed by position, since that is how the hover names its
+      // ghost. Cancel lives at Home for now.
+      const taking = new Set(home
+        ? cancelDependentsAt(state, ui.cancelHoveredBuild).map((queued) => slotKey(queued.position))
+        : []);
+      for (const queued of station.buildQueue) {
+        stationDrawing.drawQueuedModule(queued, taking.has(slotKey(queued.position)));
+      }
+      if (station.buildQueue.length > 0) stationDrawing.drawConstructionSite(station.constructionSite);
+      if (station.construction) strokeWorldRect(station.construction.position, station.construction.size, "#cbd5e1");
     }
     for (const ship of sectorShips) {
       const beam = laserBeam(getState(), ship);

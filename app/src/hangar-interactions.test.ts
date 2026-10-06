@@ -38,10 +38,10 @@ describe("hangar actions", () => {
     const ui = { ...createUiState([]), selectedShips: [2], currentSector: 0, viewport: { width: 100, height: 100 } };
     const canvas = new FakeTarget();
     const menu = new FakeTarget() as unknown as HTMLElement;
-    const claimButton = new FakeTarget();
+    const stationButton = new FakeTarget();
     let current = state;
     installContextMenu(ui, () => current, (next) => { current = next; }, canvas as unknown as HTMLCanvasElement,
-      menu, claimButton as unknown as HTMLButtonElement, () => ({ x: 50, y: 50 }));
+      menu, stationButton as unknown as HTMLButtonElement, () => ({ x: 50, y: 50 }));
 
     canvas.fire("contextmenu", { preventDefault() {} });
 

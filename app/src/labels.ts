@@ -1,4 +1,4 @@
-import { CLAIM_BUILD_ORDER, CLAIM_MODULE_COST, GATE_COST, MATERIALS, MODULE_COST, claimSiteBuilt, claimSiteNeeds, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, shipStats, stationIncome, type Ship, type SimState } from "sim";
+import { GATE_COST, MATERIALS, MODULE_COST, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -56,17 +56,13 @@ export interface InfoBox {
   action?: { label: string; siteId?: number; carrierId?: number; queuedBuild?: number; disabled?: boolean };
 }
 
-function claimSiteBox(state: SimState, id: number): InfoBox | null {
-  const site = state.claimSites.find((candidate) => candidate.id === id);
-  if (!site) return null;
-  if (claimSiteBuilt(site)) {
-    return { title: "Claim station", line: `${CLAIM_BUILD_ORDER.join(" and ")} built`, action: { label: "Remove site", siteId: site.id } };
-  }
-  const needs = claimSiteNeeds(site);
-  const now = needs.seconds === null
-    ? `${needs.building}: ${MATERIALS.map((material) => `${material} ${site.delivered[material]}/${CLAIM_MODULE_COST[material]}`).join(", ")}`
-    : `Building ${needs.building}: ${Math.ceil(needs.seconds)} s`;
-  return { title: "Claim site", line: needs.next ? `${now}\nThen: ${needs.next}` : now };
+// The construction site's stock: what ships have delivered for the module the
+// queue wants next.
+function siteBox(state: SimState, stationId: number): InfoBox | null {
+  const station = stationById(state, stationId);
+  if (!station) return null;
+  const { inventory } = station.constructionSite;
+  return { title: "Construction site", line: MATERIALS.map((material) => `${material}: ${inventory[material]}`).join("\n") };
 }
 
 // Every Storage module shares one inventory, so each shows the same box.
@@ -85,7 +81,7 @@ function storageBox(state: SimState): InfoBox {
 function dockBox(state: SimState): InfoBox {
   const transferring = state.ships.filter((ship) => ship.state === "loading"
     || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
-    || (ship.state === "unloading" && ship.order?.kind !== "supplySite" && ship.transfer?.destination !== "constructionSite")).length;
+    || (ship.state === "unloading" && ship.transfer?.destination !== "constructionSite")).length;
   return { title: "Dock", line: `Occupied ${transferring} / ${homeStation(state).dock.capacity}` };
 }
 
@@ -94,10 +90,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   if (!hovered) return null;
   if (hovered.kind === "dock") return dockBox(state);
   if (hovered.kind === "storage") return storageBox(state);
-  if (hovered.kind === "constructionSite") {
-    const { inventory } = homeStation(state).constructionSite;
-    return { title: "Construction site", line: MATERIALS.map((material) => `${material}: ${inventory[material]}`).join("\n") };
-  }
+  if (hovered.kind === "constructionSite") return siteBox(state, hovered.id);
   if (hovered.kind === "construction") {
     const construction = homeStation(state).construction;
     return construction
@@ -146,7 +139,6 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}`,
       ...(capacity > 0 ? { action: { label: "Launch all", carrierId: ship.id, disabled: hangarContents(state, ship.id).length === 0 } } : {}) };
   }
-  if (hovered.kind === "claimSite") return claimSiteBox(state, hovered.id);
   if (hovered.kind === "gateProject") {
     const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
     if (!project) return null;

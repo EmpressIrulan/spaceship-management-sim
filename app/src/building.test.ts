@@ -16,7 +16,7 @@ import {
   buildControlsVisible,
   buildMenuItems,
   cancelDependentsAt,
-  pointerInBuildArea,
+  buildAreaStation,
   dismissBuildMenuForClick,
   dismissBuildMenuForKey,
   queuedBuildIndexAt,
@@ -102,11 +102,11 @@ describe("station building controls", () => {
   });
 
   it("keeps every module choice enabled even when the site cannot pay", () => {
-    expect(buildMenuItems(createInitialState(7)).every((item) => !item.disabled)).toBe(true);
+    expect(buildMenuItems(createInitialState(7), 0).every((item) => !item.disabled)).toBe(true);
   });
 
   it("presents all module choices with their shared cost and queue-ready state", () => {
-    expect(buildMenuItems(createInitialState(7))).toEqual([
+    expect(buildMenuItems(createInitialState(7), 0)).toEqual([
       { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
@@ -119,7 +119,7 @@ describe("station building controls", () => {
       ...initial,
       stations: [{ ...initial.stations[0]!, constructionSite: { ...initial.stations[0]!.constructionSite, inventory: { Metal: 50, Ice: 50 } } }],
     };
-    const building = tick(startModuleBuild(funded, "Builder", { x: -40, y: 0 }), 3);
+    const building = tick(startModuleBuild(funded, 0, "Builder", { x: -40, y: 0 }), 3);
     expect(infoBox(building, { kind: "construction" })).toEqual({
       title: "Building Builder",
       line: "12 s",
@@ -148,19 +148,19 @@ describe("station building controls", () => {
 
   it("keeps the pointer inside the build area on the way from any module to any +", () => {
     const state = createInitialState(7);
-    for (const site of availableModuleBuildSites(state)) {
+    for (const site of availableModuleBuildSites(state, 0)) {
       const from = state.stations[0]!.modules
         .map((module) => module.position)
         .find((position) => Math.hypot(position.x - site.x, position.y - site.y) === MODULE_SPACING)!;
       for (let step = 0; step <= 40; step += 1) {
         const t = step / 40;
         const point = { x: from.x + (site.x - from.x) * t, y: from.y + (site.y - from.y) * t };
-        expect(pointerInBuildArea(state, point), `${JSON.stringify(point)} toward ${JSON.stringify(site)}`)
+        expect(buildAreaStation(state, point) !== null, `${JSON.stringify(point)} toward ${JSON.stringify(site)}`)
           .toBe(true);
       }
     }
-    expect(pointerInBuildArea(state, { x: 0, y: 150 })).toBe(false);
-    expect(pointerInBuildArea(state, { x: -61, y: 0 })).toBe(false);
+    expect(buildAreaStation(state, { x: 0, y: 150 })).toBeNull();
+    expect(buildAreaStation(state, { x: -61, y: 0 })).toBeNull();
   });
 
   it("sizes each + to its slot so neighbours never overlap at any zoom", () => {
@@ -175,8 +175,8 @@ describe("station building controls", () => {
 
   it("keeps the pointer in the build area from a ghost to its + controls", () => {
     const state = queueModuleBuild(createInitialState(7), "Storage", { x: 80, y: 0 });
-    expect(pointerInBuildArea(state, { x: 100, y: 0 })).toBe(true);
-    expect(availableModuleBuildSites(state)).toContainEqual({ x: 120, y: 0 });
+    expect(buildAreaStation(state, { x: 100, y: 0 })).toBe(0);
+    expect(availableModuleBuildSites(state, 0)).toContainEqual({ x: 120, y: 0 });
   });
 });
 

@@ -7,7 +7,7 @@ import { mapToggled } from "./sectors";
 export function installSpeedInput(ui: UiState, speedControls: HTMLElement, actions: Pick<InputActions, "closeBuildMenu" | "closeGateMenu" | "closeShipMenu">): void {
   const { closeBuildMenu, closeGateMenu, closeShipMenu } = actions;
   window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") ui.pendingClaim = false;
+    if (event.key === "Escape") ui.pendingStation = false;
     if (event.key.toLowerCase() === "m" || event.key === "Escape") ui.mapOpen = mapToggled(ui.mapOpen, event.key);
     if (event.key === "Escape") closeGateMenu();
     if (ui.buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();

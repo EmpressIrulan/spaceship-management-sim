@@ -1,4 +1,4 @@
-import { CLAIM_SITE_SIZE, shipSize, type SimState, type Size, type Vec } from "sim";
+import { shipSize, type SimState, type Size, type Vec } from "sim";
 
 // Placeholder limits. Revisit when sectors get bigger than one station and
 // a handful of asteroids and the client wants to see more of them at once.
@@ -104,11 +104,12 @@ export type Hovered =
   | { kind: "storage" }
   | { kind: "module"; index: number }
   | { kind: "construction" }
-  | { kind: "constructionSite" }
+  // A construction site's stock. 0 is Home's; placed founding sites carry
+  // their station's id.
+  | { kind: "constructionSite"; id: number }
   | { kind: "queuedBuild"; index: number }
   | { kind: "ship"; index: number }
   | { kind: "gateProject"; id: number; end?: number }
-  | { kind: "claimSite"; id: number }
   | { kind: "asteroid"; id: number };
 
 function insideRect(point: Vec, center: Vec, size: Size): boolean {
@@ -164,7 +165,8 @@ export function hoveredBody(
       ...(home.construction ? [home.construction] : []), ...home.buildQueue,
       ...(home.buildQueue.length > 0 ? [home.constructionSite] : [])]
       .some((body) => insideRect(position, body.position, body.size))) return true;
-    if (state.claimSites.some((site) => site.sectorId === currentSector && insideRect(position, site.position, CLAIM_SITE_SIZE))) return true;
+    if (state.stations.some((station) => station.sectorId === currentSector && station.id !== 0
+      && insideRect(position, station.constructionSite.position, station.constructionSite.size))) return true;
     return state.gateProjects.some((project) => project.ends.some((end) =>
       end.sectorId === currentSector && insideRect(position, end.position, { width: 24, height: 24 }),
     ));
@@ -181,8 +183,13 @@ export function hoveredBody(
     const end = project.ends.findIndex((candidate) => candidate.sectorId === currentSector);
     if (end >= 0 && insideRect(world, project.ends[end]!.position, { width: 24, height: 24 })) return { kind: "gateProject", id: project.id, end };
   }
-  for (const site of state.claimSites) {
-    if (site.sectorId === currentSector && insideRect(world, site.position, CLAIM_SITE_SIZE)) return { kind: "claimSite", id: site.id };
+  for (const station of state.stations) {
+    // Home's site is handled with the rest of the station below, so a placed
+    // site answers only for its own founding marker here.
+    if (station.id !== 0 && station.sectorId === currentSector
+      && insideRect(world, station.constructionSite.position, station.constructionSite.size)) {
+      return { kind: "constructionSite", id: station.id };
+    }
   }
   if (stationVisible && insideRect(world, home.dock.position, home.dock.size)) return { kind: "dock" };
   if (stationVisible && insideRect(world, home.storage.position, home.storage.size)) {
@@ -198,7 +205,7 @@ export function hoveredBody(
     if (insideRect(world, queued.position, queued.size)) return { kind: "queuedBuild", index };
   }
   if (stationVisible && home.buildQueue.length > 0 && insideRect(world, home.constructionSite.position, home.constructionSite.size)) {
-    return { kind: "constructionSite" };
+    return { kind: "constructionSite", id: 0 };
   }
   for (let index = 2; stationVisible && index < home.modules.length; index += 1) {
     const module = home.modules[index]!;
@@ -232,7 +239,7 @@ export function bodyOf(
   if (hovered.kind === "dock") return homeStation(state).dock;
   if (hovered.kind === "storage") return homeStation(state).storage;
   if (hovered.kind === "construction") return homeStation(state).construction;
-  if (hovered.kind === "constructionSite") return homeStation(state).constructionSite;
+  if (hovered.kind === "constructionSite") return stationById(state, hovered.id)?.constructionSite ?? homeStation(state).constructionSite;
   if (hovered.kind === "queuedBuild") return homeStation(state).buildQueue[hovered.index] ?? null;
   if (hovered.kind === "module") return homeStation(state).modules[hovered.index] ?? null;
   if (hovered.kind === "ship") {
@@ -244,10 +251,6 @@ export function bodyOf(
     const end = project?.ends[hovered.end ?? 0];
     return end ? { position: end.position, size: { width: 24, height: 24 } } : null;
   }
-  if (hovered.kind === "claimSite") {
-    const site = state.claimSites.find((candidate) => candidate.id === hovered.id);
-    return site ? { position: site.position, size: CLAIM_SITE_SIZE } : null;
-  }
   return state.asteroids.find((a) => a.id === hovered.id) ?? null;
 }
-import { homeStation } from "sim";
+import { homeStation, stationById } from "sim";

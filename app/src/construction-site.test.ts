@@ -43,10 +43,10 @@ describe("the construction site on screen", () => {
   it("is absent and cannot be clicked with no queue, then returns with its contents", () => {
     const hidden = withSite({ Metal: 12, Ice: 0 });
     const pointer = worldToScreen(camera, viewport, hidden.stations[0]!.constructionSite.position);
-    expect(hoveredBody(hidden, camera, viewport, pointer)).not.toEqual({ kind: "constructionSite" });
+    expect(hoveredBody(hidden, camera, viewport, pointer)).not.toEqual({ kind: "constructionSite", id: 0 });
 
     const queued = queueModuleBuild(hidden, "Storage", { x: 80, y: 0 });
-    expect(hoveredBody(queued, camera, viewport, pointer)).toEqual({ kind: "constructionSite" });
+    expect(hoveredBody(queued, camera, viewport, pointer)).toEqual({ kind: "constructionSite", id: 0 });
     expect(queued.stations[0]!.constructionSite.inventory).toEqual({ Metal: 12, Ice: 0 });
   });
 
@@ -55,9 +55,9 @@ describe("the construction site on screen", () => {
     const { position } = state.stations[0]!.constructionSite;
     const pointer = worldToScreen(camera, viewport, position);
 
-    expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "constructionSite" });
-    expect(bodyOf(state, { kind: "constructionSite" })).toEqual(state.stations[0]!.constructionSite);
-    expect(infoBox(state, { kind: "constructionSite" })).toEqual({ title: "Construction site", line: "Metal: 12\nIce: 0" });
+    expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "constructionSite", id: 0 });
+    expect(bodyOf(state, { kind: "constructionSite", id: 0 })).toEqual(state.stations[0]!.constructionSite);
+    expect(infoBox(state, { kind: "constructionSite", id: 0 })).toEqual({ title: "Construction site", line: "Metal: 12\nIce: 0" });
   });
 
   it("is not hoverable from another sector", () => {
@@ -83,28 +83,28 @@ describe("the construction site on screen", () => {
   it("takes a right-click as an order to supply it", () => {
     const state = createInitialState(7);
 
-    expect(orderTargetAt(state, { kind: "constructionSite" }, { x: 0, y: 0 })).toEqual({ kind: "supplyBuild" });
+    expect(orderTargetAt(state, { kind: "constructionSite", id: 0 }, { x: 0, y: 0 })).toEqual({ kind: "supplyBuild", stationId: 0 });
   });
 });
 
 describe("the + menu", () => {
   it("never greys out module choices", () => {
-    expect(buildMenuItems(withSite({ Metal: 0, Ice: 0 })).every((item) => !item.disabled)).toBe(true);
+    expect(buildMenuItems(withSite({ Metal: 0, Ice: 0 }), 0).every((item) => !item.disabled)).toBe(true);
   });
 
   it("keeps short choices enabled and says what is missing on hover", () => {
-    const items = buildMenuItems(withSite({ Metal: 30, Ice: 10 }));
+    const items = buildMenuItems(withSite({ Metal: 30, Ice: 10 }), 0);
 
     expect(items.map(({ disabled, title }) => ({ disabled, title })))
       .toEqual(Array(3).fill({ disabled: false, title: "Needs 15 more Ice" }));
   });
 
   it("names both materials when both are short", () => {
-    expect(buildMenuItems(withSite({ Metal: 0, Ice: 0 }))[0]).toMatchObject({ title: "Needs 25 more Metal and 25 more Ice" });
+    expect(buildMenuItems(withSite({ Metal: 0, Ice: 0 }), 0)[0]).toMatchObject({ title: "Needs 25 more Metal and 25 more Ice" });
   });
 
   it("has no hover text for an option the site can pay", () => {
-    expect(buildMenuItems(withSite({ Metal: 25, Ice: 25 }))).toEqual([
+    expect(buildMenuItems(withSite({ Metal: 25, Ice: 25 }), 0)).toEqual([
       { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
@@ -115,7 +115,7 @@ describe("the + menu", () => {
     const state = withSite({ Metal: 50, Ice: 50 });
     const building = { ...state, stations: [{ ...state.stations[0]!, construction: { type: "Dock" as const, position: { x: 80, y: 0 }, size: { width: 40, height: 70 }, timer: 5 } }] };
 
-    expect(buildMenuItems(building)[0]).toMatchObject({ disabled: false, title: "" });
+    expect(buildMenuItems(building, 0)[0]).toMatchObject({ disabled: false, title: "" });
   });
 });
 
@@ -146,7 +146,7 @@ describe("a ship supplying the site", () => {
   });
 
   it("shows the unloading, not the order, while an ordered ship is unloading into the site", () => {
-    const state = withShip({ state: "unloading", cargo: 4, cargoMaterial: "Ice", order: { kind: "supplyBuild", point: { x: 75, y: -60 }, sectorId: 0 },
+    const state = withShip({ state: "unloading", cargo: 4, cargoMaterial: "Ice", order: { kind: "supplyBuild", stationId: 0, point: { x: 75, y: -60 }, sectorId: 0 },
       transfer: { startingCargo: 10, amount: 10, destination: "constructionSite" } });
 
     expect(shipStatus(state, state.ships[0]!)).toBe("Unloading into the construction site");
@@ -154,7 +154,7 @@ describe("a ship supplying the site", () => {
   });
 
   it("reads its once-only order in words", () => {
-    const state = withShip({ state: "moving", cargo: 10, cargoMaterial: "Ice", order: { kind: "supplyBuild", point: { x: 75, y: -60 }, sectorId: 0 } });
+    const state = withShip({ state: "moving", cargo: 10, cargoMaterial: "Ice", order: { kind: "supplyBuild", stationId: 0, point: { x: 75, y: -60 }, sectorId: 0 } });
 
     expect(shipStatus(state, state.ships[0]!)).toBe("Order: supply construction site");
     expect(selectionPanel(state, [0])?.rows[0]?.status).toBe("Order: supply construction site");

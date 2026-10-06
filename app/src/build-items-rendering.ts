@@ -1,10 +1,13 @@
+import { stationOwningSite, type SimState } from "sim";
 import { buildMenuItems } from "./building";
-import type { SimState } from "sim";
 import type { UiState } from "./ui-state";
 
 export function syncBuildMenuItems(ui: UiState, getState: () => SimState, buildMenu: HTMLElement): void {
-  const menuItems = buildMenuItems(getState());
-  const menuKey = JSON.stringify(menuItems);
+  // The menu reads the stock of the station that owns the site it opened on,
+  // so each station offers builds paid from its own construction site.
+  const stationId = ui.selectedBuildSite ? stationOwningSite(getState(), ui.selectedBuildSite) : 0;
+  const menuItems = buildMenuItems(getState(), stationId);
+  const menuKey = JSON.stringify({ station: stationId, items: menuItems });
   if (menuKey !== ui.renderedMenu) {
     ui.renderedMenu = menuKey;
     buildMenu.replaceChildren(...menuItems.map((item) => {

@@ -23,12 +23,12 @@ const shipPanelEl = document.querySelector<HTMLElement>("#ship-panel");
 const partTipEl = document.querySelector<HTMLElement>("#part-tip");
 const sectorNameEl = document.querySelector<HTMLElement>("#sector-name");
 const gateMenuEl = document.querySelector<HTMLElement>("#gate-menu");
-const claimButtonEl = document.querySelector<HTMLButtonElement>("#claim-button");
+const stationButtonEl = document.querySelector<HTMLButtonElement>("#station-button");
 const hintEl = document.querySelector<HTMLElement>("#hint");
 const renameBoxEl = document.querySelector<HTMLInputElement>("#rename-box");
 const infoActionEl = document.querySelector<HTMLButtonElement>("#info-action");
-if (!claimButtonEl || !hintEl || !renameBoxEl || !infoActionEl) throw new Error("missing claim station controls");
-const claimButton: HTMLButtonElement = claimButtonEl;
+if (!stationButtonEl || !hintEl || !renameBoxEl || !infoActionEl) throw new Error("missing build station controls");
+const stationButton: HTMLButtonElement = stationButtonEl;
 const hint: HTMLElement = hintEl;
 const renameBox: HTMLInputElement = renameBoxEl;
 const infoAction: HTMLButtonElement = infoActionEl;
@@ -66,10 +66,10 @@ const ui = createUiState(loadBlueprints(blueprintStore));
 const closeStoragePanel = installPanels(ui, () => state, (next) => { state = next; }, storagePanel, shipPanelBox);
 const closeBuildMenu = installBuildMenu(ui, () => state, (next) => { state = next; }, buildControls, buildMenu, (event) => mousePoint(canvas, event));
 const shipMenuSystem = installShipMenu(ui, () => state, (next) => { state = next; }, shipMenu, shipPanelBox, blueprintStore);
-const closeGateMenu = installContextMenu(ui, () => state, (next) => { state = next; }, canvas, gateMenu, claimButton, (event) => mousePoint(canvas, event));
+const closeGateMenu = installContextMenu(ui, () => state, (next) => { state = next; }, canvas, gateMenu, stationButton, (event) => mousePoint(canvas, event));
 installInput(ui, () => state, (next) => { state = next; }, { canvas, box, infoAction, renameBox, speedControls, storagePanel, ctx }, { closeStoragePanel, closeBuildMenu, closeGateMenu, openShipMenu: shipMenuSystem.openShipMenu, closeShipMenu: shipMenuSystem.closeShipMenu });
 
-const draw = createRenderer(ui, () => state, { ctx, canvas, shipPanelBox, partTip, sectorNameEl, buildControls, box, boxTitle, boxLine, infoAction, buildMenu, claimButton, hint, renameBox, shipMenu, storagePanel, paintViewport: shipMenuSystem.paintViewport, paintPointAt: shipMenuSystem.paintPointAt });
+const draw = createRenderer(ui, () => state, { ctx, canvas, shipPanelBox, partTip, sectorNameEl, buildControls, box, boxTitle, boxLine, infoAction, buildMenu, stationButton, hint, renameBox, shipMenu, storagePanel, paintViewport: shipMenuSystem.paintViewport, paintPointAt: shipMenuSystem.paintPointAt });
 
 function frame(nowMs: number): void {
   const dt = Math.max(0, (nowMs - ui.lastTimeMs) / 1000);

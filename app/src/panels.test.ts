@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { foundedStation } from "./test-stations";
 import { createInitialState, type SimState, type Ship, type HaulRoute, type DefaultBehaviour, type Material, type HaulStationId } from "sim";
 import { installPanels } from "./panels";
 import { applyHaulRouteFieldChange } from "./haul-route";
@@ -20,44 +21,44 @@ describe("applyHaulRouteFieldChange (Slice B)", () => {
     return {
       ...initial,
       sectors: initial.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
-      claimSites: [
-        { id: 3, sectorId: 1, position: { x: 100, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null as number | null },
-        { id: 4, sectorId: 2, position: { x: 200, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null as number | null },
+      stations: [
+        { ...initial.stations[0]!, inventory: { Metal: 100, Ice: 100 } },
+        foundedStation(3, 1, 100, 50),
+        foundedStation(4, 2, 200, 50),
       ],
-      stations: [{ ...initial.stations[0]!, inventory: { Metal: 100, Ice: 100 } }],
       ships: [
-        baseShip(initial, { id: 0, defaultBehaviour: "haul" as DefaultBehaviour, haulRoute: makeHaulRoute("home", "claim:3", "Ice") }),
-        baseShip(initial, { id: 1, defaultBehaviour: "haul" as DefaultBehaviour, haulRoute: makeHaulRoute("home", "claim:4", "Metal") }),
+        baseShip(initial, { id: 0, defaultBehaviour: "haul" as DefaultBehaviour, haulRoute: makeHaulRoute("home", "station:3", "Ice") }),
+        baseShip(initial, { id: 1, defaultBehaviour: "haul" as DefaultBehaviour, haulRoute: makeHaulRoute("home", "station:4", "Metal") }),
       ],
     };
   }
 
   it("changing From on mixed selection updates From for all ships, preserves their To and Material (criterion 4, 5)", () => {
     let state = haulState();
-    state = applyHaulRouteFieldChange(state, [0, 1], { field: "from", value: "claim:4" });
-    expect(state.ships[0]!.haulRoute).toEqual({ from: "claim:4", to: "claim:3", material: "Ice" });
-    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:4", material: "Metal" });
+    state = applyHaulRouteFieldChange(state, [0, 1], { field: "from", value: "station:4" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "station:4", to: "station:3", material: "Ice" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "station:4", material: "Metal" });
   });
 
   it("changing To on mixed selection updates To for all ships, preserves their From and Material (criterion 4, 5)", () => {
     let state = haulState();
-    state = applyHaulRouteFieldChange(state, [0, 1], { field: "to", value: "claim:3" });
-    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
-    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
+    state = applyHaulRouteFieldChange(state, [0, 1], { field: "to", value: "station:3" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "station:3", material: "Ice" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "station:3", material: "Metal" });
   });
 
   it("changing Material on mixed selection updates Material for all ships, preserves their From and To (criterion 4, 5)", () => {
     let state = haulState();
     state = applyHaulRouteFieldChange(state, [0, 1], { field: "material", value: "Metal" });
-    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
-    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:4", material: "Metal" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "station:3", material: "Metal" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "station:4", material: "Metal" });
   });
 
   it("rejects change that would give a ship same From and To (criterion 7)", () => {
     let state = haulState();
     state = applyHaulRouteFieldChange(state, [0, 1], { field: "to", value: "home" });
-    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
-    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:4", material: "Metal" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "station:3", material: "Ice" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "station:4", material: "Metal" });
   });
 
   it("after a valid mixed change, the dropdown no longer shows Mixed for that field", () => {
@@ -72,9 +73,9 @@ describe("applyHaulRouteFieldChange (Slice B)", () => {
 
   it("handles single ship selection (non-mixed) correctly", () => {
     let state = haulState();
-    state = applyHaulRouteFieldChange(state, [0], { field: "from", value: "claim:4" });
-    expect(state.ships[0]!.haulRoute).toEqual({ from: "claim:4", to: "claim:3", material: "Ice" });
-    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:4", material: "Metal" });
+    state = applyHaulRouteFieldChange(state, [0], { field: "from", value: "station:4" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "station:4", to: "station:3", material: "Ice" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "station:4", material: "Metal" });
   });
 
   it("does nothing when selected ship has no haul route", () => {
@@ -82,23 +83,21 @@ describe("applyHaulRouteFieldChange (Slice B)", () => {
     const state: SimState = {
       ...initial,
       sectors: initial.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
-      claimSites: [
-        { id: 3, sectorId: 1, position: { x: 100, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null as number | null },
-      ],
+      stations: [{ ...initial.stations[0]!, inventory: { Metal: 100, Ice: 100 } }, foundedStation(3, 1, 100, 50)],
       ships: [
         baseShip(initial, { id: 0, defaultBehaviour: "mine" as DefaultBehaviour, haulRoute: undefined }),
-        baseShip(initial, { id: 1, defaultBehaviour: "haul" as DefaultBehaviour, haulRoute: makeHaulRoute("home", "claim:3", "Ice") }),
+        baseShip(initial, { id: 1, defaultBehaviour: "haul" as DefaultBehaviour, haulRoute: makeHaulRoute("home", "station:3", "Ice") }),
       ],
     };
-    let nextState = applyHaulRouteFieldChange(state, [0, 1], { field: "from", value: "claim:3" });
+    let nextState = applyHaulRouteFieldChange(state, [0, 1], { field: "from", value: "station:3" });
     expect(nextState.ships[0]!.haulRoute).toBeUndefined();
-    expect(nextState.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+    expect(nextState.ships[1]!.haulRoute).toEqual({ from: "home", to: "station:3", material: "Ice" });
   });
 
   it("after mixed change, selecting each ship alone shows new value and its own old values (criterion 6)", () => {
     let state = haulState();
-    // Ship 0: Home -> Claim:3, Ice
-    // Ship 1: Home -> Claim:4, Metal
+    // Ship 0: Home -> Station 3, Ice
+    // Ship 1: Home -> Station 4, Metal
     // Change Material to Metal for both
     state = applyHaulRouteFieldChange(state, [0, 1], { field: "material", value: "Metal" });
 
@@ -108,46 +107,46 @@ describe("applyHaulRouteFieldChange (Slice B)", () => {
     expect(panel?.haulRoute?.from).toBe("home");
     expect(panel?.haulRoute?.to).toBe("mixed");
 
-    // Select ship 0 alone - should show new Material (Metal) and its own old From/To (Home -> Claim:3)
+    // Select ship 0 alone - should show new Material (Metal) and its own old From/To (Home -> Station 3)
     panel = selectionPanel(state, [0]);
-    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "station:3", material: "Metal" });
 
-    // Select ship 1 alone - should show new Material (Metal) and its own old From/To (Home -> Claim:4)
+    // Select ship 1 alone - should show new Material (Metal) and its own old From/To (Home -> Station 4)
     panel = selectionPanel(state, [1]);
-    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:4", material: "Metal" });
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "station:4", material: "Metal" });
   });
 
   it("after mixed From change, selecting each ship alone shows new From and its own old To/Material (criterion 6)", () => {
     let state = haulState();
-    // Ship 0: Home -> Claim:3, Ice
-    // Ship 1: Claim:4 -> Claim:3, Metal  (different From, so change to Home is valid for both)
-    state.ships[1] = { ...state.ships[1]!, haulRoute: { from: "claim:4", to: "claim:3", material: "Metal" } };
+    // Ship 0: Home -> Station 3, Ice
+    // Ship 1: Station 4 -> Station 3, Metal  (different From, so change to Home is valid for both)
+    state.ships[1] = { ...state.ships[1]!, haulRoute: { from: "station:4", to: "station:3", material: "Metal" } };
     // Change From to Home for both
     state = applyHaulRouteFieldChange(state, [0, 1], { field: "from", value: "home" });
 
-    // Select ship 0 alone - should show new From (Home) and its own old To/Material (Claim:3, Ice)
+    // Select ship 0 alone - should show new From (Home) and its own old To/Material (Station 3, Ice)
     let panel = selectionPanel(state, [0]);
-    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "station:3", material: "Ice" });
 
-    // Select ship 1 alone - should show new From (Home) and its own old To/Material (Claim:3, Metal)
+    // Select ship 1 alone - should show new From (Home) and its own old To/Material (Station 3, Metal)
     panel = selectionPanel(state, [1]);
-    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "station:3", material: "Metal" });
   });
 
   it("after mixed To change, selecting each ship alone shows new To and its own old From/Material (criterion 6)", () => {
     let state = haulState();
-    // Ship 0: Home -> Claim:3, Ice
-    // Ship 1: Home -> Claim:4, Metal
-    // Change To to Claim:3 for both
-    state = applyHaulRouteFieldChange(state, [0, 1], { field: "to", value: "claim:3" });
+    // Ship 0: Home -> Station 3, Ice
+    // Ship 1: Home -> Station 4, Metal
+    // Change To to Station 3 for both
+    state = applyHaulRouteFieldChange(state, [0, 1], { field: "to", value: "station:3" });
 
-    // Select ship 0 alone - should show new To (Claim:3) and its own old From/Material (Home, Ice)
+    // Select ship 0 alone - should show new To (Station 3) and its own old From/Material (Home, Ice)
     let panel = selectionPanel(state, [0]);
-    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "station:3", material: "Ice" });
 
-    // Select ship 1 alone - should show new To (Claim:3) and its own old From/Material (Home, Metal)
+    // Select ship 1 alone - should show new To (Station 3) and its own old From/Material (Home, Metal)
     panel = selectionPanel(state, [1]);
-    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "station:3", material: "Metal" });
   });
 });
 
@@ -184,10 +183,10 @@ function fakeDocument(): { createElement: (tag: string) => FakeElement } {
 describe("haul route panel", () => {
   it("only reads and writes haulers in a mixed selection", () => {
     const initial = haulStateForPanel();
-    initial.ships[1] = { ...initial.ships[1]!, defaultBehaviour: "mine", haulRoute: { from: "home", to: "claim:4", material: "Ice" } };
+    initial.ships[1] = { ...initial.ships[1]!, defaultBehaviour: "mine", haulRoute: { from: "home", to: "station:4", material: "Ice" } };
     const beforeMiner = initial.ships[1]!.haulRoute;
     const panel = selectionPanel(initial, [0, 1]);
-    expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+    expect(panel?.haulRoute).toEqual({ from: "home", to: "station:3", material: "Ice" });
     const next = applyHaulRouteFieldChange(initial, [0, 1], { field: "material", value: "Metal" });
     expect(next.ships[0]!.defaultBehaviour).toBe("haul");
     expect(next.ships[0]!.haulRoute?.material).toBe("Metal");
@@ -205,7 +204,7 @@ describe("haul route panel", () => {
       renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0, 1], selectedShip: null, renderedPanel: "" });
       const selects = box.children.flatMap((child) => child.children).filter((child) => child.name === "haul-from" || child.name === "haul-to" || child.name === "haul-material");
       expect(selects.map((select) => select.name)).toEqual(["haul-from", "haul-to", "haul-material"]);
-      expect(selects.map((select) => select.value)).toEqual(["home", "claim:3", "Ice"]);
+      expect(selects.map((select) => select.value)).toEqual(["home", "station:3", "Ice"]);
     } finally {
       globalThis.document = originalDocument;
     }
@@ -216,7 +215,7 @@ describe("haul route panel", () => {
     globalThis.document = fakeDocument() as unknown as Document;
     try {
       const state = haulStateForPanel();
-      state.ships[1] = { ...state.ships[1]!, haulRoute: { from: "home", to: "claim:4", material: "Metal" } };
+      state.ships[1] = { ...state.ships[1]!, haulRoute: { from: "home", to: "station:4", material: "Metal" } };
       const box = new FakeElement();
       renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0, 1], selectedShip: null, renderedPanel: "" });
       const selects = box.children.flatMap((child) => child.children).filter((child) => child.name.startsWith("haul-"));
@@ -227,8 +226,8 @@ describe("haul route panel", () => {
   });
 
   it.each([
-    ["haul-from", "claim:4", { field: "from", value: "claim:4" }],
-    ["haul-to", "claim:3", { field: "to", value: "claim:3" }],
+    ["haul-from", "station:4", { field: "from", value: "station:4" }],
+    ["haul-to", "station:3", { field: "to", value: "station:3" }],
     ["haul-material", "Metal", { field: "material", value: "Metal" }],
   ] as const)("handles %s and maps it to the route field", (name, value, change) => {
     const state = haulStateForPanel();
@@ -256,13 +255,13 @@ describe("haul route panel", () => {
 
   it("reports skipped haulers by name and reason while applying the route to eligible ships", () => {
     const state = haulStateForPanel();
-    state.ships[1] = { ...state.ships[1]!, haulRoute: { from: "claim:3", to: "claim:4", material: "Metal" } };
+    state.ships[1] = { ...state.ships[1]!, haulRoute: { from: "station:3", to: "station:4", material: "Metal" } };
     const shipPanelBox = new FakeElement();
     const ui = { ...createUiState([]), selectedShips: [0, 1] };
     let current = state;
     installPanels(ui, () => current, (next) => { current = next; }, new FakeElement() as unknown as HTMLElement, shipPanelBox as unknown as HTMLElement);
     shipPanelBox.listeners.get("change")![0]!({ target: { name: "haul-to", value: "home" } } as unknown as Event);
-    expect(current.ships[0]!.haulRoute?.to).toBe("claim:3");
+    expect(current.ships[0]!.haulRoute?.to).toBe("station:3");
     expect(current.ships[1]!.haulRoute?.to).toBe("home");
     expect(ui.routeRefusalMessage).toBe("Skipped Ship 1: From and To must be different.");
     expect(ui.renderedPanel).toBe("");
@@ -274,8 +273,8 @@ describe("haul route panel", () => {
     const ui = { ...createUiState([]), selectedShips: [0, 1], routeRefusalMessage: "old message" };
     let current = state;
     installPanels(ui, () => current, (next) => { current = next; }, new FakeElement() as unknown as HTMLElement, shipPanelBox as unknown as HTMLElement);
-    shipPanelBox.listeners.get("change")![0]!({ target: { name: "haul-to", value: "claim:4" } } as unknown as Event);
-    expect(current.ships.map((ship) => ship.haulRoute?.to)).toEqual(["claim:4", "claim:4"]);
+    shipPanelBox.listeners.get("change")![0]!({ target: { name: "haul-to", value: "station:4" } } as unknown as Event);
+    expect(current.ships.map((ship) => ship.haulRoute?.to)).toEqual(["station:4", "station:4"]);
     expect(ui.routeRefusalMessage).toBeNull();
   });
 });
@@ -284,13 +283,14 @@ function haulStateForPanel(): SimState {
   const initial = createInitialState(7);
   return {
     ...initial,
-    claimSites: [
-      { id: 3, sectorId: 1, position: { x: 100, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null },
-      { id: 4, sectorId: 2, position: { x: 200, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null },
+    stations: [
+      { ...initial.stations[0]!, inventory: { Metal: 100, Ice: 100 } },
+      foundedStation(3, 1, 100, 50),
+      foundedStation(4, 2, 200, 50),
     ],
     ships: [
-      baseShip(initial, { id: 0, defaultBehaviour: "haul", haulRoute: makeHaulRoute("home", "claim:3", "Ice") }),
-      baseShip(initial, { id: 1, defaultBehaviour: "haul", haulRoute: makeHaulRoute("home", "claim:3", "Metal") }),
+      baseShip(initial, { id: 0, defaultBehaviour: "haul", haulRoute: makeHaulRoute("home", "station:3", "Ice") }),
+      baseShip(initial, { id: 1, defaultBehaviour: "haul", haulRoute: makeHaulRoute("home", "station:3", "Metal") }),
     ],
   };
 }
