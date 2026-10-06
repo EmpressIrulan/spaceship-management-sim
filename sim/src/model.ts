@@ -180,7 +180,7 @@ export interface SimState {
   gateProjects: GateProject[];
   nextClaimSiteId: number;
   claimSites: ClaimSite[];
-  station: Station;
+  stations: Station[];
   asteroids: Asteroid[];
   respawns: Respawn[];
   ships: Ship[];

@@ -1,6 +1,7 @@
 import { ASTEROID_MIN_SPACING, BUILD_SECONDS, BUILDER_SIZE, DOCK_SIZE, MODULE_COST, STORAGE_SIZE, MODULE_SPACING } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import type { Material, ModuleType, SimState, Size, Vec } from "./model";
+import { homeStation, replaceHomeStation } from "./state";
 import { distance } from "./fields";
 import { moduleSize, samePosition } from "./station-module-geometry";
 
@@ -12,11 +13,12 @@ export interface ModuleBuildOption {
 }
 
 export function availableModuleBuilds(state: SimState): ModuleBuildOption[] {
-  const stock = state.station.constructionSite.inventory;
+  const home = homeStation(state);
+  const stock = home.constructionSite.inventory;
   const missing = Object.fromEntries(
     MATERIALS.map((material) => [material, Math.max(0, MODULE_COST[material] - stock[material])]),
   ) as Record<Material, number>;
-  const enabled = MATERIALS.every((material) => missing[material] === 0) && state.station.construction === null;
+  const enabled = MATERIALS.every((material) => missing[material] === 0) && home.construction === null;
   return MODULE_TYPES.map((type) => ({ type, enabled, missing }));
 }
 
@@ -36,13 +38,14 @@ function overlapsFootprint(site: Vec, footprint: { position: Vec; size: Size }):
 }
 
 export function availableModuleBuildSites(state: SimState): Vec[] {
+  const home = homeStation(state);
   const footprints = [
-    ...state.station.modules,
-    ...(state.station.construction ? [state.station.construction] : []),
-    ...state.station.buildQueue,
-    state.station.constructionSite,
+    ...home.modules,
+    ...(home.construction ? [home.construction] : []),
+    ...home.buildQueue,
+    home.constructionSite,
   ];
-  const anchors = [...state.station.modules, ...state.station.buildQueue];
+  const anchors = [...home.modules, ...home.buildQueue];
   const sites: Vec[] = [];
   for (const module of anchors) {
     for (const direction of BUILD_DIRECTIONS) {
@@ -60,8 +63,9 @@ export function startModuleBuild(state: SimState, type: ModuleType, position: Ve
   const site = availableModuleBuildSites(state).find((candidate) => samePosition(candidate, position));
   if (!option?.enabled || !site) return state;
 
+  const home = homeStation(state);
   const inventory = Object.fromEntries(
-    MATERIALS.map((material) => [material, state.station.constructionSite.inventory[material] - MODULE_COST[material]]),
+    MATERIALS.map((material) => [material, home.constructionSite.inventory[material] - MODULE_COST[material]]),
   ) as Record<Material, number>;
   const construction = {
     type,
@@ -69,6 +73,6 @@ export function startModuleBuild(state: SimState, type: ModuleType, position: Ve
     size: moduleSize(type),
     timer: BUILD_SECONDS,
   };
-  const station = { ...state.station, constructionSite: { ...state.station.constructionSite, inventory }, construction };
-  return { ...state, station };
+  const station = { ...home, constructionSite: { ...home.constructionSite, inventory }, construction };
+  return replaceHomeStation(state, station);
 }

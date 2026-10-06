@@ -39,7 +39,7 @@ describe("material deliveries", () => {
     const start: SimState = {
       ...initial,
       asteroids: rocks,
-      ships: [depart(initial.ships[0]!, initial.station.dock.position, rocks)],
+      ships: [depart(initial.ships[0]!, initial.stations[0]!.dock.position, rocks)],
     };
     const atWork = tick(start, start.ships[0]!.timer + 6.1);
     expect(atWork.ships[0]!.cargo).toBe(5);
@@ -48,18 +48,18 @@ describe("material deliveries", () => {
 
     const firstCycle = 2 * start.ships[0]!.timer + WORKING_SECONDS + padHopSeconds(start) + UNLOADING_SECONDS;
     const afterMetal = tick(start, firstCycle + 0.1);
-    expect(afterMetal.station.inventory).toEqual({ Metal: 30, Ice: 20 });
+    expect(afterMetal.stations[0]!.inventory).toEqual({ Metal: 30, Ice: 20 });
     expect(afterMetal.ships[0]!.target?.asteroidId).toBe(second.id);
     expect(afterMetal.ships[0]!.cargoMaterial).toBe("Ice");
 
     // The ship left from the pad, so its way out is shorter than its way home.
     const outbound = afterMetal.ships[0]!;
-    const dock = start.station.dock.position;
+    const dock = start.stations[0]!.dock.position;
     const wayHome = travelSeconds(Math.hypot(outbound.target!.site.x - dock.x, outbound.target!.site.y - dock.y));
     const secondCycle = outbound.timer + WORKING_SECONDS + wayHome + padHopSeconds(start) + UNLOADING_SECONDS + 0.1;
     const delivered = tick(afterMetal, secondCycle);
-    expect(delivered.station.inventory).toEqual({ Metal: 30, Ice: 30 });
-    expect(start.station.inventory).toEqual({ Metal: 20, Ice: 20 });
+    expect(delivered.stations[0]!.inventory).toEqual({ Metal: 30, Ice: 30 });
+    expect(start.stations[0]!.inventory).toEqual({ Metal: 20, Ice: 20 });
   });
 
   it("replays replacement positions and types from the seed, while allowing either type", () => {

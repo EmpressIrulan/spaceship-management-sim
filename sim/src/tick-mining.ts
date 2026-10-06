@@ -19,7 +19,7 @@ export interface Draft {
   stationSector: number;
   storageCapacity: number;
   storageLimits: Station["storageLimits"];
-  inventory: SimState["station"]["inventory"];
+  inventory: Station["inventory"];
   constructionSite: Station["constructionSite"];
   asteroids: Asteroid[];
   respawns: SimState["respawns"];

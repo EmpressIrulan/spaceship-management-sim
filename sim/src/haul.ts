@@ -1,7 +1,7 @@
 import { claimSiteBuilt } from "./claim";
 import { travelSeconds } from "./motion";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
-import { STORAGE_CAPACITY, berthLayout, gateRoute, toBerth, toParking, type HaulRoute, type HaulStationId, type Ship, type SimState, type Vec } from "./state";
+import { STORAGE_CAPACITY, berthLayout, gateRoute, homeStation, toBerth, toParking, type HaulRoute, type HaulStationId, type Ship, type SimState, type Station, type Vec } from "./state";
 
 export interface HaulStation { id: HaulStationId; name: string }
 
@@ -12,12 +12,12 @@ interface HaulStateBase {
 }
 
 export type HaulState = HaulStateBase & (
-  | { station: SimState["station"]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never }
-  | { station?: never; stationSector: number; dock: Vec; inventory: SimState["station"]["inventory"]; storageCapacity: number }
+  | { stations: Station[]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never }
+  | { stations?: never; stationSector: number; dock: Vec; inventory: Station["inventory"]; storageCapacity: number }
 );
 
-export function haulStations(state: Pick<SimState, "station" | "claimSites" | "sectors">): HaulStation[] {
-  const home = state.sectors[state.station.sectorId];
+export function haulStations(state: Pick<SimState, "stations" | "claimSites" | "sectors">): HaulStation[] {
+  const home = state.sectors[homeStation(state).sectorId];
   return [
     { id: "home", name: home?.name ?? "Home" },
     ...state.claimSites.filter(claimSiteBuilt).map((site) => ({
@@ -29,9 +29,9 @@ export function haulStations(state: Pick<SimState, "station" | "claimSites" | "s
 
 export function haulStationDetails(state: HaulState, id: HaulStationId) {
   if (id === "home") {
-    if (state.station) return {
-      id, sectorId: state.station.sectorId, position: state.station.dock.position,
-      inventory: state.station.inventory, capacity: state.station.storage.capacity,
+    if (state.stations) return {
+      id, sectorId: homeStation(state).sectorId, position: homeStation(state).dock.position,
+      inventory: homeStation(state).inventory, capacity: homeStation(state).storage.capacity,
     };
     return { id, sectorId: state.stationSector, position: state.dock, inventory: state.inventory, capacity: state.storageCapacity };
   }
@@ -63,7 +63,7 @@ function transferAt(state: SimState, ship: Ship, stationId: HaulStationId, loadi
   const planned = { ...ship, cargoMaterial: loading ? ship.haulRoute?.material ?? null : ship.cargoMaterial,
     transfer: { startingCargo: loading ? 0 : ship.cargo, amount } };
   if (stationId === "home") {
-    return toBerth(berthLayout(state.station), state.ships, planned) ?? toParking(berthLayout(state.station), state.ships, planned);
+    return toBerth(berthLayout(homeStation(state)), state.ships, planned) ?? toParking(berthLayout(homeStation(state)), state.ships, planned);
   }
   return { ...planned, state: loading ? "haulLoading" : "haulUnloading", berth: null, leg: null,
     timer: cargoTransferSeconds(amount) };

@@ -1,5 +1,5 @@
 import { travelSeconds } from "./motion";
-import { createInitialState, depart, dockBerths, MATERIALS, type Ship, type SimState } from "./state";
+import { createInitialState, depart, dockBerths, homeStation, MATERIALS, type Ship, type SimState } from "./state";
 import type { ShipDesign } from "./ship";
 
 // The starting ship's size and speed with half the Storage swapped for Hull,
@@ -20,7 +20,7 @@ export const ONE_STORAGE: ShipDesign = {
 // mining cycle need one that mines whatever is nearest.
 export function miningStart(seed: number): SimState {
   const state = createInitialState(seed);
-  const dock = state.station.dock.position;
+  const dock = homeStation(state).dock.position;
   return { ...state, ships: state.ships.map((ship) => depart({ ...ship, mineMaterials: [...MATERIALS] }, dock, state.asteroids)) };
 }
 
@@ -34,7 +34,7 @@ export function oneStorageStart(seed: number): SimState {
 // the Dock and set off again. Tick the state by 0 to park them.
 export function suppliersComingHome(count: number, cargo = 7): SimState {
   const state = createInitialState(7);
-  const dock = state.station.dock.position;
+  const dock = homeStation(state).dock.position;
   return {
     ...state,
     ships: Array.from({ length: count }, (_, id): Ship => ({
@@ -59,7 +59,7 @@ export function suppliersComingHome(count: number, cargo = 7): SimState {
 // Seconds a lone ship takes to fly from the Dock's middle to the first pad,
 // which is where the first ship home unloads.
 export function padHopSeconds(state: SimState): number {
-  const dock = state.station.dock.position;
+  const dock = homeStation(state).dock.position;
   const pad = dockBerths(dock)[0]!;
   return travelSeconds(Math.hypot(pad.x - dock.x, pad.y - dock.y));
 }

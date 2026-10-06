@@ -17,7 +17,7 @@ describe("building station modules", () => {
     const state = miningStart(7);
     return {
       ...state,
-      station: { ...state.station, constructionSite: { ...state.station.constructionSite, inventory: { Metal: 50, Ice: 50 } } },
+      stations: [{ ...state.stations[0]!, constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 50, Ice: 50 } } }],
     };
   }
 
@@ -38,8 +38,8 @@ describe("building station modules", () => {
   it("takes the cost immediately, occupies the next slot, and disables every choice", () => {
     const state = startModuleBuild(funded(), "Storage", east);
 
-    expect(state.station.constructionSite.inventory).toEqual({ Metal: 25, Ice: 25 });
-    expect(state.station.construction).toMatchObject({
+    expect(state.stations[0]!.constructionSite.inventory).toEqual({ Metal: 25, Ice: 25 });
+    expect(state.stations[0]!.construction).toMatchObject({
       type: "Storage",
       timer: BUILD_SECONDS,
       position: { x: 80, y: 0 },
@@ -53,7 +53,7 @@ describe("building station modules", () => {
       { x: 80, y: 0 },
     ]);
 
-    expect(startModuleBuild(funded(), "Builder", { x: -40, y: 0 }).station.construction)
+    expect(startModuleBuild(funded(), "Builder", { x: -40, y: 0 }).stations[0]!.construction)
       .toMatchObject({ type: "Builder", position: { x: -40, y: 0 } });
     const state = funded();
     expect(startModuleBuild(state, "Builder", { x: 400, y: 400 })).toBe(state);
@@ -62,8 +62,8 @@ describe("building station modules", () => {
   it("never offers a site that overlaps an existing module, on a fresh game or after a second Dock", () => {
     function expectClear(state: SimState): void {
       const footprints = [
-        ...state.station.modules,
-        ...(state.station.construction ? [state.station.construction] : []),
+        ...state.stations[0]!.modules,
+        ...(state.stations[0]!.construction ? [state.stations[0]!.construction] : []),
       ];
       for (const site of availableModuleBuildSites(state)) {
         for (const module of footprints) {
@@ -79,51 +79,51 @@ describe("building station modules", () => {
     expect(availableModuleBuildSites(fresh).length).toBeGreaterThan(0);
 
     const withSecondDock = tick(startModuleBuild(fresh, "Dock", east), BUILD_SECONDS);
-    expect(withSecondDock.station.modules.filter((module) => module.type === "Dock")).toHaveLength(2);
+    expect(withSecondDock.stations[0]!.modules.filter((module) => module.type === "Dock")).toHaveLength(2);
     expectClear(withSecondDock);
   });
 
   it("finishes modules after 15 seconds and increases the matching capacity", () => {
     const storage = tick(startModuleBuild(funded(), "Storage", east), BUILD_SECONDS);
-    expect(storage.station.construction).toBeNull();
-    expect(storage.station.modules.at(-1)).toMatchObject({ type: "Storage", position: { x: 80, y: 0 } });
-    expect(storage.station.storage.capacity).toBe(200);
+    expect(storage.stations[0]!.construction).toBeNull();
+    expect(storage.stations[0]!.modules.at(-1)).toMatchObject({ type: "Storage", position: { x: 80, y: 0 } });
+    expect(storage.stations[0]!.storage.capacity).toBe(200);
 
     const dock = tick(startModuleBuild(funded(), "Dock", east), BUILD_SECONDS);
-    expect(dock.station.dock.capacity).toBe(12);
+    expect(dock.stations[0]!.dock.capacity).toBe(12);
 
     const builder = tick(startModuleBuild(funded(), "Builder", east), BUILD_SECONDS);
-    expect(builder.station.modules.at(-1)).toMatchObject({ type: "Builder" });
+    expect(builder.stations[0]!.modules.at(-1)).toMatchObject({ type: "Builder" });
   });
 
   it("gives a build that lost its footing back to the site instead of finishing it", () => {
     const started = startModuleBuild(funded(), "Storage", east);
     const detached: SimState = {
       ...started,
-      station: {
-        ...started.station,
+      stations: [{
+        ...started.stations[0]!,
         construction: { type: "Storage", position: { x: 200, y: 0 }, size: { width: 30, height: 40 }, timer: BUILD_SECONDS },
-      },
+      }],
     };
 
     const settled = tick(detached, BUILD_SECONDS);
 
-    expect(settled.station.modules.map((module) => module.position)).not.toContainEqual({ x: 200, y: 0 });
-    expect(settled.station.construction).toBeNull();
-    expect(settled.station.constructionSite.inventory).toEqual({ Metal: 50, Ice: 50 });
+    expect(settled.stations[0]!.modules.map((module) => module.position)).not.toContainEqual({ x: 200, y: 0 });
+    expect(settled.stations[0]!.construction).toBeNull();
+    expect(settled.stations[0]!.constructionSite.inventory).toEqual({ Metal: 50, Ice: 50 });
   });
 
   it("leaves a Storage-blocked ship waiting, because a build no longer spends Storage", () => {
     const initial = funded();
     const waiting: SimState = {
       ...initial,
-      station: { ...initial.station, inventory: { Metal: 75, Ice: 25 } },
+      stations: [{ ...initial.stations[0]!, inventory: { Metal: 75, Ice: 25 } }],
       ships: [{ ...initial.ships[0]!, state: "waiting", cargo: 10, cargoMaterial: "Metal", timer: 0 }],
     };
 
     const building = startModuleBuild(waiting, "Builder", east);
 
-    expect(building.station.inventory).toEqual({ Metal: 75, Ice: 25 });
+    expect(building.stations[0]!.inventory).toEqual({ Metal: 75, Ice: 25 });
     expect(building.ships[0]).toMatchObject({ state: "waiting", cargo: 10 });
   });
 
@@ -131,19 +131,19 @@ describe("building station modules", () => {
     const building = startModuleBuild(funded(), "Storage", east);
     const full: SimState = {
       ...building,
-      station: { ...building.station, inventory: { Metal: 75, Ice: 25 } },
+      stations: [{ ...building.stations[0]!, inventory: { Metal: 75, Ice: 25 } }],
       ships: [{ ...building.ships[0]!, state: "waiting", cargo: 10, cargoMaterial: "Metal", timer: 0 }],
     };
 
     const completed = tick(full, BUILD_SECONDS);
-    expect(completed.station.storage.capacity).toBe(200);
+    expect(completed.stations[0]!.storage.capacity).toBe(200);
     expect(completed.ships[0]).toMatchObject({ state: "berthing", cargo: 10 });
 
     const docked = tick(completed, completed.ships[0]!.timer);
     expect(docked.ships[0]).toMatchObject({ state: "unloading", cargo: 10 });
 
     const unloaded = tick(docked, docked.ships[0]!.timer);
-    expect(unloaded.station.inventory).toEqual({ Metal: 85, Ice: 25 });
+    expect(unloaded.stations[0]!.inventory).toEqual({ Metal: 85, Ice: 25 });
     expect(unloaded.ships[0]).toMatchObject({ state: "outbound", cargo: 0 });
   });
 
@@ -158,14 +158,14 @@ describe("building station modules", () => {
     );
     const grown: SimState = {
       ...initial,
-      station: {
-        ...initial.station,
+      stations: [{
+        ...initial.stations[0]!,
         modules: unique.map((position, index) => ({
           type: index === 0 ? "Dock" : "Storage",
           position,
-          size: initial.station.storage.size,
+          size: initial.stations[0]!.storage.size,
         })),
-      },
+      }],
       asteroids: [],
       respawns: Array.from({ length: 8 }, (_, index) => ({
         sectorId: 0,
@@ -179,7 +179,7 @@ describe("building station modules", () => {
 
     const respawned = tick(grown, 0);
     for (const asteroid of respawned.asteroids) {
-      expect(respawned.station.modules.every((module) =>
+      expect(respawned.stations[0]!.modules.every((module) =>
         Math.hypot(
           asteroid.position.x - module.position.x,
           asteroid.position.y - module.position.y,

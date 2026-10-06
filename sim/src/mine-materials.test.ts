@@ -31,12 +31,12 @@ describe("which materials a miner mines", () => {
     const start = createInitialState(7);
     expect(start.ships[0]!.mineMaterials).toEqual([]);
     const later = run(start, 5);
-    expect(later.ships[0]).toMatchObject({ state: "idle", position: start.station.dock.position, target: null });
+    expect(later.ships[0]).toMatchObject({ state: "idle", position: start.stations[0]!.dock.position, target: null });
   });
 
   it("gives a newly built ship nothing ticked", () => {
     const start = createInitialState(7);
-    const built = { ...start, station: { ...start.station, shipBuilds: [{ builder: 0, design: start.ships[0]!.design, timer: 0 }] } };
+    const built = { ...start, stations: [{ ...start.stations[0]!, shipBuilds: [{ builder: 0, design: start.ships[0]!.design, timer: 0 }] }] };
     const next = tick(built, 1 / 30);
     expect(next.ships.map((ship) => ship.mineMaterials)).toEqual([[], []]);
   });
@@ -62,13 +62,13 @@ describe("which materials a miner mines", () => {
       if (rock) seen.add(rock.material);
     }
     expect([...seen]).toEqual(["Ice"]);
-    expect(state.station.inventory.Ice).toBeGreaterThan(0);
-    expect(state.station.inventory.Metal).toBe(start.station.inventory.Metal);
+    expect(state.stations[0]!.inventory.Ice).toBeGreaterThan(0);
+    expect(state.stations[0]!.inventory.Metal).toBe(start.stations[0]!.inventory.Metal);
   });
 
   it("skips a nearer rock of an unticked material", () => {
     const base = createInitialState(7);
-    const dock = base.station.dock.position;
+    const dock = base.stations[0]!.dock.position;
     const nearest = [...home(base)].sort((a, b) => Math.hypot(a.position.x - dock.x, a.position.y - dock.y)
       - Math.hypot(b.position.x - dock.x, b.position.y - dock.y))[0]!;
     const other: Material = nearest.material === "Metal" ? "Ice" : "Metal";
@@ -81,7 +81,7 @@ describe("which materials a miner mines", () => {
     const base = withOnly(createInitialState(7), "Ice");
     const noIce = { ...base, asteroids: base.asteroids.filter((rock) => rock.sectorId !== HOME_SECTOR || rock.material !== "Ice") };
     const waiting = run(noIce, 5);
-    expect(waiting.ships[0]).toMatchObject({ state: "idle", position: base.station.dock.position, target: null });
+    expect(waiting.ships[0]).toMatchObject({ state: "idle", position: base.stations[0]!.dock.position, target: null });
 
     const site = home(base)[0]!.position;
     const respawned = { ...waiting, asteroids: [...waiting.asteroids, newAsteroid(9999, HOME_SECTOR, home(base)[0]!.fieldId, site, "Ice", false)] };
@@ -93,7 +93,7 @@ describe("which materials a miner mines", () => {
     const working = until(withOnly(createInitialState(7), "Ice"), (s) => s.ships[0]!.state === "working");
     const unticked = setMineMaterial(working, [0], "Ice", false);
     const idle = until(unticked, (s) => s.ships[0]!.state === "idle");
-    expect(idle.ships[0]).toMatchObject({ position: working.station.dock.position, target: null });
+    expect(idle.ships[0]).toMatchObject({ position: working.stations[0]!.dock.position, target: null });
     expect(run(idle, 10).ships[0]!.state).toBe("idle");
   });
 
@@ -101,7 +101,7 @@ describe("which materials a miner mines", () => {
     const homebound = until(withOnly(createInitialState(7), "Ice"), (s) => s.ships[0]!.state === "homebound");
     const unticked = setMineMaterial(homebound, [0], "Ice", false);
     const idle = until(unticked, (s) => s.ships[0]!.state === "idle");
-    expect(idle.station.inventory.Ice).toBeGreaterThan(0);
+    expect(idle.stations[0]!.inventory.Ice).toBeGreaterThan(0);
   });
 
   it("redirects a ship already flying to a rock whose material has just been unticked", () => {

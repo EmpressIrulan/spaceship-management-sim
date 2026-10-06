@@ -39,7 +39,7 @@ function loaded(state: SimState, cargo: number, material: "Metal" | "Ice", chang
   const ship = state.ships[0]!;
   return {
     ...state,
-    ships: [{ ...ship, state: "holding", position: { ...state.station.dock.position }, timer: 0, cargo,
+    ships: [{ ...ship, state: "holding", position: { ...state.stations[0]!.dock.position }, timer: 0, cargo,
       cargoMaterial: material, target: null, leg: null, order: null, defaultBehaviour: "none", ...changes }],
   };
 }
@@ -66,7 +66,7 @@ describe("claim station sites", () => {
     const { state, position } = place(start, 1);
     expect(startClaimSite(state, 1, { x: position.x + 30, y: position.y })).toBe(state);
     expect(startClaimSite(start, 1, { ...start.asteroids.find((rock) => rock.sectorId === 1)!.position })).toBe(start);
-    expect(startClaimSite(start, 0, { ...start.station.dock.position })).toBe(start);
+    expect(startClaimSite(start, 0, { ...start.stations[0]!.dock.position })).toBe(start);
     expect(startClaimSite(start, 9, { x: 0, y: 0 })).toBe(start);
   });
 
@@ -78,7 +78,7 @@ describe("claim station sites", () => {
     const done = until(ordered, (next) => next.ships[0]!.order === null);
     expect(done.claimSites[0]!.delivered).toEqual({ Metal: 10, Ice: 0 });
     expect(done.ships[0]!.cargo).toBe(0);
-    expect(done.station.inventory).toEqual(start.station.inventory);
+    expect(done.stations[0]!.inventory).toEqual(start.stations[0]!.inventory);
   });
 
   it("delivers every material in a mixed hold without changing either one", () => {
@@ -123,7 +123,7 @@ describe("claim station sites", () => {
     const start = loaded(withSite, 20, "Metal");
     const arrived = until(giveOrder(start, [0], { kind: "supplySite", siteId: 0 }), (next) => next.ships[0]!.state === "unloading");
     const waiting = { ...arrived, ships: [...arrived.ships, { ...arrived.ships[0]!, id: 9, state: "waiting" as const, order: null, timer: 0 }] };
-    const dockBusy = { ...waiting, station: { ...waiting.station, dock: { ...waiting.station.dock, capacity: 1 } } };
+    const dockBusy = { ...waiting, stations: [{ ...waiting.stations[0]!, dock: { ...waiting.stations[0]!.dock, capacity: 1 } }] };
     // With dock berths the waiting ship flies to its pad first, then unloads.
     const next = tick(dockBusy, 0.01).ships[1]!;
     expect(next.state).toBe("berthing");
@@ -144,8 +144,8 @@ describe("claim station sites", () => {
     const start = loaded(full, 10, "Metal", { defaultBehaviour: "mine" });
     const done = until(giveOrder(start, [0], { kind: "supplySite", siteId: 0 }), (next) => next.claimSites[0]!.delivered.Metal === cost);
     expect(done.ships[0]!.cargo).toBe(5);
-    const home = until(done, (next) => next.ships[0]!.cargo === 0 && next.station.inventory.Metal > withSite.station.inventory.Metal);
-    expect(home.station.inventory.Metal).toBe(withSite.station.inventory.Metal + 5);
+    const home = until(done, (next) => next.ships[0]!.cargo === 0 && next.stations[0]!.inventory.Metal > withSite.stations[0]!.inventory.Metal);
+    expect(home.stations[0]!.inventory.Metal).toBe(withSite.stations[0]!.inventory.Metal + 5);
   });
 
   it("ignores a ship with nothing aboard", () => {

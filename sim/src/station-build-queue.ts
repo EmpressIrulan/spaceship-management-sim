@@ -1,7 +1,7 @@
 import { BUILD_SECONDS, MODULE_COST, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
-import { DOCK_CAPACITY, STORAGE_CAPACITY } from "./state";
+import { DOCK_CAPACITY, STORAGE_CAPACITY, homeStation, replaceHomeStation } from "./state";
 import { availableModuleBuildSites } from "./station-building";
 import { moduleSize, samePosition } from "./station-module-geometry";
 import { travelSeconds } from "./motion";
@@ -90,8 +90,9 @@ export function queueModuleBuild(state: SimState, type: ModuleType, position: Ve
   const site = availableModuleBuildSites(state).find((candidate) => samePosition(candidate, position));
   if (!site) return state;
   const queued: QueuedModuleBuild = { type, position: { ...site }, size: moduleSize(type) };
-  const station = startNextQueuedModule({ ...state.station, buildQueue: [...state.station.buildQueue, queued] });
-  return { ...state, station };
+  const home = homeStation(state);
+  const station = startNextQueuedModule({ ...home, buildQueue: [...home.buildQueue, queued] });
+  return replaceHomeStation(state, station);
 }
 
 function touching(a: Vec, b: Vec): boolean {
@@ -150,8 +151,9 @@ export function constructionAttached(station: StationGraph): boolean {
 export function cancelQueuedModuleBuild(state: SimState, target: Vec | number): SimState {
   const index = typeof target === "number"
     ? target
-    : state.station.buildQueue.findIndex((queued) => samePosition(queued.position, target));
-  if (index < 0 || index >= state.station.buildQueue.length) return state;
-  const station = startNextQueuedModule({ ...state.station, buildQueue: queueAfterCancel(state.station, index) });
-  return { ...state, station };
+    : homeStation(state).buildQueue.findIndex((queued) => samePosition(queued.position, target));
+  const home = homeStation(state);
+  if (index < 0 || index >= home.buildQueue.length) return state;
+  const station = startNextQueuedModule({ ...home, buildQueue: queueAfterCancel(home, index) });
+  return replaceHomeStation(state, station);
 }

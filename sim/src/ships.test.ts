@@ -50,12 +50,12 @@ function shipyard(inventory = { Metal: 1000, Ice: 1000 }): SimState {
   ];
   return {
     ...state,
-    station: {
-      ...state.station,
-      storage: { ...state.station.storage, capacity: 1000 },
+    stations: [{
+      ...state.stations[0]!,
+      storage: { ...state.stations[0]!.storage, capacity: 1000 },
       inventory,
-      modules: [...state.station.modules, ...builders],
-    },
+      modules: [...state.stations[0]!.modules, ...builders],
+    }],
   };
 }
 
@@ -166,8 +166,8 @@ describe("building a ship", () => {
   it("takes the ore straight away and marks that Builder busy", () => {
     const state = startShipBuild(shipyard(), FIRST_BUILDER, miner);
 
-    expect(state.station.inventory).toEqual({ Metal: 760, Ice: 840 });
-    expect(state.station.shipBuilds).toEqual([
+    expect(state.stations[0]!.inventory).toEqual({ Metal: 760, Ice: 840 });
+    expect(state.stations[0]!.shipBuilds).toEqual([
       { builder: FIRST_BUILDER, design: miner, timer: shipBuildSeconds(miner) },
     ]);
     expect(availableShipBuild(state, FIRST_BUILDER, miner)).toBe(false);
@@ -185,10 +185,10 @@ describe("building a ship", () => {
   it("builds on two Builders at the same time", () => {
     let state = startShipBuild(shipyard(), FIRST_BUILDER, miner);
     state = startShipBuild(state, SECOND_BUILDER, miner);
-    expect(state.station.shipBuilds).toHaveLength(2);
+    expect(state.stations[0]!.shipBuilds).toHaveLength(2);
 
     const done = tick(state, shipBuildSeconds(miner));
-    expect(done.station.shipBuilds).toEqual([]);
+    expect(done.stations[0]!.shipBuilds).toEqual([]);
     expect(done.ships).toHaveLength(3);
   });
 
@@ -200,7 +200,7 @@ describe("building a ship", () => {
     expect(built.design).toEqual(miner);
     expect(built.id).not.toBe(done.ships[0]!.id);
     expect(built.state).toBe("idle");
-    expect(built.position).toEqual(done.station.dock.position);
+    expect(built.position).toEqual(done.stations[0]!.dock.position);
 
     const ticked = tick(setMineMaterial(done, [built.id], "Metal", true), 1 / 30);
     expect(ticked.ships.at(-1)!.state).toBe("outbound");
@@ -214,7 +214,7 @@ describe("building a ship", () => {
       const built = later.ships.at(-1)!;
 
       expect(built.state).toBe("idle");
-      expect(built.position).toEqual(later.station.dock.position);
+      expect(built.position).toEqual(later.stations[0]!.dock.position);
     },
   );
 });
@@ -240,7 +240,7 @@ describe("several ships", () => {
     const state = fleet(7);
     const home: SimState = {
       ...state,
-      station: { ...state.station, storage: { ...state.station.storage, capacity: 1000 } },
+      stations: [{ ...state.stations[0]!, storage: { ...state.stations[0]!.storage, capacity: 1000 } }],
       ships: state.ships.map((ship) => ({
         ...ship,
         state: "homebound",

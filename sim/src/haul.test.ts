@@ -11,8 +11,8 @@ function twoStations(): SimState {
     ...state,
     sectors: state.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
     claimSites: [{ id: 4, sectorId: 1, position: { x: 120, y: 40 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null }],
-    station: { ...state.station, inventory: { Metal: 20, Ice: 40 } },
-    ships: [{ ...state.ships[0]!, state: "holding", position: { ...state.station.dock.position }, timer: 0, cargo: 0,
+    stations: [{ ...state.stations[0]!, inventory: { Metal: 20, Ice: 40 } }],
+    ships: [{ ...state.ships[0]!, state: "holding", position: { ...state.stations[0]!.dock.position }, timer: 0, cargo: 0,
       cargoMaterial: null, target: null, order: null, leg: null, defaultBehaviour: "none" }],
   };
 }
@@ -51,7 +51,7 @@ describe("Haul default", () => {
     const halfLoaded = run(loading, 3.01);
     expect(halfLoaded.ships[0]).toMatchObject({ state: "haulLoading", cargo: 5, cargoMaterial: "Ice" });
     expect(halfLoaded.ships[0]!.cargoByMaterial).toEqual({ Metal: 0, Ice: 5 });
-    expect(halfLoaded.station.inventory.Ice).toBe(35);
+    expect(halfLoaded.stations[0]!.inventory.Ice).toBe(35);
 
     const arrived = until(halfLoaded, (next) => next.ships[0]!.state === "haulUnloading");
     expect(arrived.ships[0]).toMatchObject({ sectorId: 1, cargo: 20 });
@@ -81,7 +81,7 @@ describe("Haul default", () => {
     const ship = base.ships[0]!;
     const crowded = tick({
       ...base,
-      station: { ...base.station, inventory: { Metal: 0, Ice: 200 }, storage: { ...base.station.storage, capacity: 1000 } },
+      stations: [{ ...base.stations[0]!, inventory: { Metal: 0, Ice: 200 }, storage: { ...base.stations[0]!.storage, capacity: 1000 } }],
       ships: [...[0, 1, 2, 3, 4, 5].map((id) => ({ ...ship, id, state: "homebound" as const, cargo: 20,
         cargoMaterial: "Metal" as const })), { ...ship, id: 6 }],
     }, 0);
@@ -91,7 +91,7 @@ describe("Haul default", () => {
     const waiting = until(ordered, (next) => next.ships[6]!.state === "waiting");
     const loading = until(waiting, (next) => next.ships[6]!.state === "haulLoading");
     expect(loading.ships[6]).toMatchObject({ cargo: 0, cargoMaterial: "Ice" });
-    expect(dockBerths(loading.station.dock.position)).toContainEqual(loading.ships[6]!.position);
+    expect(dockBerths(loading.stations[0]!.dock.position)).toContainEqual(loading.ships[6]!.position);
   });
 
   it("does not let transfers at a claim station occupy Home's berths", () => {
@@ -111,23 +111,23 @@ describe("Haul default", () => {
       berth: null,
       transfer: { startingCargo: 20, amount: 20 },
     }));
-    const arriving = { ...ship, id: 6, state: "homebound" as const, position: { ...base.station.dock.position },
+    const arriving = { ...ship, id: 6, state: "homebound" as const, position: { ...base.stations[0]!.dock.position },
       timer: 0, cargo: 20, cargoMaterial: "Metal" as const };
-    const state = { ...base, station: { ...base.station, storage: { ...base.station.storage, capacity: 1000 } },
+    const state = { ...base, stations: [{ ...base.stations[0]!, storage: { ...base.stations[0]!.storage, capacity: 1000 } }],
       ships: [...remote, arriving] };
 
     const docked = tick(state, 0);
     expect(docked.ships[6]).toMatchObject({ state: "berthing", berth: 0 });
-    expect(docked.ships[6]!.leg?.to).toEqual(dockBerths(base.station.dock.position)[0]);
+    expect(docked.ships[6]!.leg?.to).toEqual(dockBerths(base.stations[0]!.dock.position)[0]);
   });
 
   it("waits at From when the material is absent", () => {
     let state = twoStations();
-    state = { ...state, station: { ...state.station, inventory: { ...state.station.inventory, Ice: 0 } } };
+    state = { ...state, stations: [{ ...state.stations[0]!, inventory: { ...state.stations[0]!.inventory, Ice: 0 } }] };
     state = configureHaul(state, [0], { from: "home", to: "claim:4", material: "Ice" });
-    expect(run(state, 10).ships[0]).toMatchObject({ state: "haulWaitingSource", cargo: 0, position: state.station.dock.position });
+    expect(run(state, 10).ships[0]).toMatchObject({ state: "haulWaitingSource", cargo: 0, position: state.stations[0]!.dock.position });
 
-    const stocked = { ...state, station: { ...state.station, inventory: { ...state.station.inventory, Ice: 20 } } };
+    const stocked = { ...state, stations: [{ ...state.stations[0]!, inventory: { ...state.stations[0]!.inventory, Ice: 20 } }] };
     const approaching = tick(stocked, 1 / 30);
     expect(approaching.ships[0]).toMatchObject({ state: "berthing", berth: 0 });
     expect(until(approaching, (next) => next.ships[0]!.state === "haulLoading").ships[0]!.cargo).toBe(0);
@@ -138,7 +138,7 @@ describe("Haul default", () => {
     const fullSite = { ...base.claimSites[0]!, delivered: { Metal: STORAGE_CAPACITY, Ice: 0 } };
     let full = { ...base, claimSites: [fullSite] };
     full = configureHaul(full, [0], { from: "home", to: "claim:4", material: "Ice" });
-    expect(run(full, 10).ships[0]).toMatchObject({ state: "haulWaitingFull", cargo: 0, position: base.station.dock.position });
+    expect(run(full, 10).ships[0]).toMatchObject({ state: "haulWaitingFull", cargo: 0, position: base.stations[0]!.dock.position });
 
     let travelling = configureHaul(base, [0], { from: "home", to: "claim:4", material: "Ice" });
     travelling = until(travelling, (next) => next.ships[0]!.state === "haulOutbound");
@@ -170,7 +170,7 @@ describe("Haul default", () => {
 
     const unloading = until(changed, (next) => next.ships[0]!.state === "haulUnloading");
     const unloaded = run(unloading, 12.01);
-    expect(unloaded.station.inventory).toEqual({ Metal: 20, Ice: 40 });
+    expect(unloaded.stations[0]!.inventory).toEqual({ Metal: 20, Ice: 40 });
     expect(unloaded.claimSites[0]!.delivered).toEqual({ Metal: 0, Ice: 0 });
   });
 
@@ -185,7 +185,7 @@ describe("Haul default", () => {
 
     const unloading = until(hauling, (next) => next.ships[0]!.state === "haulUnloading");
     const unloaded = run(unloading, 12.01);
-    expect(unloaded.station.inventory).toEqual({ Metal: 20, Ice: 50 });
+    expect(unloaded.stations[0]!.inventory).toEqual({ Metal: 20, Ice: 50 });
     expect(unloaded.claimSites[0]!.delivered).toEqual({ Metal: 0, Ice: 0 });
   });
 

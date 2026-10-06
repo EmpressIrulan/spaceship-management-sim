@@ -1,6 +1,7 @@
 import { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MODULE_COST, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { ClaimSite, Material, ModuleType, SimState, Size, Vec } from "./model";
+import { homeStation } from "./state";
 export type { ClaimSite } from "./model";
 
 // Placeholders, to revisit after playing. A site builds the same Dock and
@@ -56,7 +57,7 @@ export function startClaimSite(state: SimState, sectorId: number, position: Vec)
   const blockedByRock = state.asteroids.some((rock) => rock.sectorId === sectorId
     && overlaps(rock.position, position, CLAIM_SITE_SIZE, ASTEROID_MIN_SPACING / 2));
   const blockedByStation = sectorId === HOME_SECTOR
-    && [...state.station.modules, state.station.constructionSite].some((module) => overlaps(
+    && [...homeStation(state).modules, homeStation(state).constructionSite].some((module) => overlaps(
       module.position,
       position,
       { width: CLAIM_SITE_SIZE.width + module.size.width, height: CLAIM_SITE_SIZE.height + module.size.height },

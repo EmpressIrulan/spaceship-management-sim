@@ -57,7 +57,7 @@ describe("station income", () => {
   });
 
   it("does not count ore that was already in storage or that is spent", () => {
-    const spent = { ...onePassStart(), station: { ...onePassStart().station, inventory: { Metal: 0, Ice: 0 } } };
+    const spent = { ...onePassStart(), stations: [{ ...onePassStart().stations[0]!, inventory: { Metal: 0, Ice: 0 } }] };
     expect(stationIncome(spent)).toEqual({ Metal: 0, Ice: 0 });
   });
 });
