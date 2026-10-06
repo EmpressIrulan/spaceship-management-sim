@@ -32,7 +32,13 @@ export interface Draft {
   dockCapacity: number;
   sectors: SimState["sectors"];
   gateProjects: SimState["gateProjects"];
-  claimSites: SimState["claimSites"];
+  // Every non-Home station, kept whole so hauling can move its stock and a
+  // founding one can advance its own first Dock and Storage.
+  others: Station[];
+  // The station whose construction site supply ships bring stock to, and the
+  // length of its build queue: the queue a supply default watches.
+  supplyStation: number;
+  supplyQueue: number;
 }
 
 // Takes up to `units` of ore from the asteroid a ship is mining and returns

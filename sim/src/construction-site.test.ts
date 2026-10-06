@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { oneStorageStart, suppliersComingHome } from "./test-ships";
+import { foundedStation, oneStorageStart, suppliersComingHome } from "./test-ships";
 import {
   DOCK_SIZE,
   MATERIALS,
@@ -79,11 +79,11 @@ describe("the construction site", () => {
   it("stays clear of every module slot Home offers and of every asteroid", () => {
     const state = createInitialState(7);
     const { position, size } = site(state);
-    for (const slot of availableModuleBuildSites(state)) {
+    for (const slot of availableModuleBuildSites(state, 0)) {
       const overlaps = Math.abs(slot.x - position.x) < (40 + size.width) / 2 && Math.abs(slot.y - position.y) < (70 + size.height) / 2;
       expect(overlaps, JSON.stringify(slot)).toBe(false);
     }
-    expect(availableModuleBuildSites(state)).toEqual([{ x: -40, y: 0 }, { x: 80, y: 0 }]);
+    expect(availableModuleBuildSites(state, 0)).toEqual([{ x: -40, y: 0 }, { x: 80, y: 0 }]);
     expect(state.asteroids.every((rock) => Math.hypot(rock.position.x - position.x, rock.position.y - position.y) > 40)).toBe(true);
   });
 });
@@ -107,20 +107,20 @@ describe("building from the construction site", () => {
   it("greys out an option the site cannot pay and says what is missing", () => {
     const state = withSite(withStorage(createInitialState(7), { Metal: 500, Ice: 500 }), { Metal: 30, Ice: 10 });
 
-    expect(availableModuleBuilds(state).map(({ enabled, missing }) => ({ enabled, missing })))
+    expect(availableModuleBuilds(state, 0).map(({ enabled, missing }) => ({ enabled, missing })))
       .toEqual(Array(3).fill({ enabled: false, missing: { Metal: 0, Ice: 15 } }));
   });
 
   it("does not pay from Storage, however full it is", () => {
     const state = withStorage(createInitialState(7), { Metal: 500, Ice: 500 });
 
-    expect(startModuleBuild(state, "Storage", east)).toBe(state);
+    expect(startModuleBuild(state, 0, "Storage", east)).toBe(state);
   });
 
   it("pays from the site and leaves Storage exactly as it was", () => {
     const funded = withSite(withStorage(createInitialState(7), { Metal: 77, Ice: 33 }), { Metal: 40, Ice: 25 });
 
-    const building = startModuleBuild(funded, "Dock", east);
+    const building = startModuleBuild(funded, 0, "Dock", east);
 
     expect(site(building).inventory).toEqual({ Metal: 15, Ice: 0 });
     expect(building.stations[0]!.inventory).toEqual({ Metal: 77, Ice: 33 });
@@ -231,7 +231,7 @@ describe("right-clicking a ship onto the site", () => {
     const cargo = hauling.ships[0]!.cargo;
     const storage = hauling.stations[0]!.inventory;
 
-    const ordered = giveOrder(hauling, [0], { kind: "supplyBuild" });
+    const ordered = giveOrder(hauling, [0], { kind: "supplyBuild", stationId: 0 });
     expect(ordered.ships[0]!.order).not.toBeNull();
     expect(longestJump(ordered, unloadingNow)).toBeLessThan(6);
 
@@ -247,7 +247,7 @@ describe("right-clicking a ship onto the site", () => {
 
   it("goes back to Storage on the next trip, because the order was only once", () => {
     const hauling = loaded();
-    const ordered = giveOrder(hauling, [0], { kind: "supplyBuild" });
+    const ordered = giveOrder(hauling, [0], { kind: "supplyBuild", stationId: 0 });
     const later = tick(ordered, 300);
 
     expect(siteTotal(later)).toBe(hauling.ships[0]!.cargo);
@@ -257,7 +257,7 @@ describe("right-clicking a ship onto the site", () => {
   it("does nothing for a ship with no cargo", () => {
     const empty = minerOn("mine");
 
-    expect(giveOrder(empty, [0], { kind: "supplyBuild" })).toEqual(empty);
+    expect(giveOrder(empty, [0], { kind: "supplyBuild", stationId: 0 })).toEqual(empty);
   });
 });
 
@@ -290,10 +290,10 @@ describe("unloading a ship into the site at the end of a trip", () => {
   });
 
   it("resumes the Haul route after a one-time delivery, not mining", () => {
-    const base = mixedHold({ defaultBehaviour: "haul", order: { kind: "supplyBuild", point: { x: 75, y: -60 }, sectorId: 0 },
-      haulRoute: { from: "home", to: "claim:4", material: "Ice" } });
+    const base = mixedHold({ defaultBehaviour: "haul", order: { kind: "supplyBuild", stationId: 0, point: { x: 75, y: -60 }, sectorId: 0 },
+      haulRoute: { from: "home", to: "station:4", material: "Ice" } });
     const state: SimState = { ...base,
-      claimSites: [{ id: 4, sectorId: 1, position: { x: 120, y: 40 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null }] };
+      stations: [...base.stations, foundedStation(4, 1, 120, 40)] };
 
     const done = tick(state, cargoTransferSeconds(20) + 0.01);
 

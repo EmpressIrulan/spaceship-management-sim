@@ -76,7 +76,7 @@ describe("the station build queue", () => {
   it("offers module sites around ghosts so a row can be queued at once", () => {
     const state = queueModuleBuild(createInitialState(7), "Storage", east);
 
-    expect(availableModuleBuildSites(state)).toContainEqual({ x: 120, y: 0 });
+    expect(availableModuleBuildSites(state, 0)).toContainEqual({ x: 120, y: 0 });
   });
 
   it("cancels a ghost and anything connected only through it, preserving the rest", () => {

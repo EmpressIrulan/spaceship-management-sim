@@ -12,17 +12,6 @@ export type AsteroidField =
 
 export type ModuleType = (typeof MODULE_TYPES)[number];
 export const MODULE_TYPES = ["Dock", "Storage", "Builder"] as const;
-export interface ClaimSite {
-  id: number;
-  sectorId: number;
-  position: Vec;
-  // Modules of CLAIM_BUILD_ORDER finished so far.
-  stage: number;
-  // What ships have delivered towards the module at `stage`.
-  delivered: Record<Material, number>;
-  // Seconds left building the module at `stage`. Null until fully supplied.
-  timer: number | null;
-}
 
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and draws, but does nothing.
 export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull"] as const;
@@ -40,15 +29,14 @@ export type ShipState =
   | "haulOutbound" | "haulJumpingOutbound" | "haulUnloading" | "haulReturning"
   | "haulJumpingReturning" | "haulWaitingSource" | "haulWaitingFull";
 export type DefaultBehaviour = "mine" | "haul" | "supply" | "none";
-export type HaulStationId = "home" | `claim:${number}`;
+export type HaulStationId = "home" | `station:${number}`;
 export interface HaulRoute { from: HaulStationId; to: HaulStationId; material: Material }
 export type Order =
   | { kind: "mine"; asteroidId: number; loaded: boolean }
   | { kind: "move"; point: Vec; sectorId: number }
   | { kind: "home" }
   | { kind: "haulGate"; gateId: number }
-  | { kind: "supplySite"; siteId: number; point: Vec; sectorId: number }
-  | { kind: "supplyBuild"; point: Vec; sectorId: number }
+  | { kind: "supplyBuild"; stationId: number; point: Vec; sectorId: number }
   | { kind: "dock"; carrierId: number };
 export interface Leg { from: Vec; to: Vec }
 export interface CargoTransfer {
@@ -99,6 +87,11 @@ export interface Ship {
 }
 
 export interface Station {
+  // Home carries 0; each placed station gets the next count up.
+  id: number;
+  // True while the station is still building itself up the way the game
+  // starts: a Dock, then a Storage, from whatever ships bring to its site.
+  founding: boolean;
   sectorId: number;
   // The Dock is the station's home point: the position ships route to and
   // from, and the one the asteroid band is measured out from.
@@ -178,8 +171,11 @@ export interface SimState {
   fields: AsteroidField[];
   nextGateId: number;
   gateProjects: GateProject[];
-  nextClaimSiteId: number;
-  claimSites: ClaimSite[];
+  // Runs alongside the station ids, so placed sites keep their number forever.
+  nextStationId: number;
+  // The station whose construction site supply ships bring stock to, by
+  // default or by right-click. Home by default.
+  supplyStation: number;
   stations: Station[];
   asteroids: Asteroid[];
   respawns: Respawn[];

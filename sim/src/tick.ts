@@ -1,4 +1,3 @@
-import { advanceSites, deliverToSite, nextSiteEvent, settleSites, claimSiteSlots } from "./claim";
 import { flyHaul, haulCargoDestination, haulStationDetails } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { asteroidGone, mine, miningSeconds, type Draft } from "./tick-mining";
@@ -15,6 +14,7 @@ import {
   parksForEmptyQueue,
   refundDetachedBuild,
   settleQueuedBuild,
+  settleStationBuild,
   supplyQueueStatus,
   unloadSupplierIntoEmptyQueue,
 } from "./station-build-queue";
@@ -162,14 +162,10 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
     }
     case "unloading": {
       if (ship.transfer?.destination === "constructionSite") {
-        const returning = unloadSupplierIntoEmptyQueue(ship, draft.buildQueue.length, draft.dock);
+        const returning = unloadSupplierIntoEmptyQueue(ship, draft.supplyQueue, draft.dock);
         if (returning) return returning;
         const targetCargo = Math.max(0, ship.transfer.startingCargo - transferDone(ship, timer));
-        return { ...giveToBuildSite(draft, ship, ship.cargo - targetCargo), timer };
-      }
-      if (ship.order?.kind === "supplySite") {
-        const targetCargo = Math.max(0, (ship.transfer?.startingCargo ?? ship.cargo) - transferDone(ship, timer));
-        return { ...giveToSite(draft, ship, ship.cargo - targetCargo), timer };
+        return { ...giveToBuildSite(draft, ship, ship.cargo - targetCargo, deliverySiteStation(draft, ship)), timer };
       }
       const targetCargo = Math.max(0, (ship.transfer?.startingCargo ?? ship.cargo) - transferDone(ship, timer));
       return { ...unloadCargo(draft, ship, ship.cargo - targetCargo), timer };
@@ -244,31 +240,32 @@ function giveToGate(draft: Draft, ship: Ship, units: number): Ship {
   return next;
 }
 
-// Puts up to `units` of the ship's cargo into the site it is ordered to and
-// returns how many the site took.
-function giveToSite(draft: Draft, ship: Ship, units: number): Ship {
-  const siteId = ship.order?.kind === "supplySite" ? ship.order.siteId : -1;
-  let site = draft.claimSites.find((candidate) => candidate.id === siteId);
-  if (!site) return ship;
-  const next = transferCargo(ship, units, (material, amount) => {
-    const delivered = deliverToSite(site!, material, amount);
-    site = delivered.site;
-    return delivered.accepted;
-  });
-  draft.claimSites = draft.claimSites.map((candidate) => (candidate.id === siteId ? site! : candidate));
-  return next;
+// Which station's construction site this unloading feeds: the one named in
+// the ship's supplyBuild order, else the one the supply default targets.
+function deliverySiteStation(draft: Draft, ship: Ship): number {
+  if (ship.order?.kind === "supplyBuild") return ship.order.stationId;
+  return draft.supplyStation;
 }
 
-// Puts up to `units` of the ship's cargo into the construction site, each
-// material from its own count in the hold. The site has no cap, so it takes all.
-function giveToBuildSite(draft: Draft, ship: Ship, units: number): Ship {
+// The construction site of the station with `stationId`, Home's for 0.
+function buildSiteOf(draft: Draft, stationId: number): Station["constructionSite"] {
+  if (stationId === 0) return draft.constructionSite;
+  return draft.others.find((station) => station.id === stationId)?.constructionSite ?? draft.constructionSite;
+}
+
+// Puts up to `units` of the ship's cargo into the named station's construction
+// site, each material from its own count in the hold. The site has no cap, so
+// it takes all.
+function giveToBuildSite(draft: Draft, ship: Ship, units: number, stationId: number): Ship {
   if (units <= 0) return ship;
-  const inventory = { ...draft.constructionSite.inventory };
+  const inventory = { ...buildSiteOf(draft, stationId).inventory };
   const next = transferCargo(ship, units, (material, amount) => {
     inventory[material] += amount;
     return amount;
   });
-  draft.constructionSite = { ...draft.constructionSite, inventory };
+  if (stationId === 0) draft.constructionSite = { ...draft.constructionSite, inventory };
+  else draft.others = draft.others.map((station) => (station.id === stationId
+    ? { ...station, constructionSite: { ...station.constructionSite, inventory } } : station));
   return next;
 }
 
@@ -285,9 +282,9 @@ function resumeAfterBuildOrder(draft: Draft, ship: Ship): Ship {
 }
 
 // A ship on Supply construction site, with no order of its own, takes what it
-// mines to the construction site instead of the Dock.
+// mines to the site the supply default targets instead of the Dock.
 function supplying(draft: Draft, ship: Ship): boolean {
-  return supplyQueueStatus(ship, draft.buildQueue.length) === "supplying";
+  return supplyQueueStatus(ship, draft.supplyQueue) === "supplying";
 }
 
 function samePoint(a: Vec, b: Vec): boolean {
@@ -302,7 +299,8 @@ function flyTo(ship: Ship, from: Vec, to: Vec): Ship {
 // Arrival at the construction site starts the same unloading countdown as at
 // the Dock, but takes no berth.
 function arriveAtBuildSite(draft: Draft, ship: Ship): Ship {
-  const arrived = { ...ship, position: { ...draft.constructionSite.position }, leg: null, berth: null };
+  const site = buildSiteOf(draft, deliverySiteStation(draft, ship));
+  const arrived = { ...ship, position: { ...site.position }, leg: null, berth: null };
   return arrived.cargo > 0
     ? { ...arrived, state: "unloading", transfer: { startingCargo: arrived.cargo, amount: arrived.cargo, destination: "constructionSite" }, timer: cargoTransferSeconds(arrived.cargo) }
     : resumeAfterBuildOrder(draft, { ...arrived, transfer: null });
@@ -311,20 +309,28 @@ function arriveAtBuildSite(draft: Draft, ship: Ship): Ship {
 // The countdown is over: the site takes the rest and the ship goes back to its
 // default, or on to its next order.
 function finishBuildSupply(draft: Draft, ship: Ship): Ship {
-  const emptied = giveToBuildSite(draft, ship, ship.cargo);
+  const emptied = giveToBuildSite(draft, ship, ship.cargo, deliverySiteStation(draft, ship));
   return resumeAfterBuildOrder(draft, { ...emptied, cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 }, cargoMaterial: null, transfer: null });
 }
 
-// Arrival at a site starts the same unloading countdown as at the Dock.
-function arriveAtSite(draft: Draft, ship: Ship): Ship {
-  return ship.cargo > 0
-    ? { ...ship, state: "unloading", transfer: { startingCargo: ship.cargo, amount: ship.cargo }, timer: cargoTransferSeconds(ship.cargo) }
-    : afterOrder(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
-}
-
-// The countdown is over: the site takes what it can of the rest and the ship moves on.
-function finishSupply(draft: Draft, ship: Ship): Ship {
-  return afterOrder({ ...giveToSite(draft, ship, ship.cargo), transfer: null }, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects);
+// A supply ship with a full hold flies to the site the supply default
+// targets: straight there when it is already in the site's sector, otherwise
+// out to the gate first. No gate reaches the site and the hold goes home like
+// any miner's, rather than the ship circling forever.
+function headForBuildSite(draft: Draft, ship: Ship): Ship {
+  const station = draft.supplyStation === 0 ? undefined : draft.others.find((candidate) => candidate.id === draft.supplyStation);
+  const sectorId = station ? station.sectorId : draft.stationSector;
+  const point = buildSiteOf(draft, draft.supplyStation).position;
+  if (ship.sectorId === sectorId) return flyTo(ship, ship.position, point);
+  const route = gateRoute(draft, ship.sectorId, sectorId);
+  if (!route) {
+    if (ship.sectorId === HOME_SECTOR) return berth(draft, { ...ship, position: { ...draft.dock }, leg: null });
+    const gate = gateRoute(draft, ship.sectorId, HOME_SECTOR)?.from ?? draft.sectors[ship.sectorId]!.gate.position;
+    return flyTo(ship, ship.position, gate);
+  }
+  const from = { ...ship.position };
+  return { ...ship, state: "moving", order: { kind: "supplyBuild", stationId: draft.supplyStation, point: { ...point }, sectorId },
+    leg: { from, to: { ...route.from } }, timer: travelSeconds(Math.hypot(route.from.x - from.x, route.from.y - from.y), speedFactor(ship.design)) };
 }
 
 // Moves a ship whose timer has run out into its next state.
@@ -334,12 +340,12 @@ function finish(draft: Draft, ship: Ship): Ship {
     case "idle":
       // Nothing queued: a supply ship waits it out on a parking spot beside the
       // Dock, in a row of its own rather than piled on the Dock.
-      if (parksForEmptyQueue(ship, draft.buildQueue.length)) return toParking(layoutOf(draft), draft.ships, ship);
+      if (parksForEmptyQueue(ship, draft.supplyQueue)) return toParking(layoutOf(draft), draft.ships, ship);
       return ship.defaultBehaviour === "none" ? ship
         : resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
     case "holding":
       if (ship.order?.kind === "haulGate") return loadGateHauler(draft, ship);
-      if (supplyQueueStatus(ship, draft.buildQueue.length) === "supplying") {
+      if (supplyQueueStatus(ship, draft.supplyQueue) === "supplying") {
         return resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
       }
       return ship;
@@ -414,7 +420,6 @@ function finish(draft: Draft, ship: Ship): Ship {
       if (ship.order && (travelOrder(ship.order)?.sectorId ?? ship.sectorId) !== ship.sectorId) {
         return { ...ship, state: "jumpingOut", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
       }
-      if (ship.order?.kind === "supplySite") return arriveAtSite(draft, { ...ship, position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null });
       if (ship.order?.kind === "supplyBuild") return arriveAtBuildSite(draft, ship);
       return { ...ship, state: "holding", position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null, timer: 0 };
     case "gateHauling": {
@@ -447,7 +452,7 @@ function finish(draft: Draft, ship: Ship): Ship {
     case "waiting":
       // A module queued while this ship was still flying out to park, or while
       // it was waiting for a pad, means it has somewhere to be.
-      if (supplyQueueStatus(ship, draft.buildQueue.length) === "supplying") {
+      if (supplyQueueStatus(ship, draft.supplyQueue) === "supplying") {
         return resumeMining(ship, draft.dock, draft.asteroids, draft.sectors, draft.gateProjects, draft.ships);
       }
       // Room can appear without any ship moving, when a Storage module
@@ -485,7 +490,9 @@ function finish(draft: Draft, ship: Ship): Ship {
         return { ...ship, state: "homebound", leg: { from: { ...ship.position }, to: { ...gate } }, timer: travelSeconds(length, speedFactor(ship.design)),
           order: ship.order?.kind === "mine" ? { ...ship.order, loaded: true } : ship.order };
       }
-      if (supplying(draft, ship)) return flyTo({ ...ship, cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo) }, ship.position, draft.constructionSite.position);
+      // The site it supplies comes before the flight home, so a supplier works
+      // for the selected site whatever sector it is mining in.
+      if (supplying(draft, ship)) return headForBuildSite(draft, { ...ship, cargo: ship.cargo + mine(draft, ship, shipStats(ship.design).hold - ship.cargo) });
       return {
         ...ship,
         state: "homebound",
@@ -494,16 +501,18 @@ function finish(draft: Draft, ship: Ship): Ship {
         order: ship.order?.kind === "mine" ? { ...ship.order, loaded: true } : ship.order,
       };
     case "homebound":
-      if (ship.sectorId !== HOME_SECTOR) return { ...ship, state: "jumpingHome", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
-      const site = draft.constructionSite.position;
-      const headingForSite = ship.leg !== null && samePoint(ship.leg.to, site);
-      if (supplying(draft, ship) && (headingForSite || ship.cargo > 0)) {
-        return headingForSite ? arriveAtBuildSite(draft, ship) : flyTo(ship, draft.dock, site);
+      {
+        const site = buildSiteOf(draft, draft.supplyStation).position;
+        const headingForSite = ship.leg !== null && samePoint(ship.leg.to, site);
+        if (supplying(draft, ship) && (headingForSite || ship.cargo > 0)) {
+          return headingForSite ? arriveAtBuildSite(draft, ship) : headForBuildSite(draft, ship);
+        }
+        if (ship.sectorId !== HOME_SECTOR) return { ...ship, state: "jumpingHome", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
+        // Heading for the site on a default it has since lost: on to the Dock.
+        if (headingForSite) return flyTo(ship, ship.position, draft.dock);
       }
-      // Heading for the site on a default it has since lost: on to the Dock.
-      if (headingForSite) return flyTo(ship, site, draft.dock);
       // A supply ship home with nothing queued waits on a parking spot instead.
-      if (parksForEmptyQueue(ship, draft.buildQueue.length)) {
+      if (parksForEmptyQueue(ship, draft.supplyQueue)) {
         return toParking(layoutOf(draft), draft.ships, { ...ship, position: { ...draft.dock }, leg: null });
       }
       if (ship.cargo > 0 && !canProcessCargo(draft, ship)) {
@@ -517,7 +526,6 @@ function finish(draft: Draft, ship: Ship): Ship {
           transfer: { startingCargo: 0, amount: 0 }, timer: cargoTransferSeconds(0) };
     case "unloading": {
       if (ship.transfer?.destination === "constructionSite") return finishBuildSupply(draft, ship);
-      if (ship.order?.kind === "supplySite") return finishSupply(draft, ship);
       const left = afterUnloading(draft, ship);
       // The pad is free from here on. A ship with nowhere to go stays at the
       // Dock's middle, where it would have been before there were pads.
@@ -549,8 +557,11 @@ function nextEvent(draft: Draft): number {
   }
   for (const respawn of draft.respawns) soonest = Math.min(soonest, respawn.timer);
   if (draft.construction) soonest = Math.min(soonest, draft.construction.timer);
+  for (const station of draft.others) {
+    if (station.construction) soonest = Math.min(soonest, station.construction.timer);
+  }
   for (const job of draft.shipBuilds) soonest = Math.min(soonest, job.timer);
-  return Math.min(soonest, nextSiteEvent(draft.claimSites));
+  return soonest;
 }
 
 function advance(draft: Draft, seconds: number): void {
@@ -561,13 +572,16 @@ function advance(draft: Draft, seconds: number): void {
     draft.construction = { ...draft.construction, timer: draft.construction.timer - seconds };
   }
   draft.shipBuilds = draft.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds }));
-  draft.claimSites = advanceSites(draft.claimSites, seconds);
+  // A founding station's own first Dock and Storage build on its site stock.
+  draft.others = draft.others.map((station) => (station.construction
+    ? { ...station, construction: { ...station.construction, timer: station.construction.timer - seconds } }
+    : station));
 }
 
 // Fires every timer that has reached zero. Respawns go first so a ship that
 // becomes free at the same moment can head for the new asteroid.
 function settle(draft: Draft): void {
-  draft.claimSites = settleSites(draft.claimSites);
+  draft.others = draft.others.map(settleStationBuild);
   if (draft.construction && draft.construction.timer <= 0) {
     // A module that has lost its footing is given back to the site rather than
     // finished off the station, which is the one place a build can end up
@@ -587,8 +601,15 @@ function settle(draft: Draft): void {
         ...(respawn.sectorId === HOME_SECTOR
           ? [...draft.modules.map((module) => module.position), draft.constructionSite.position, ...(draft.construction ? [draft.construction.position] : [])]
           : []),
-        ...draft.claimSites.filter((site) => site.sectorId === respawn.sectorId)
-          .flatMap((site) => [site.position, ...claimSiteSlots(site).map((slot) => slot.position)]),
+        // Every station body in the sector keeps the field clear, the way a
+        // built site's slots did.
+        ...draft.others.filter((station) => station.sectorId === respawn.sectorId)
+          .flatMap((station) => [
+            ...station.modules.map((module) => module.position),
+            station.constructionSite.position,
+            ...(station.construction ? [station.construction.position] : []),
+            ...station.buildQueue.map((queued) => queued.position),
+          ]),
       ],
     );
     if (!placed) {
@@ -672,7 +693,12 @@ export function tick(state: SimState, dt: number): SimState {
     dockCapacity: home.dock.capacity,
     sectors: state.sectors,
     gateProjects: state.gateProjects,
-    claimSites: state.claimSites,
+    // Every non-Home station, kept whole. Founding ones advance their own
+    // first Dock and Storage; founded ones only move haul stock this tick.
+    others: state.stations.slice(1),
+    supplyStation: state.supplyStation,
+    supplyQueue: state.supplyStation === 0 ? home.buildQueue.length
+      : state.stations.find((station) => station.id === state.supplyStation)?.buildQueue.length ?? 0,
   };
 
   // A negative or NaN dt would wind timers backwards, so it counts as no time.
@@ -702,11 +728,10 @@ export function tick(state: SimState, dt: number): SimState {
       construction: draft.construction,
       buildQueue: draft.buildQueue,
       shipBuilds: draft.shipBuilds,
-    }, ...state.stations.slice(1)],
+    }, ...draft.others],
     asteroids: draft.asteroids,
     respawns: draft.respawns,
     ships: syncDockedShips(draft.ships),
     gateProjects: draft.gateProjects,
-    claimSites: draft.claimSites,
   };
 }

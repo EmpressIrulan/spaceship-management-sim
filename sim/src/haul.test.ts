@@ -1,18 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { claimSiteBuilt } from "./claim";
 import { configureHaul, giveOrder, haulStations, resumeDefault, setDefaultBehaviour } from "./orders";
-import { createInitialState, dockBerths, STORAGE_CAPACITY, type SimState } from "./state";
+import { createInitialState, dockBerths, homeStation, type SimState } from "./state";
+import { foundedStation } from "./test-ships";
 import { cargoTransferSeconds } from "./ship";
+import { placeStation } from "./station-placement";
 import { tick } from "./tick";
 
+// A founded station in sector 1 with stock to haul, so a route from Home has a
+// second stop the way a built-out claim site used to be.
 function twoStations(): SimState {
   const state = createInitialState(7);
+  const placed = placeStation(state, 1, { x: 120, y: 40 });
   return {
-    ...state,
-    sectors: state.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
-    claimSites: [{ id: 4, sectorId: 1, position: { x: 120, y: 40 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null }],
-    stations: [{ ...state.stations[0]!, inventory: { Metal: 20, Ice: 40 } }],
-    ships: [{ ...state.ships[0]!, state: "holding", position: { ...state.stations[0]!.dock.position }, timer: 0, cargo: 0,
+    ...placed,
+    sectors: placed.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
+    stations: [
+      { ...placed.stations[0]!, inventory: { Metal: 20, Ice: 40 } },
+      foundedStation(1, 1, 120, 40, { Metal: 0, Ice: 0 }),
+    ],
+    ships: [{ ...placed.ships[0]!, state: "holding", position: { ...placed.stations[0]!.dock.position }, timer: 0, cargo: 0,
       cargoMaterial: null, target: null, order: null, leg: null, defaultBehaviour: "none" }],
   };
 }
@@ -33,18 +39,17 @@ function until(state: SimState, done: (state: SimState) => boolean): SimState {
 }
 
 describe("Haul default", () => {
-  it("lists finished stations by sector name", () => {
+  it("lists founded stations by sector name", () => {
     const state = twoStations();
-    expect(claimSiteBuilt(state.claimSites[0]!)).toBe(true);
     expect(haulStations(state)).toEqual([
       { id: "home", name: "Home" },
-      { id: "claim:4", name: "Kessel" },
+      { id: "station:1", name: "Kessel" },
     ]);
   });
 
   it("loads over time, flies through the gate, unloads over time, and repeats", () => {
     let state = twoStations();
-    state = configureHaul(state, [0], { from: "home", to: "claim:4", material: "Ice" });
+    state = configureHaul(state, [0], { from: "home", to: "station:1", material: "Ice" });
     expect(state.ships[0]).toMatchObject({ defaultBehaviour: "haul", state: "berthing", cargo: 0, berth: 0 });
 
     const loading = until(state, (next) => next.ships[0]!.state === "haulLoading");
@@ -57,7 +62,7 @@ describe("Haul default", () => {
     expect(arrived.ships[0]).toMatchObject({ sectorId: 1, cargo: 20 });
     const halfUnloaded = run(arrived, 3.01);
     expect(halfUnloaded.ships[0]!.cargo).toBe(15);
-    expect(halfUnloaded.claimSites[0]!.delivered.Ice).toBe(5);
+    expect(halfUnloaded.stations[1]!.inventory.Ice).toBe(5);
 
     const repeated = until(halfUnloaded, (next) => next.ships[0]!.state === "haulLoading");
     expect(repeated.ships[0]).toMatchObject({ sectorId: 0, cargo: 0 });
@@ -66,13 +71,13 @@ describe("Haul default", () => {
   it("unloads each material in a mixed hold at the haul destination", () => {
     const base = twoStations();
     const ship = base.ships[0]!;
-    const start = { ...base, ships: [{ ...ship, sectorId: 1, position: { ...base.claimSites[0]!.position },
+    const start = { ...base, ships: [{ ...ship, sectorId: 1, position: { ...base.stations[1]!.dock.position },
       state: "haulUnloading" as const, timer: cargoTransferSeconds(20), cargo: 20, cargoMaterial: "Ice" as const,
       transfer: { startingCargo: 20, amount: 20 },
-      cargoByMaterial: { Metal: 6, Ice: 14 }, haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Ice" as const } }] };
+      cargoByMaterial: { Metal: 6, Ice: 14 }, haulRoute: { from: "home" as const, to: "station:1" as const, material: "Ice" as const } }] };
 
     const done = tick(start, cargoTransferSeconds(20));
-    expect(done.claimSites[0]!.delivered).toEqual({ Metal: 6, Ice: 14 });
+    expect(done.stations[1]!.inventory).toEqual({ Metal: 6, Ice: 14 });
     expect(done.ships[0]).toMatchObject({ cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 } });
   });
 
@@ -81,11 +86,11 @@ describe("Haul default", () => {
     const ship = base.ships[0]!;
     const crowded = tick({
       ...base,
-      stations: [{ ...base.stations[0]!, inventory: { Metal: 0, Ice: 200 }, storage: { ...base.stations[0]!.storage, capacity: 1000 } }],
+      stations: [{ ...base.stations[0]!, inventory: { Metal: 0, Ice: 200 }, storage: { ...base.stations[0]!.storage, capacity: 1000 } }, base.stations[1]!],
       ships: [...[0, 1, 2, 3, 4, 5].map((id) => ({ ...ship, id, state: "homebound" as const, cargo: 20,
         cargoMaterial: "Metal" as const })), { ...ship, id: 6 }],
     }, 0);
-    const ordered = configureHaul(crowded, [6], { from: "home", to: "claim:4", material: "Ice" });
+    const ordered = configureHaul(crowded, [6], { from: "home", to: "station:1", material: "Ice" });
 
     expect(ordered.ships[6]).toMatchObject({ state: "berthing", berth: null, cargo: 0 });
     const waiting = until(ordered, (next) => next.ships[6]!.state === "waiting");
@@ -94,7 +99,7 @@ describe("Haul default", () => {
     expect(dockBerths(loading.stations[0]!.dock.position)).toContainEqual(loading.ships[6]!.position);
   });
 
-  it("does not let transfers at a claim station occupy Home's berths", () => {
+  it("does not let transfers at a founded station occupy Home's berths", () => {
     const base = twoStations();
     const ship = base.ships[0]!;
     const remote = [0, 1, 2, 3, 4, 5].map((id) => ({
@@ -102,18 +107,18 @@ describe("Haul default", () => {
       id,
       state: "haulUnloading" as const,
       sectorId: 1,
-      position: { ...base.claimSites[0]!.position },
+      position: { ...base.stations[1]!.dock.position },
       timer: 12,
       cargo: 20,
       cargoMaterial: "Ice" as const,
       defaultBehaviour: "haul" as const,
-      haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Ice" as const },
+      haulRoute: { from: "home" as const, to: "station:1" as const, material: "Ice" as const },
       berth: null,
       transfer: { startingCargo: 20, amount: 20 },
     }));
     const arriving = { ...ship, id: 6, state: "homebound" as const, position: { ...base.stations[0]!.dock.position },
       timer: 0, cargo: 20, cargoMaterial: "Metal" as const };
-    const state = { ...base, stations: [{ ...base.stations[0]!, storage: { ...base.stations[0]!.storage, capacity: 1000 } }],
+    const state = { ...base, stations: [{ ...base.stations[0]!, storage: { ...base.stations[0]!.storage, capacity: 1000 } }, base.stations[1]!],
       ships: [...remote, arriving] };
 
     const docked = tick(state, 0);
@@ -123,11 +128,11 @@ describe("Haul default", () => {
 
   it("waits at From when the material is absent", () => {
     let state = twoStations();
-    state = { ...state, stations: [{ ...state.stations[0]!, inventory: { ...state.stations[0]!.inventory, Ice: 0 } }] };
-    state = configureHaul(state, [0], { from: "home", to: "claim:4", material: "Ice" });
+    state = { ...state, stations: [{ ...state.stations[0]!, inventory: { ...state.stations[0]!.inventory, Ice: 0 } }, state.stations[1]!] };
+    state = configureHaul(state, [0], { from: "home", to: "station:1", material: "Ice" });
     expect(run(state, 10).ships[0]).toMatchObject({ state: "haulWaitingSource", cargo: 0, position: state.stations[0]!.dock.position });
 
-    const stocked = { ...state, stations: [{ ...state.stations[0]!, inventory: { ...state.stations[0]!.inventory, Ice: 20 } }] };
+    const stocked = { ...state, stations: [{ ...state.stations[0]!, inventory: { ...state.stations[0]!.inventory, Ice: 20 } }, state.stations[1]!] };
     const approaching = tick(stocked, 1 / 30);
     expect(approaching.ships[0]).toMatchObject({ state: "berthing", berth: 0 });
     expect(until(approaching, (next) => next.ships[0]!.state === "haulLoading").ships[0]!.cargo).toBe(0);
@@ -135,20 +140,20 @@ describe("Haul default", () => {
 
   it("does not load while To is full, and waits there if To fills en route", () => {
     const base = twoStations();
-    const fullSite = { ...base.claimSites[0]!, delivered: { Metal: STORAGE_CAPACITY, Ice: 0 } };
-    let full = { ...base, claimSites: [fullSite] };
-    full = configureHaul(full, [0], { from: "home", to: "claim:4", material: "Ice" });
+    const fullStore = foundedStation(1, 1, 120, 40, { Metal: 100, Ice: 0 });
+    let full = { ...base, stations: [base.stations[0]!, fullStore] };
+    full = configureHaul(full, [0], { from: "home", to: "station:1", material: "Ice" });
     expect(run(full, 10).ships[0]).toMatchObject({ state: "haulWaitingFull", cargo: 0, position: base.stations[0]!.dock.position });
 
-    let travelling = configureHaul(base, [0], { from: "home", to: "claim:4", material: "Ice" });
+    let travelling = configureHaul(base, [0], { from: "home", to: "station:1", material: "Ice" });
     travelling = until(travelling, (next) => next.ships[0]!.state === "haulOutbound");
-    travelling = { ...travelling, claimSites: [{ ...travelling.claimSites[0]!, delivered: { Metal: STORAGE_CAPACITY, Ice: 0 } }] };
+    travelling = { ...travelling, stations: [travelling.stations[0]!, foundedStation(1, 1, 120, 40, { Metal: 100, Ice: 0 })] };
     const waiting = until(travelling, (next) => next.ships[0]!.state === "haulWaitingFull" && next.ships[0]!.sectorId === 1);
-    expect(waiting.ships[0]).toMatchObject({ cargo: 20, cargoMaterial: "Ice", position: base.claimSites[0]!.position });
+    expect(waiting.ships[0]).toMatchObject({ cargo: 20, cargoMaterial: "Ice", position: base.stations[1]!.dock.position });
   });
 
   it("a right-click order interrupts hauling and Resume sends the ship back to it", () => {
-    let state = configureHaul(twoStations(), [0], { from: "home", to: "claim:4", material: "Ice" });
+    let state = configureHaul(twoStations(), [0], { from: "home", to: "station:1", material: "Ice" });
     state = until(state, (next) => next.ships[0]!.state === "haulLoading");
     state = run(state, 2);
     const cargo = state.ships[0]!.cargo;
@@ -160,18 +165,18 @@ describe("Haul default", () => {
   });
 
   it("returns carried Ice to From before starting a newly selected Metal route", () => {
-    let state = configureHaul(twoStations(), [0], { from: "home", to: "claim:4", material: "Ice" });
+    let state = configureHaul(twoStations(), [0], { from: "home", to: "station:1", material: "Ice" });
     state = until(state, (next) => next.ships[0]!.state === "haulOutbound");
     expect(state.ships[0]).toMatchObject({ cargo: 20, cargoMaterial: "Ice" });
 
-    const changed = configureHaul(state, [0], { from: "home", to: "claim:4", material: "Metal" });
+    const changed = configureHaul(state, [0], { from: "home", to: "station:1", material: "Metal" });
     expect(changed.ships[0]).toMatchObject({ state: "haulReturning", cargo: 20, cargoMaterial: "Ice",
       haulRoute: { material: "Metal" } });
 
     const unloading = until(changed, (next) => next.ships[0]!.state === "haulUnloading");
     const unloaded = run(unloading, 12.01);
     expect(unloaded.stations[0]!.inventory).toEqual({ Metal: 20, Ice: 40 });
-    expect(unloaded.claimSites[0]!.delivered).toEqual({ Metal: 0, Ice: 0 });
+    expect(unloaded.stations[1]!.inventory).toEqual({ Metal: 0, Ice: 0 });
   });
 
   it("returns a loaded miner's material to Home before starting its Haul route", () => {
@@ -181,20 +186,20 @@ describe("Haul default", () => {
 
     const hauling = setDefaultBehaviour(loaded, [0], "haul");
     expect(hauling.ships[0]).toMatchObject({ state: "haulReturning", cargo: 10, cargoMaterial: "Ice",
-      haulRoute: { from: "home", to: "claim:4", material: "Metal" } });
+      haulRoute: { from: "home", to: "station:1", material: "Metal" } });
 
     const unloading = until(hauling, (next) => next.ships[0]!.state === "haulUnloading");
     const unloaded = run(unloading, 12.01);
     expect(unloaded.stations[0]!.inventory).toEqual({ Metal: 20, Ice: 50 });
-    expect(unloaded.claimSites[0]!.delivered).toEqual({ Metal: 0, Ice: 0 });
+    expect(unloaded.stations[1]!.inventory).toEqual({ Metal: 0, Ice: 0 });
   });
 
   it("keeps a right-click order active when the Haul dropdowns change", () => {
-    let state = configureHaul(twoStations(), [0], { from: "home", to: "claim:4", material: "Ice" });
+    let state = configureHaul(twoStations(), [0], { from: "home", to: "station:1", material: "Ice" });
     state = giveOrder(state, [0], { kind: "move", point: { x: 30, y: 20 }, sectorId: 0 });
     const ordered = state.ships[0]!;
 
-    const configured = configureHaul(state, [0], { from: "home", to: "claim:4", material: "Metal" });
+    const configured = configureHaul(state, [0], { from: "home", to: "station:1", material: "Metal" });
     expect(configured.ships[0]).toMatchObject({ state: ordered.state, order: ordered.order,
       leg: ordered.leg, defaultBehaviour: "haul", haulRoute: { material: "Metal" } });
   });

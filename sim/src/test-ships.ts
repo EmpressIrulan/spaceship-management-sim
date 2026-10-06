@@ -1,5 +1,7 @@
 import { travelSeconds } from "./motion";
-import { createInitialState, depart, dockBerths, homeStation, MATERIALS, type Ship, type SimState } from "./state";
+import { createInitialState, depart, dockBerths, homeStation, MATERIALS, CONSTRUCTION_SITE_SIZE, DOCK_CAPACITY, STORAGE_CAPACITY, type Ship, type SimState } from "./state";
+import { DOCK_SIZE, MODULE_SPACING, STORAGE_SIZE } from "./build-constants";
+import type { Material, Station } from "./model";
 import type { ShipDesign } from "./ship";
 
 // The starting ship's size and speed with half the Storage swapped for Hull,
@@ -62,4 +64,29 @@ export function padHopSeconds(state: SimState): number {
   const dock = homeStation(state).dock.position;
   const pad = dockBerths(dock)[0]!;
   return travelSeconds(Math.hypot(pad.x - dock.x, pad.y - dock.y));
+}
+
+// A founded station that stands on its own Dock and Storage in `sectorId`,
+// for tests of hauling and naming that need a second stop without playing the
+// whole founding loop. `x` is the middle of the module pair, like a site's.
+export function foundedStation(id: number, sectorId: number, x: number, y: number, inventory: Record<Material, number> = { Metal: 0, Ice: 0 }): Station {
+  const dock = { x: x - MODULE_SPACING / 2, y };
+  return {
+    id,
+    founding: false,
+    sectorId,
+    dock: { position: dock, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
+    storage: { position: { x: x + MODULE_SPACING / 2, y }, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
+    inventory: { ...inventory },
+    constructionSite: { position: { x, y }, size: CONSTRUCTION_SITE_SIZE, inventory: { Metal: 0, Ice: 0 } },
+    storageLimits: { Metal: null, Ice: null },
+    deliveries: [],
+    modules: [
+      { type: "Dock", position: dock, size: DOCK_SIZE },
+      { type: "Storage", position: { x: x + MODULE_SPACING / 2, y }, size: STORAGE_SIZE },
+    ],
+    construction: null,
+    buildQueue: [],
+    shipBuilds: [],
+  };
 }

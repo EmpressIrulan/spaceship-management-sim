@@ -1,28 +1,30 @@
-import { claimSiteBuilt } from "./claim";
 import { travelSeconds } from "./motion";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
-import { STORAGE_CAPACITY, berthLayout, gateRoute, homeStation, toBerth, toParking, type HaulRoute, type HaulStationId, type Ship, type SimState, type Station, type Vec } from "./state";
+import { stationFounded } from "./station-placement";
+import { berthLayout, gateRoute, homeStation, stationById, toBerth, toParking, type HaulRoute, type HaulStationId, type Ship, type SimState, type Station, type Vec } from "./state";
 
 export interface HaulStation { id: HaulStationId; name: string }
 
 interface HaulStateBase {
   sectors: SimState["sectors"];
-  claimSites: SimState["claimSites"];
   gateProjects: SimState["gateProjects"];
 }
 
 export type HaulState = HaulStateBase & (
-  | { stations: Station[]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never }
-  | { stations?: never; stationSector: number; dock: Vec; inventory: Station["inventory"]; storageCapacity: number }
+  | { stations: Station[]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never; others?: never }
+  | { stations?: never; stationSector: number; dock: Vec; inventory: Station["inventory"]; storageCapacity: number; others: Station[] }
 );
 
-export function haulStations(state: Pick<SimState, "stations" | "claimSites" | "sectors">): HaulStation[] {
+// Every station with a Dock of its own joins Home as a haul stop. A site still
+// founding has no Dock, so it does not appear until it owns one. Names come
+// from the station's sector until #85's generated names arrive.
+export function haulStations(state: Pick<SimState, "stations" | "sectors">): HaulStation[] {
   const home = state.sectors[homeStation(state).sectorId];
   return [
     { id: "home", name: home?.name ?? "Home" },
-    ...state.claimSites.filter(claimSiteBuilt).map((site) => ({
-      id: `claim:${site.id}` as const,
-      name: state.sectors[site.sectorId]?.name ?? `Station ${site.id + 2}`,
+    ...state.stations.filter((station) => station.id !== 0 && stationFounded(station)).map((station) => ({
+      id: `station:${station.id}` as const,
+      name: state.sectors[station.sectorId]?.name ?? `Station ${station.id}`,
     })),
   ];
 }
@@ -35,9 +37,11 @@ export function haulStationDetails(state: HaulState, id: HaulStationId) {
     };
     return { id, sectorId: state.stationSector, position: state.dock, inventory: state.inventory, capacity: state.storageCapacity };
   }
-  const site = state.claimSites.find((candidate) => `claim:${candidate.id}` === id && claimSiteBuilt(candidate));
-  return site ? { id, sectorId: site.sectorId, position: site.position, inventory: site.delivered, capacity: STORAGE_CAPACITY } : null;
-}
+  const stations = state.stations ?? state.others ?? [];
+  const station = stationById({ stations }, Number(id.slice("station:".length)));
+  return station && station.id !== 0 && stationFounded(station)
+    ? { id, sectorId: station.sectorId, position: station.dock.position, inventory: station.inventory, capacity: station.storage.capacity }
+    : null;}
 
 function stored(station: NonNullable<ReturnType<typeof haulStationDetails>>): number {
   return station.inventory.Metal + station.inventory.Ice;

@@ -4,7 +4,7 @@ import {
 } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import type {
-  Asteroid, AsteroidField, Beam, BerthLayout, CargoTransfer, ClaimSite,
+  Asteroid, AsteroidField, Beam, BerthLayout, CargoTransfer,
   DefaultBehaviour, Density, Delivery, GateEnd, GateProject, HaulRoute,
   HaulStationId, Leg, Material, ModuleConstruction, ModuleType, Order, Respawn,
   Sector, SectorCharacter, Ship, ShipBuild, ShipDesign, ShipState, SimState,
@@ -18,6 +18,14 @@ export function homeStation(state: Pick<SimState, "stations">): Station {
   const station = state.stations[0];
   if (!station) throw new Error("Simulation state has no Home station");
   return station;
+}
+
+export function stationById(state: Pick<SimState, "stations">, id: number): Station | undefined {
+  return state.stations.find((candidate) => candidate.id === id);
+}
+
+export function replaceStation<T extends Pick<SimState, "stations">>(state: T, station: Station): T {
+  return { ...state, stations: state.stations.map((candidate) => (candidate.id === station.id ? station : candidate)) };
 }
 
 export function replaceHomeStation<T extends Pick<SimState, "stations">>(state: T, station: Station): T {
@@ -369,10 +377,12 @@ export function createInitialState(seed: number): SimState {
     fields,
     nextGateId: 0,
     gateProjects: [],
-    nextClaimSiteId: 0,
-    claimSites: [],
+    nextStationId: 1,
+    supplyStation: 0,
     nextShipId: 1,
     stations: [{
+      id: 0,
+      founding: false,
       sectorId: HOME_SECTOR,
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
@@ -440,7 +450,7 @@ function parkingPoint(dock: Vec, index: number): Vec {
 
 function holdsBerth(ship: Ship): boolean {
   return ship.state === "loading" || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
-    || (ship.state === "unloading" && ship.order?.kind !== "supplySite" && ship.transfer?.destination !== "constructionSite")
+    || (ship.state === "unloading" && ship.transfer?.destination !== "constructionSite")
     || (ship.state === "berthing" && ship.berth !== null);
 }
 
