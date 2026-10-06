@@ -24,7 +24,7 @@ describe("applyHaulRouteFieldChange (Slice B)", () => {
         { id: 3, sectorId: 1, position: { x: 100, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null as number | null },
         { id: 4, sectorId: 2, position: { x: 200, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null as number | null },
       ],
-      station: { ...initial.station, inventory: { Metal: 100, Ice: 100 } },
+      stations: [{ ...initial.stations[0]!, inventory: { Metal: 100, Ice: 100 } }],
       ships: [
         baseShip(initial, { id: 0, defaultBehaviour: "haul" as DefaultBehaviour, haulRoute: makeHaulRoute("home", "claim:3", "Ice") }),
         baseShip(initial, { id: 1, defaultBehaviour: "haul" as DefaultBehaviour, haulRoute: makeHaulRoute("home", "claim:4", "Metal") }),

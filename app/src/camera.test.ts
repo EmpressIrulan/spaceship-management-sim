@@ -68,7 +68,7 @@ describe("starting view", () => {
     const short = { width: 900, height: 500 };
     for (let seed = 0; seed < 200; seed += 1) {
       const state = createInitialState(seed);
-      const bodies = [state.station.dock, state.station.storage, ...state.asteroids];
+      const bodies = [state.stations[0]!.dock, state.stations[0]!.storage, ...state.asteroids];
       const camera = fitCamera(short, bodies);
       for (const body of bodies) {
         const topLeft = worldToScreen(camera, short, {
@@ -91,8 +91,8 @@ describe("starting view", () => {
     const state = createInitialState(7);
     expect(
       fitCamera({ width: 4000, height: 3000 }, [
-        state.station.dock,
-        state.station.storage,
+        state.stations[0]!.dock,
+        state.stations[0]!.storage,
         ...state.asteroids,
       ]).zoom,
     ).toBe(1);
@@ -121,7 +121,7 @@ describe("hovering", () => {
       { center: { x: -40, y: 30 }, zoom: 3 },
     ];
     for (const camera of cameras) {
-      const dockSurface = { x: state.station.dock.position.x + 12, y: state.station.dock.position.y };
+      const dockSurface = { x: state.stations[0]!.dock.position.x + 12, y: state.stations[0]!.dock.position.y };
       const onScreen = worldToScreen(camera, viewport, dockSurface);
       expect(hoveredBody(state, camera, viewport, onScreen)).toEqual({ kind: "dock" });
     }

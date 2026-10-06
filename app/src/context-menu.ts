@@ -60,11 +60,12 @@ export function installContextMenu(
     if (!ui.selectedShips.length) return;
     const world = screenToWorld(ui.camera, ui.viewport, point);
     const target = orderTargetAt(state, hovered, world, ui.currentSector);
-    const to = target.kind === "move" ? target.point : target.kind === "home" ? state.station.dock.position
-      : target.kind === "haulGate" ? world : target.kind === "supplyBuild" ? state.station.constructionSite.position : target.kind === "supplySite" ? state.claimSites.find((site) => site.id === target.siteId)?.position ?? world : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
+    const to = target.kind === "move" ? target.point : target.kind === "home" ? homeStation(state).dock.position
+      : target.kind === "haulGate" ? world : target.kind === "supplyBuild" ? homeStation(state).constructionSite.position : target.kind === "supplySite" ? state.claimSites.find((site) => site.id === target.siteId)?.position ?? world : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
     ui.orderLines = { from: ui.selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
     setState(giveOrder(state, ui.selectedShips, target));
     ui.routeRefusalMessage = null;
   });
   return closeGateMenu;
 }
+import { homeStation } from "sim";

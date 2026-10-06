@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, queueModuleBuild, tick, type Ship, type SimState } from "sim";
+import { createInitialState, queueModuleBuild, tick, type Ship, type SimState, type Station } from "sim";
 import { buildMenuItems } from "./building";
 import { hoveredBody, bodyOf, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
@@ -9,9 +9,9 @@ import { shipStatus } from "./ships";
 const viewport = { width: 800, height: 600 };
 const camera: Camera = { center: { x: 0, y: 0 }, zoom: 2 };
 
-function withSite(inventory: SimState["station"]["constructionSite"]["inventory"]): SimState {
+function withSite(inventory: Station["constructionSite"]["inventory"]): SimState {
   const state = createInitialState(7);
-  return { ...state, station: { ...state.station, constructionSite: { ...state.station.constructionSite, inventory } } };
+  return { ...state, stations: [{ ...state.stations[0]!, constructionSite: { ...state.stations[0]!.constructionSite, inventory } }] };
 }
 
 function withShip(patch: Partial<Ship>): SimState {
@@ -23,7 +23,7 @@ function withShip(patch: Partial<Ship>): SimState {
 // them wherever it parks them.
 function withParkedSuppliers(): SimState {
   const base = createInitialState(7);
-  const dock = base.station.dock.position;
+  const dock = base.stations[0]!.dock.position;
   const ships = Array.from({ length: 3 }, (_, id): Ship => ({
     ...base.ships[0]!,
     id,
@@ -42,33 +42,33 @@ function withParkedSuppliers(): SimState {
 describe("the construction site on screen", () => {
   it("is absent and cannot be clicked with no queue, then returns with its contents", () => {
     const hidden = withSite({ Metal: 12, Ice: 0 });
-    const pointer = worldToScreen(camera, viewport, hidden.station.constructionSite.position);
+    const pointer = worldToScreen(camera, viewport, hidden.stations[0]!.constructionSite.position);
     expect(hoveredBody(hidden, camera, viewport, pointer)).not.toEqual({ kind: "constructionSite" });
 
     const queued = queueModuleBuild(hidden, "Storage", { x: 80, y: 0 });
     expect(hoveredBody(queued, camera, viewport, pointer)).toEqual({ kind: "constructionSite" });
-    expect(queued.station.constructionSite.inventory).toEqual({ Metal: 12, Ice: 0 });
+    expect(queued.stations[0]!.constructionSite.inventory).toEqual({ Metal: 12, Ice: 0 });
   });
 
   it("is hoverable while something is queued, and shows its uncapped inventory", () => {
     const state = queueModuleBuild(withSite({ Metal: 12, Ice: 0 }), "Storage", { x: 80, y: 0 });
-    const { position } = state.station.constructionSite;
+    const { position } = state.stations[0]!.constructionSite;
     const pointer = worldToScreen(camera, viewport, position);
 
     expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "constructionSite" });
-    expect(bodyOf(state, { kind: "constructionSite" })).toEqual(state.station.constructionSite);
+    expect(bodyOf(state, { kind: "constructionSite" })).toEqual(state.stations[0]!.constructionSite);
     expect(infoBox(state, { kind: "constructionSite" })).toEqual({ title: "Construction site", line: "Metal: 12\nIce: 0" });
   });
 
   it("is not hoverable from another sector", () => {
     const state = withSite({ Metal: 1, Ice: 1 });
-    const pointer = worldToScreen(camera, viewport, state.station.constructionSite.position);
+    const pointer = worldToScreen(camera, viewport, state.stations[0]!.constructionSite.position);
 
     expect(hoveredBody(state, camera, viewport, pointer, 1)?.kind).not.toBe("constructionSite");
   });
 
   it("does not hide a ship that is unloading on it", () => {
-    const state = withShip({ state: "unloading", position: createInitialState(7).station.constructionSite.position });
+    const state = withShip({ state: "unloading", position: createInitialState(7).stations[0]!.constructionSite.position });
     const pointer = worldToScreen(camera, viewport, state.ships[0]!.position);
 
     expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
@@ -113,7 +113,7 @@ describe("the + menu", () => {
 
   it("allows another module to be queued while one is being built", () => {
     const state = withSite({ Metal: 50, Ice: 50 });
-    const building = { ...state, station: { ...state.station, construction: { type: "Dock" as const, position: { x: 80, y: 0 }, size: { width: 40, height: 70 }, timer: 5 } } };
+    const building = { ...state, stations: [{ ...state.stations[0]!, construction: { type: "Dock" as const, position: { x: 80, y: 0 }, size: { width: 40, height: 70 }, timer: 5 } }] };
 
     expect(buildMenuItems(building)[0]).toMatchObject({ disabled: false, title: "" });
   });

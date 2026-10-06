@@ -258,8 +258,9 @@ export function shipMenuView(state: SimState, builder: number, draft: ShipDraft)
     materials: MATERIALS.map((material) => ({
       material,
       amount: cost[material],
-      short: state.station.inventory[material] < cost[material],
+      short: homeStation(state).inventory[material] < cost[material],
     })),
     canBuild: availableShipBuild(state, builder, design),
   };
 }
+import { homeStation } from "sim";

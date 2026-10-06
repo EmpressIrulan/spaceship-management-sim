@@ -11,10 +11,10 @@ export function selectClick(context: InputContext, event: MouseEvent, additive: 
   const point = mousePoint(event);
   const hovered = hoveredBody(getState(), ui.camera, ui.viewport, point, ui.currentSector);
   ui.stickyQueuedBuild = hovered?.kind === "queuedBuild"
-    ? { ...getState().station.buildQueue[hovered.index]!.position }
+    ? { ...homeStation(getState()).buildQueue[hovered.index]!.position }
     : null;
   const clickedStorage = hovered?.kind === "storage"
-    || (hovered?.kind === "module" && getState().station.modules[hovered.index]?.type === "Storage");
+    || (hovered?.kind === "module" && homeStation(getState()).modules[hovered.index]?.type === "Storage");
   const storageOpen = storagePanelOpenAfterClick(ui.storagePanelOpen, clickedStorage ? "storage" : hovered ? "other" : "empty");
   if (storageOpen && !ui.storagePanelOpen) openStoragePanel(storagePanel, getState(), () => { ui.storagePanelOpen = true; });
   else if (!storageOpen && ui.storagePanelOpen) closeStoragePanel();
@@ -22,5 +22,6 @@ export function selectClick(context: InputContext, event: MouseEvent, additive: 
   else if (!additive) ui.selectedShips = [];
   if (ui.selectedShips.join(",") !== priorSelection) ui.routeRefusalMessage = null;
   ui.selectedShip = ui.selectedShips[0] ?? null;
-  if (hovered?.kind === "module" && getState().station.modules[hovered.index]?.type === "Builder") openShipMenu(hovered.index);
+  if (hovered?.kind === "module" && homeStation(getState()).modules[hovered.index]?.type === "Builder") openShipMenu(hovered.index);
 }
+import { homeStation } from "sim";

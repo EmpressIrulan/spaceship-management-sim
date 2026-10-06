@@ -81,7 +81,7 @@ describe("hover box", () => {
   const asteroid = state.asteroids[0]!;
 
   it("shows Storage's combined and per-material totals", () => {
-    const stocked = { ...state, station: { ...state.station, inventory: { Metal: 40, Ice: 0 } } };
+    const stocked = { ...state, stations: [{ ...state.stations[0]!, inventory: { Metal: 40, Ice: 0 } }] };
     expect(infoBox(stocked, { kind: "storage" })).toEqual({
       title: "Storage",
       line: "Stored 40 / 100\nMetal: 40\nIncome: Metal +0/min, Ice +0/min",
@@ -91,15 +91,15 @@ describe("hover box", () => {
   it("shows the same per-material totals on every Storage module", () => {
     const grown = {
       ...state,
-      station: {
-        ...state.station,
-        storage: { ...state.station.storage, capacity: 200 },
+      stations: [{
+        ...state.stations[0]!,
+        storage: { ...state.stations[0]!.storage, capacity: 200 },
         inventory: { Metal: 70, Ice: 40 },
         modules: [
-          ...state.station.modules,
-          { type: "Storage" as const, position: { x: 80, y: 0 }, size: state.station.storage.size },
+          ...state.stations[0]!.modules,
+          { type: "Storage" as const, position: { x: 80, y: 0 }, size: state.stations[0]!.storage.size },
         ],
-      },
+      }],
     };
     const expected = { title: "Storage", line: "Stored 110 / 200\nMetal: 70\nIce: 40\nIncome: Metal +0/min, Ice +0/min" };
     expect(infoBox(grown, { kind: "storage" })).toEqual(expected);
@@ -158,7 +158,7 @@ describe("hover box", () => {
 describe("storage income", () => {
   const delivered = (deliveries: { at: number; material: "Metal" | "Ice"; amount: number }[], time: number) => {
     const state = createInitialState(1);
-    return { ...state, time, station: { ...state.station, deliveries } };
+    return { ...state, time, stations: [{ ...state.stations[0]!, deliveries }] };
   };
 
   it("reads per material over the last game minute", () => {
@@ -179,7 +179,7 @@ describe("storage income", () => {
 
   it("shows on a built Storage module as well", () => {
     const state = delivered([{ at: 90, material: "Ice", amount: 5 }], 100);
-    const index = state.station.modules.findIndex((module) => module.type === "Storage");
+    const index = state.stations[0]!.modules.findIndex((module) => module.type === "Storage");
     expect(infoBox(state, { kind: "module", index })?.line).toContain("Ice +5/min");
   });
 });

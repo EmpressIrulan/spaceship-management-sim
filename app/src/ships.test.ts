@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, tick, type GateProject, type Ship, type ShipDesign, type SimState } from "sim";
+import { createInitialState, tick, type GateProject, type Ship, type ShipDesign, type SimState, type Station } from "sim";
 import { hoveredBody, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
 import { spritePixels, shipPanel } from "./ships";
@@ -10,12 +10,12 @@ const camera: Camera = { center: { x: 0, y: 0 }, zoom: 1 };
 const noLaser: ShipDesign = { width: 2, height: 1, slots: ["Engine", "Storage"] };
 const big: ShipDesign = { width: 6, height: 6, slots: Array(36).fill("Hull") };
 
-function withShips(ships: Partial<Ship>[], station: Partial<SimState["station"]> = {}): SimState {
+function withShips(ships: Partial<Ship>[], station: Partial<Station> = {}): SimState {
   const state = createInitialState(7);
   const base = state.ships[0]!;
   return {
     ...state,
-    station: { ...state.station, ...station },
+    stations: [{ ...state.stations[0]!, ...station }],
     ships: ships.map((ship, id) => ({ ...base, id, ...ship })),
     nextShipId: ships.length,
   };
@@ -35,7 +35,7 @@ describe("hovering a ship shows its state", () => {
   it("tells a ship waiting for a berth apart from one waiting for room", () => {
     const home = { state: "homebound" as const, timer: 0, cargo: 20, cargoMaterial: "Metal" as const };
     const fleet = withShips(Array.from({ length: 7 }, () => home), {
-      storage: { ...createInitialState(7).station.storage, capacity: 1000 },
+      storage: { ...createInitialState(7).stations[0]!.storage, capacity: 1000 },
     });
     const arrived = tick(tick(fleet, 0), 8);
     const index = arrived.ships.findIndex((ship) => ship.state === "waiting");
@@ -63,13 +63,13 @@ describe("hovering a ship shows its state", () => {
 
   it("can hover a ship sitting idle at the Dock", () => {
     const state = tick(withShips([{ state: "idle", design: noLaser, target: null }]), 0);
-    const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+    const pointer = worldToScreen(camera, viewport, state.stations[0]!.dock.position);
     expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
   });
 
   it("lets a ship at the Dock win over the station underneath it", () => {
-    const state = withShips([{ state: "unloading", position: { ...createInitialState(7).station.dock.position } }]);
-    const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+    const state = withShips([{ state: "unloading", position: { ...createInitialState(7).stations[0]!.dock.position } }]);
+    const pointer = worldToScreen(camera, viewport, state.stations[0]!.dock.position);
 
     expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
   });
@@ -77,7 +77,7 @@ describe("hovering a ship shows its state", () => {
   it.each([1, 0.5, 0.2])("picks out each ship when nine crowd the Dock, at zoom %s", (zoom) => {
     const home = { state: "homebound" as const, timer: 0, cargo: 20, cargoMaterial: "Metal" as const };
     const fleet = withShips(Array.from({ length: 9 }, () => home), {
-      storage: { ...createInitialState(7).station.storage, capacity: 1000 },
+      storage: { ...createInitialState(7).stations[0]!.storage, capacity: 1000 },
     });
     // Long enough for every ship to reach a pad or a parking spot.
     const settled = tick(tick(fleet, 0), 8);
@@ -94,7 +94,7 @@ describe("hovering a ship shows its state", () => {
   it("reads a ship flying to its pad as docking, and one flying to park as waiting", () => {
     const home = { state: "homebound" as const, timer: 0, cargo: 10, cargoMaterial: "Metal" as const };
     const fleet = withShips(Array.from({ length: 7 }, () => home), {
-      storage: { ...createInitialState(7).station.storage, capacity: 1000 },
+      storage: { ...createInitialState(7).stations[0]!.storage, capacity: 1000 },
     });
     const arrived = tick(fleet, 0);
     const lines = arrived.ships.map((_, index) => infoBox(arrived, { kind: "ship", index })?.line);
@@ -105,7 +105,7 @@ describe("hovering a ship shows its state", () => {
 
   it("keeps a ship selectable during its outbound transition from the Dock", () => {
     const state = createInitialState(7);
-    const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+    const pointer = worldToScreen(camera, viewport, state.stations[0]!.dock.position);
 
     expect(hoveredBody(state, camera, viewport, pointer)).toEqual({ kind: "ship", index: 0 });
   });

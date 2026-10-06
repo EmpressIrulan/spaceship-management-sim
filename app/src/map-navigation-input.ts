@@ -15,10 +15,11 @@ export function navigateMap(context: InputContext, event: MouseEvent): boolean {
     ui.currentSector = id;
     const sectorRocks = getState().asteroids.filter((rock) => rock.sectorId === id);
     const sectorSites = getState().claimSites.filter((site) => site.sectorId === id).map((site) => ({ position: site.position, size: CLAIM_SITE_SIZE }));
-    const bodies = [...sectorRocks, ...sectorSites, ...(id === 0 ? [getState().station.dock, getState().station.storage, ...getState().station.modules] : []), getState().sectors[id]!.gate];
+    const bodies = [...sectorRocks, ...sectorSites, ...(id === 0 ? [homeStation(getState()).dock, homeStation(getState()).storage, ...homeStation(getState()).modules] : []), getState().sectors[id]!.gate];
     ui.camera = fitCamera(ui.viewport, bodies);
     ui.mapOpen = false;
     if (ui.pendingGate) ui.pendingGate.targetSector = id;
   }
   return true;
 }
+import { homeStation } from "sim";

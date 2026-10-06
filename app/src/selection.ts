@@ -24,7 +24,7 @@ export function orderTargetAt(state: SimState, hovered: Hovered | null, world: V
   }
   if (hovered?.kind === "constructionSite") return { kind: "supplyBuild" };
   if (hovered?.kind === "asteroid") return { kind: "mine", asteroidId: hovered.id };
-  if (hovered?.kind === "dock" || (hovered?.kind === "module" && state.station.modules[hovered.index]?.type === "Dock")) return { kind: "home" };
+  if (hovered?.kind === "dock" || (hovered?.kind === "module" && homeStation(state).modules[hovered.index]?.type === "Dock")) return { kind: "home" };
   return { kind: "move", point: world, sectorId: currentSector };
 }
 export function contextOrderAllowed(mapOpen: boolean): boolean { return !mapOpen; }
@@ -92,3 +92,4 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
     canHaul: stations.length >= 2, haulDisabledReason: stations.length >= 2 ? null : "Needs two stations", stations,
     haulRoute };
 }
+import { homeStation } from "sim";

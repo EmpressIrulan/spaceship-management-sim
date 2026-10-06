@@ -46,21 +46,21 @@ export function createWorldDrawing(
       else strokeWorldRect(end.position, { width: 24, height: 24 }, "#22d3ee");
     }
     for (const asteroid of sectorRocks) fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material, asteroid.rich));
-    for (const connector of ui.currentSector === 0 ? stationConnectors(getState().station.modules) : []) {
+    for (const connector of ui.currentSector === 0 ? stationConnectors(homeStation(getState()).modules) : []) {
       stationDrawing.drawStationConnector(connector.from, connector.to);
     }
-    for (const module of ui.currentSector === 0 ? getState().station.modules : []) stationDrawing.drawStationModule(module);
+    for (const module of ui.currentSector === 0 ? homeStation(getState()).modules : []) stationDrawing.drawStationModule(module);
     // The Cancel under the pointer names the ghosts it would take with it, so the
     // hover highlight and the click read the one set and cannot disagree. Slots
     // are keyed by position, since that is how the hover names its ghost.
     const taking = new Set(ui.currentSector === 0
       ? cancelDependentsAt(getState(), ui.cancelHoveredBuild).map((queued) => slotKey(queued.position))
       : []);
-    for (const queued of ui.currentSector === 0 ? getState().station.buildQueue : []) {
+    for (const queued of ui.currentSector === 0 ? homeStation(getState()).buildQueue : []) {
       stationDrawing.drawQueuedModule(queued, taking.has(slotKey(queued.position)));
     }
-    if (ui.currentSector === 0 && getState().station.buildQueue.length > 0) stationDrawing.drawConstructionSite();
-    const construction = getState().station.construction;
+    if (ui.currentSector === 0 && homeStation(getState()).buildQueue.length > 0) stationDrawing.drawConstructionSite();
+    const construction = homeStation(getState()).construction;
     if (ui.currentSector === 0 && construction) strokeWorldRect(construction.position, construction.size, "#cbd5e1");
     for (const site of getState().claimSites) {
       if (site.sectorId === ui.currentSector) stationDrawing.drawClaimSite(site);
@@ -80,3 +80,4 @@ export function createWorldDrawing(
 
   return { draw };
 }
+import { homeStation } from "sim";

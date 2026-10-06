@@ -38,12 +38,12 @@ function withBuilder(inventory = { Metal: 2000, Ice: 2000 }): SimState {
   const builder: StationModule = { type: "Builder", position: { x: 0, y: -40 }, size: { width: 30, height: 40 } };
   return {
     ...state,
-    station: {
-      ...state.station,
-      storage: { ...state.station.storage, capacity: 1000 },
+    stations: [{
+      ...state.stations[0]!,
+      storage: { ...state.stations[0]!.storage, capacity: 1000 },
       inventory,
-      modules: [...state.station.modules, builder],
-    },
+      modules: [...state.stations[0]!.modules, builder],
+    }],
   };
 }
 

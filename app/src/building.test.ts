@@ -43,18 +43,18 @@ const sameSlot = (a: Vec, b: Vec): boolean => a.x === b.x && a.y === b.y;
 function withStandingBuilder(state: SimState, position: Vec): SimState {
   return {
     ...state,
-    station: {
-      ...state.station,
-      modules: [...state.station.modules, { type: "Builder" as const, position, size: { width: 30, height: 40 } }],
-    },
+    stations: [{
+      ...state.stations[0]!,
+      modules: [...state.stations[0]!.modules, { type: "Builder" as const, position, size: { width: 30, height: 40 } }],
+    }],
   };
 }
 
 describe("station building controls", () => {
   it("shows front needs, full later cost, and Cancel on ghost modules", () => {
     const initial = createInitialState(7);
-    let state = queueModuleBuild({ ...initial, station: { ...initial.station,
-      constructionSite: { ...initial.station.constructionSite, inventory: { Metal: 15, Ice: 0 } } } }, "Storage", { x: 80, y: 0 });
+    let state = queueModuleBuild({ ...initial, stations: [{ ...initial.stations[0]!,
+      constructionSite: { ...initial.stations[0]!.constructionSite, inventory: { Metal: 15, Ice: 0 } } }] }, "Storage", { x: 80, y: 0 });
     state = queueModuleBuild(state, "Builder", { x: 120, y: 0 });
     const camera: Camera = { center: { x: 0, y: 0 }, zoom: 2 };
     const viewport = { width: 800, height: 600 };
@@ -76,8 +76,8 @@ describe("station building controls", () => {
 
   it("explains when a funded front ghost is waiting for current construction", () => {
     let state = createInitialState(7);
-    state = { ...state, station: { ...state.station,
-      constructionSite: { ...state.station.constructionSite, inventory: { Metal: 50, Ice: 50 } } } };
+    state = { ...state, stations: [{ ...state.stations[0]!,
+      constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 50, Ice: 50 } } }] };
     state = queueModuleBuild(state, "Dock", { x: 80, y: 0 });
     state = queueModuleBuild(state, "Storage", { x: -40, y: 0 });
 
@@ -93,8 +93,8 @@ describe("station building controls", () => {
     const secondPosition = { x: -40, y: 0 };
     let state = queueModuleBuild(initial, "Dock", { x: 80, y: 0 });
     state = queueModuleBuild(state, "Storage", secondPosition);
-    state = { ...state, station: { ...state.station,
-      constructionSite: { ...state.station.constructionSite, inventory: { Metal: 25, Ice: 25 } } } };
+    state = { ...state, stations: [{ ...state.stations[0]!,
+      constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 25, Ice: 25 } } }] };
     state = tick(state, 0);
 
     expect(queuedBuildIndexAt(state, secondPosition)).toBe(0);
@@ -117,7 +117,7 @@ describe("station building controls", () => {
     const initial = createInitialState(7);
     const funded = {
       ...initial,
-      station: { ...initial.station, constructionSite: { ...initial.station.constructionSite, inventory: { Metal: 50, Ice: 50 } } },
+      stations: [{ ...initial.stations[0]!, constructionSite: { ...initial.stations[0]!.constructionSite, inventory: { Metal: 50, Ice: 50 } } }],
     };
     const building = tick(startModuleBuild(funded, "Builder", { x: -40, y: 0 }), 3);
     expect(infoBox(building, { kind: "construction" })).toEqual({
@@ -149,7 +149,7 @@ describe("station building controls", () => {
   it("keeps the pointer inside the build area on the way from any module to any +", () => {
     const state = createInitialState(7);
     for (const site of availableModuleBuildSites(state)) {
-      const from = state.station.modules
+      const from = state.stations[0]!.modules
         .map((module) => module.position)
         .find((position) => Math.hypot(position.x - site.x, position.y - site.y) === MODULE_SPACING)!;
       for (let step = 0; step <= 40; step += 1) {
@@ -184,15 +184,15 @@ describe("the ghost cancel hover highlight", () => {
   it("highlights the ghosts the hovered cancel takes, and leaves the survivors alone", () => {
     const state = chainedGhosts();
     const afterCancel = cancelQueuedModuleBuild(state, east);
-    const removed = state.station.buildQueue
-      .filter((queued) => !afterCancel.station.buildQueue.includes(queued))
+    const removed = state.stations[0]!.buildQueue
+      .filter((queued) => !afterCancel.stations[0]!.buildQueue.includes(queued))
       .map((queued) => queued.position);
 
     expect(cancelDependentsAt(state, east)).toMatchObject([{ type: "Builder", position: farEast }]);
     // Every ghost the click takes beyond the hovered one, and no other, is lit.
     expect(cancelDependentsAt(state, east).map((queued) => queued.position))
       .toEqual(removed.filter((position) => !sameSlot(position, east)));
-    expect(afterCancel.station.buildQueue.map((queued) => queued.position)).toEqual([west, farWest]);
+    expect(afterCancel.stations[0]!.buildQueue.map((queued) => queued.position)).toEqual([west, farWest]);
   });
 
   it("leaves a ghost that still reaches the station through a built module unlit", () => {

@@ -169,7 +169,7 @@ export function createStationDrawing(
   // Ships carry ore here and Home builds from it. The caller only draws it
   // while the build queue needs supplies.
   function drawConstructionSite(): void {
-    const { position, size } = getState().station.constructionSite;
+    const { position, size } = homeStation(getState()).constructionSite;
     const left = worldToScreen(ui.camera, ui.viewport, {
       x: position.x - size.width / 2,
       y: position.y - size.height / 2,
@@ -236,3 +236,4 @@ export function createStationDrawing(
     drawClaimSite,
   };
 }
+import { homeStation } from "sim";

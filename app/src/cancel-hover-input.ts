@@ -17,10 +17,11 @@ export function installCancelHoverInput(
   function hoveredBuild(): Vec | null {
     const index = infoAction.dataset.queuedBuild;
     if (index === undefined) return null;
-    const queued = getState().station.buildQueue[Number(index)];
+    const queued = homeStation(getState()).buildQueue[Number(index)];
     return queued ? { ...queued.position } : null;
   }
 
   infoAction.addEventListener("pointerenter", () => { ui.cancelHoveredBuild = hoveredBuild(); });
   infoAction.addEventListener("pointerleave", () => { ui.cancelHoveredBuild = null; });
 }
+import { homeStation } from "sim";

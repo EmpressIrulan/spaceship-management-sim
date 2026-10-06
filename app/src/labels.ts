@@ -71,14 +71,14 @@ function claimSiteBox(state: SimState, id: number): InfoBox | null {
 
 // Every Storage module shares one inventory, so each shows the same box.
 function storageBox(state: SimState): InfoBox {
-  const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
-  const lines = MATERIALS.filter((material) => state.station.inventory[material] > 0)
-    .map((material) => `${material}: ${state.station.inventory[material]}`);
+  const stored = MATERIALS.reduce((total, material) => total + homeStation(state).inventory[material], 0);
+  const lines = MATERIALS.filter((material) => homeStation(state).inventory[material] > 0)
+    .map((material) => `${material}: ${homeStation(state).inventory[material]}`);
   const income = stationIncome(state);
   const rates = MATERIALS.map((material) => `${material} +${income[material]}/min`).join(", ");
   return {
     title: "Storage",
-    line: [`Stored ${stored} / ${state.station.storage.capacity}`, ...lines, `Income: ${rates}`].join("\n"),
+    line: [`Stored ${stored} / ${homeStation(state).storage.capacity}`, ...lines, `Income: ${rates}`].join("\n"),
   };
 }
 
@@ -86,7 +86,7 @@ function dockBox(state: SimState): InfoBox {
   const transferring = state.ships.filter((ship) => ship.state === "loading"
     || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
     || (ship.state === "unloading" && ship.order?.kind !== "supplySite" && ship.transfer?.destination !== "constructionSite")).length;
-  return { title: "Dock", line: `Occupied ${transferring} / ${state.station.dock.capacity}` };
+  return { title: "Dock", line: `Occupied ${transferring} / ${homeStation(state).dock.capacity}` };
 }
 
 // Null closes the box, including when the hovered asteroid has just gone.
@@ -95,20 +95,20 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
   if (hovered.kind === "dock") return dockBox(state);
   if (hovered.kind === "storage") return storageBox(state);
   if (hovered.kind === "constructionSite") {
-    const { inventory } = state.station.constructionSite;
+    const { inventory } = homeStation(state).constructionSite;
     return { title: "Construction site", line: MATERIALS.map((material) => `${material}: ${inventory[material]}`).join("\n") };
   }
   if (hovered.kind === "construction") {
-    const construction = state.station.construction;
+    const construction = homeStation(state).construction;
     return construction
       ? { title: `Building ${construction.type}`, line: `${Math.ceil(construction.timer)} s` }
       : null;
   }
   if (hovered.kind === "queuedBuild") {
-    const queued = state.station.buildQueue[hovered.index];
+    const queued = homeStation(state).buildQueue[hovered.index];
     if (!queued) return null;
-    if (hovered.index === 0 && state.station.construction
-      && MATERIALS.every((material) => state.station.constructionSite.inventory[material] >= MODULE_COST[material])) {
+    if (hovered.index === 0 && homeStation(state).construction
+      && MATERIALS.every((material) => homeStation(state).constructionSite.inventory[material] >= MODULE_COST[material])) {
       return {
         title: `${queued.type}, queued`,
         line: "Waiting for the module under construction",
@@ -118,17 +118,17 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const needs = MATERIALS.map((material) => ({
       material,
       amount: hovered.index === 0
-        ? Math.max(0, MODULE_COST[material] - state.station.constructionSite.inventory[material])
+        ? Math.max(0, MODULE_COST[material] - homeStation(state).constructionSite.inventory[material])
         : MODULE_COST[material],
     })).filter(({ amount }) => hovered.index > 0 || amount > 0);
     const line = `Needs ${needs.map(({ material, amount }) => `${amount}${hovered.index === 0 ? " more" : ""} ${material}`).join(" and ")}`;
     return { title: `${queued.type}, queued`, line, action: { label: "Cancel", queuedBuild: hovered.index } };
   }
   if (hovered.kind === "module") {
-    const module = state.station.modules[hovered.index];
+    const module = homeStation(state).modules[hovered.index];
     if (!module) return null;
     if (module.type === "Builder") {
-      const job = state.station.shipBuilds.find((candidate) => candidate.builder === hovered.index);
+      const job = homeStation(state).shipBuilds.find((candidate) => candidate.builder === hovered.index);
       if (!job) return { title: "Builder", line: "Idle" };
       const size = `${job.design.width}x${job.design.height}`;
       return { title: "Builder", line: `Building ${size}: ${formatDuration(Math.ceil(job.timer))}` };
@@ -171,3 +171,4 @@ export function sectorBox(state: SimState, sectorId: number): InfoBox | null {
   if (rich > 0) parts.push(`Rich rocks: ${rich}`);
   return { title: sector.name, line: parts.join(" · ") };
 }
+import { homeStation } from "sim";

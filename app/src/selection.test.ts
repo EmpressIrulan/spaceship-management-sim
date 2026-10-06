@@ -6,7 +6,7 @@ import { contextOrderAllowed, orderLineAlpha, orderTargetAt, selectionPanel, shi
 describe("RTS selection helpers", () => {
   it("box-selects by ship id and shift selection toggles by id", () => {
     const state = createInitialState(7);
-    const camera = fitCamera({ width: 800, height: 600 }, [state.station.dock, ...state.asteroids]);
+    const camera = fitCamera({ width: 800, height: 600 }, [state.stations[0]!.dock, ...state.asteroids]);
     const viewport = { width: 800, height: 600 };
     const twoShips = { ...state, ships: [state.ships[0]!, { ...state.ships[0]!, id: 42 }] };
     const box = { x: 0, y: 0 };
@@ -94,10 +94,10 @@ describe("RTS selection helpers", () => {
     const state = createInitialState(7);
     const viewport = { width: 800, height: 600 };
     const camera = { center: { x: 0, y: 0 }, zoom: 1 };
-    const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+    const pointer = worldToScreen(camera, viewport, state.stations[0]!.dock.position);
     const hovered = hoveredBody(state, camera, viewport, pointer, 0, { includeShips: false });
 
-    expect(orderTargetAt(state, hovered, state.station.dock.position)).toEqual({ kind: "home" });
+    expect(orderTargetAt(state, hovered, state.stations[0]!.dock.position)).toEqual({ kind: "home" });
   });
 
   it("orders a haul to a gate end overlapped by a ship", () => {

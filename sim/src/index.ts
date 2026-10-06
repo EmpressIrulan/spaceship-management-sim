@@ -28,6 +28,8 @@ export {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  homeStation,
+  replaceHomeStation,
   cargoByMaterial,
   minableRocks,
   nearestMineableRock,

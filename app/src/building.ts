@@ -37,10 +37,11 @@ export function buildControlsVisible(stationHovered: boolean, controlsHovered: b
 // square. The squares tile, so the pointer can cross from a module to a +
 // without leaving them at any zoom.
 export function pointerInBuildArea(state: SimState, world: Vec): boolean {
+  const home = homeStation(state);
   const slots = [
-    ...state.station.modules.map((module) => module.position),
-    ...(state.station.construction ? [state.station.construction.position] : []),
-    ...state.station.buildQueue.map((queued) => queued.position),
+    ...home.modules.map((module) => module.position),
+    ...(home.construction ? [home.construction.position] : []),
+    ...home.buildQueue.map((queued) => queued.position),
     ...availableModuleBuildSites(state),
   ];
   const half = MODULE_SPACING / 2;
@@ -65,7 +66,7 @@ export function dismissBuildMenuForKey(key: string): boolean {
 }
 
 export function queuedBuildIndexAt(state: SimState, position: Vec): number {
-  return state.station.buildQueue.findIndex((queued) => queued.position.x === position.x && queued.position.y === position.y);
+  return homeStation(state).buildQueue.findIndex((queued) => queued.position.x === position.x && queued.position.y === position.y);
 }
 
 // Every other ghost that would go with the one whose Cancel the pointer is on.
@@ -77,5 +78,6 @@ export function queuedBuildIndexAt(state: SimState, position: Vec): number {
 export function cancelDependentsAt(state: SimState, hovered: Vec | null): QueuedModuleBuild[] {
   if (hovered === null) return [];
   const index = queuedBuildIndexAt(state, hovered);
-  return index < 0 ? [] : queuedDependents(state.station, index);
+  return index < 0 ? [] : queuedDependents(homeStation(state), index);
 }
+import { homeStation } from "sim";

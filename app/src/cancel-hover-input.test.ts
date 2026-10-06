@@ -19,7 +19,7 @@ class FakeButton {
 describe("cancel hover input", () => {
   it("wires pointerenter and pointerleave to the queued build highlight", () => {
     const state = createInitialState(7);
-    state.station.buildQueue = [{ type: "Storage", position: { x: 80, y: 0 }, size: { width: 30, height: 40 } }];
+    state.stations[0]!.buildQueue = [{ type: "Storage", position: { x: 80, y: 0 }, size: { width: 30, height: 40 } }];
     const ui = createUiState([]);
     const button = new FakeButton();
     button.dataset.queuedBuild = "0";
