@@ -197,7 +197,9 @@ export interface SectorCharacter {
   // How many rich rocks the sector starts with.
   richRocks: number;
 }
-export interface Sector { id: number; name: string; gate: { position: Vec; size: Size; to: number }; character: SectorCharacter }
+// `name` is the player's name while the sector is claimed. `generatedName` is
+// the name it was given at the start, which comes back when it unclaims.
+export interface Sector { id: number; name: string; generatedName: string; gate: { position: Vec; size: Size; to: number }; character: SectorCharacter }
 
 export interface GateEnd { sectorId: number; position: Vec }
 export interface GateProject {

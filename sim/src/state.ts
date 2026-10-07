@@ -297,7 +297,7 @@ export function createInitialState(seed: number): SimState {
   const sectors: Sector[] = Array.from({ length: SECTOR_COUNT }, (_, id) => {
     const roll = nextRandom(rng); rng = roll.state;
     const angle = roll.value * Math.PI * 2;
-    return { id, name: sectorNames[id]!,
+    return { id, name: sectorNames[id]!, generatedName: sectorNames[id]!,
       gate: { position: { x: Math.cos(angle) * GATE_DISTANCE, y: Math.sin(angle) * GATE_DISTANCE }, size: GATE_SIZE, to: id < 2 ? 1 - id : id },
       character: characters[id]! };
   });

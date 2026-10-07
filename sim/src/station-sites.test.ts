@@ -9,6 +9,7 @@ import {
 } from "sim";
 import { placeStation, renameSector, setSupplyStation, renameStation, removeStation } from "./station-placement";
 import { availableModuleBuildSites, startModuleBuild } from "./station-building";
+import { buildClaim } from "./test-claims";
 import { giveOrder } from "./orders";
 import { haulStationDetails, haulStations } from "./haul";
 import { tick } from "./tick";
@@ -308,23 +309,27 @@ describe("criterion 2: ships supply the site and a Dock builds", () => {
     const founded = stationById(finished, id)!;
     expect(founded.modules.map((module) => module.type)).toEqual(["Dock", "Storage"]);
     expect(founded.dock.capacity).toBe(DOCK_CAPACITY);
-    const renamed = renameSector(finished, 0, "Foundry");
+    // A founded Home is not claimed until a Claim stands in its sector.
+    expect(renameSector(finished, 0, "Foundry")).toBe(finished);
+    const renamed = renameSector(buildClaim(finished, 0), 0, "Foundry");
     expect(renameSector(renamed, 0, "Foundry").sectors[0]!.name).toBe("Foundry");
     expect(haulStations(renamed).map((entry) => entry.id)).toContain(`station:${id}`);
   });
 });
 
 describe("criterion 8: claim sites retire, renaming and haul names survive", () => {
-  it("rename keeps #70's shape: it needs a founded station in the sector", () => {
+  it("rename keeps #70's shape: it needs a Claim in the sector, not just a founded station", () => {
     let state = spot(createInitialState(7), 1).state;
     const id = state.nextStationId - 1;
     const sectorName = state.sectors[1]!.name;
     expect(renameSector(state, 1, "Nova")).toBe(state);
     const founded = until(fundSite(state, id), (next) => stationById(next, id)!.modules.length > 0, 30);
-    expect(renameSector(founded, 1, "  Nova ")).not.toBe(founded);
-    expect(renameSector(founded, 1, "Nova").sectors[1]!.name).toBe("Nova");
-    expect(renameSector(founded, 1, "   ")).toBe(founded);
-    expect(renameSector(founded, 1, sectorName)).toBe(founded);
+    expect(renameSector(founded, 1, "Nova")).toBe(founded);
+    const claimed = buildClaim(founded, id);
+    expect(renameSector(claimed, 1, "  Nova ")).not.toBe(claimed);
+    expect(renameSector(claimed, 1, "Nova").sectors[1]!.name).toBe("Nova");
+    expect(renameSector(claimed, 1, "   ")).toBe(claimed);
+    expect(renameSector(claimed, 1, sectorName)).toBe(claimed);
   });
 
   it("haul routes list founded stations by their station names", () => {
@@ -333,7 +338,7 @@ describe("criterion 8: claim sites retire, renaming and haul names survive", () 
     // The ghost site appears as a station once it owns a Dock.
     expect(haulStations(state).map((entry) => entry.id)).toEqual(["home"]);
     const founded = until(fundSite(state, id), (next) => stationById(next, id)!.modules.length > 0, 30);
-    const renamed = renameSector(founded, 1, "Nova");
+    const renamed = buildClaim(founded, id);
     const stations = haulStations(renamed);
     expect(stations.map((entry) => entry.id)).toEqual(["home", `station:${id}`]);
     expect(stations[1]!.name).toBe(renamed.stations.find((station) => station.id === id)!.name);
