@@ -1,6 +1,7 @@
 import { travelSeconds } from "./motion";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { stationFounded } from "./station-placement";
+import type { HomeHaulContext } from "./tick-mining";
 import { berthLayout, gateRoute, homeStation, stationById, toBerth, toParking, type HaulDestinationId, type HaulRoute, type HaulStationId, type Ship, type SimState, type Station, type Vec } from "./state";
 
 export interface HaulStation { id: HaulStationId; name: string }
@@ -12,8 +13,8 @@ interface HaulStateBase {
 }
 
 export type HaulState = HaulStateBase & (
-  | { stations: Station[]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never; constructionSite?: never; others?: never }
-  | { stations?: never; stationSector: number; dock: Vec; inventory: Station["inventory"]; storageCapacity: number; constructionSite: Station["constructionSite"]; others: Station[] }
+  | { stations: Station[]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never; constructionSite?: never; others?: never; activeStationId?: never; primaryStationId?: never; homeContext?: never }
+  | { stations?: never; stationSector: number; dock: Vec; inventory: Station["inventory"]; storageCapacity: number; constructionSite: Station["constructionSite"]; others: Station[]; activeStationId: number; primaryStationId: number; homeContext: HomeHaulContext | null }
 );
 
 // Every station with a Dock of its own joins Home as a haul stop. A site still
@@ -53,11 +54,18 @@ export function haulStationDetails(state: HaulState, id: HaulDestinationId) {
   if (id.startsWith("site:")) {
     const stationId = Number(id.slice("site:".length));
     if (state.stations) return siteDetails(id, stationById(state, stationId));
-    // The tick's draft keeps the active station's context at the top level,
-    // the way the "home" stop reads it; the rest stand in others.
-    if (stationId === 0) return {
+    // The tick's draft keeps the active station's context at the top level;
+    // a haul runs under its ship's home station's context, so a site resolves
+    // by the station its id names: the active station's site reads from the
+    // top level, the primary station's is kept aside in homeContext, the rest
+    // stand in others.
+    if (stationId === state.activeStationId) return {
       id, sectorId: state.stationSector, position: state.constructionSite.position,
       inventory: state.constructionSite.inventory, capacity: Infinity,
+    };
+    if (stationId === state.primaryStationId && state.homeContext) return {
+      id, sectorId: state.homeContext.stationSector, position: state.homeContext.constructionSite.position,
+      inventory: state.homeContext.constructionSite.inventory, capacity: Infinity,
     };
     return siteDetails(id, state.others.find((candidate) => candidate.id === stationId));
   }

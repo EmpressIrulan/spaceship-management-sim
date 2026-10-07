@@ -22,6 +22,15 @@ export function changeHaulInventory(draft: Draft, id: HaulDestinationId, materia
         inventory: { ...draft.constructionSite.inventory, [material]: draft.constructionSite.inventory[material] + amount } };
       return;
     }
+    if (stationId === draft.primaryStationId) {
+      // A haul runs under its ship's home station's context, so a delivery to
+      // the primary's site credits the context kept aside in homeContext,
+      // which the tick folds back into the primary station's own context.
+      const held = draft.homeContext!;
+      draft.homeContext = { ...held, constructionSite: { ...held.constructionSite,
+        inventory: { ...held.constructionSite.inventory, [material]: held.constructionSite.inventory[material] + amount } } };
+      return;
+    }
     draft.others = draft.others.map((station) => station.id === stationId
       ? { ...station, constructionSite: { ...station.constructionSite,
         inventory: { ...station.constructionSite.inventory, [material]: station.constructionSite.inventory[material] + amount } } } : station);

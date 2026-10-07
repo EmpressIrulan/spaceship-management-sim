@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { configureHaul, giveOrder, haulStations, resumeDefault, setDefaultBehaviour } from "./orders";
+import { configureHaul, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setShipHome } from "./orders";
 import { haulDestinations } from "./haul";
 import { createInitialState, dockBerths, homeStation, type SimState } from "./state";
 import { foundedStation } from "./test-ships";
@@ -299,5 +299,25 @@ describe("Haul to construction sites (delivery loop)", () => {
     const resumed = resumeDefault(ordered, [0]);
     expect(resumed.ships[0]).toMatchObject({ order: null, defaultBehaviour: "haul", cargo });
     expect(["haulOutbound", "haulUnloading"]).toContain(resumed.ships[0]!.state);
+  });
+});
+
+describe("Haul across stations", () => {
+  it("a ship based at a station hauls to the primary's construction site", () => {
+    let state = setShipHome(twoStations(), [0], 1);
+    state = { ...state, stations: [state.stations[0]!, { ...state.stations[1]!, inventory: { Metal: 0, Ice: 20 } }] };
+    state = configureHaul(state, [0], { from: "station:1", to: "site:0", material: "Ice" });
+
+    const unloading = until(state, (next) => next.ships[0]!.state === "haulUnloading" && next.ships[0]!.cargo > 0);
+    const mid = run(unloading, 3.01);
+    // The ore arrives in the site the route names, station 0's, not in the
+    // hauler's own station's site, and never leaves the ship uncredited.
+    expect(mid.ships[0]!.cargo).toBe(15);
+    expect(mid.stations[0]!.constructionSite.inventory.Ice).toBe(5);
+    expect(mid.stations[1]!.constructionSite.inventory.Ice).toBe(0);
+
+    const delivered = until(mid, (next) => next.stations[0]!.constructionSite.inventory.Ice >= 20);
+    expect(delivered.ships[0]!.cargo).toBe(0);
+    expect(delivered.stations[1]!.constructionSite.inventory.Ice).toBe(0);
   });
 });
