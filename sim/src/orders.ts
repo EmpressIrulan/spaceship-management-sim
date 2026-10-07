@@ -166,6 +166,7 @@ function apply(ship: Ship, target: OrderTarget, point: Vec, state: SimState): Sh
 }
 
 export function giveOrder(state: SimState, ids: number[], target: OrderTarget): SimState {
+  if (state.stations.length === 0) return state;
   const home = homeStation(state);
   const selected = state.ships.filter((ship) => ids.includes(ship.id) && ship.hangarId == null);
   if (!selected.length) return state;

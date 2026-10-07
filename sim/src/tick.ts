@@ -738,6 +738,12 @@ function settle(draft: Draft): void {
 // back from the background) plays out every trip and respawn it covers, in
 // the order they would have happened.
 export function tick(state: SimState, dt: number): SimState {
+  if (state.stations.length === 0) return {
+    ...state,
+    tickCount: state.tickCount + 1,
+    time: state.time + (dt > 0 ? dt : 0),
+    ships: state.ships.map((ship) => ({ ...ship, state: "holding", timer: 0, order: null, target: null, leg: null, berth: null, transfer: null })),
+  };
   const home = homeStation(state);
   const draft: Draft = {
     time: state.time,
