@@ -227,6 +227,18 @@ describe("criterion 2: ships supply the site and a Dock builds", () => {
     expect(siteInventory(delivered, id).Metal + siteInventory(delivered, id).Ice).toBeGreaterThan(0);
   });
 
+  it("does not list the surviving station as Home after station 0 is removed", () => {
+    let state = spot(createInitialState(7), 0).state;
+    const id = state.nextStationId - 1;
+    const station = stationById(state, id)!;
+    state = { ...state, stations: state.stations.map((candidate) => candidate.id === id ? { ...station, founding: false,
+      modules: [{ type: "Dock", position: station.dock.position, size: station.dock.size }],
+      dock: { ...station.dock, capacity: 100 }, storage: { ...station.storage, capacity: 100 } } : candidate) };
+    state = removeStation(state, 0);
+
+    expect(haulStations(state).map((entry) => entry.id)).toEqual([`station:${id}`]);
+  });
+
   it("a waiting supply ship parks idle with no site selected", () => {
     let state = createInitialState(7);
     state = spot(state, 1).state;

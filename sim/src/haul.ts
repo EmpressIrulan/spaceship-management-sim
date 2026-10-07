@@ -19,9 +19,9 @@ export type HaulState = HaulStateBase & (
 // founding has no Dock, so it does not appear until it owns one. Names come
 // from the station's generated name.
 export function haulStations(state: Pick<SimState, "stations" | "sectors">): HaulStation[] {
-  if (state.stations.length === 0) return [];
+  const home = stationById(state, 0);
   return [
-    { id: "home", name: homeStation(state).name },
+    ...(home ? [{ id: "home" as const, name: home.name }] : []),
     ...state.stations.filter((station) => station.id !== 0 && stationFounded(station)).map((station) => ({
       id: `station:${station.id}` as const,
       name: station.name,
