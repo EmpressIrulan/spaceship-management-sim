@@ -30,7 +30,6 @@ import {
   depart,
   cargoByMaterial,
   gateRoute,
-  homeStation,
   newAsteroid,
   placeInField,
   toBerth,
@@ -74,7 +73,7 @@ function setStationContext(draft: Draft, context: StationContext): void {
 
 function saveStationContext(draft: Draft, stationId: number): void {
   const context = currentStationContext(draft);
-  if (stationId === 0) return;
+  if (stationId === draft.activeStationId) return;
   draft.others = draft.others.map((station) => station.id === stationId ? {
     ...station, deliveries: context.deliveries,
     dock: { ...station.dock, capacity: context.dockCapacity }, sectorId: context.stationSector,
@@ -86,9 +85,9 @@ function saveStationContext(draft: Draft, stationId: number): void {
 
 function stationContext(draft: Draft, stationId: number): StationContext | null {
   if (stationId === draft.activeStationId) return currentStationContext(draft);
-  const station = stationId === 0 ? null : draft.others.find((candidate) => candidate.id === stationId);
-  if (stationId !== 0 && !station) return null;
-  return stationId === 0 ? currentStationContext(draft) : {
+  const station = draft.others.find((candidate) => candidate.id === stationId);
+  if (!station) return null;
+  return {
     deliveries: station!.deliveries, dock: station!.dock.position, stationSector: station!.sectorId,
     storageCapacity: station!.storage.capacity, storageLimits: station!.storageLimits,
     inventory: station!.inventory, constructionSite: station!.constructionSite, modules: station!.modules,
@@ -304,7 +303,7 @@ function deliverySiteStation(draft: Draft, ship: Ship): number {
 
 // The construction site of the station with `stationId`, Home's for 0.
 function buildSiteOf(draft: Draft, stationId: number): Station["constructionSite"] {
-  if (stationId === 0) return draft.constructionSite;
+  if (stationId === draft.activeStationId) return draft.constructionSite;
   return draft.others.find((station) => station.id === stationId)?.constructionSite ?? draft.constructionSite;
 }
 
@@ -373,7 +372,7 @@ function finishBuildSupply(draft: Draft, ship: Ship): Ship {
 // out to the gate first. No gate reaches the site and the hold goes home like
 // any miner's, rather than the ship circling forever.
 function headForBuildSite(draft: Draft, ship: Ship): Ship {
-  const station = draft.supplyStation === 0 ? undefined : draft.others.find((candidate) => candidate.id === draft.supplyStation);
+  const station = draft.supplyStation === draft.activeStationId ? undefined : draft.others.find((candidate) => candidate.id === draft.supplyStation);
   const sectorId = station ? station.sectorId : draft.stationSector;
   const point = buildSiteOf(draft, draft.supplyStation).position;
   if (ship.sectorId === sectorId) return flyTo({ ...ship, target: null }, ship.position, point);
@@ -744,10 +743,11 @@ export function tick(state: SimState, dt: number): SimState {
     time: state.time + (dt > 0 ? dt : 0),
     ships: state.ships.map((ship) => ({ ...ship, state: "holding", timer: 0, order: null, target: null, leg: null, berth: null, transfer: null })),
   };
-  const home = homeStation(state);
+  const home = state.stations.find((station) => station.id === 0) ?? state.stations[0]!;
+  const primaryStationId = home.id;
   const draft: Draft = {
     time: state.time,
-    activeStationId: 0,
+    activeStationId: primaryStationId,
     deliveries: home.deliveries,
     rng: state.rng,
     nextAsteroidId: state.nextAsteroidId,
@@ -771,7 +771,7 @@ export function tick(state: SimState, dt: number): SimState {
     gateProjects: state.gateProjects,
     // Every non-Home station, kept whole. Founding ones advance their own
     // first Dock and Storage; founded ones only move haul stock this tick.
-    others: state.stations.slice(1),
+    others: state.stations.filter((station) => station.id !== primaryStationId),
     supplyStation: state.supplyStation,
     supplyQueue: state.supplyStation === 0 ? home.buildQueue.length
       : state.stations.find((station) => station.id === state.supplyStation)?.buildQueue.length ?? 0,
@@ -793,7 +793,7 @@ export function tick(state: SimState, dt: number): SimState {
     rng: draft.rng,
     nextAsteroidId: draft.nextAsteroidId,
     nextShipId: draft.nextShipId,
-    stations: [{
+    stations: state.stations.map((station) => station.id === primaryStationId ? {
       ...home,
       dock: { ...home.dock, capacity: draft.dockCapacity },
       storage: { ...home.storage, capacity: draft.storageCapacity },
@@ -804,7 +804,7 @@ export function tick(state: SimState, dt: number): SimState {
       construction: draft.construction,
       buildQueue: draft.buildQueue,
       shipBuilds: draft.shipBuilds,
-    }, ...draft.others],
+    } : draft.others.find((other) => other.id === station.id) ?? station),
     asteroids: draft.asteroids,
     respawns: draft.respawns,
     ships: syncDockedShips(draft.ships),

@@ -239,6 +239,21 @@ describe("criterion 2: ships supply the site and a Dock builds", () => {
     expect(haulStations(state).map((entry) => entry.id)).toEqual([`station:${id}`]);
   });
 
+  it("delivers construction cargo to a surviving station by id after Home is removed", () => {
+    let state = spot(createInitialState(7), 0).state;
+    const id = state.nextStationId - 1;
+    const site = stationById(state, id)!;
+    const ship = { ...state.ships[0]!, homeStationId: id, sectorId: site.sectorId, position: { x: 0, y: 0 },
+      state: "idle" as const, timer: 0, cargo: 10, cargoByMaterial: { Metal: 10, Ice: 0 }, cargoMaterial: "Metal" as const,
+      order: null, leg: null, berth: null, target: null };
+    state = { ...state, ships: [ship] };
+    state = giveOrder(state, [ship.id], { kind: "supplyBuild", stationId: id });
+    state = removeStation(state, 0);
+
+    const delivered = until(state, (next) => siteInventory(next, id).Metal > 0, 400);
+    expect(siteInventory(delivered, id).Metal).toBeGreaterThan(0);
+  });
+
   it("a waiting supply ship parks idle with no site selected", () => {
     let state = createInitialState(7);
     state = spot(state, 1).state;
