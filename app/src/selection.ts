@@ -57,7 +57,7 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
   const ships = ids.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship] : []; });
   if (!ships.length) return null;
   const defaults = new Set(ships.map((ship) => ship.defaultBehaviour));
-  const homes = new Set(ships.map((ship) => ship.homeStationId));
+  const homes = new Set(ships.map((ship) => ship.homeStationId === undefined ? 0 : ship.homeStationId));
   const haulers = ships.filter((ship) => ship.defaultBehaviour === "haul");
   const stations = haulStations(state);
   const routes = new Set(haulers.map((ship) => JSON.stringify(ship.haulRoute ?? null)));
@@ -90,6 +90,6 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
       : null,
     canResume: ships.some((ship) => ship.order !== null),
     canHaul: stations.length >= 2, haulDisabledReason: stations.length >= 2 ? null : "Needs two stations", stations,
-      haulRoute, homeStation: homes.size === 1 ? ships[0]!.homeStationId ?? null : "mixed" };
+      haulRoute, homeStation: homes.size === 1 ? (ships[0]!.homeStationId === undefined ? 0 : ships[0]!.homeStationId) : "mixed" };
 }
 import { homeStation } from "sim";

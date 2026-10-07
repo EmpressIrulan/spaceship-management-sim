@@ -30,6 +30,12 @@ describe("RTS selection helpers", () => {
     expect(selectionPanel({ ...initial, ships: [orphan] }, [orphan.id])?.homeStation).toBeNull();
   });
 
+  it("shows Home for a ship loaded from a save without homeStationId", () => {
+    const initial = createInitialState(7);
+    const { homeStationId: _old, ...legacyShip } = initial.ships[0]!;
+    expect(selectionPanel({ ...initial, ships: [legacyShip] }, [legacyShip.id])?.homeStation).toBe(0);
+  });
+
   it("shows Mine in other sectors off by default and mixed when selected ships disagree", () => {
     const initial = createInitialState(7);
     expect(selectionPanel(initial, [0])?.mineOtherSectors).toBe("off");

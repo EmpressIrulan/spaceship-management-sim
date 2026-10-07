@@ -4,6 +4,22 @@ import { setShipHome } from "./orders";
 import { placeStation, removeStation } from "./station-placement";
 
 describe("ship home stations", () => {
+  it("starts with Home assigned and migrates an old missing home when Home is selected", () => {
+    const state = createInitialState(7);
+    expect(state.ships[0]!.homeStationId).toBe(0);
+    const oldSave = { ...state, ships: state.ships.map(({ homeStationId: _old, ...ship }) => ship) };
+
+    expect(setShipHome(oldSave, [state.ships[0]!.id], 0).ships[0]!.homeStationId).toBe(0);
+  });
+
+  it("treats a missing home in an old save as Home when Home is removed", () => {
+    const state = createInitialState(7);
+    const oldSave = { ...state, ships: state.ships.map(({ homeStationId: _old, ...ship }) => ship) };
+
+    const ship = removeStation(oldSave, 0).ships[0]!;
+    expect(ship).toMatchObject({ homeStationId: null, defaultBehaviour: "none", state: "holding" });
+  });
+
   it("lets the player assign a selected ship to an existing station", () => {
     const state = placeStation(createInitialState(7), 0, { x: 900, y: 900 });
     const shipId = state.ships[0]!.id;

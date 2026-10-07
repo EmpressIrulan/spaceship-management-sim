@@ -113,7 +113,7 @@ export function setShipHome(state: SimState, ids: number[], stationId: number | 
   if (stationId !== null && !stationById(state, stationId)) return state;
   let changed = false;
   const ships = state.ships.map((ship) => {
-    if (!ids.includes(ship.id) || (ship.homeStationId ?? 0) === stationId) return ship;
+    if (!ids.includes(ship.id) || ship.homeStationId === stationId) return ship;
     changed = true;
     return { ...ship, homeStationId: stationId };
   });

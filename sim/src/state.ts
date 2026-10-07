@@ -360,6 +360,7 @@ export function createInitialState(seed: number): SimState {
     cargoByMaterial: { Metal: 0, Ice: 0 },
     cargoMaterial: null,
     target: null,
+    homeStationId: 0,
     defaultBehaviour: "mine",
     mineMaterials: [],
     mineOtherSectors: false,

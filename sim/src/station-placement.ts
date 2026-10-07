@@ -80,7 +80,7 @@ export function removeStation(state: SimState, stationId: number): SimState {
   const station = state.stations.find((candidate) => candidate.id === stationId);
   if (!station) return state;
   const ships = state.ships.map((ship) => {
-    const losingHome = ship.homeStationId === stationId;
+    const losingHome = (ship.homeStationId === undefined && stationId === 0) || ship.homeStationId === stationId;
     const buildingThere = ship.order?.kind === "supplyBuild" && ship.order.stationId === stationId;
     const dockedHere = ship.sectorId === station.sectorId && ship.state === "docked"
       && Math.abs(ship.position.x - station.dock.position.x) <= station.dock.size.width / 2
