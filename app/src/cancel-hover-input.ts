@@ -14,14 +14,15 @@ export function installCancelHoverInput(
   getState: () => SimState,
   infoAction: HTMLButtonElement,
 ): void {
-  function hoveredBuild(): Vec | null {
+  function hoveredBuild(): { position: Vec; stationId: number } | null {
     const index = infoAction.dataset.queuedBuild;
     if (index === undefined) return null;
-    const queued = homeStation(getState()).buildQueue[Number(index)];
-    return queued ? { ...queued.position } : null;
+    const stationId = Number(infoAction.dataset.stationId ?? 0);
+    const queued = stationById(getState(), stationId)?.buildQueue[Number(index)];
+    return queued ? { position: { ...queued.position }, stationId } : null;
   }
 
   infoAction.addEventListener("pointerenter", () => { ui.cancelHoveredBuild = hoveredBuild(); });
   infoAction.addEventListener("pointerleave", () => { ui.cancelHoveredBuild = null; });
 }
-import { homeStation } from "sim";
+import { stationById } from "sim";

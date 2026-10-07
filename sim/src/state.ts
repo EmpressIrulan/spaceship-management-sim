@@ -607,9 +607,9 @@ export const INCOME_WINDOW_SECONDS = 60;
 // Ore unloaded into storage over the last game minute, per material. Only
 // what storage accepted counts, so a full station reads zero, and spending
 // ore on builds or gates does not lower it.
-export function stationIncome(state: SimState): Record<Material, number> {
+export function stationIncome(state: SimState, stationId = 0): Record<Material, number> {
   const income = Object.fromEntries(MATERIALS.map((material) => [material, 0])) as Record<Material, number>;
-  for (const delivery of homeStation(state).deliveries) {
+  for (const delivery of stationById(state, stationId)?.deliveries ?? []) {
     if (delivery.at > state.time - INCOME_WINDOW_SECONDS) income[delivery.material] += delivery.amount;
   }
   return income;

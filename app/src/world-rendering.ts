@@ -51,16 +51,12 @@ export function createWorldDrawing(
     // ghosts, its build and its site marker exactly the way Home does.
     for (const station of state.stations) {
       if (station.sectorId !== ui.currentSector) continue;
-      const home = station.id === 0;
       for (const connector of stationConnectors(station.modules)) stationDrawing.drawStationConnector(connector.from, connector.to);
       for (const module of station.modules) stationDrawing.drawStationModule(module);
       // The Cancel under the pointer names the ghosts it would take with it, so
       // the hover highlight and the click read the one set and cannot disagree.
-      // Slots are keyed by position, since that is how the hover names its
-      // ghost. Cancel lives at Home for now.
-      const taking = new Set(home
-        ? cancelDependentsAt(state, ui.cancelHoveredBuild).map((queued) => slotKey(queued.position))
-        : []);
+      // Slots are keyed by position, since that is how the hover names its ghost.
+      const taking = new Set(cancelDependentsAt(state, ui.cancelHoveredBuild).map((queued) => slotKey(queued.position)));
       for (const queued of station.buildQueue) {
         stationDrawing.drawQueuedModule(queued, taking.has(slotKey(queued.position)));
       }

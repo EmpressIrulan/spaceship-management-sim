@@ -1,7 +1,7 @@
 import { BUILD_SECONDS, MODULE_COST, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
-import { DOCK_CAPACITY, STORAGE_CAPACITY, homeStation, replaceHomeStation, replaceStation, stationById } from "./state";
+import { DOCK_CAPACITY, STORAGE_CAPACITY, replaceStation, stationById } from "./state";
 import { availableModuleBuildSites, stationOwningSite } from "./station-building";
 import { moduleSize, samePosition } from "./station-module-geometry";
 import { travelSeconds } from "./motion";
@@ -189,12 +189,13 @@ export function constructionAttached(station: StationGraph): boolean {
   return attachedInOrder(standingPositions(station), [station.construction.position]).length > 0;
 }
 
-export function cancelQueuedModuleBuild(state: SimState, target: Vec | number): SimState {
+export function cancelQueuedModuleBuild(state: SimState, target: Vec | number, stationId = 0): SimState {
+  const station = stationById(state, stationId);
+  if (!station) return state;
   const index = typeof target === "number"
     ? target
-    : homeStation(state).buildQueue.findIndex((queued) => samePosition(queued.position, target));
-  const home = homeStation(state);
-  if (index < 0 || index >= home.buildQueue.length) return state;
-  const station = startNextQueuedModule({ ...home, buildQueue: queueAfterCancel(home, index) });
-  return replaceHomeStation(state, station);
+    : station.buildQueue.findIndex((queued) => samePosition(queued.position, target));
+  if (index < 0 || index >= station.buildQueue.length) return state;
+  const cancelled = startNextQueuedModule({ ...station, buildQueue: queueAfterCancel(station, index) });
+  return replaceStation(state, cancelled);
 }

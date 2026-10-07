@@ -5,6 +5,7 @@ import {
   availableModuleBuildSites,
   cancelQueuedModuleBuild,
   createInitialState,
+  placeStation,
   queueModuleBuild,
   startModuleBuild,
   tick,
@@ -22,7 +23,7 @@ import {
   queuedBuildIndexAt,
 } from "./building";
 import { infoBox } from "./labels";
-import { hoveredBody, worldToScreen, type Camera } from "./camera";
+import { bodyOf, hoveredBody, worldToScreen, type Camera } from "./camera";
 
 const east = { x: 80, y: 0 };
 const farEast = { x: 120, y: 0 };
@@ -51,6 +52,39 @@ function withStandingBuilder(state: SimState, position: Vec): SimState {
 }
 
 describe("station building controls", () => {
+  it("hovers over Storage, construction, and queued modules at a founded site", () => {
+    let state = placeStation(createInitialState(7), 0, { x: 900, y: 900 });
+    const stationId = state.nextStationId - 1;
+    const storagePosition = { x: 940, y: 900 };
+    const buildingPosition = { x: 1000, y: 900 };
+    const queuedPosition = { x: 1100, y: 900 };
+    state = { ...state, stations: state.stations.map((station) => station.id === stationId ? {
+      ...station,
+      storage: { ...station.storage, position: storagePosition, capacity: 123 },
+      inventory: { Metal: 9, Ice: 0 },
+      construction: { type: "Storage", position: buildingPosition, size: { width: 30, height: 40 }, timer: 12 },
+      buildQueue: [{ type: "Builder", position: queuedPosition, size: { width: 30, height: 40 } }],
+    } : station) };
+    const camera: Camera = { center: { x: 900, y: 900 }, zoom: 1 };
+    const point = (position: Vec) => worldToScreen(camera, { width: 800, height: 600 }, position);
+    const options = { includeShips: false };
+
+    const storage = hoveredBody(state, camera, { width: 800, height: 600 }, point(storagePosition), 0, options);
+    expect(storage).toEqual({ kind: "storage", stationId });
+    expect(bodyOf(state, storage!)).toMatchObject({ position: storagePosition });
+    expect(infoBox(state, storage)).toMatchObject({ title: "Storage", line: expect.stringContaining("Stored 9 / 123") });
+
+    const construction = hoveredBody(state, camera, { width: 800, height: 600 }, point(buildingPosition), 0, options);
+    expect(construction).toEqual({ kind: "construction", stationId });
+    expect(bodyOf(state, construction!)).toMatchObject({ position: buildingPosition });
+    expect(infoBox(state, construction)).toMatchObject({ title: "Building Storage" });
+
+    const queued = hoveredBody(state, camera, { width: 800, height: 600 }, point(queuedPosition), 0, options);
+    expect(queued).toEqual({ kind: "queuedBuild", index: 0, stationId });
+    expect(bodyOf(state, queued!)).toMatchObject({ position: queuedPosition });
+    expect(infoBox(state, queued)?.action).toMatchObject({ label: "Cancel", queuedBuild: 0, stationId });
+  });
+
   it("shows front needs, full later cost, and Cancel on ghost modules", () => {
     const initial = createInitialState(7);
     let state = queueModuleBuild({ ...initial, stations: [{ ...initial.stations[0]!,

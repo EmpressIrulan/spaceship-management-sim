@@ -13,6 +13,7 @@ import {
   type Vec,
 } from "./index";
 import { suppliersComingHome } from "./test-ships";
+import { placeStation } from "./station-placement";
 
 const east = { x: 80, y: 0 };
 const farEast = { x: 120, y: 0 };
@@ -87,6 +88,15 @@ describe("the station build queue", () => {
     state = cancelQueuedModuleBuild(state, east);
 
     expect(state.stations[0]!.buildQueue).toMatchObject([{ type: "Dock", position: west }]);
+  });
+
+  it("cancels a queued module by its owning station id", () => {
+    let state = placeStation(createInitialState(7), 0, { x: 900, y: 900 });
+    const stationId = state.nextStationId - 1;
+    const cancelledPosition = state.stations.find((station) => station.id === stationId)!.buildQueue[1]!.position;
+    state = cancelQueuedModuleBuild(state, 1, stationId);
+    const station = state.stations.find((candidate) => candidate.id === stationId)!;
+    expect(station.buildQueue.some((item) => item.position.x === cancelledPosition.x && item.position.y === cancelledPosition.y)).toBe(false);
   });
 
   it("names every ghost that reaches the station only through the cancelled one", () => {

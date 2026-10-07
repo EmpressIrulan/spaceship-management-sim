@@ -2,7 +2,7 @@ import { hoveredBody } from "./camera";
 import { storagePanelOpenAfterClick } from "./storage";
 import { openStoragePanel } from "./storage-panel";
 import { toggleShip } from "./selection";
-import { homeStation, stationById } from "sim";
+import { stationById } from "sim";
 import type { InputContext } from "./input-context";
 
 export function selectClick(context: InputContext, event: MouseEvent, additive: boolean): void {
@@ -12,10 +12,10 @@ export function selectClick(context: InputContext, event: MouseEvent, additive: 
   const point = mousePoint(event);
   const hovered = hoveredBody(getState(), ui.camera, ui.viewport, point, ui.currentSector);
   ui.stickyQueuedBuild = hovered?.kind === "queuedBuild"
-    ? { ...homeStation(getState()).buildQueue[hovered.index]!.position }
+    ? { position: { ...stationById(getState(), hovered.stationId ?? 0)!.buildQueue[hovered.index]!.position }, stationId: hovered.stationId ?? 0 }
     : null;
   const clickedStorage = hovered?.kind === "storage"
-    || (hovered?.kind === "module" && homeStation(getState()).modules[hovered.index]?.type === "Storage");
+    || (hovered?.kind === "module" && stationById(getState(), hovered.stationId)?.modules[hovered.index]?.type === "Storage");
   const storageOpen = storagePanelOpenAfterClick(ui.storagePanelOpen, clickedStorage ? "storage" : hovered ? "other" : "empty");
   if (storageOpen && !ui.storagePanelOpen) openStoragePanel(storagePanel, getState(), () => { ui.storagePanelOpen = true; });
   else if (!storageOpen && ui.storagePanelOpen) closeStoragePanel();

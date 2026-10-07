@@ -76,8 +76,8 @@ export function dismissBuildMenuForKey(key: string): boolean {
   return key === "Escape";
 }
 
-export function queuedBuildIndexAt(state: SimState, position: Vec): number {
-  return homeStation(state).buildQueue.findIndex((queued) => queued.position.x === position.x && queued.position.y === position.y);
+export function queuedBuildIndexAt(state: SimState, position: Vec, stationId = 0): number {
+  return (stationById(state, stationId)?.buildQueue ?? []).findIndex((queued) => queued.position.x === position.x && queued.position.y === position.y);
 }
 
 // Every other ghost that would go with the one whose Cancel the pointer is on.
@@ -86,8 +86,12 @@ export function queuedBuildIndexAt(state: SimState, position: Vec): number {
 // position, not by index, because the queue shifts as builds finish underneath
 // a pointer that has not moved. Null, or a ghost no longer waiting, highlights
 // nothing.
-export function cancelDependentsAt(state: SimState, hovered: Vec | null): QueuedModuleBuild[] {
+export function cancelDependentsAt(state: SimState, hovered: Vec | { position: Vec; stationId: number } | null): QueuedModuleBuild[] {
   if (hovered === null) return [];
-  const index = queuedBuildIndexAt(state, hovered);
-  return index < 0 ? [] : queuedDependents(homeStation(state), index);
+  const position = "position" in hovered ? hovered.position : hovered;
+  const stationId = "position" in hovered ? hovered.stationId : 0;
+  const station = stationById(state, stationId);
+  const index = queuedBuildIndexAt(state, position, stationId);
+  return index < 0 || !station ? [] : queuedDependents(station, index);
 }
+import { stationById } from "sim";

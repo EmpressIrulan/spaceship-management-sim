@@ -39,10 +39,10 @@ export interface UiState {
   // construction site in the sector it lands in.
   pendingStation: boolean;
   renamingSector: number | null;
-  stickyQueuedBuild: Vec | null;
+  stickyQueuedBuild: { position: Vec; stationId: number } | null;
   // The ghost whose Cancel control the pointer is on, so the ghosts that would
   // go with it can be highlighted. Position, not index: the queue shifts.
-  cancelHoveredBuild: Vec | null;
+  cancelHoveredBuild: { position: Vec; stationId: number } | null;
   infoHovered: boolean;
   clock: Clock;
   storagePanelOpen: boolean;
