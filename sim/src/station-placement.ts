@@ -81,8 +81,11 @@ export function removeStation(state: SimState, stationId: number): SimState {
   if (!station) return state;
   const ships = state.ships.map((ship) => {
     const losingHome = (ship.homeStationId === undefined && stationId === 0) || ship.homeStationId === stationId;
+    if (ship.hangarId != null) return losingHome
+      ? { ...ship, homeStationId: null, defaultBehaviour: "none" as const, order: null, target: null, leg: null, berth: null, transfer: null, timer: 0 }
+      : ship;
     const buildingThere = ship.order?.kind === "supplyBuild" && ship.order.stationId === stationId;
-    const dockedHere = ship.sectorId === station.sectorId && ship.state === "docked"
+    const dockedHere = ship.hangarId == null && ship.sectorId === station.sectorId && ship.state === "docked"
       && Math.abs(ship.position.x - station.dock.position.x) <= station.dock.size.width / 2
       && Math.abs(ship.position.y - station.dock.position.y) <= station.dock.size.height / 2;
     if (!losingHome && !buildingThere && !dockedHere) return ship;
@@ -90,6 +93,12 @@ export function removeStation(state: SimState, stationId: number): SimState {
     const nearby = { x: station.dock.position.x + station.dock.size.width / 2 + 12, y: station.dock.position.y };
     return { ...ship, homeStationId: losingHome ? null : ship.homeStationId, defaultBehaviour: losingHome ? "none" as const : ship.defaultBehaviour, sectorId: station.sectorId, position: nearby, state: "holding" as const, order: null, target: null, leg: null, berth: null, transfer: null, timer: 0 };
   });
+  for (let index = 0; index < ships.length; index += 1) {
+    const ship = ships[index]!;
+    if (ship.hangarId == null) continue;
+    const carrier = ships.find((candidate) => candidate.id === ship.hangarId);
+    if (carrier) ships[index] = { ...ship, sectorId: carrier.sectorId, position: { ...carrier.position } };
+  }
   const stations = state.stations.filter((candidate) => candidate.id !== stationId);
   const supplyStation = state.supplyStation === stationId ? (stations[0]?.id ?? 0) : state.supplyStation;
   return { ...state, stations, ships, supplyStation };
