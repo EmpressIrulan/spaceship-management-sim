@@ -24,6 +24,12 @@ describe("RTS selection helpers", () => {
     expect(selectionPanel(state, [0, 14])).toMatchObject({ defaultBehaviour: "mixed", canResume: true, rows: [{ id: 0 }, { id: 14 }] });
   });
 
+  it("shows no Home when the ship's home station was removed", () => {
+    const initial = createInitialState(7);
+    const orphan = { ...initial.ships[0]!, homeStationId: null };
+    expect(selectionPanel({ ...initial, ships: [orphan] }, [orphan.id])?.homeStation).toBeNull();
+  });
+
   it("shows Mine in other sectors off by default and mixed when selected ships disagree", () => {
     const initial = createInitialState(7);
     expect(selectionPanel(initial, [0])?.mineOtherSectors).toBe("off");
