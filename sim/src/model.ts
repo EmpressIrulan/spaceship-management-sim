@@ -11,7 +11,7 @@ export type AsteroidField =
   | (FieldBase & { kind: "belt"; from: number; sweep: number; width: number });
 
 export type ModuleType = (typeof MODULE_TYPES)[number];
-export const MODULE_TYPES = ["Dock", "Storage", "Builder"] as const;
+export const MODULE_TYPES = ["Dock", "Storage", "Builder", "Claim"] as const;
 
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and draws, but does nothing.
 export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull"] as const;

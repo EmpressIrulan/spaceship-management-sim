@@ -1,9 +1,9 @@
-import { BUILD_SECONDS, MODULE_COST, MODULE_SPACING } from "./build-constants";
+import { MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
 import { DOCK_CAPACITY, STORAGE_CAPACITY, replaceStation, stationById } from "./state";
 import { availableModuleBuildSites, stationOwningSite } from "./station-building";
-import { moduleSize, samePosition } from "./station-module-geometry";
+import { moduleBuildSeconds, moduleCost, moduleSize, samePosition } from "./station-module-geometry";
 import { travelSeconds } from "./motion";
 import { speedFactor } from "./ship";
 import type { Draft } from "./tick-mining";
@@ -50,7 +50,7 @@ export function settleQueuedBuild(draft: Pick<Draft, "constructionSite" | "const
 // behind a build that can never finish.
 export function refundDetachedBuild(draft: Pick<Draft, "construction" | "constructionSite">): void {
   if (!draft.construction) return;
-  const inventory = adjustInventory(draft.constructionSite.inventory, 1);
+  const inventory = adjustInventory(draft.constructionSite.inventory, 1, draft.construction.type);
   draft.construction = null;
   draft.constructionSite = { ...draft.constructionSite, inventory };
 }
@@ -61,23 +61,25 @@ export function refundStationModule(station: Station): Station {
   return {
     ...station,
     construction: null,
-    constructionSite: { ...station.constructionSite, inventory: adjustInventory(station.constructionSite.inventory, 1) },
+    constructionSite: { ...station.constructionSite, inventory: adjustInventory(station.constructionSite.inventory, 1, station.construction.type) },
   };
 }
 
-function adjustInventory(inventory: Record<Material, number>, direction: 1 | -1): Record<Material, number> {
-  return Object.fromEntries(MATERIALS.map((material) => [material, inventory[material] + direction * MODULE_COST[material]])) as Record<Material, number>;
+function adjustInventory(inventory: Record<Material, number>, direction: 1 | -1, type: ModuleType): Record<Material, number> {
+  const cost = moduleCost(type);
+  return Object.fromEntries(MATERIALS.map((material) => [material, inventory[material] + direction * cost[material]])) as Record<Material, number>;
 }
 
-function canPay(inventory: Record<Material, number>): boolean {
-  return MATERIALS.every((material) => inventory[material] >= MODULE_COST[material]);
+function canPay(inventory: Record<Material, number>, type: ModuleType): boolean {
+  const cost = moduleCost(type);
+  return MATERIALS.every((material) => inventory[material] >= cost[material]);
 }
 
 export function startNextQueuedModule<T extends QueueState>(station: T): T {
   const next = station.buildQueue[0];
-  if (station.construction || !next || !canPay(station.constructionSite.inventory)) return station;
-  const inventory = adjustInventory(station.constructionSite.inventory, -1);
-  const construction: ModuleConstruction = { ...next, timer: BUILD_SECONDS };
+  if (station.construction || !next || !canPay(station.constructionSite.inventory, next.type)) return station;
+  const inventory = adjustInventory(station.constructionSite.inventory, -1, next.type);
+  const construction: ModuleConstruction = { ...next, timer: moduleBuildSeconds(next.type) };
   return {
     ...station,
     constructionSite: { ...station.constructionSite, inventory },

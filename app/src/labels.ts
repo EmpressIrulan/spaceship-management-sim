@@ -1,4 +1,4 @@
-import { GATE_COST, MATERIALS, MODULE_COST, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
+import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, moduleCost, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -105,8 +105,9 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const station = stationById(state, stationId);
     const queued = station?.buildQueue[hovered.index];
     if (!queued) return null;
+    const cost = moduleCost(queued.type);
     if (hovered.index === 0 && station?.construction
-      && MATERIALS.every((material) => station.constructionSite.inventory[material] >= MODULE_COST[material])) {
+      && MATERIALS.every((material) => station.constructionSite.inventory[material] >= cost[material])) {
       return {
         title: `${queued.type}, queued`,
         line: "Waiting for the module under construction",
@@ -116,8 +117,8 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const needs = MATERIALS.map((material) => ({
       material,
       amount: hovered.index === 0
-          ? Math.max(0, MODULE_COST[material] - station!.constructionSite.inventory[material])
-        : MODULE_COST[material],
+          ? Math.max(0, cost[material] - station!.constructionSite.inventory[material])
+        : cost[material],
     })).filter(({ amount }) => hovered.index > 0 || amount > 0);
     const line = `Needs ${needs.map(({ material, amount }) => `${amount}${hovered.index === 0 ? " more" : ""} ${material}`).join(" and ")}`;
     return { title: `${queued.type}, queued`, line, action: { label: "Cancel", queuedBuild: hovered.index, ...(stationId === 0 ? {} : { stationId }) } };

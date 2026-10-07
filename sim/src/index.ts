@@ -82,6 +82,7 @@ export {
 export { cancelQueuedModuleBuild, queueModuleBuild, queuedDependents, startNextQueuedModule } from "./station-build-queue";
 export { supplyQueueStatus } from "./station-build-queue";
 export { stationOwningSite } from "./station-building";
+export { moduleBuildSeconds, moduleCost } from "./station-module-geometry";
 export {
   PIXEL_SIZE,
   SHIP_BUILD_SECONDS_PER_RESOURCE,

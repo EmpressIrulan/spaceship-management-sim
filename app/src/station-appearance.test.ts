@@ -24,12 +24,12 @@ describe("station appearance", () => {
     ]);
   });
 
-  it("gives Dock, Storage and Builder distinct silhouettes and colour accents", () => {
-    const appearances = ["Dock", "Storage", "Builder"].map((type) =>
+  it("gives every module type a distinct silhouette and colour accent", () => {
+    const appearances = ["Dock", "Storage", "Builder", "Claim"].map((type) =>
       moduleAppearance(type as StationModule["type"]),
     );
 
-    expect(appearances.map(({ silhouette }) => silhouette)).toEqual(["open-bay", "tank-cluster", "crane"]);
-    expect(new Set(appearances.map(({ accent }) => accent)).size).toBe(3);
+    expect(appearances.map(({ silhouette }) => silhouette)).toEqual(["open-bay", "tank-cluster", "crane", "beacon"]);
+    expect(new Set(appearances.map(({ accent }) => accent)).size).toBe(4);
   });
 });

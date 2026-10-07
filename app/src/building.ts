@@ -1,8 +1,8 @@
 import {
   MATERIALS, MODULE_SPACING,
-  MODULE_COST,
   availableModuleBuildSites,
   availableModuleBuilds,
+  moduleCost,
   queuedDependents,
   type ModuleType,
   type QueuedModuleBuild,
@@ -22,8 +22,8 @@ export interface BuildMenuItem {
 // The + menu reads its stock from the station it grows, so every question is
 // about that one station.
 export function buildMenuItems(state: SimState, stationId: number): BuildMenuItem[] {
-  const cost = MATERIALS.map((material) => `${MODULE_COST[material]} ${material}`).join(", ");
   return availableModuleBuilds(state, stationId).map((option) => {
+    const cost = MATERIALS.map((material) => `${moduleCost(option.type)[material]} ${material}`).join(", ");
     const short = MATERIALS.filter((material) => option.missing[material] > 0)
       .map((material) => `${option.missing[material]} more ${material}`);
     const title = short.length > 0 ? `Needs ${short.join(" and ")}` : "";
