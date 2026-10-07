@@ -376,7 +376,7 @@ function headForBuildSite(draft: Draft, ship: Ship): Ship {
   const station = draft.supplyStation === 0 ? undefined : draft.others.find((candidate) => candidate.id === draft.supplyStation);
   const sectorId = station ? station.sectorId : draft.stationSector;
   const point = buildSiteOf(draft, draft.supplyStation).position;
-  if (ship.sectorId === sectorId) return flyTo(ship, ship.position, point);
+  if (ship.sectorId === sectorId) return flyTo({ ...ship, target: null }, ship.position, point);
   const route = gateRoute(draft, ship.sectorId, sectorId);
   if (!route) {
     if (ship.sectorId === HOME_SECTOR) return berth(draft, { ...ship, position: { ...draft.dock }, leg: null });
@@ -384,7 +384,7 @@ function headForBuildSite(draft: Draft, ship: Ship): Ship {
     return flyTo(ship, ship.position, gate);
   }
   const from = { ...ship.position };
-  return { ...ship, state: "moving", order: { kind: "supplyBuild", stationId: draft.supplyStation, point: { ...point }, sectorId },
+  return { ...ship, target: null, state: "moving", order: { kind: "supplyBuild", stationId: draft.supplyStation, point: { ...point }, sectorId },
     leg: { from, to: { ...route.from } }, timer: travelSeconds(Math.hypot(route.from.x - from.x, route.from.y - from.y), speedFactor(ship.design)) };
 }
 

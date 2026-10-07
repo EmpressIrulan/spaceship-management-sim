@@ -215,6 +215,18 @@ describe("criterion 2: ships supply the site and a Dock builds", () => {
     expect(siteInventory(delivered, first)).toEqual({ Metal: 0, Ice: 0 });
   });
 
+  it("the supply default carries deliveries through a gate to a selected site", () => {
+    let state = spot(createInitialState(7), 1).state;
+    const id = state.nextStationId - 1;
+    state = setSupplyStation(state, id);
+    state = { ...state, ships: state.ships.map((ship) => ({
+      ...ship, defaultBehaviour: "supply" as const, mineMaterials: ["Metal", "Ice"] as const,
+    })) };
+
+    const delivered = until(state, (next) => siteInventory(next, id).Metal > 0 || siteInventory(next, id).Ice > 0, 5000);
+    expect(siteInventory(delivered, id).Metal + siteInventory(delivered, id).Ice).toBeGreaterThan(0);
+  });
+
   it("a waiting supply ship parks idle with no site selected", () => {
     let state = createInitialState(7);
     state = spot(state, 1).state;
