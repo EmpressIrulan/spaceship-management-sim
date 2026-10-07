@@ -127,6 +127,16 @@ export function completeStationModule(station: Station): Station {
   };
 }
 
+// The sector of every Claim that stood between two states, one entry per Claim.
+// Matched by station id, so Home and the built stations are read alike.
+export function finishedClaimSectors(before: SimState, after: SimState): number[] {
+  return after.stations.flatMap((station) => {
+    const claimsBefore = before.stations.find((candidate) => candidate.id === station.id)?.modules.filter((module) => module.type === "Claim").length ?? 0;
+    const claimsAfter = station.modules.filter((module) => module.type === "Claim").length;
+    return Array.from({ length: Math.max(0, claimsAfter - claimsBefore) }, () => station.sectorId);
+  });
+}
+
 export function queueModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {
   const owner = stationOwningSite(state, position);
   const station = stationById(state, owner);

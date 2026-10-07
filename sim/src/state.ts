@@ -403,6 +403,7 @@ export function createInitialState(seed: number): SimState {
     asteroids,
     respawns: [],
     ships: [depart(idle, dockPosition, asteroids)],
+    finishedClaims: [],
   };
 }
 

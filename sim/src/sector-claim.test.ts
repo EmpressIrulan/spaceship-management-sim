@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, sectorClaimed, stationById, type SimState } from "./index";
 import { placeStation, removeStation, renameSector } from "./station-placement";
-import { buildClaim } from "./test-claims";
+import { buildClaim, startFundedBuild } from "./test-claims";
+import { tick } from "./tick";
 
 const homeSector = 0;
 
@@ -78,5 +79,32 @@ describe("criterion 7: Home starts unclaimed", () => {
 
     expect(sectorClaimed(grown, 1)).toBe(false);
     expect(sectorClaimed(buildClaim(grown, id), 1)).toBe(true);
+  });
+});
+
+// Runs the clock on a fresh build and collects the sectors named on each tick.
+function namingTicks(start: SimState, seconds: number): number[][] {
+  const named: number[][] = [];
+  let next = start;
+  for (let elapsed = 0; elapsed < seconds; elapsed += 1) {
+    next = tick(next, 1);
+    if (next.finishedClaims.length > 0) named.push(next.finishedClaims);
+  }
+  return named;
+}
+
+describe("criterion 2: a finished Claim asks for a name", () => {
+  it("names its sector on the one tick the Claim stands", () => {
+    const { state: grown, id } = grownStation(1);
+
+    expect(namingTicks(startFundedBuild(grown, id, "Claim"), 400)).toEqual([[1]]);
+  });
+
+  it("names Home's sector when a Claim at Home stands", () => {
+    expect(namingTicks(startFundedBuild(createInitialState(7), 0, "Claim"), 400)).toEqual([[homeSector]]);
+  });
+
+  it("names nothing when the module that stands is not a Claim", () => {
+    expect(namingTicks(startFundedBuild(createInitialState(7), 0, "Storage"), 400)).toEqual([]);
   });
 });

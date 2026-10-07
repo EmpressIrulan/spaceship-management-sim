@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, sectorInGateRange } from "sim";
-import { dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, sectorBackdrop } from "./sectors";
+import { createInitialState, sectorInGateRange, type SimState } from "sim";
+import { claimHover, claimRing, dismissGatePlacement, gateTargetAllowed, mapHit, mapLayout, mapToggled, PLAYER_COLOUR, sectorBackdrop } from "./sectors";
+
+// Sector 1 claimed by a Claim module on a station in it.
+function claimedSector(state: SimState, sectorId: number): SimState {
+  const home = state.stations[0]!;
+  const claim = { type: "Claim" as const, position: { x: 0, y: 0 }, size: { width: 1, height: 1 } };
+  return { ...state, stations: [...state.stations, { ...home, id: 99, sectorId, modules: [claim] }] };
+}
 
 describe("sector map", () => {
   it("toggles with M, closes with Escape, and otherwise stays open", () => {
@@ -53,5 +60,33 @@ describe("sector map", () => {
     const pending = { sectorId: 0, position: { x: 10, y: 20 } };
     expect(dismissGatePlacement(pending)).toBeNull();
     expect(gateTargetAllowed(null, 2)).toBe(true);
+  });
+});
+
+describe("claimed sectors on the map", () => {
+  const state = createInitialState(7);
+  const viewport = { width: 1000, height: 640 };
+  const layout = mapLayout(claimedSector(state, 1), viewport);
+  const claimed = layout.circles.find((circle) => circle.id === 1)!;
+  const unclaimed = layout.circles.find((circle) => circle.id === 2)!;
+
+  it("hovers a claimed circle and names it Claimed", () => {
+    expect(claimHover(layout, claimed.center)).toMatchObject({ id: 1, center: claimed.center, radius: claimed.radius });
+  });
+
+  it("gives an unclaimed circle no hover", () => {
+    expect(claimHover(layout, unclaimed.center)).toBeNull();
+  });
+
+  it("gives nothing off every circle", () => {
+    expect(claimHover(layout, { x: 1, y: 1 })).toBeNull();
+  });
+
+  it("rings a claimed circle in the player colour, outside its edge", () => {
+    expect(claimRing(claimed)).toEqual({ radius: claimed.radius + 5, colour: PLAYER_COLOUR });
+  });
+
+  it("draws no ring round an unclaimed circle", () => {
+    expect(claimRing(unclaimed)).toBeNull();
   });
 });

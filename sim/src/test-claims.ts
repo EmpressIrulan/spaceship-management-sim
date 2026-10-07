@@ -1,14 +1,14 @@
 import { availableModuleBuildSites, startModuleBuild } from "./station-building";
-import type { SimState } from "./model";
+import type { ModuleType, SimState } from "./model";
 import { stationById } from "./state";
 import { tick } from "./tick";
 
 const CLAIM_SECONDS = 300;
 
-// Pays a station's own site the full Claim cost, starts a Claim on its first
-// free slot and runs the clock until it stands. Tests of sector claims use
-// this so they go through the same path a player does.
-export function buildClaim(state: SimState, stationId: number): SimState {
+// Pays a station's own site for a module of `type`, then starts it on the
+// station's first free slot. Tests use this so they go through the same path a
+// player does.
+export function startFundedBuild(state: SimState, stationId: number, type: ModuleType): SimState {
   const station = stationById(state, stationId)!;
   const funded: SimState = {
     ...state,
@@ -17,7 +17,12 @@ export function buildClaim(state: SimState, stationId: number): SimState {
       : candidate)),
   };
   const site = availableModuleBuildSites(funded, station.id)[0]!;
-  let next = startModuleBuild(funded, stationId, "Claim", site);
+  return startModuleBuild(funded, stationId, type, site);
+}
+
+// Starts a Claim on a station and runs the clock until it stands.
+export function buildClaim(state: SimState, stationId: number): SimState {
+  let next = startFundedBuild(state, stationId, "Claim");
   for (let elapsed = 0; elapsed < CLAIM_SECONDS; elapsed += 1) next = tick(next, 1);
   return next;
 }

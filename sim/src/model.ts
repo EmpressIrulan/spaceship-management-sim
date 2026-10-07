@@ -187,6 +187,9 @@ export interface SimState {
   asteroids: Asteroid[];
   respawns: Respawn[];
   ships: Ship[];
+  // The sector of each Claim module that stood during the last tick, one entry
+  // per Claim. The app asks for a name for the first.
+  finishedClaims: number[];
 }
 
 // What a sector is good for. Fixed when the sector is made.
