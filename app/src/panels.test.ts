@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { foundedStation } from "./test-stations";
-import { createInitialState, type SimState, type Ship, type HaulRoute, type DefaultBehaviour, type Material, type HaulStationId } from "sim";
+import { createInitialState, type SimState, type Ship, type HaulRoute, type DefaultBehaviour, type Material, type HaulStationId, type HaulDestinationId } from "sim";
 import { installPanels } from "./panels";
 import { applyHaulRouteFieldChange } from "./haul-route";
 import { selectionPanel } from "./selection";
@@ -11,7 +11,7 @@ function baseShip(initial: SimState, overrides: Partial<Ship> = {}): Ship {
   return { ...initial.ships[0]!, ...overrides };
 }
 
-function makeHaulRoute(from: HaulStationId, to: HaulStationId, material: Material): HaulRoute {
+function makeHaulRoute(from: HaulStationId, to: HaulDestinationId, material: Material): HaulRoute {
   return { from, to, material };
 }
 
@@ -307,6 +307,43 @@ describe("haul route panel", () => {
     shipPanelBox.listeners.get("change")![0]!({ target: { name: "haul-to", value: "station:4" } } as unknown as Event);
     expect(current.ships.map((ship) => ship.haulRoute?.to)).toEqual(["station:4", "station:4"]);
     expect(ui.routeRefusalMessage).toBeNull();
+  });
+});
+
+describe("hauler status strings on a site route (#87 criteria 4, 5)", () => {
+  function siteRouteState(): SimState {
+    const initial = createInitialState(7);
+    return {
+      ...initial,
+      stations: [
+        { ...initial.stations[0]!, inventory: { Metal: 100, Ice: 100 } },
+        foundedStation(3, 1, 100, 50),
+      ],
+      ships: [
+        baseShip(initial, { id: 0, defaultBehaviour: "haul", haulRoute: makeHaulRoute("home", "site:0", "Ice") }),
+      ],
+    };
+  }
+
+  it("reads a hauler waiting at an empty source as Waiting at Home: no Ice (criterion 4)", () => {
+    const state = siteRouteState();
+    state.ships = [{ ...state.ships[0]!, state: "haulWaitingSource", cargo: 0, cargoMaterial: null }];
+    const panel = selectionPanel(state, [0]);
+    expect(panel?.rows.map((row) => row.status)).toEqual(["Waiting at Home: no Ice"]);
+  });
+
+  it("reads a hauler flying to the site as Hauling Ice to Home construction site (criterion 5)", () => {
+    const state = siteRouteState();
+    state.ships = [{ ...state.ships[0]!, state: "haulOutbound", cargo: 12, cargoMaterial: "Ice" }];
+    const panel = selectionPanel(state, [0]);
+    expect(panel?.rows.map((row) => row.status)).toEqual(["Hauling Ice to Home construction site"]);
+  });
+
+  it("keeps a hauler to a plain Storage reading its station name", () => {
+    const state = siteRouteState();
+    state.ships = [{ ...state.ships[0]!, haulRoute: makeHaulRoute("home", "station:3", "Ice"), state: "haulOutbound", cargo: 12, cargoMaterial: "Ice" }];
+    const panel = selectionPanel(state, [0]);
+    expect(panel?.rows.map((row) => row.status)).toEqual(["Hauling Ice to Station 3"]);
   });
 });
 
