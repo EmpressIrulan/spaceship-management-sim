@@ -1,4 +1,4 @@
-import { type SimState, type ShipDesign, type HaulStationId } from "sim";
+import { type SimState, type ShipDesign, type HaulStationId, type HaulDestinationId } from "sim";
 import { selectionPanel, type MaterialBox, type DisplayHaulRoute } from "./selection";
 import { shipPanel, shipSprite } from "./ships";
 import { hangarPanelRows, launchAllButton } from "./hangar-panel";
@@ -71,7 +71,7 @@ export function renderShipPanel(state: SimState, shipPanelBox: HTMLElement, cont
   home.append(homeSelect);
   if ((list.defaultBehaviour === "haul" || list.defaultBehaviour === "mixed") && list.haulRoute) {
     routeControls.push(routeSelect("haul-from", "From", list.haulRoute.from, list.stations));
-    routeControls.push(routeSelect("haul-to", "To", list.haulRoute.to, list.stations));
+    routeControls.push(routeSelect("haul-to", "To", list.haulRoute.to, list.destinations));
     routeControls.push(materialSelect(list.haulRoute.material));
   }
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = ""; resume.disabled = !list.canResume;
@@ -81,10 +81,10 @@ export function renderShipPanel(state: SimState, shipPanelBox: HTMLElement, cont
   return context;
 }
 
-function routeSelect(name: "haul-from" | "haul-to", label: string, value: HaulStationId | "mixed", stations: { id: HaulStationId; name: string }[]): HTMLElement {
+function routeSelect(name: "haul-from" | "haul-to", label: string, value: HaulStationId | HaulDestinationId | "mixed", entries: { id: HaulStationId | HaulDestinationId; name: string }[]): HTMLElement {
   const wrap = document.createElement("label"); wrap.textContent = `${label} `;
   const input = document.createElement("select"); input.name = name;
-  for (const station of stations) { const option = document.createElement("option"); option.value = station.id; option.textContent = station.name; option.selected = station.id === value; input.append(option); }
+  for (const station of entries) { const option = document.createElement("option"); option.value = station.id; option.textContent = station.name; option.selected = station.id === value; input.append(option); }
   if (value === "mixed") { const option = document.createElement("option"); option.value = "mixed"; option.textContent = "Mixed"; option.selected = true; input.prepend(option); }
   wrap.append(input); return wrap;
 }

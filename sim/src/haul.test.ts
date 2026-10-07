@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { configureHaul, giveOrder, haulStations, resumeDefault, setDefaultBehaviour } from "./orders";
+import { haulDestinations } from "./haul";
 import { createInitialState, dockBerths, homeStation, type SimState } from "./state";
 import { foundedStation } from "./test-ships";
 import { cargoTransferSeconds } from "./ship";
@@ -204,8 +205,48 @@ describe("Haul default", () => {
       leg: ordered.leg, defaultBehaviour: "haul", haulRoute: { material: "Metal" } });
   });
 
-  it("cannot select Haul with only one station", () => {
+  it("defaults a one-station hauler to Home Storage -> Home construction site", () => {
     const state = createInitialState(7);
-    expect(setDefaultBehaviour(state, [0], "haul")).toBe(state);
+    expect(setDefaultBehaviour(state, [0], "haul").ships[0]).toMatchObject({
+      defaultBehaviour: "haul",
+      haulRoute: { from: "home", to: "site:0", material: "Metal" },
+    });
+  });
+});
+
+describe("Haul to construction sites (criteria 1-2)", () => {
+  it("lists each station's Storage and its construction site as To destinations", () => {
+    expect(haulDestinations(twoStations())).toEqual([
+      { id: "home", name: "Home" },
+      { id: "site:0", name: "Home construction site" },
+      { id: "station:1", name: "Station 1" },
+      { id: "site:1", name: "Station 1 construction site" },
+    ]);
+  });
+
+  it("offers only Home Storage and Home construction site with one station", () => {
+    expect(haulDestinations(createInitialState(7))).toEqual([
+      { id: "home", name: "Home" },
+      { id: "site:0", name: "Home construction site" },
+    ]);
+  });
+
+  it("accepts a Haul order from Home Storage to Home construction site with one station", () => {
+    const state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
+    expect(state.ships[0]).toMatchObject({ defaultBehaviour: "haul", haulRoute: { from: "home", to: "site:0", material: "Metal" } });
+  });
+
+  it("a hauler on a site route starts no delivery yet", () => {
+    const state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
+    const later = run(state, 10);
+    expect(later.stations[0]!.inventory).toEqual(state.stations[0]!.inventory);
+    expect(later.stations[0]!.constructionSite.inventory).toEqual({ Metal: 0, Ice: 0 });
+    expect(later.ships[0]!.cargo).toBe(0);
+  });
+
+  it("keeps To a different stop and From a Storage", () => {
+    const state = twoStations();
+    expect(configureHaul(state, [0], { from: "site:1" as never, to: "home", material: "Metal" })).toBe(state);
+    expect(configureHaul(state, [0], { from: "home", to: "home", material: "Metal" })).toBe(state);
   });
 });

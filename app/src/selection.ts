@@ -1,4 +1,4 @@
-import { MATERIALS, haulStations, type DefaultBehaviour, type HaulRoute, type HaulStation, type HaulStationId, type Material, type OrderTarget, type SimState, type Vec } from "sim";
+import { MATERIALS, haulDestinations, haulStations, type DefaultBehaviour, type HaulRoute, type HaulStation, type HaulDestination, type HaulStationId, type HaulDestinationId, type Material, type OrderTarget, type SimState, type Vec } from "sim";
 import { screenToWorld, type Camera, type Hovered, type Viewport } from "./camera";
 import { intoSite, orderLabel, shipStatus } from "./ships";
 
@@ -38,7 +38,7 @@ export interface MaterialBox { material: Material; ticked: "on" | "off" | "mixed
 // Display version of HaulRoute that allows "mixed" sentinels for divergent fields.
 export interface DisplayHaulRoute {
   from: HaulStationId | "mixed";
-  to: HaulStationId | "mixed";
+  to: HaulDestinationId | "mixed";
   material: Material | "mixed";
 }
 export interface SelectionPanel {
@@ -50,6 +50,7 @@ export interface SelectionPanel {
   canHaul: boolean;
   haulDisabledReason: string | null;
   stations: HaulStation[];
+  destinations: HaulDestination[];
   haulRoute: DisplayHaulRoute | null;
   homeStation: number | null | "mixed";
 }
@@ -89,7 +90,7 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
       ? otherSectorSettings.size === 1 ? ships[0]!.mineOtherSectors ? "on" : "off" : "mixed"
       : null,
     canResume: ships.some((ship) => ship.order !== null),
-    canHaul: stations.length >= 2, haulDisabledReason: stations.length >= 2 ? null : "Needs two stations", stations,
+    canHaul: stations.length >= 1, haulDisabledReason: stations.length >= 1 ? null : "Needs a station", stations, destinations: haulDestinations(state),
       haulRoute, homeStation: homes.size === 1 ? (ships[0]!.homeStationId === undefined ? 0 : ships[0]!.homeStationId) : "mixed" };
 }
 import { homeStation } from "sim";

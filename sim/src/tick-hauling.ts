@@ -1,5 +1,5 @@
 import { haulCargoDestination, haulStationDetails } from "./haul";
-import { type HaulStationId, type Ship } from "./state";
+import { type HaulDestinationId, type Ship } from "./state";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import type { Draft } from "./tick-mining";
 import { addCargo, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
@@ -8,7 +8,7 @@ export function haulStored(end: NonNullable<ReturnType<typeof haulStationDetails
   return end.inventory.Metal + end.inventory.Ice;
 }
 
-export function changeHaulInventory(draft: Draft, id: HaulStationId, material: "Metal" | "Ice", amount: number): void {
+export function changeHaulInventory(draft: Draft, id: HaulDestinationId, material: "Metal" | "Ice", amount: number): void {
   if (id === "home") {
     draft.inventory = { ...draft.inventory, [material]: draft.inventory[material] + amount };
     return;
@@ -40,7 +40,7 @@ export function unloadHauler(draft: Draft, ship: Ship, units: number): Ship {
   });
 }
 
-export function startHaulTransfer(draft: Draft, ship: Ship, stationId: HaulStationId, loading: boolean): Ship {
+export function startHaulTransfer(draft: Draft, ship: Ship, stationId: HaulDestinationId, loading: boolean): Ship {
   const amount = loading ? shipStats(ship.design).hold : ship.cargo;
   const planned = { ...ship, cargoMaterial: loading ? ship.haulRoute?.material ?? null : ship.cargoMaterial,
     transfer: { startingCargo: loading ? 0 : ship.cargo, amount } };

@@ -62,11 +62,15 @@ export function installPanels(
         applyRouteChange(ui, getState, setState, { field: "material", value: select.value });
         return;
       }
-      const station = panel.stations.find(({ id }) => id === select.value);
-      if (!station) return;
-      applyRouteChange(ui, getState, setState, {
-        field: select.name === "haul-from" ? "from" : "to", value: station.id,
-      });
+      if (select.name === "haul-from") {
+        const station = panel.stations.find(({ id }) => id === select.value);
+        if (!station) return;
+        applyRouteChange(ui, getState, setState, { field: "from", value: station.id });
+        return;
+      }
+      const destination = panel.destinations.find(({ id }) => id === select.value);
+      if (!destination) return;
+      applyRouteChange(ui, getState, setState, { field: "to", value: destination.id });
     }
   });
   shipPanelBox.addEventListener("change", (event) => {

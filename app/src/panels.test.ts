@@ -253,6 +253,37 @@ describe("haul route panel", () => {
     expect(current).toBe(state);
   });
 
+  it("renders site destinations in To and only storages in From", () => {
+    const originalDocument = globalThis.document;
+    globalThis.document = fakeDocument() as unknown as Document;
+    try {
+      const state = haulStateForPanel();
+      state.ships = [
+        { ...state.ships[0]!, defaultBehaviour: "haul", haulRoute: { from: "home", to: "station:3", material: "Ice" } },
+        { ...state.ships[1]!, defaultBehaviour: "haul", haulRoute: { from: "home", to: "station:3", material: "Ice" } },
+      ];
+      const box = new FakeElement();
+      renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0, 1], selectedShip: null, renderedPanel: "" });
+      const selects = box.children.flatMap((child) => child.children).filter((child) => child.name === "haul-from" || child.name === "haul-to");
+      expect(selects.map((list) => list.children.map((option) => option.value))).toEqual([
+        ["home", "station:3", "station:4"],
+        ["home", "site:0", "station:3", "site:3", "station:4", "site:4"],
+      ]);
+      const sites = selects[1]!.children.filter((option) => option.value.startsWith("site:"));
+      expect(sites.map((option) => option.textContent)).toEqual([
+        "Home construction site", "Station 3 construction site", "Station 4 construction site",
+      ]);
+    } finally {
+      globalThis.document = originalDocument;
+    }
+  });
+
+  it("applies a To pick of a construction site on the From station", () => {
+    const state = haulStateForPanel();
+    const next = applyHaulRouteFieldChange(state, [0], { field: "to", value: "site:0" });
+    expect(next.ships[0]!.haulRoute).toEqual({ from: "home", to: "site:0", material: "Ice" });
+  });
+
   it("reports skipped haulers by name and reason while applying the route to eligible ships", () => {
     const state = haulStateForPanel();
     state.ships[1] = { ...state.ships[1]!, haulRoute: { from: "station:3", to: "station:4", material: "Metal" } };

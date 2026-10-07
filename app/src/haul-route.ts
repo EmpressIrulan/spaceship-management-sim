@@ -1,7 +1,8 @@
-import { configureHaul, type HaulRoute, type HaulStationId, type Material, type SimState } from "sim";
+import { configureHaul, type HaulRoute, type HaulStationId, type HaulDestinationId, type Material, type SimState } from "sim";
 
 export type HaulRouteFieldChange =
-  | { field: "from" | "to"; value: HaulStationId }
+  | { field: "from"; value: HaulStationId }
+  | { field: "to"; value: HaulDestinationId }
   | { field: "material"; value: Material };
 
 export function applyHaulRouteFieldChange(
