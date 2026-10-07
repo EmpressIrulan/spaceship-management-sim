@@ -29,7 +29,7 @@ function ship(state: SimState) {
 }
 
 function stored(state: SimState): number {
-  return state.station.inventory.Metal + state.station.inventory.Ice;
+  return state.stations[0]!.inventory.Metal + state.stations[0]!.inventory.Ice;
 }
 
 // The asteroid the ship is currently assigned to.
@@ -41,7 +41,7 @@ function target(state: SimState): Asteroid {
 }
 
 function nearestWithOre(state: SimState): Asteroid {
-  const dock = state.station.dock.position;
+  const dock = state.stations[0]!.dock.position;
   const candidates = state.asteroids.filter((a) => a.ore > 0 && a.sectorId === 0);
   candidates.sort(
     (a, b) => distance(dock, a.position) - distance(dock, b.position),
@@ -54,13 +54,13 @@ function homeCount(state: SimState): number {
 }
 
 function legSeconds(state: SimState): number {
-  return travelSeconds(distance(state.station.dock.position, ship(state).target!.site));
+  return travelSeconds(distance(state.stations[0]!.dock.position, ship(state).target!.site));
 }
 
 // A single ship unloads on the first pad, flies there from the Dock's middle
 // and leaves from it.
 function pad(state: SimState): Vec {
-  return dockBerths(state.station.dock.position)[0]!;
+  return dockBerths(state.stations[0]!.dock.position)[0]!;
 }
 
 // The trip out after the first one starts on the pad instead of at the Dock's middle.
@@ -86,16 +86,16 @@ function run(state: SimState, seconds: number, dt = 1 / 60): SimState {
 
 describe("initial state", () => {
   it("puts the Dock at a fixed position whatever the seed", () => {
-    expect(oneStorageStart(1).station.dock.position).toEqual(
-      oneStorageStart(2).station.dock.position,
+    expect(oneStorageStart(1).stations[0]!.dock.position).toEqual(
+      oneStorageStart(2).stations[0]!.dock.position,
     );
   });
 
   it("starts one ship at the Dock with 20 Metal and 20 Ice in Storage", () => {
     const state = oneStorageStart(7);
     expect(state.ships).toHaveLength(1);
-    expect(ship(state).position).toEqual(state.station.dock.position);
-    expect(state.station.inventory).toEqual({ Metal: 20, Ice: 20 });
+    expect(ship(state).position).toEqual(state.stations[0]!.dock.position);
+    expect(state.stations[0]!.inventory).toEqual({ Metal: 20, Ice: 20 });
   });
 });
 
@@ -123,7 +123,7 @@ describe("mining cycle", () => {
 
     expect(ship(later).state).toBe("outbound");
     expect(distance(ship(later).position, target(start).position)).toBeLessThan(
-      distance(start.station.dock.position, target(start).position),
+      distance(start.stations[0]!.dock.position, target(start).position),
     );
   });
 
@@ -304,7 +304,7 @@ describe("asteroid field", () => {
 
     const waiting = run(barren, UNLOADING_SECONDS + 9.9);
     expect(ship(waiting).state).toBe("idle");
-    expect(ship(waiting).position).toEqual(start.station.dock.position);
+    expect(ship(waiting).position).toEqual(start.stations[0]!.dock.position);
     expect(ship(waiting).cargo).toBe(0);
     expect(stored(waiting)).toBe(stored(start) + CARGO_PER_TRIP);
 
@@ -334,14 +334,14 @@ describe("asteroid field", () => {
       state.asteroids.map((a) => ({ id: a.id, ore: a.ore, position: a.position }));
 
     expect(summary(big)).toEqual(summary(small));
-    expect(big.station.inventory).toEqual(small.station.inventory);
+    expect(big.stations[0]!.inventory).toEqual(small.stations[0]!.inventory);
   });
 });
 
 describe("ore is conserved", () => {
   // A ship already at its mining site and starting to work the rock.
   function workingOn(state: SimState, asteroid: Asteroid, id: number) {
-    const site = miningSite(state.station.dock.position, asteroid);
+    const site = miningSite(state.stations[0]!.dock.position, asteroid);
     return {
       id,
       design: ONE_STORAGE,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { oneStorageStart, suppliersComingHome } from "./test-ships";
+import { foundedStation, oneStorageStart, suppliersComingHome } from "./test-ships";
 import {
   DOCK_SIZE,
   MATERIALS,
@@ -19,12 +19,13 @@ import {
   tick,
   type Ship,
   type SimState,
+  type Station,
   type StationModule,
   type Vec,
 } from "./index";
 import { depart } from "./state";
 
-const site = (state: SimState) => state.station.constructionSite;
+const site = (state: SimState) => state.stations[0]!.constructionSite;
 const siteTotal = (state: SimState) => site(state).inventory.Metal + site(state).inventory.Ice;
 const near = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.y - b.y) < 0.5;
 const apart = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -58,7 +59,7 @@ const unloadingNow = (state: SimState) => state.ships[0]!.state === "unloading";
 // The one ship mines a small hold, so a trip is ten units and a load takes 6 s.
 function minerOn(behaviour: Ship["defaultBehaviour"], seed = 7): SimState {
   const base = oneStorageStart(seed);
-  const dock = base.station.dock.position;
+  const dock = base.stations[0]!.dock.position;
   const ship = { ...base.ships[0]!, defaultBehaviour: behaviour };
   const state = { ...base, ships: [depart(ship, dock, base.asteroids)] };
   return behaviour === "supply" ? queueModuleBuild(state, "Storage", { x: 80, y: 0 }) : state;
@@ -71,18 +72,18 @@ describe("the construction site", () => {
 
     expect(inventory).toEqual({ Metal: 0, Ice: 0 });
     expect(site(state)).not.toHaveProperty("capacity");
-    expect(Math.hypot(position.x - state.station.dock.position.x, position.y - state.station.dock.position.y)).toBeLessThan(120);
+    expect(Math.hypot(position.x - state.stations[0]!.dock.position.x, position.y - state.stations[0]!.dock.position.y)).toBeLessThan(120);
     expect(size.width).toBeGreaterThan(0);
   });
 
   it("stays clear of every module slot Home offers and of every asteroid", () => {
     const state = createInitialState(7);
     const { position, size } = site(state);
-    for (const slot of availableModuleBuildSites(state)) {
+    for (const slot of availableModuleBuildSites(state, 0)) {
       const overlaps = Math.abs(slot.x - position.x) < (40 + size.width) / 2 && Math.abs(slot.y - position.y) < (70 + size.height) / 2;
       expect(overlaps, JSON.stringify(slot)).toBe(false);
     }
-    expect(availableModuleBuildSites(state)).toEqual([{ x: -40, y: 0 }, { x: 80, y: 0 }]);
+    expect(availableModuleBuildSites(state, 0)).toEqual([{ x: -40, y: 0 }, { x: 80, y: 0 }]);
     expect(state.asteroids.every((rock) => Math.hypot(rock.position.x - position.x, rock.position.y - position.y) > 40)).toBe(true);
   });
 });
@@ -98,32 +99,32 @@ describe("seeds whose belt runs across Home", () => {
 
 describe("building from the construction site", () => {
   const east = { x: 80, y: 0 };
-  const withSite = (state: SimState, inventory: SimState["station"]["inventory"]): SimState =>
-    ({ ...state, station: { ...state.station, constructionSite: { ...site(state), inventory } } });
-  const withStorage = (state: SimState, inventory: SimState["station"]["inventory"]): SimState =>
-    ({ ...state, station: { ...state.station, inventory } });
+  const withSite = (state: SimState, inventory: Station["inventory"]): SimState =>
+    ({ ...state, stations: [{ ...state.stations[0]!, constructionSite: { ...site(state), inventory } }] });
+  const withStorage = (state: SimState, inventory: Station["inventory"]): SimState =>
+    ({ ...state, stations: [{ ...state.stations[0]!, inventory }] });
 
   it("greys out an option the site cannot pay and says what is missing", () => {
     const state = withSite(withStorage(createInitialState(7), { Metal: 500, Ice: 500 }), { Metal: 30, Ice: 10 });
 
-    expect(availableModuleBuilds(state).map(({ enabled, missing }) => ({ enabled, missing })))
+    expect(availableModuleBuilds(state, 0).map(({ enabled, missing }) => ({ enabled, missing })))
       .toEqual(Array(3).fill({ enabled: false, missing: { Metal: 0, Ice: 15 } }));
   });
 
   it("does not pay from Storage, however full it is", () => {
     const state = withStorage(createInitialState(7), { Metal: 500, Ice: 500 });
 
-    expect(startModuleBuild(state, "Storage", east)).toBe(state);
+    expect(startModuleBuild(state, 0, "Storage", east)).toBe(state);
   });
 
   it("pays from the site and leaves Storage exactly as it was", () => {
     const funded = withSite(withStorage(createInitialState(7), { Metal: 77, Ice: 33 }), { Metal: 40, Ice: 25 });
 
-    const building = startModuleBuild(funded, "Dock", east);
+    const building = startModuleBuild(funded, 0, "Dock", east);
 
     expect(site(building).inventory).toEqual({ Metal: 15, Ice: 0 });
-    expect(building.station.inventory).toEqual({ Metal: 77, Ice: 33 });
-    expect(tick(building, 15).station.inventory).toEqual({ Metal: 77, Ice: 33 });
+    expect(building.stations[0]!.inventory).toEqual({ Metal: 77, Ice: 33 });
+    expect(tick(building, 15).stations[0]!.inventory).toEqual({ Metal: 77, Ice: 33 });
   });
 
   it("never moves ore from Storage into the site by itself", () => {
@@ -131,19 +132,19 @@ describe("building from the construction site", () => {
     const later = tick(rich, 600);
 
     expect(site(later).inventory).toEqual({ Metal: 0, Ice: 0 });
-    expect(MATERIALS.reduce((sum, material) => sum + later.station.inventory[material], 0)).toBeGreaterThan(90);
+    expect(MATERIALS.reduce((sum, material) => sum + later.stations[0]!.inventory[material], 0)).toBeGreaterThan(90);
   });
 
   it("still pays for ships at a Builder from Storage", () => {
     const base = createInitialState(7);
     const builder: StationModule = { type: "Builder", position: { x: 0, y: -40 }, size: { width: 30, height: 40 } };
-    const state = withStorage({ ...base, station: { ...base.station, modules: [...base.station.modules, builder] } }, { Metal: 1000, Ice: 1000 });
+    const state = withStorage({ ...base, stations: [{ ...base.stations[0]!, modules: [...base.stations[0]!.modules, builder] }] }, { Metal: 1000, Ice: 1000 });
     const design = base.ships[0]!.design;
 
     expect(availableShipBuild(state, 2, design)).toBe(true);
     const building = startShipBuild(state, 2, design);
 
-    expect(building.station.inventory.Metal).toBeLessThan(1000);
+    expect(building.stations[0]!.inventory.Metal).toBeLessThan(1000);
     expect(site(building).inventory).toEqual({ Metal: 0, Ice: 0 });
   });
 });
@@ -151,7 +152,7 @@ describe("building from the construction site", () => {
 describe("Supply construction site", () => {
   it("mines and unloads into the site, trip after trip, never into Storage", () => {
     let state = minerOn("supply");
-    const storage = state.station.inventory;
+    const storage = state.stations[0]!.inventory;
     let unloadings = 0;
     for (let i = 0; i < 4000; i += 1) {
       const before = state.ships[0]!.state;
@@ -162,8 +163,8 @@ describe("Supply construction site", () => {
     expect(unloadings).toBeGreaterThanOrEqual(3);
     expect(longestJump(minerOn("supply"), (now) => now.time > 300)).toBeLessThan(6);
     expect(siteTotal(state)).toBeGreaterThan(0);
-    expect(state.station.construction ?? state.station.modules[2]).toMatchObject({ type: "Storage" });
-    expect(state.station.inventory).toEqual(storage);
+    expect(state.stations[0]!.construction ?? state.stations[0]!.modules[2]).toMatchObject({ type: "Storage" });
+    expect(state.stations[0]!.inventory).toEqual(storage);
   });
 
   it("takes time to unload, a unit at a time, like unloading at the Dock", () => {
@@ -197,7 +198,7 @@ describe("Supply construction site", () => {
 
   it("sends a ship that was on Mine for Station to the site once it is switched", () => {
     const hauling = until(minerOn("mine"), (state) => state.ships[0]!.state === "homebound" && state.ships[0]!.cargo > 0);
-    const storage = hauling.station.inventory;
+    const storage = hauling.stations[0]!.inventory;
 
     const switched = setDefaultBehaviour(queueModuleBuild(hauling, "Storage", { x: 80, y: 0 }), [0], "supply");
     expect(longestJump(switched, unloadingNow)).toBeLessThan(6);
@@ -205,7 +206,7 @@ describe("Supply construction site", () => {
 
     expect(near(arrived.ships[0]!.position, site(arrived).position)).toBe(true);
     const unloaded = tick(arrived, cargoTransferSeconds(arrived.ships[0]!.cargo) + 0.01);
-    expect(unloaded.station.inventory).toEqual(storage);
+    expect(unloaded.stations[0]!.inventory).toEqual(storage);
     expect(siteTotal(unloaded)).toBe(10);
   });
 
@@ -218,7 +219,7 @@ describe("Supply construction site", () => {
     expect(near(arrived.ships[0]!.position, site(arrived).position)).toBe(false);
     expect(arrived.ships[0]!.berth).not.toBeNull();
     expect(siteTotal(tick(arrived, 30))).toBe(0);
-    expect(tick(arrived, 30).station.inventory.Metal + tick(arrived, 30).station.inventory.Ice).toBe(40 + 10);
+    expect(tick(arrived, 30).stations[0]!.inventory.Metal + tick(arrived, 30).stations[0]!.inventory.Ice).toBe(40 + 10);
   });
 });
 
@@ -228,9 +229,9 @@ describe("right-clicking a ship onto the site", () => {
   it("delivers the cargo once, then returns to the default", () => {
     const hauling = loaded();
     const cargo = hauling.ships[0]!.cargo;
-    const storage = hauling.station.inventory;
+    const storage = hauling.stations[0]!.inventory;
 
-    const ordered = giveOrder(hauling, [0], { kind: "supplyBuild" });
+    const ordered = giveOrder(hauling, [0], { kind: "supplyBuild", stationId: 0 });
     expect(ordered.ships[0]!.order).not.toBeNull();
     expect(longestJump(ordered, unloadingNow)).toBeLessThan(6);
 
@@ -240,23 +241,23 @@ describe("right-clicking a ship onto the site", () => {
 
     const done = tick(arrived, cargoTransferSeconds(cargo) + 0.01);
     expect(siteTotal(done)).toBe(cargo);
-    expect(done.station.inventory).toEqual(storage);
+    expect(done.stations[0]!.inventory).toEqual(storage);
     expect(done.ships[0]).toMatchObject({ order: null, cargo: 0, state: "outbound", defaultBehaviour: "mine" });
   });
 
   it("goes back to Storage on the next trip, because the order was only once", () => {
     const hauling = loaded();
-    const ordered = giveOrder(hauling, [0], { kind: "supplyBuild" });
+    const ordered = giveOrder(hauling, [0], { kind: "supplyBuild", stationId: 0 });
     const later = tick(ordered, 300);
 
     expect(siteTotal(later)).toBe(hauling.ships[0]!.cargo);
-    expect(later.station.inventory.Metal + later.station.inventory.Ice).toBeGreaterThan(40);
+    expect(later.stations[0]!.inventory.Metal + later.stations[0]!.inventory.Ice).toBeGreaterThan(40);
   });
 
   it("does nothing for a ship with no cargo", () => {
     const empty = minerOn("mine");
 
-    expect(giveOrder(empty, [0], { kind: "supplyBuild" })).toEqual(empty);
+    expect(giveOrder(empty, [0], { kind: "supplyBuild", stationId: 0 })).toEqual(empty);
   });
 });
 
@@ -289,10 +290,10 @@ describe("unloading a ship into the site at the end of a trip", () => {
   });
 
   it("resumes the Haul route after a one-time delivery, not mining", () => {
-    const base = mixedHold({ defaultBehaviour: "haul", order: { kind: "supplyBuild", point: { x: 75, y: -60 }, sectorId: 0 },
-      haulRoute: { from: "home", to: "claim:4", material: "Ice" } });
+    const base = mixedHold({ defaultBehaviour: "haul", order: { kind: "supplyBuild", stationId: 0, point: { x: 75, y: -60 }, sectorId: 0 },
+      haulRoute: { from: "home", to: "station:4", material: "Ice" } });
     const state: SimState = { ...base,
-      claimSites: [{ id: 4, sectorId: 1, position: { x: 120, y: 40 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null }] };
+      stations: [...base.stations, foundedStation(4, 1, 120, 40)] };
 
     const done = tick(state, cargoTransferSeconds(20) + 0.01);
 
@@ -305,7 +306,7 @@ describe("supply ships with nothing queued", () => {
   it("parks three of them in a spaced row beside the Dock, clear of its pads", () => {
     const flying = tick(suppliersComingHome(3), 0);
     const parked = until(flying, (now) => now.ships.every((ship) => ship.state === "holding"));
-    const dock = parked.station.dock.position;
+    const dock = parked.stations[0]!.dock.position;
     const pads = dockBerths(dock);
     const width = shipSize(parked.ships[0]!.design).width;
     const waiting = parked.ships.filter((ship) => ship.state === "holding");
@@ -328,7 +329,7 @@ describe("supply ships with nothing queued", () => {
 
   it("parks them in the row when they are switched to Supply at the Dock", () => {
     const base = createInitialState(7);
-    const dock = base.station.dock.position;
+    const dock = base.stations[0]!.dock.position;
     const idle: Ship[] = Array.from({ length: 3 }, (_, id) => ({
       ...base.ships[0]!,
       id,
@@ -355,7 +356,7 @@ describe("supply ships with nothing queued", () => {
 
   it("parks them in the row when an order is cleared at the Dock", () => {
     const base = createInitialState(7);
-    const dock = base.station.dock.position;
+    const dock = base.stations[0]!.dock.position;
     const ordered: Ship[] = Array.from({ length: 3 }, (_, id) => ({
       ...base.ships[0]!,
       id,

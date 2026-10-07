@@ -1,8 +1,8 @@
 import { BUILD_SECONDS, MODULE_COST, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
-import { DOCK_CAPACITY, STORAGE_CAPACITY } from "./state";
-import { availableModuleBuildSites } from "./station-building";
+import { DOCK_CAPACITY, STORAGE_CAPACITY, replaceStation, stationById } from "./state";
+import { availableModuleBuildSites, stationOwningSite } from "./station-building";
 import { moduleSize, samePosition } from "./station-module-geometry";
 import { travelSeconds } from "./motion";
 import { speedFactor } from "./ship";
@@ -55,6 +55,16 @@ export function refundDetachedBuild(draft: Pick<Draft, "construction" | "constru
   draft.constructionSite = { ...draft.constructionSite, inventory };
 }
 
+// The whole-station counterpart for a module that may have lost its footing.
+export function refundStationModule(station: Station): Station {
+  if (!station.construction) return station;
+  return {
+    ...station,
+    construction: null,
+    constructionSite: { ...station.constructionSite, inventory: adjustInventory(station.constructionSite.inventory, 1) },
+  };
+}
+
 function adjustInventory(inventory: Record<Material, number>, direction: 1 | -1): Record<Material, number> {
   return Object.fromEntries(MATERIALS.map((material) => [material, inventory[material] + direction * MODULE_COST[material]])) as Record<Material, number>;
 }
@@ -86,12 +96,44 @@ export function completeBuild(draft: Draft): void {
   draft.construction = null;
 }
 
+// The same build cycle for a station the tick does not flatten, kept whole in
+// its own object: finish the module that ran out, then pay for the next one.
+export function settleStationBuild(station: Station): Station {
+  let next = station;
+  if (next.construction && next.construction.timer <= 0) {
+    // The first module of a fresh site stands on its own: nothing was on the
+    // map to hang it off when the site was placed.
+    const attached = next.modules.length === 0 || constructionAttached(next);
+    next = attached ? completeStationModule(next) : refundStationModule(next);
+  }
+  next = startNextQueuedModule(next);
+  if (next.founding && next.buildQueue.length === 0 && !next.construction) return { ...next, founding: false };
+  return next;
+}
+
+// completeBuild for a whole station object, written while the tick mainly
+// interprets Home through its flattened fields.
+export function completeStationModule(station: Station): Station {
+  if (!station.construction) return station;
+  const { timer: _timer, ...module } = station.construction;
+  return {
+    ...station,
+    modules: [...station.modules, module],
+    dock: module.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + DOCK_CAPACITY } : station.dock,
+    storage: module.type === "Storage" ? { ...station.storage, capacity: station.storage.capacity + STORAGE_CAPACITY } : station.storage,
+    construction: null,
+  };
+}
+
 export function queueModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {
-  const site = availableModuleBuildSites(state).find((candidate) => samePosition(candidate, position));
+  const owner = stationOwningSite(state, position);
+  const station = stationById(state, owner);
+  if (!station) return state;
+  const site = availableModuleBuildSites(state, owner).find((candidate) => samePosition(candidate, position));
   if (!site) return state;
   const queued: QueuedModuleBuild = { type, position: { ...site }, size: moduleSize(type) };
-  const station = startNextQueuedModule({ ...state.station, buildQueue: [...state.station.buildQueue, queued] });
-  return { ...state, station };
+  const next = startNextQueuedModule({ ...station, buildQueue: [...station.buildQueue, queued] });
+  return replaceStation(state, next);
 }
 
 function touching(a: Vec, b: Vec): boolean {
@@ -147,11 +189,13 @@ export function constructionAttached(station: StationGraph): boolean {
   return attachedInOrder(standingPositions(station), [station.construction.position]).length > 0;
 }
 
-export function cancelQueuedModuleBuild(state: SimState, target: Vec | number): SimState {
+export function cancelQueuedModuleBuild(state: SimState, target: Vec | number, stationId = 0): SimState {
+  const station = stationById(state, stationId);
+  if (!station) return state;
   const index = typeof target === "number"
     ? target
-    : state.station.buildQueue.findIndex((queued) => samePosition(queued.position, target));
-  if (index < 0 || index >= state.station.buildQueue.length) return state;
-  const station = startNextQueuedModule({ ...state.station, buildQueue: queueAfterCancel(state.station, index) });
-  return { ...state, station };
+    : station.buildQueue.findIndex((queued) => samePosition(queued.position, target));
+  if (index < 0 || index >= station.buildQueue.length) return state;
+  const cancelled = startNextQueuedModule({ ...station, buildQueue: queueAfterCancel(station, index) });
+  return replaceStation(state, cancelled);
 }

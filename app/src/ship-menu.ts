@@ -28,7 +28,7 @@ import {
 import type { UiState } from "./ui-state";
 
 export interface ShipMenuSystem {
-  openShipMenu: (builder: number) => void;
+  openShipMenu: (builder: number, stationId?: number) => void;
   closeShipMenu: () => void;
   paintPointAt: (client: Vec) => Vec;
   paintViewport: () => Viewport;
@@ -146,8 +146,9 @@ export function installShipMenu(
     }
   }
 
-  function openShipMenu(builder: number): void {
+  function openShipMenu(builder: number, stationId = 0): void {
     ui.shipMenuBuilder = builder;
+    ui.shipMenuStation = stationId;
     ui.draft = emptyDraft();
     ui.paintView = emptyView();
     renderShipMenu();
@@ -203,7 +204,7 @@ export function installShipMenu(
       renderBlueprints(shipMenu, ui.blueprints);
     } else if (data.build !== undefined) {
       setState(
-        startShipBuild(getState(), ui.shipMenuBuilder, designOf(ui.draft)),
+        startShipBuild(getState(), ui.shipMenuBuilder, designOf(ui.draft), ui.shipMenuStation),
       );
       closeShipMenu();
       return;

@@ -2,6 +2,7 @@ import {
   MATERIALS,
   cargoByMaterial,
   canMine,
+  haulStations,
   nearestMineableRock,
   shipStats,
   type Order,
@@ -10,7 +11,7 @@ import {
   type Ship,
   type SimState,
 } from "sim";
-import { supplyQueueStatus } from "sim";
+import { supplyQueueStatus, stationById } from "sim";
 import { LASER_COLOR } from "./laser";
 import { statsView } from "./shipyard";
 
@@ -67,8 +68,8 @@ function missing(design: ShipDesign): string {
 
 function waitingStatus(state: SimState, ship: Ship): string {
   if (ship.order?.kind === "haulGate" && ship.cargo === 0) return "Waiting: dock busy";
-  const stored = MATERIALS.reduce((total, material) => total + state.station.inventory[material], 0);
-  return stored >= state.station.storage.capacity ? "Waiting: storage full" : "Waiting: dock busy";
+  const stored = MATERIALS.reduce((total, material) => total + homeStation(state).inventory[material], 0);
+  return stored >= homeStation(state).storage.capacity ? "Waiting: storage full" : "Waiting: dock busy";
 }
 
 // The materials ticked for a ship on Mine for Station, as a suffix for its
@@ -122,10 +123,9 @@ export function shipStatus(state: SimState, ship: Ship): string {
   if (intoSite(ship)) return "Unloading into the construction site";
   if (ship.order) return orderLabel(ship.order);
   const route = ship.haulRoute;
-  const source = route ? state.sectors[route.from === "home" ? state.station.sectorId
-    : state.claimSites.find((site) => `claim:${site.id}` === route.from)?.sectorId ?? -1]?.name : null;
-  const destination = route ? state.sectors[route.to === "home" ? state.station.sectorId
-    : state.claimSites.find((site) => `claim:${site.id}` === route.to)?.sectorId ?? -1]?.name : null;
+  const names = new Map(haulStations(state).map((station) => [station.id, station.name]));
+  const source = route ? names.get(route.from) ?? null : null;
+  const destination = route ? names.get(route.to) ?? null : null;
   const cargoDestination = ship.cargo > 0 && ship.cargoMaterial && ship.cargoMaterial !== route?.material ? source : destination;
   switch (ship.state) {
     case "idle":
@@ -147,9 +147,13 @@ export function shipStatus(state: SimState, ship: Ship): string {
     case "holding":
       // A waiting supply ship is parked on a spot beside the Dock, so this asks
       // whether it is at Home rather than where exactly it stopped.
-      if (supplyQueueStatus(ship, state.station.buildQueue.length) === "waiting"
-        && ship.sectorId === state.station.sectorId) return "Waiting at Home: nothing queued";
-      return "Holding";
+      {
+        const supplyQueueLength = state.supplyStation === 0 ? homeStation(state).buildQueue.length
+          : stationById(state, state.supplyStation)?.buildQueue.length ?? homeStation(state).buildQueue.length;
+        if (supplyQueueStatus(ship, supplyQueueLength) === "waiting"
+          && ship.sectorId === homeStation(state).sectorId) return "Waiting at Home: nothing queued";
+        return "Holding";
+      }
     case "docking":
       return "Docking with carrier";
     case "docked":
@@ -207,3 +211,4 @@ export function shipPanel(state: SimState, id: number): ShipPanel | null {
     ],
   };
 }
+import { homeStation } from "sim";

@@ -1,4 +1,4 @@
-import { CLAIM_SITE_SIZE, shipSize, type SimState, type Size, type Vec } from "sim";
+import { shipSize, type SimState, type Size, type Vec } from "sim";
 
 // Placeholder limits. Revisit when sectors get bigger than one station and
 // a handful of asteroids and the client wants to see more of them at once.
@@ -100,15 +100,16 @@ const MIN_HOVER_PX = 16;
 const MIN_SHIP_HOVER_PX = 8;
 
 export type Hovered =
-  | { kind: "dock" }
-  | { kind: "storage" }
-  | { kind: "module"; index: number }
-  | { kind: "construction" }
-  | { kind: "constructionSite" }
-  | { kind: "queuedBuild"; index: number }
+  | { kind: "dock"; stationId: number }
+  | { kind: "storage"; stationId?: number }
+  | { kind: "module"; index: number; stationId: number }
+  | { kind: "construction"; stationId?: number }
+  // A construction site's stock. 0 is Home's; placed founding sites carry
+  // their station's id.
+  | { kind: "constructionSite"; id: number }
+  | { kind: "queuedBuild"; index: number; stationId?: number }
   | { kind: "ship"; index: number }
   | { kind: "gateProject"; id: number; end?: number }
-  | { kind: "claimSite"; id: number }
   | { kind: "asteroid"; id: number };
 
 function insideRect(point: Vec, center: Vec, size: Size): boolean {
@@ -156,14 +157,14 @@ export function hoveredBody(
     return best === null ? null : { kind: "ship", index: best };
   };
   const ships = state.ships.map((ship, index) => ({ ship, index })).filter(({ ship }) => ship.sectorId === currentSector && ship.state !== "docked");
-  const stationVisible = state.station.sectorId === currentSector;
   const atStationOrGate = (index: number): boolean => {
     const position = state.ships[index]!.position;
-    if (stationVisible && [state.station.dock, state.station.storage, ...state.station.modules,
-      ...(state.station.construction ? [state.station.construction] : []), ...state.station.buildQueue,
-      ...(state.station.buildQueue.length > 0 ? [state.station.constructionSite] : [])]
+    if ([...state.stations.filter((station) => station.sectorId === currentSector).flatMap((station) => [station.dock, station.storage, ...station.modules,
+      ...(station.construction ? [station.construction] : []), ...station.buildQueue,
+      ...(station.buildQueue.length > 0 ? [station.constructionSite] : [])])]
       .some((body) => insideRect(position, body.position, body.size))) return true;
-    if (state.claimSites.some((site) => site.sectorId === currentSector && insideRect(position, site.position, CLAIM_SITE_SIZE))) return true;
+    if (state.stations.some((station) => station.sectorId === currentSector && station.id !== 0
+      && insideRect(position, station.constructionSite.position, station.constructionSite.size))) return true;
     return state.gateProjects.some((project) => project.ends.some((end) =>
       end.sectorId === currentSector && insideRect(position, end.position, { width: 24, height: 24 }),
     ));
@@ -180,28 +181,40 @@ export function hoveredBody(
     const end = project.ends.findIndex((candidate) => candidate.sectorId === currentSector);
     if (end >= 0 && insideRect(world, project.ends[end]!.position, { width: 24, height: 24 })) return { kind: "gateProject", id: project.id, end };
   }
-  for (const site of state.claimSites) {
-    if (site.sectorId === currentSector && insideRect(world, site.position, CLAIM_SITE_SIZE)) return { kind: "claimSite", id: site.id };
+  for (const station of state.stations) {
+    // Home's site is handled with the rest of the station below, so a placed
+    // site answers only for its own founding marker here.
+    if (station.id !== 0 && station.sectorId === currentSector
+      && insideRect(world, station.constructionSite.position, station.constructionSite.size)) {
+      return { kind: "constructionSite", id: station.id };
+    }
   }
-  if (stationVisible && insideRect(world, state.station.dock.position, state.station.dock.size)) return { kind: "dock" };
-  if (stationVisible && insideRect(world, state.station.storage.position, state.station.storage.size)) {
-    return { kind: "storage" };
+  for (const station of state.stations) {
+    if (station.sectorId === currentSector && insideRect(world, station.dock.position, station.dock.size)) return { kind: "dock", stationId: station.id };
   }
-  if (stationVisible && state.station.construction && insideRect(
-    world,
-    state.station.construction.position,
-    state.station.construction.size,
-  )) return { kind: "construction" };
-  for (let index = 0; stationVisible && index < state.station.buildQueue.length; index += 1) {
-    const queued = state.station.buildQueue[index]!;
-    if (insideRect(world, queued.position, queued.size)) return { kind: "queuedBuild", index };
+  for (const station of state.stations) {
+    if (station.sectorId !== currentSector) continue;
+    if (insideRect(world, station.storage.position, station.storage.size)) {
+      return station.id === 0 ? { kind: "storage" } : { kind: "storage", stationId: station.id };
+    }
+    if (station.construction && insideRect(world, station.construction.position, station.construction.size)) {
+      return station.id === 0 ? { kind: "construction" } : { kind: "construction", stationId: station.id };
+    }
+    for (let index = 0; index < station.buildQueue.length; index += 1) {
+      const queued = station.buildQueue[index]!;
+      if (insideRect(world, queued.position, queued.size)) return station.id === 0
+        ? { kind: "queuedBuild", index } : { kind: "queuedBuild", index, stationId: station.id };
+    }
+    if (station.buildQueue.length > 0 && insideRect(world, station.constructionSite.position, station.constructionSite.size)) {
+      return { kind: "constructionSite", id: station.id };
+    }
   }
-  if (stationVisible && state.station.buildQueue.length > 0 && insideRect(world, state.station.constructionSite.position, state.station.constructionSite.size)) {
-    return { kind: "constructionSite" };
-  }
-  for (let index = 2; stationVisible && index < state.station.modules.length; index += 1) {
-    const module = state.station.modules[index]!;
-    if (insideRect(world, module.position, module.size)) return { kind: "module", index };
+  for (const station of state.stations) {
+    if (station.sectorId !== currentSector) continue;
+    for (let index = 2; index < station.modules.length; index += 1) {
+      const module = station.modules[index]!;
+      if (insideRect(world, module.position, module.size)) return { kind: "module", index, stationId: station.id };
+    }
   }
   for (const asteroid of state.asteroids) {
     if (asteroid.sectorId !== currentSector) continue;
@@ -228,12 +241,12 @@ export function bodyOf(
   state: SimState,
   hovered: Hovered,
 ): { position: Vec; size: Size } | null {
-  if (hovered.kind === "dock") return state.station.dock;
-  if (hovered.kind === "storage") return state.station.storage;
-  if (hovered.kind === "construction") return state.station.construction;
-  if (hovered.kind === "constructionSite") return state.station.constructionSite;
-  if (hovered.kind === "queuedBuild") return state.station.buildQueue[hovered.index] ?? null;
-  if (hovered.kind === "module") return state.station.modules[hovered.index] ?? null;
+  if (hovered.kind === "dock") return stationById(state, hovered.stationId)?.dock ?? null;
+  if (hovered.kind === "storage") return stationById(state, hovered.stationId ?? 0)?.storage ?? null;
+  if (hovered.kind === "construction") return stationById(state, hovered.stationId ?? 0)?.construction ?? null;
+  if (hovered.kind === "constructionSite") return stationById(state, hovered.id)?.constructionSite ?? null;
+  if (hovered.kind === "queuedBuild") return stationById(state, hovered.stationId ?? 0)?.buildQueue[hovered.index] ?? null;
+  if (hovered.kind === "module") return stationById(state, hovered.stationId)?.modules[hovered.index] ?? null;
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];
     return ship ? { position: ship.position, size: shipSize(ship.design) } : null;
@@ -243,9 +256,6 @@ export function bodyOf(
     const end = project?.ends[hovered.end ?? 0];
     return end ? { position: end.position, size: { width: 24, height: 24 } } : null;
   }
-  if (hovered.kind === "claimSite") {
-    const site = state.claimSites.find((candidate) => candidate.id === hovered.id);
-    return site ? { position: site.position, size: CLAIM_SITE_SIZE } : null;
-  }
   return state.asteroids.find((a) => a.id === hovered.id) ?? null;
 }
+import { stationById } from "sim";

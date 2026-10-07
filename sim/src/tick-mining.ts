@@ -10,6 +10,9 @@ export function miningSeconds(ship: Ship): number {
 // from the input, so the caller's state is never touched.
 export interface Draft {
   time: number;
+  activeStationId: number;
+  primaryStationId: number;
+  founding: boolean;
   deliveries: Station["deliveries"];
   rng: number;
   nextAsteroidId: number;
@@ -19,7 +22,7 @@ export interface Draft {
   stationSector: number;
   storageCapacity: number;
   storageLimits: Station["storageLimits"];
-  inventory: SimState["station"]["inventory"];
+  inventory: Station["inventory"];
   constructionSite: Station["constructionSite"];
   asteroids: Asteroid[];
   respawns: SimState["respawns"];
@@ -32,7 +35,13 @@ export interface Draft {
   dockCapacity: number;
   sectors: SimState["sectors"];
   gateProjects: SimState["gateProjects"];
-  claimSites: SimState["claimSites"];
+  // Every non-Home station, kept whole so hauling can move its stock and a
+  // founding one can advance its own first Dock and Storage.
+  others: Station[];
+  // The station whose construction site supply ships bring stock to, and the
+  // length of its build queue: the queue a supply default watches.
+  supplyStation: number;
+  supplyQueue: number;
 }
 
 // Takes up to `units` of ore from the asteroid a ship is mining and returns

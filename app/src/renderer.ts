@@ -23,11 +23,12 @@ export interface RendererElements {
   boxLine: HTMLElement;
   infoAction: HTMLButtonElement;
   buildMenu: HTMLElement;
-  claimButton: HTMLButtonElement;
+  stationButton: HTMLButtonElement;
   hint: HTMLElement;
   renameBox: HTMLInputElement;
   shipMenu: HTMLElement;
   storagePanel: HTMLElement;
+  stationPanel: HTMLElement;
   paintViewport: () => Viewport;
   paintPointAt: (point: Vec) => Vec;
 }
@@ -49,11 +50,12 @@ export function createRenderer(
     boxLine,
     infoAction,
     buildMenu,
-    claimButton,
+    stationButton,
     hint,
     renameBox,
     shipMenu,
     storagePanel,
+    stationPanel,
     paintViewport,
     paintPointAt,
   } = elements;
@@ -107,7 +109,7 @@ export function createRenderer(
   function draw(seconds: number): void {
     const { sectorRocks, legacyGateVisible, gate, gateScreen } =
       worldDrawing.draw(seconds);
-    refreshPanels(ui, getState, shipPanelBox, storagePanel);
+    refreshPanels(ui, getState, shipPanelBox, storagePanel, stationPanel);
     paintRendering.renderPartTip();
 
     updateCanvasLabel(
@@ -137,11 +139,11 @@ export function createRenderer(
     syncShipMenuStats(ui, getState, shipMenu);
     syncBuildMenuItems(ui, getState, buildMenu);
 
-    claimButton.hidden = !ui.mapOpen;
-    hint.hidden = !ui.pendingClaim && !ui.routeRefusalMessage;
+    stationButton.hidden = !ui.mapOpen;
+    hint.hidden = !ui.pendingStation && !ui.routeRefusalMessage;
     hint.textContent = ui.routeRefusalMessage ?? (ui.mapOpen
-      ? "Pick the sector for the claim station"
-      : "Click a spot for the construction site. Esc cancels.");
+      ? "Pick the sector for the new station"
+      : "Click a spot for the new station. Esc cancels.");
     renameBox.hidden = ui.renamingSector === null || !ui.mapOpen;
     if (renameBox.hidden) ui.renamingSector = null;
 

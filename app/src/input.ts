@@ -7,7 +7,7 @@ import { installCancelHoverInput } from "./cancel-hover-input";
 import { installRenameInput } from "./rename-input";
 import { installSpeedInput } from "./speed-input";
 import { isBoxDrag } from "./selection";
-import { placeClaimSite } from "./claim-placement-input";
+import { placeStationSite } from "./station-site-input";
 import { placeGate } from "./gate-placement-input";
 import { selectBox } from "./box-selection-input";
 import { navigateMap } from "./map-navigation-input";
@@ -83,8 +83,8 @@ export function installInput(
     const { start, end, additive } = ui.dragBox;
     ui.dragBox = null;
     const click = !isBoxDrag(start, end);
-    if (click && event.target === canvas && ui.pendingClaim && !ui.mapOpen) {
-      placeClaimSite(context, event);
+    if (click && event.target === canvas && ui.pendingStation && !ui.mapOpen) {
+      placeStationSite(context, event);
     } else if (
       click &&
       event.target === canvas &&

@@ -17,6 +17,7 @@ export interface UiState {
   controlsHovered: boolean;
   selectedBuildSite: Vec | null;
   shipMenuBuilder: number | null;
+  shipMenuStation: number;
   draft: ShipDraft;
   blueprints: Blueprint[];
   paintView: Camera;
@@ -34,16 +35,20 @@ export interface UiState {
   dragBox: { start: Vec; end: Vec; additive: boolean } | null;
   orderLines: { from: Vec[]; to: Vec; start: number } | null;
   pendingGate: PendingGate | null;
-  pendingClaim: boolean;
+  // Set from the map's "Build station" button: the next canvas click places a
+  // construction site in the sector it lands in.
+  pendingStation: boolean;
   renamingSector: number | null;
-  stickySite: number | null;
-  stickyQueuedBuild: Vec | null;
+  stickyQueuedBuild: { position: Vec; stationId: number } | null;
   // The ghost whose Cancel control the pointer is on, so the ghosts that would
   // go with it can be highlighted. Position, not index: the queue shifts.
-  cancelHoveredBuild: Vec | null;
+  cancelHoveredBuild: { position: Vec; stationId: number } | null;
   infoHovered: boolean;
   clock: Clock;
   storagePanelOpen: boolean;
+  stationPanelId: number | null;
+  removeStationConfirmation: number | null;
+  renderedStationPanel: string;
   deleteConfirmations: Map<Material, DeleteConfirmation>;
   camera: Camera;
   lastTimeMs: number;
@@ -61,6 +66,7 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     controlsHovered: false,
     selectedBuildSite: null,
     shipMenuBuilder: null,
+    shipMenuStation: 0,
     draft: emptyDraft(),
     blueprints,
     paintView: emptyView(),
@@ -78,14 +84,16 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     dragBox: null,
     orderLines: null,
     pendingGate: null,
-    pendingClaim: false,
+    pendingStation: false,
     renamingSector: null,
-    stickySite: null,
     stickyQueuedBuild: null,
     cancelHoveredBuild: null,
     infoHovered: false,
     clock: INITIAL_CLOCK,
     storagePanelOpen: false,
+    stationPanelId: null,
+    removeStationConfirmation: null,
+    renderedStationPanel: "",
     deleteConfirmations: new Map<Material, DeleteConfirmation>(),
     camera: fitCamera({ width: 0, height: 0 }, []),
     lastTimeMs: performance.now(),

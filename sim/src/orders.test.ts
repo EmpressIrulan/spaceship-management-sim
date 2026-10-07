@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { miningStart } from "./test-ships";
+import { foundedStation, miningStart } from "./test-ships";
 import { JUMP_SECONDS, startGateBuild, type SimState } from "./state";
 import { tick } from "./tick";
 import { configureHaul, giveOrder, formation, resumeDefault, setDefaultBehaviour } from "./orders";
@@ -27,7 +27,7 @@ function until(state: SimState, done: (state: SimState) => boolean): SimState {
 }
 
 function materialTotal(state: SimState, material: "Metal" | "Ice"): number {
-  return state.station.inventory[material]
+  return state.stations[0]!.inventory[material]
     + state.ships.filter((ship) => ship.cargoMaterial === material).reduce((sum, ship) => sum + ship.cargo, 0)
     + state.gateProjects.reduce((sum, project) => sum + project.delivered[material], 0);
 }
@@ -44,15 +44,15 @@ function farSector(state: SimState, changes: Partial<SimState["ships"][number]> 
 describe("RTS ship orders", () => {
   it("loads Storage ships over time and loops deliveries to a gate project", () => {
     let start = startGateBuild(miningStart(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
-    start = { ...start, station: { ...start.station, inventory: { Metal: 200, Ice: 200 } },
-      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
+    start = { ...start, stations: [{ ...start.stations[0]!, inventory: { Metal: 200, Ice: 200 } }],
+      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.stations[0]!.dock.position }, timer: 0, leg: null, target: null }] };
     const ordered = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
     expect(ordered.ships[0]).toMatchObject({ state: "berthing", cargoMaterial: "Metal", cargo: 0 });
-    expect(ordered.station.inventory.Metal).toBe(200);
+    expect(ordered.stations[0]!.inventory.Metal).toBe(200);
     const loading = until(ordered, (state) => state.ships[0]!.state === "loading");
     const halfLoaded = run(loading, 6);
     expect(halfLoaded.ships[0]).toMatchObject({ state: "loading", cargoMaterial: "Metal", cargo: 10 });
-    expect(halfLoaded.station.inventory.Metal).toBe(190);
+    expect(halfLoaded.stations[0]!.inventory.Metal).toBe(190);
     const delivered = until(ordered, (state) => state.gateProjects[0]!.delivered.Metal > 0);
     expect(delivered.gateProjects[0]!.delivered.Metal).toBe(1);
     expect(delivered.ships[0]!.order).toEqual({ kind: "haulGate", gateId: 0 });
@@ -62,8 +62,8 @@ describe("RTS ship orders", () => {
     let start = startGateBuild(miningStart(7), 0, { x: 1, y: 0 }, 3, { x: -1, y: 0 });
     const ship = start.ships[0]!;
     start = { ...start,
-      station: { ...start.station, inventory: { Metal: 50, Ice: 50 } },
-      ships: [{ ...ship, state: "unloading", position: { ...start.station.dock.position }, timer: 0,
+      stations: [{ ...start.stations[0]!, inventory: { Metal: 50, Ice: 50 } }],
+      ships: [{ ...ship, state: "unloading", position: { ...start.stations[0]!.dock.position }, timer: 0,
         cargo: 20, cargoMaterial: "Ice", cargoByMaterial: { Metal: 6, Ice: 14 }, target: null, leg: null,
         order: { kind: "haulGate", gateId: 0 } }] };
 
@@ -76,9 +76,9 @@ describe("RTS ship orders", () => {
 
   it("shares the Dock's six berths between loading haulers and unloading miners", () => {
     let start = startGateBuild(fleet(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
-    const dock = start.station.dock.position;
-    start = { ...start, station: { ...start.station, inventory: { Metal: 200, Ice: 200 },
-      storage: { ...start.station.storage, capacity: 1000 } }, ships: start.ships.map((ship, id) => id < 5
+    const dock = start.stations[0]!.dock.position;
+    start = { ...start, stations: [{ ...start.stations[0]!, inventory: { Metal: 200, Ice: 200 },
+      storage: { ...start.stations[0]!.storage, capacity: 1000 } }], ships: start.ships.map((ship, id) => id < 5
       ? { ...ship, state: "homebound" as const, position: { ...dock }, timer: 0, cargo: 20, cargoMaterial: "Metal" as const, target: null, leg: null }
       : { ...ship, state: "holding" as const, position: { ...dock }, timer: 0, cargo: 0, cargoMaterial: null, target: null, leg: null }) };
     const minersDocking = tick(start, 0);
@@ -94,7 +94,7 @@ describe("RTS ship orders", () => {
     let start = startGateBuild(fleet(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
     start = { ...start, gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 100, Ice: 200 } }],
       ships: start.ships.map((ship) => ({ ...ship, state: "gateHauling" as const, position: { x: 80, y: 0 }, timer: 0,
-        cargo: 10, cargoMaterial: "Metal" as const, target: null, leg: { from: start.station.dock.position, to: { x: 80, y: 0 } },
+        cargo: 10, cargoMaterial: "Metal" as const, target: null, leg: { from: start.stations[0]!.dock.position, to: { x: 80, y: 0 } },
         order: { kind: "haulGate" as const, gateId: 0 } })) };
 
     const unloading = tick(start, 0);
@@ -107,8 +107,8 @@ describe("RTS ship orders", () => {
 
   it("leaves with the cargo aboard when a new order interrupts loading or gate unloading", () => {
     let start = startGateBuild(miningStart(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
-    start = { ...start, station: { ...start.station, inventory: { Metal: 200, Ice: 200 } },
-      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
+    start = { ...start, stations: [{ ...start.stations[0]!, inventory: { Metal: 200, Ice: 200 } }],
+      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.stations[0]!.dock.position }, timer: 0, leg: null, target: null }] };
     const loading = until(giveOrder(start, [0], { kind: "haulGate", gateId: 0 }), (state) => state.ships[0]!.state === "loading");
     const halfLoaded = run(loading, 6);
     const diverted = giveOrder(halfLoaded, [0], { kind: "move", point: { x: 40, y: 30 } });
@@ -117,7 +117,7 @@ describe("RTS ship orders", () => {
 
     const atGate = { ...halfLoaded, gateProjects: [{ ...halfLoaded.gateProjects[0]!, delivered: { Metal: 0, Ice: 0 } }],
       ships: [{ ...halfLoaded.ships[0]!, state: "gateHauling" as const, position: { x: 80, y: 0 }, timer: 0,
-        leg: { from: halfLoaded.station.dock.position, to: { x: 80, y: 0 } } }] };
+        leg: { from: halfLoaded.stations[0]!.dock.position, to: { x: 80, y: 0 } } }] };
     const halfUnloaded = run(tick(atGate, 0), 3);
     const recalled = giveOrder(halfUnloaded, [0], { kind: "move", point: { x: 20, y: 10 } });
     expect(recalled.ships[0]).toMatchObject({ state: "moving", cargo: 5, cargoMaterial: "Metal" });
@@ -127,9 +127,9 @@ describe("RTS ship orders", () => {
 
   it("unloads existing cargo before beginning a haul order without losing material", () => {
     let start = startGateBuild(miningStart(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
-    start = { ...start, station: { ...start.station, inventory: { Metal: 60, Ice: 40 } },
+    start = { ...start, stations: [{ ...start.stations[0]!, inventory: { Metal: 60, Ice: 40 } }],
       ships: [{ ...start.ships[0]!, state: "homebound", cargo: 20, cargoMaterial: "Metal",
-      position: { x: 120, y: 0 }, timer: 2, leg: { from: { x: 200, y: 0 }, to: start.station.dock.position }, target: null }] };
+      position: { x: 120, y: 0 }, timer: 2, leg: { from: { x: 200, y: 0 }, to: start.stations[0]!.dock.position }, target: null }] };
     const before = materialTotal(start, "Metal");
     const ordered = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
     expect(ordered.ships[0]).toMatchObject({ state: "gateReturning", cargo: 20, cargoMaterial: "Metal" });
@@ -142,7 +142,7 @@ describe("RTS ship orders", () => {
     const base = start.ships[0]!;
     start = { ...start,
       gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 180, Ice: 200 } }],
-      station: { ...start.station, inventory: { Metal: 0, Ice: 0 } },
+      stations: [{ ...start.stations[0]!, inventory: { Metal: 0, Ice: 0 } }],
       ships: [0, 1].map((id) => ({ ...base, id, state: "gateHauling" as const, position: { x: 1, y: 0 }, timer: 0,
         cargo: 20, cargoMaterial: "Metal" as const, target: null, leg: { from: { x: 0, y: 0 }, to: { x: 1, y: 0 } },
         order: { kind: "haulGate" as const, gateId: 0 } })) };
@@ -152,7 +152,7 @@ describe("RTS ship orders", () => {
     expect(completed.gateProjects[0]).toMatchObject({ delivered: { Metal: 200 }, complete: true });
     expect(completed.ships.filter((ship) => ship.state === "gateReturning")
       .reduce((sum, ship) => sum + ship.cargo, 0)).toBe(20);
-    const returned = until(completed, (state) => state.station.inventory.Metal === 20);
+    const returned = until(completed, (state) => state.stations[0]!.inventory.Metal === 20);
     expect(materialTotal(returned, "Metal")).toBe(before);
   });
 
@@ -161,13 +161,13 @@ describe("RTS ship orders", () => {
     const base = start.ships[0]!;
     start = { ...start,
       gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 180, Ice: 200 } }],
-      station: { ...start.station, inventory: { Metal: 40, Ice: 0 } },
+      stations: [{ ...start.stations[0]!, inventory: { Metal: 40, Ice: 0 } }],
       asteroids: [],
-      ships: [0, 1].map((id) => ({ ...base, id, state: "holding" as const, position: { ...start.station.dock.position },
+      ships: [0, 1].map((id) => ({ ...base, id, state: "holding" as const, position: { ...start.stations[0]!.dock.position },
         cargo: 0, cargoMaterial: null, target: null, timer: 0, leg: null, order: { kind: "haulGate" as const, gateId: 0 } })) };
     const loaded = until(tick(start, 0), (state) => state.ships.some((ship) => ship.state === "gateHauling"));
     expect(loaded.ships.filter((ship) => ship.state === "gateHauling").map((ship) => ship.cargo)).toEqual([20]);
-    expect(loaded.station.inventory.Metal).toBe(20);
+    expect(loaded.stations[0]!.inventory.Metal).toBe(20);
     expect(materialTotal(loaded, "Metal")).toBe(materialTotal(start, "Metal"));
   });
 
@@ -175,8 +175,8 @@ describe("RTS ship orders", () => {
     let start = startGateBuild(miningStart(7), 0, { x: 1, y: 2 }, 3, { x: 30, y: 40 });
     start = { ...start,
       gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 200, Ice: 180 } }],
-      station: { ...start.station, inventory: { Metal: 0, Ice: 20 } },
-      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.station.dock.position }, timer: 0, leg: null, target: null }] };
+      stations: [{ ...start.stations[0]!, inventory: { Metal: 0, Ice: 20 } }],
+      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.stations[0]!.dock.position }, timer: 0, leg: null, target: null }] };
     const hauling = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
     const active = until(hauling, (state) => state.gateProjects[0]!.complete);
     expect(active.gateProjects[0]!.delivered).toEqual({ Metal: 200, Ice: 200 });
@@ -221,7 +221,7 @@ describe("RTS ship orders", () => {
     const rock = start.asteroids[1]!;
     const ordered = giveOrder(start, [start.ships[0]!.id], { kind: "mine", asteroidId: rock.id });
     const home = until(ordered, (s) => s.ships[0]!.order === null);
-    expect(home.station.inventory[rock.material]).toBeGreaterThan(0);
+    expect(home.stations[0]!.inventory[rock.material]).toBeGreaterThan(0);
     expect(home.ships[0]!.defaultBehaviour).toBe("mine");
   });
 
@@ -255,7 +255,7 @@ describe("RTS ship orders", () => {
   it("keeps a Default: None ship idle when ore respawns", () => {
     const start = setDefaultBehaviour(fleet(1), [0], "none");
     const empty = { ...start, asteroids: start.asteroids.map((rock) => ({ ...rock, ore: 0 })) };
-    const idle = tick({ ...empty, ships: [{ ...empty.ships[0]!, state: "idle", position: empty.station.dock.position,
+    const idle = tick({ ...empty, ships: [{ ...empty.ships[0]!, state: "idle", position: empty.stations[0]!.dock.position,
       timer: 0, target: null, leg: null }] }, 1 / 30);
     expect(idle.ships[0]!.state).toBe("idle");
 
@@ -344,14 +344,14 @@ describe("multi-ship haul route configuration", () => {
     return {
       ...state,
       sectors: state.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
-      claimSites: [
-        { id: 3, sectorId: 1, position: { x: 100, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null },
-        { id: 4, sectorId: 2, position: { x: 200, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null },
+      stations: [
+        { ...state.stations[0]!, inventory: { Metal: 100, Ice: 100 } },
+        foundedStation(3, 1, 100, 50),
+        foundedStation(4, 2, 200, 50),
       ],
-      station: { ...state.station, inventory: { Metal: 100, Ice: 100 } },
       ships: [
-        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
-        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Metal" as const } },
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:4" as const, material: "Metal" as const } },
       ],
     };
   }
@@ -359,8 +359,8 @@ describe("multi-ship haul route configuration", () => {
   it("validHaulRoute rejects same From and To (criterion 7)", () => {
     const state = multiHaulState();
     expect(validHaulRoute(state, { from: "home", to: "home", material: "Metal" })).toBe(false);
-    expect(validHaulRoute(state, { from: "claim:3", to: "claim:3", material: "Ice" })).toBe(false);
-    expect(validHaulRoute(state, { from: "home", to: "claim:3", material: "Metal" })).toBe(true);
+    expect(validHaulRoute(state, { from: "station:3", to: "station:3", material: "Ice" })).toBe(false);
+    expect(validHaulRoute(state, { from: "home", to: "station:3", material: "Metal" })).toBe(true);
   });
 
   it("configures different From for each ship while preserving their To and Material (criteria 4, 5)", () => {
@@ -369,42 +369,42 @@ describe("multi-ship haul route configuration", () => {
     // Ship 1: from=home, to=claim:4, material=Metal
     // Change From to claim:4 for both (valid for both: ship 0 to=claim:3, ship 1 to=claim:4 -> wait, ship 1 would have from=claim:4, to=claim:4 which is invalid)
     // Let's use a different From value that works for both
-    state = configureHaul(state, [0], { from: "claim:4", to: "claim:3", material: "Ice" });
-    state = configureHaul(state, [1], { from: "claim:4", to: "claim:4", material: "Metal" }); // This would be invalid for ship 1
+    state = configureHaul(state, [0], { from: "station:4", to: "station:3", material: "Ice" });
+    state = configureHaul(state, [1], { from: "station:4", to: "station:4", material: "Metal" }); // This would be invalid for ship 1
     // Actually, let's test with a From that works for both
     state = multiHaulState();
-    state = configureHaul(state, [0], { from: "claim:4", to: "claim:3", material: "Ice" });
-    state = configureHaul(state, [1], { from: "claim:3", to: "claim:4", material: "Metal" });
-    expect(state.ships[0]!.haulRoute).toEqual({ from: "claim:4", to: "claim:3", material: "Ice" });
-    expect(state.ships[1]!.haulRoute).toEqual({ from: "claim:3", to: "claim:4", material: "Metal" });
+    state = configureHaul(state, [0], { from: "station:4", to: "station:3", material: "Ice" });
+    state = configureHaul(state, [1], { from: "station:3", to: "station:4", material: "Metal" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "station:4", to: "station:3", material: "Ice" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "station:3", to: "station:4", material: "Metal" });
   });
 
   it("configures different To for each ship while preserving their From and Material (criteria 4, 5)", () => {
     let state = multiHaulState();
     // Change To to claim:3 for ship 0 (already claim:3, no change), claim:3 for ship 1 (different from claim:4)
-    state = configureHaul(state, [0], { from: "home", to: "claim:3", material: "Ice" });
-    state = configureHaul(state, [1], { from: "home", to: "claim:3", material: "Metal" });
-    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
-    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
+    state = configureHaul(state, [0], { from: "home", to: "station:3", material: "Ice" });
+    state = configureHaul(state, [1], { from: "home", to: "station:3", material: "Metal" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "station:3", material: "Ice" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "station:3", material: "Metal" });
   });
 
   it("configures different Material for each ship while preserving their From and To (criteria 4, 5)", () => {
     let state = multiHaulState();
     // Change Material to Metal for both
-    state = configureHaul(state, [0], { from: "home", to: "claim:3", material: "Metal" });
-    state = configureHaul(state, [1], { from: "home", to: "claim:4", material: "Metal" });
-    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Metal" });
-    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:4", material: "Metal" });
+    state = configureHaul(state, [0], { from: "home", to: "station:3", material: "Metal" });
+    state = configureHaul(state, [1], { from: "home", to: "station:4", material: "Metal" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "station:3", material: "Metal" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "station:4", material: "Metal" });
   });
 
   it("rejects configuration that would give a ship same From and To (criterion 7)", () => {
     let state = multiHaulState();
     // Ship 0 has from=home, to=claim:3. Try to set From to claim:3 (same as its To)
-    state = configureHaul(state, [0], { from: "claim:3", to: "claim:3", material: "Ice" });
+    state = configureHaul(state, [0], { from: "station:3", to: "station:3", material: "Ice" });
     // Should be rejected, ship 0 keeps its original route
-    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+    expect(state.ships[0]!.haulRoute).toEqual({ from: "home", to: "station:3", material: "Ice" });
     // Ship 1 has from=home, to=claim:4. Try to set To to home (same as its From)
     state = configureHaul(state, [1], { from: "home", to: "home", material: "Metal" });
-    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "claim:4", material: "Metal" });
+    expect(state.ships[1]!.haulRoute).toEqual({ from: "home", to: "station:4", material: "Metal" });
   });
 });

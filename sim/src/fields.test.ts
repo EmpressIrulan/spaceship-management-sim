@@ -86,13 +86,13 @@ describe("asteroid belts and clusters", () => {
     for (let seed = 0; seed < 25; seed += 1) {
       const state = createInitialState(seed);
       for (const rock of homeRocks(state)) {
-        for (const module of state.station.modules) {
+        for (const module of state.stations[0]!.modules) {
           expect(distance(rock.position, module.position)).toBeGreaterThanOrEqual(ASTEROID_MIN_SPACING);
         }
       }
       // A ring would put every rock about the same distance out. Fields put
       // them wherever the fields are, so the spread is wide.
-      const spread = homeRocks(state).map((rock) => distance(rock.position, state.station.dock.position));
+      const spread = homeRocks(state).map((rock) => distance(rock.position, state.stations[0]!.dock.position));
       expect(Math.max(...spread) - Math.min(...spread)).toBeGreaterThan(100);
     }
   });
@@ -136,7 +136,7 @@ describe("asteroid belts and clusters", () => {
   it("still sends a ship to the nearest rock with ore, wherever the fields are", () => {
     for (let seed = 0; seed < 25; seed += 1) {
       const state = oneStorageStart(seed);
-      const dock = state.station.dock.position;
+      const dock = state.stations[0]!.dock.position;
       const expected = nearestWithOre(dock, homeRocks(state))!;
       expect(state.ships[0]!.target!.asteroidId).toBe(expected.id);
       for (const rock of homeRocks(state)) {
@@ -153,10 +153,10 @@ describe("asteroid belts and clusters", () => {
     for (let x = -extent; x <= extent; x += 40) {
       for (let y = -extent; y <= extent; y += 40) {
         const position = { x: Math.round(field.centre.x / 40) * 40 + x, y: Math.round(field.centre.y / 40) * 40 + y };
-        if (!skip(position)) modules.push({ type: "Storage" as const, position, size: state.station.storage.size });
+        if (!skip(position)) modules.push({ type: "Storage" as const, position, size: state.stations[0]!.storage.size });
       }
     }
-    return { ...state, station: { ...state.station, modules: [...state.station.modules, ...modules] } };
+    return { ...state, stations: [{ ...state.stations[0]!, modules: [...state.stations[0]!.modules, ...modules] }] };
   }
 
   function waitingFor(state: SimState, field: AsteroidField): SimState {
@@ -186,7 +186,7 @@ describe("asteroid belts and clusters", () => {
     const base = createInitialState(7);
     const field = base.fields.find((candidate) => candidate.sectorId === 0 && candidate.kind === "belt")!;
     const blocked = tick(waitingFor(coverField(base, field), field), 0);
-    const freed: SimState = { ...blocked, station: base.station };
+    const freed: SimState = { ...blocked, stations: [base.stations[0]!] };
     const later = tick(freed, blocked.respawns[0]!.timer + 0.1);
     expect(later.respawns).toHaveLength(0);
     expect(later.asteroids).toHaveLength(1);
@@ -199,7 +199,7 @@ describe("asteroid belts and clusters", () => {
     for (const field of base.fields.filter((candidate) => candidate.sectorId === 0)) {
       for (const keep of [0, 1, 2, 3]) {
         const covered = coverField(base, field, (p) => distance(p, field.centre) < keep * 30);
-        const blocked = covered.station.modules.map((module) => module.position);
+        const blocked = covered.stations[0]!.modules.map((module) => module.position);
         const placed = placeInField(12345 + keep, field, [], blocked);
         if (placed) expect(inside(field, placed.position)).toBe(true);
       }

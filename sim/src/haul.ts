@@ -1,43 +1,47 @@
-import { claimSiteBuilt } from "./claim";
 import { travelSeconds } from "./motion";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
-import { STORAGE_CAPACITY, berthLayout, gateRoute, toBerth, toParking, type HaulRoute, type HaulStationId, type Ship, type SimState, type Vec } from "./state";
+import { stationFounded } from "./station-placement";
+import { berthLayout, gateRoute, homeStation, stationById, toBerth, toParking, type HaulRoute, type HaulStationId, type Ship, type SimState, type Station, type Vec } from "./state";
 
 export interface HaulStation { id: HaulStationId; name: string }
 
 interface HaulStateBase {
   sectors: SimState["sectors"];
-  claimSites: SimState["claimSites"];
   gateProjects: SimState["gateProjects"];
 }
 
 export type HaulState = HaulStateBase & (
-  | { station: SimState["station"]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never }
-  | { station?: never; stationSector: number; dock: Vec; inventory: SimState["station"]["inventory"]; storageCapacity: number }
+  | { stations: Station[]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never; others?: never }
+  | { stations?: never; stationSector: number; dock: Vec; inventory: Station["inventory"]; storageCapacity: number; others: Station[] }
 );
 
-export function haulStations(state: Pick<SimState, "station" | "claimSites" | "sectors">): HaulStation[] {
-  const home = state.sectors[state.station.sectorId];
+// Every station with a Dock of its own joins Home as a haul stop. A site still
+// founding has no Dock, so it does not appear until it owns one. Names come
+// from the station's generated name.
+export function haulStations(state: Pick<SimState, "stations" | "sectors">): HaulStation[] {
+  const home = stationById(state, 0);
   return [
-    { id: "home", name: home?.name ?? "Home" },
-    ...state.claimSites.filter(claimSiteBuilt).map((site) => ({
-      id: `claim:${site.id}` as const,
-      name: state.sectors[site.sectorId]?.name ?? `Station ${site.id + 2}`,
+    ...(home ? [{ id: "home" as const, name: home.name }] : []),
+    ...state.stations.filter((station) => station.id !== 0 && stationFounded(station)).map((station) => ({
+      id: `station:${station.id}` as const,
+      name: station.name,
     })),
   ];
 }
 
 export function haulStationDetails(state: HaulState, id: HaulStationId) {
   if (id === "home") {
-    if (state.station) return {
-      id, sectorId: state.station.sectorId, position: state.station.dock.position,
-      inventory: state.station.inventory, capacity: state.station.storage.capacity,
+    if (state.stations) return {
+      id, sectorId: homeStation(state).sectorId, position: homeStation(state).dock.position,
+      inventory: homeStation(state).inventory, capacity: homeStation(state).storage.capacity,
     };
     return { id, sectorId: state.stationSector, position: state.dock, inventory: state.inventory, capacity: state.storageCapacity };
   }
-  const site = state.claimSites.find((candidate) => `claim:${candidate.id}` === id && claimSiteBuilt(candidate));
-  return site ? { id, sectorId: site.sectorId, position: site.position, inventory: site.delivered, capacity: STORAGE_CAPACITY } : null;
-}
+  const stations = state.stations ?? state.others ?? [];
+  const station = stationById({ stations }, Number(id.slice("station:".length)));
+  return station && station.id !== 0 && stationFounded(station)
+    ? { id, sectorId: station.sectorId, position: station.dock.position, inventory: station.inventory, capacity: station.storage.capacity }
+    : null;}
 
 function stored(station: NonNullable<ReturnType<typeof haulStationDetails>>): number {
   return station.inventory.Metal + station.inventory.Ice;
@@ -63,7 +67,7 @@ function transferAt(state: SimState, ship: Ship, stationId: HaulStationId, loadi
   const planned = { ...ship, cargoMaterial: loading ? ship.haulRoute?.material ?? null : ship.cargoMaterial,
     transfer: { startingCargo: loading ? 0 : ship.cargo, amount } };
   if (stationId === "home") {
-    return toBerth(berthLayout(state.station), state.ships, planned) ?? toParking(berthLayout(state.station), state.ships, planned);
+    return toBerth(berthLayout(homeStation(state)), state.ships, planned) ?? toParking(berthLayout(homeStation(state)), state.ships, planned);
   }
   return { ...planned, state: loading ? "haulLoading" : "haulUnloading", berth: null, leg: null,
     timer: cargoTransferSeconds(amount) };

@@ -1,12 +1,8 @@
 import {
   BERTH_PAD_SIZE,
-  BUILDER_SIZE,
-  CLAIM_MODULE_COST,
-  DOCK_SIZE,
-  STORAGE_SIZE,
-  claimSiteSlots,
   dockBerths,
   type SimState,
+  type Station,
   type StationModule,
   type Vec,
   type Size,
@@ -18,9 +14,8 @@ import type { UiState } from "./ui-state";
 export interface StationDrawing {
   drawStationConnector: (from: Vec, to: Vec) => void;
   drawStationModule: (module: StationModule) => void;
-  drawConstructionSite: () => void;
+  drawConstructionSite: (site: Station["constructionSite"]) => void;
   drawQueuedModule: (module: StationModule, highlighted?: boolean) => void;
-  drawClaimSite: (site: SimState["claimSites"][number]) => void;
 }
 export function createStationDrawing(
   ui: UiState,
@@ -166,10 +161,10 @@ export function createStationDrawing(
     ctx.restore();
   }
 
-  // Ships carry ore here and Home builds from it. The caller only draws it
-  // while the build queue needs supplies.
-  function drawConstructionSite(): void {
-    const { position, size } = getState().station.constructionSite;
+  // Ships carry ore here and the station builds from it. The caller only draws
+  // it while the build queue needs supplies.
+  function drawConstructionSite(site: Station["constructionSite"]): void {
+    const { position, size } = site;
     const left = worldToScreen(ui.camera, ui.viewport, {
       x: position.x - size.width / 2,
       y: position.y - size.height / 2,
@@ -192,47 +187,11 @@ export function createStationDrawing(
     ctx.restore();
   }
 
-  // The slot being supplied fills as materials arrive, and is solid while it builds.
-  function supplyFraction(site: SimState["claimSites"][number]): number {
-    if (site.timer !== null) return 1;
-    const cost = CLAIM_MODULE_COST.Metal + CLAIM_MODULE_COST.Ice;
-    return (site.delivered.Metal + site.delivered.Ice) / cost;
-  }
-
-  function drawClaimSite(site: SimState["claimSites"][number]): void {
-    const size = {
-      Dock: DOCK_SIZE,
-      Storage: STORAGE_SIZE,
-      Builder: BUILDER_SIZE,
-    };
-    claimSiteSlots(site).forEach((slot, index) => {
-      if (slot.built) {
-        drawStationModule({
-          type: slot.type,
-          position: slot.position,
-          size: size[slot.type],
-        });
-        return;
-      }
-      strokeWorldRect(slot.position, size[slot.type], "#cbd5e1");
-      if (index !== site.stage) return;
-      const height = size[slot.type].height * supplyFraction(site);
-      fillWorldRect(
-        {
-          x: slot.position.x,
-          y: slot.position.y + (size[slot.type].height - height) / 2,
-        },
-        { width: size[slot.type].width, height },
-        "rgba(148,163,184,.55)",
-      );
-    });
-  }
-
   return {
     drawStationConnector,
     drawStationModule,
     drawConstructionSite,
     drawQueuedModule,
-    drawClaimSite,
   };
 }
+import { homeStation } from "sim";

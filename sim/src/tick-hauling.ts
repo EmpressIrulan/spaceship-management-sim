@@ -13,9 +13,9 @@ export function changeHaulInventory(draft: Draft, id: HaulStationId, material: "
     draft.inventory = { ...draft.inventory, [material]: draft.inventory[material] + amount };
     return;
   }
-  const siteId = Number(id.slice("claim:".length));
-  draft.claimSites = draft.claimSites.map((site) => site.id === siteId
-    ? { ...site, delivered: { ...site.delivered, [material]: site.delivered[material] + amount } } : site);
+  const stationId = Number(id.slice("station:".length));
+  draft.others = draft.others.map((station) => station.id === stationId
+    ? { ...station, inventory: { ...station.inventory, [material]: station.inventory[material] + amount } } : station);
 }
 
 export function loadHauler(draft: Draft, ship: Ship, units: number): number {

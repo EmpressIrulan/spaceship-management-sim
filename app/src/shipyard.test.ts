@@ -38,12 +38,12 @@ function withBuilder(inventory = { Metal: 2000, Ice: 2000 }): SimState {
   const builder: StationModule = { type: "Builder", position: { x: 0, y: -40 }, size: { width: 30, height: 40 } };
   return {
     ...state,
-    station: {
-      ...state.station,
-      storage: { ...state.station.storage, capacity: 1000 },
+    stations: [{
+      ...state.stations[0]!,
+      storage: { ...state.stations[0]!.storage, capacity: 1000 },
       inventory,
-      modules: [...state.station.modules, builder],
-    },
+      modules: [...state.stations[0]!.modules, builder],
+    }],
   };
 }
 
@@ -291,11 +291,11 @@ describe("Builder hover", () => {
     const draft = withSize(withModule(emptyDraft(), "Hull"), 5);
     applyTool(draft, { x: 0, y: 0 });
     const building = tick(startShipBuild(withBuilder(), BUILDER, designOf(draft)), 7);
-    expect(infoBox(building, { kind: "module", index: BUILDER })).toEqual({
+    expect(infoBox(building, { kind: "module", index: BUILDER, stationId: 0 })).toEqual({
       title: "Builder",
       line: "Building 5x5: 18 s",
     });
-    expect(infoBox(withBuilder(), { kind: "module", index: BUILDER })).toEqual({
+    expect(infoBox(withBuilder(), { kind: "module", index: BUILDER, stationId: 0 })).toEqual({
       title: "Builder",
       line: "Idle",
     });

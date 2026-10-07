@@ -9,8 +9,8 @@ export interface StoragePanelRow {
 export function storagePanelRows(state: SimState): StoragePanelRow[] {
   return MATERIALS.map((material) => ({
     material,
-    amount: state.station.inventory[material],
-    limit: state.station.storageLimits[material]?.toString() ?? "",
+    amount: homeStation(state).inventory[material],
+    limit: homeStation(state).storageLimits[material]?.toString() ?? "",
   }));
 }
 
@@ -46,3 +46,4 @@ export function deleteButtonAction(
     deleteAmount: null,
   };
 }
+import { homeStation } from "sim";

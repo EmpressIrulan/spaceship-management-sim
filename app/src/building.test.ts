@@ -5,6 +5,7 @@ import {
   availableModuleBuildSites,
   cancelQueuedModuleBuild,
   createInitialState,
+  placeStation,
   queueModuleBuild,
   startModuleBuild,
   tick,
@@ -16,13 +17,13 @@ import {
   buildControlsVisible,
   buildMenuItems,
   cancelDependentsAt,
-  pointerInBuildArea,
+  buildAreaStation,
   dismissBuildMenuForClick,
   dismissBuildMenuForKey,
   queuedBuildIndexAt,
 } from "./building";
 import { infoBox } from "./labels";
-import { hoveredBody, worldToScreen, type Camera } from "./camera";
+import { bodyOf, hoveredBody, worldToScreen, type Camera } from "./camera";
 
 const east = { x: 80, y: 0 };
 const farEast = { x: 120, y: 0 };
@@ -43,18 +44,51 @@ const sameSlot = (a: Vec, b: Vec): boolean => a.x === b.x && a.y === b.y;
 function withStandingBuilder(state: SimState, position: Vec): SimState {
   return {
     ...state,
-    station: {
-      ...state.station,
-      modules: [...state.station.modules, { type: "Builder" as const, position, size: { width: 30, height: 40 } }],
-    },
+    stations: [{
+      ...state.stations[0]!,
+      modules: [...state.stations[0]!.modules, { type: "Builder" as const, position, size: { width: 30, height: 40 } }],
+    }],
   };
 }
 
 describe("station building controls", () => {
+  it("hovers over Storage, construction, and queued modules at a founded site", () => {
+    let state = placeStation(createInitialState(7), 0, { x: 900, y: 900 });
+    const stationId = state.nextStationId - 1;
+    const storagePosition = { x: 940, y: 900 };
+    const buildingPosition = { x: 1000, y: 900 };
+    const queuedPosition = { x: 1100, y: 900 };
+    state = { ...state, stations: state.stations.map((station) => station.id === stationId ? {
+      ...station,
+      storage: { ...station.storage, position: storagePosition, capacity: 123 },
+      inventory: { Metal: 9, Ice: 0 },
+      construction: { type: "Storage", position: buildingPosition, size: { width: 30, height: 40 }, timer: 12 },
+      buildQueue: [{ type: "Builder", position: queuedPosition, size: { width: 30, height: 40 } }],
+    } : station) };
+    const camera: Camera = { center: { x: 900, y: 900 }, zoom: 1 };
+    const point = (position: Vec) => worldToScreen(camera, { width: 800, height: 600 }, position);
+    const options = { includeShips: false };
+
+    const storage = hoveredBody(state, camera, { width: 800, height: 600 }, point(storagePosition), 0, options);
+    expect(storage).toEqual({ kind: "storage", stationId });
+    expect(bodyOf(state, storage!)).toMatchObject({ position: storagePosition });
+    expect(infoBox(state, storage)).toMatchObject({ title: "Storage", line: expect.stringContaining("Stored 9 / 123") });
+
+    const construction = hoveredBody(state, camera, { width: 800, height: 600 }, point(buildingPosition), 0, options);
+    expect(construction).toEqual({ kind: "construction", stationId });
+    expect(bodyOf(state, construction!)).toMatchObject({ position: buildingPosition });
+    expect(infoBox(state, construction)).toMatchObject({ title: "Building Storage" });
+
+    const queued = hoveredBody(state, camera, { width: 800, height: 600 }, point(queuedPosition), 0, options);
+    expect(queued).toEqual({ kind: "queuedBuild", index: 0, stationId });
+    expect(bodyOf(state, queued!)).toMatchObject({ position: queuedPosition });
+    expect(infoBox(state, queued)?.action).toMatchObject({ label: "Cancel", queuedBuild: 0, stationId });
+  });
+
   it("shows front needs, full later cost, and Cancel on ghost modules", () => {
     const initial = createInitialState(7);
-    let state = queueModuleBuild({ ...initial, station: { ...initial.station,
-      constructionSite: { ...initial.station.constructionSite, inventory: { Metal: 15, Ice: 0 } } } }, "Storage", { x: 80, y: 0 });
+    let state = queueModuleBuild({ ...initial, stations: [{ ...initial.stations[0]!,
+      constructionSite: { ...initial.stations[0]!.constructionSite, inventory: { Metal: 15, Ice: 0 } } }] }, "Storage", { x: 80, y: 0 });
     state = queueModuleBuild(state, "Builder", { x: 120, y: 0 });
     const camera: Camera = { center: { x: 0, y: 0 }, zoom: 2 };
     const viewport = { width: 800, height: 600 };
@@ -76,8 +110,8 @@ describe("station building controls", () => {
 
   it("explains when a funded front ghost is waiting for current construction", () => {
     let state = createInitialState(7);
-    state = { ...state, station: { ...state.station,
-      constructionSite: { ...state.station.constructionSite, inventory: { Metal: 50, Ice: 50 } } } };
+    state = { ...state, stations: [{ ...state.stations[0]!,
+      constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 50, Ice: 50 } } }] };
     state = queueModuleBuild(state, "Dock", { x: 80, y: 0 });
     state = queueModuleBuild(state, "Storage", { x: -40, y: 0 });
 
@@ -93,8 +127,8 @@ describe("station building controls", () => {
     const secondPosition = { x: -40, y: 0 };
     let state = queueModuleBuild(initial, "Dock", { x: 80, y: 0 });
     state = queueModuleBuild(state, "Storage", secondPosition);
-    state = { ...state, station: { ...state.station,
-      constructionSite: { ...state.station.constructionSite, inventory: { Metal: 25, Ice: 25 } } } };
+    state = { ...state, stations: [{ ...state.stations[0]!,
+      constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 25, Ice: 25 } } }] };
     state = tick(state, 0);
 
     expect(queuedBuildIndexAt(state, secondPosition)).toBe(0);
@@ -102,11 +136,11 @@ describe("station building controls", () => {
   });
 
   it("keeps every module choice enabled even when the site cannot pay", () => {
-    expect(buildMenuItems(createInitialState(7)).every((item) => !item.disabled)).toBe(true);
+    expect(buildMenuItems(createInitialState(7), 0).every((item) => !item.disabled)).toBe(true);
   });
 
   it("presents all module choices with their shared cost and queue-ready state", () => {
-    expect(buildMenuItems(createInitialState(7))).toEqual([
+    expect(buildMenuItems(createInitialState(7), 0)).toEqual([
       { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
@@ -117,16 +151,16 @@ describe("station building controls", () => {
     const initial = createInitialState(7);
     const funded = {
       ...initial,
-      station: { ...initial.station, constructionSite: { ...initial.station.constructionSite, inventory: { Metal: 50, Ice: 50 } } },
+      stations: [{ ...initial.stations[0]!, constructionSite: { ...initial.stations[0]!.constructionSite, inventory: { Metal: 50, Ice: 50 } } }],
     };
-    const building = tick(startModuleBuild(funded, "Builder", { x: -40, y: 0 }), 3);
+    const building = tick(startModuleBuild(funded, 0, "Builder", { x: -40, y: 0 }), 3);
     expect(infoBox(building, { kind: "construction" })).toEqual({
       title: "Building Builder",
       line: "12 s",
     });
 
     const built = tick(building, BUILD_SECONDS - 3);
-    expect(infoBox(built, { kind: "module", index: 2 })).toEqual({
+    expect(infoBox(built, { kind: "module", index: 2, stationId: 0 })).toEqual({
       title: "Builder",
       line: "Idle",
     });
@@ -148,19 +182,19 @@ describe("station building controls", () => {
 
   it("keeps the pointer inside the build area on the way from any module to any +", () => {
     const state = createInitialState(7);
-    for (const site of availableModuleBuildSites(state)) {
-      const from = state.station.modules
+    for (const site of availableModuleBuildSites(state, 0)) {
+      const from = state.stations[0]!.modules
         .map((module) => module.position)
         .find((position) => Math.hypot(position.x - site.x, position.y - site.y) === MODULE_SPACING)!;
       for (let step = 0; step <= 40; step += 1) {
         const t = step / 40;
         const point = { x: from.x + (site.x - from.x) * t, y: from.y + (site.y - from.y) * t };
-        expect(pointerInBuildArea(state, point), `${JSON.stringify(point)} toward ${JSON.stringify(site)}`)
+        expect(buildAreaStation(state, point) !== null, `${JSON.stringify(point)} toward ${JSON.stringify(site)}`)
           .toBe(true);
       }
     }
-    expect(pointerInBuildArea(state, { x: 0, y: 150 })).toBe(false);
-    expect(pointerInBuildArea(state, { x: -61, y: 0 })).toBe(false);
+    expect(buildAreaStation(state, { x: 0, y: 150 })).toBeNull();
+    expect(buildAreaStation(state, { x: -61, y: 0 })).toBeNull();
   });
 
   it("sizes each + to its slot so neighbours never overlap at any zoom", () => {
@@ -175,8 +209,8 @@ describe("station building controls", () => {
 
   it("keeps the pointer in the build area from a ghost to its + controls", () => {
     const state = queueModuleBuild(createInitialState(7), "Storage", { x: 80, y: 0 });
-    expect(pointerInBuildArea(state, { x: 100, y: 0 })).toBe(true);
-    expect(availableModuleBuildSites(state)).toContainEqual({ x: 120, y: 0 });
+    expect(buildAreaStation(state, { x: 100, y: 0 })).toBe(0);
+    expect(availableModuleBuildSites(state, 0)).toContainEqual({ x: 120, y: 0 });
   });
 });
 
@@ -184,15 +218,15 @@ describe("the ghost cancel hover highlight", () => {
   it("highlights the ghosts the hovered cancel takes, and leaves the survivors alone", () => {
     const state = chainedGhosts();
     const afterCancel = cancelQueuedModuleBuild(state, east);
-    const removed = state.station.buildQueue
-      .filter((queued) => !afterCancel.station.buildQueue.includes(queued))
+    const removed = state.stations[0]!.buildQueue
+      .filter((queued) => !afterCancel.stations[0]!.buildQueue.includes(queued))
       .map((queued) => queued.position);
 
     expect(cancelDependentsAt(state, east)).toMatchObject([{ type: "Builder", position: farEast }]);
     // Every ghost the click takes beyond the hovered one, and no other, is lit.
     expect(cancelDependentsAt(state, east).map((queued) => queued.position))
       .toEqual(removed.filter((position) => !sameSlot(position, east)));
-    expect(afterCancel.station.buildQueue.map((queued) => queued.position)).toEqual([west, farWest]);
+    expect(afterCancel.stations[0]!.buildQueue.map((queued) => queued.position)).toEqual([west, farWest]);
   });
 
   it("leaves a ghost that still reaches the station through a built module unlit", () => {

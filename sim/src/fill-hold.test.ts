@@ -28,7 +28,7 @@ function withRocks(rocks: { id: number; sectorId?: number; x: number; ore: numbe
       ore,
     })),
     respawns: [],
-    ships: [{ ...ship, state: "idle", position: { ...base.station.dock.position }, timer: 0, cargo: 0,
+    ships: [{ ...ship, state: "idle", position: { ...base.stations[0]!.dock.position }, timer: 0, cargo: 0,
       cargoMaterial: null, cargoByMaterial: { Metal: 0, Ice: 0 }, target: null, leg: null }],
   };
 }
@@ -40,7 +40,7 @@ describe("miners fill the hold before going home", () => {
       { id: 101, x: 140, ore: 8, material: "Ice" },
       { id: 102, x: 180, ore: 20, material: "Metal" },
     ]));
-    const initial = { ...start.station.inventory };
+    const initial = { ...start.stations[0]!.inventory };
 
     const retargeted = runUntil(start, (state) => state.ships[0]!.target?.asteroidId === 101);
     expect(retargeted.ships[0]).toMatchObject({ state: "outbound", cargo: 6, cargoByMaterial: { Metal: 6, Ice: 0 } });
@@ -49,7 +49,7 @@ describe("miners fill the hold before going home", () => {
     expect(full.ships[0]).toMatchObject({ cargo: 20, cargoByMaterial: { Metal: 12, Ice: 8 } });
 
     const unloaded = runUntil(full, (state) => state.ships[0]!.cargo === 0);
-    expect(unloaded.station.inventory).toEqual({ Metal: initial.Metal + 12, Ice: initial.Ice + 8 });
+    expect(unloaded.stations[0]!.inventory).toEqual({ Metal: initial.Metal + 12, Ice: initial.Ice + 8 });
   });
 
   it("goes home part-full when no ticked rock remains in reach", () => {
@@ -67,7 +67,7 @@ describe("miners fill the hold before going home", () => {
     const local = runUntil(base, (state) => state.ships[0]!.target !== null);
     expect(local.ships[0]!.target?.asteroidId).toBe(100);
 
-    const reset = { ...base, ships: [{ ...base.ships[0]!, state: "idle" as const, position: { ...base.station.dock.position },
+    const reset = { ...base, ships: [{ ...base.ships[0]!, state: "idle" as const, position: { ...base.stations[0]!.dock.position },
       timer: 0, target: null, leg: null }] };
     const enabled = setMineOtherSectors(reset, [0], true);
     expect(enabled.ships[0]).toMatchObject({ mineOtherSectors: true, state: "outbound", target: { asteroidId: 101, sectorId: 1 } });
@@ -92,7 +92,7 @@ describe("miners fill the hold before going home", () => {
     ]), ["Metal"]);
     start = startGateBuild(start, 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
     start = { ...start,
-      station: { ...start.station, inventory: { Metal: 0, Ice: 0 } },
+      stations: [{ ...start.stations[0]!, inventory: { Metal: 0, Ice: 0 } }],
       ships: [{ ...start.ships[0]!, state: "holding", timer: 0, target: null, leg: null, mineOtherSectors: true,
         order: { kind: "haulGate", gateId: 0 } }] };
 

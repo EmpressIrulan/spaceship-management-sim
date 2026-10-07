@@ -9,9 +9,9 @@ function fleetAtDock(count: number): SimState {
   const base = state.ships[0]!;
   return {
     ...state,
-    station: { ...state.station, storage: { ...state.station.storage, capacity: 1000 } },
+    stations: [{ ...state.stations[0]!, storage: { ...state.stations[0]!.storage, capacity: 1000 } }],
     ships: Array.from({ length: count }, (_, id): Ship => ({
-      ...base, ...homeWithOre, id, mineMaterials: [...MATERIALS], position: { ...state.station.dock.position }, target: null, leg: null,
+      ...base, ...homeWithOre, id, mineMaterials: [...MATERIALS], position: { ...state.stations[0]!.dock.position }, target: null, leg: null,
     })),
     nextShipId: count,
   };
@@ -27,7 +27,7 @@ const SETTLED = 8;
 describe("Dock berths", () => {
   it("marks six pads on the Dock, clear of each other", () => {
     const state = createInitialState(7);
-    const dock = state.station.dock.position;
+    const dock = state.stations[0]!.dock.position;
     const pads = dockBerths(dock);
     const width = shipSize(state.ships[0]!.design).width;
 
@@ -54,13 +54,13 @@ describe("Dock berths", () => {
     };
     const approaching = tick(mixed, 0);
     const docked = tick(approaching, Math.max(...approaching.ships.map((ship) => ship.timer)) + 0.01);
-    const pads = dockBerths(docked.station.dock.position);
+    const pads = dockBerths(docked.stations[0]!.dock.position);
 
     expect(docked.ships.map((ship) => ship.state)).toEqual(["unloading", "unloading"]);
     expect(docked.ships.map(at)).toEqual(pads.slice(0, 2));
     for (const pad of pads) {
-      expect(Math.abs(pad.x - docked.station.dock.position.x) + 6.5).toBeLessThanOrEqual(DOCK_SIZE.width * 0.47);
-      expect(Math.abs(pad.y - docked.station.dock.position.y) + 6.5).toBeLessThanOrEqual(DOCK_SIZE.height * 0.46);
+      expect(Math.abs(pad.x - docked.stations[0]!.dock.position.x) + 6.5).toBeLessThanOrEqual(DOCK_SIZE.width * 0.47);
+      expect(Math.abs(pad.y - docked.stations[0]!.dock.position.y) + 6.5).toBeLessThanOrEqual(DOCK_SIZE.height * 0.46);
     }
     const size = docked.ships.map((ship) => shipSize(ship.design));
     expect(Math.abs(at(docked.ships[0]!).x - at(docked.ships[1]!).x)).toBeGreaterThan((size[0]!.width + size[1]!.width) / 2);
@@ -76,7 +76,7 @@ describe("Dock berths", () => {
 
   it("puts each of six arriving ships on a pad of its own", () => {
     const state = tick(tick(fleetAtDock(6), 0), SETTLED);
-    const pads = dockBerths(state.station.dock.position);
+    const pads = dockBerths(state.stations[0]!.dock.position);
 
     expect(state.ships.map((ship) => ship.state)).toEqual(Array(6).fill("unloading"));
     expect(state.ships.map(at)).toEqual(pads);
@@ -84,7 +84,7 @@ describe("Dock berths", () => {
 
   it("parks a seventh ship off the Dock, apart from the pads and the other waiting ships", () => {
     const state = tick(tick(fleetAtDock(9), 0), SETTLED);
-    const dock = state.station.dock.position;
+    const dock = state.stations[0]!.dock.position;
     const pads = dockBerths(dock);
     const waiting = state.ships.filter((ship) => ship.state === "waiting");
     const width = shipSize(waiting[0]!.design).width;
@@ -110,7 +110,7 @@ describe("Dock berths", () => {
     for (let i = 0; i < 400 && !settled.ships.every((ship) => ship.state === "holding" || ship.state === "unloading"); i += 1) {
       settled = tick(settled, 0.5);
     }
-    const dock = settled.station.dock.position;
+    const dock = settled.stations[0]!.dock.position;
     const pads = dockBerths(dock);
     const waiting = settled.ships.filter((ship) => ship.state === "holding");
 
@@ -143,7 +143,7 @@ describe("Dock berths", () => {
 
   it("lets a ship leave from its pad instead of jumping to the Dock first", () => {
     const parked = tick(tick(fleetAtDock(1), 0), SETTLED);
-    const pads = dockBerths(parked.station.dock.position);
+    const pads = dockBerths(parked.stations[0]!.dock.position);
     const left = tick(parked, parked.ships[0]!.timer);
 
     expect(left.ships[0]).toMatchObject({ state: "outbound", position: pads[0] });

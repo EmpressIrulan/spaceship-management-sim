@@ -17,7 +17,7 @@ describe("two linked sectors", () => {
       expect(new Set(a.asteroids.filter((rock) => rock.sectorId === sector.id).map((rock) => rock.material)))
         .toEqual(new Set(["Metal", "Ice"]));
     }
-    expect(a.station.sectorId).toBe(HOME_SECTOR);
+    expect(a.stations[0]!.sectorId).toBe(HOME_SECTOR);
   });
 
   it("places paired incomplete gate ends at player-picked positions", () => {
@@ -70,7 +70,7 @@ describe("two linked sectors", () => {
     until((s) => s.ships[0]!.state === "jumpingHome");
     state = tick(state, JUMP_SECONDS);
     expect(state.ships[0]!.sectorId).toBe(0);
-    until((s) => s.station.inventory[rock.material] > 20);
+    until((s) => s.stations[0]!.inventory[rock.material] > 20);
     until((s) => s.ships[0]!.state === "outbound");
     expect(state.ships[0]!.target?.sectorId).toBe(0);
   });

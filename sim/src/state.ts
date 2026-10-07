@@ -4,7 +4,7 @@ import {
 } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import type {
-  Asteroid, AsteroidField, Beam, BerthLayout, CargoTransfer, ClaimSite,
+  Asteroid, AsteroidField, Beam, BerthLayout, CargoTransfer,
   DefaultBehaviour, Density, Delivery, GateEnd, GateProject, HaulRoute,
   HaulStationId, Leg, Material, ModuleConstruction, ModuleType, Order, Respawn,
   Sector, SectorCharacter, Ship, ShipBuild, ShipDesign, ShipState, SimState,
@@ -14,6 +14,23 @@ export type * from "./model";
 export { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MODULE_COST, BUILDER_SIZE, STORAGE_SIZE } from "./build-constants";
 export { MATERIALS, MODULE_TYPES } from "./model";
 export { MODULE_SPACING } from "./build-constants";
+export function homeStation(state: Pick<SimState, "stations">): Station {
+  const station = state.stations[0];
+  if (!station) throw new Error("Simulation state has no Home station");
+  return station;
+}
+
+export function stationById(state: Pick<SimState, "stations">, id: number): Station | undefined {
+  return state.stations.find((candidate) => candidate.id === id);
+}
+
+export function replaceStation<T extends Pick<SimState, "stations">>(state: T, station: Station): T {
+  return { ...state, stations: state.stations.map((candidate) => (candidate.id === station.id ? station : candidate)) };
+}
+
+export function replaceHomeStation<T extends Pick<SimState, "stations">>(state: T, station: Station): T {
+  return { ...state, stations: [station, ...state.stations.slice(1)] };
+}
 import { distance, makeFields, placeInField, rocksInField } from "./fields";
 export { availableModuleBuildSites, availableModuleBuilds, startModuleBuild, type ModuleBuildOption } from "./station-building";
 export {
@@ -343,6 +360,7 @@ export function createInitialState(seed: number): SimState {
     cargoByMaterial: { Metal: 0, Ice: 0 },
     cargoMaterial: null,
     target: null,
+    homeStationId: 0,
     defaultBehaviour: "mine",
     mineMaterials: [],
     mineOtherSectors: false,
@@ -360,10 +378,13 @@ export function createInitialState(seed: number): SimState {
     fields,
     nextGateId: 0,
     gateProjects: [],
-    nextClaimSiteId: 0,
-    claimSites: [],
+    nextStationId: 1,
+    supplyStation: 0,
     nextShipId: 1,
-    station: {
+    stations: [{
+      id: 0,
+      name: "Home",
+      founding: false,
       sectorId: HOME_SECTOR,
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
@@ -378,7 +399,7 @@ export function createInitialState(seed: number): SimState {
       construction: null,
       buildQueue: [],
       shipBuilds: [],
-    },
+    }],
     asteroids,
     respawns: [],
     ships: [depart(idle, dockPosition, asteroids)],
@@ -431,7 +452,7 @@ function parkingPoint(dock: Vec, index: number): Vec {
 
 function holdsBerth(ship: Ship): boolean {
   return ship.state === "loading" || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
-    || (ship.state === "unloading" && ship.order?.kind !== "supplySite" && ship.transfer?.destination !== "constructionSite")
+    || (ship.state === "unloading" && ship.transfer?.destination !== "constructionSite")
     || (ship.state === "berthing" && ship.berth !== null);
 }
 
@@ -516,52 +537,59 @@ export function dockWaitingShips(station: Station, ships: Ship[]): Ship[] {
 }
 
 export function setStorageLimit(state: SimState, material: Material, limit: number | null): SimState {
+  const home = homeStation(state);
   const normalized = limit === null ? null : Math.max(0, Math.floor(limit));
-  const inventory = normalized === null || state.station.inventory[material] <= normalized
-    ? state.station.inventory
-    : { ...state.station.inventory, [material]: normalized };
+  const inventory = normalized === null || home.inventory[material] <= normalized
+    ? home.inventory
+    : { ...home.inventory, [material]: normalized };
   const station = {
-    ...state.station,
+    ...home,
     inventory,
-    storageLimits: { ...state.station.storageLimits, [material]: normalized },
+    storageLimits: { ...home.storageLimits, [material]: normalized },
   };
-  return { ...state, station, ships: dockWaitingShips(station, state.ships) };
+  return { ...replaceHomeStation(state, station), ships: dockWaitingShips(station, state.ships) };
 }
 
 export function deleteStock(state: SimState, material: Material, amount: number): SimState {
+  const home = homeStation(state);
   const removed = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
   const station = {
-    ...state.station,
+    ...home,
     inventory: {
-      ...state.station.inventory,
-      [material]: Math.max(0, state.station.inventory[material] - removed),
+      ...home.inventory,
+      [material]: Math.max(0, home.inventory[material] - removed),
     },
   };
-  return { ...state, station, ships: dockWaitingShips(station, state.ships) };
+  return { ...replaceHomeStation(state, station), ships: dockWaitingShips(station, state.ships) };
 }
 
 // A Builder can take a job when it is built, idle, and Storage can pay.
-export function availableShipBuild(state: SimState, builder: number, design: ShipDesign): boolean {
-  const module = state.station.modules[builder];
+export function availableShipBuild(state: SimState, builder: number, design: ShipDesign, stationId = 0): boolean {
+  const home = stationById(state, stationId);
+  if (!home) return false;
+  const module = home.modules[builder];
   if (module?.type !== "Builder" || !validDesign(design)) return false;
-  if (state.station.shipBuilds.some((job) => job.builder === builder)) return false;
+  if (home.shipBuilds.some((job) => job.builder === builder)) return false;
   const cost = shipBuildCost(design);
-  return MATERIALS.every((material) => state.station.inventory[material] >= cost[material]);
+  return MATERIALS.every((material) => home.inventory[material] >= cost[material]);
 }
 
-export function startShipBuild(state: SimState, builder: number, design: ShipDesign): SimState {
-  if (!availableShipBuild(state, builder, design)) return state;
+export function startShipBuild(state: SimState, builder: number, design: ShipDesign, stationId = 0): SimState {
+  if (!availableShipBuild(state, builder, design, stationId)) return state;
+  const home = stationById(state, stationId)!;
   const cost = shipBuildCost(design);
   const inventory = Object.fromEntries(
-    MATERIALS.map((material) => [material, state.station.inventory[material] - cost[material]]),
+    MATERIALS.map((material) => [material, home.inventory[material] - cost[material]]),
   ) as Record<Material, number>;
   const job: ShipBuild = {
+    stationId,
     builder,
     design: { ...design, slots: [...design.slots] },
     timer: shipBuildSeconds(design),
   };
-  const station = { ...state.station, inventory, shipBuilds: [...state.station.shipBuilds, job] };
-  return { ...state, station, ships: dockWaitingShips(station, state.ships) };
+  const station = { ...home, inventory, shipBuilds: [...home.shipBuilds, job] };
+  const next = { ...replaceStation(state, station), ships: dockWaitingShips(station, state.ships) };
+  return stationId === 0 ? { ...replaceHomeStation(next, station), ships: dockWaitingShips(station, state.ships) } : next;
 }
 
 // A mining ship's laser, from the ship to the near edge of the rock it is
@@ -579,9 +607,9 @@ export const INCOME_WINDOW_SECONDS = 60;
 // Ore unloaded into storage over the last game minute, per material. Only
 // what storage accepted counts, so a full station reads zero, and spending
 // ore on builds or gates does not lower it.
-export function stationIncome(state: SimState): Record<Material, number> {
+export function stationIncome(state: SimState, stationId = 0): Record<Material, number> {
   const income = Object.fromEntries(MATERIALS.map((material) => [material, 0])) as Record<Material, number>;
-  for (const delivery of state.station.deliveries) {
+  for (const delivery of stationById(state, stationId)?.deliveries ?? []) {
     if (delivery.at > state.time - INCOME_WINDOW_SECONDS) income[delivery.material] += delivery.amount;
   }
   return income;

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, startGateBuild } from "sim";
+import { foundedStation } from "./test-stations";
 import { fitCamera, hoveredBody, worldToScreen } from "./camera";
 import { contextOrderAllowed, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip, type SelectionPanel } from "./selection";
 
 describe("RTS selection helpers", () => {
   it("box-selects by ship id and shift selection toggles by id", () => {
     const state = createInitialState(7);
-    const camera = fitCamera({ width: 800, height: 600 }, [state.station.dock, ...state.asteroids]);
+    const camera = fitCamera({ width: 800, height: 600 }, [state.stations[0]!.dock, ...state.asteroids]);
     const viewport = { width: 800, height: 600 };
     const twoShips = { ...state, ships: [state.ships[0]!, { ...state.ships[0]!, id: 42 }] };
     const box = { x: 0, y: 0 };
@@ -21,6 +22,18 @@ describe("RTS selection helpers", () => {
     const second = { ...initial.ships[0]!, id: 14, defaultBehaviour: "none" as const, order: { kind: "move" as const, point: { x: 1, y: 2 }, sectorId: 0 } };
     const state = { ...initial, ships: [initial.ships[0]!, second] };
     expect(selectionPanel(state, [0, 14])).toMatchObject({ defaultBehaviour: "mixed", canResume: true, rows: [{ id: 0 }, { id: 14 }] });
+  });
+
+  it("shows no Home when the ship's home station was removed", () => {
+    const initial = createInitialState(7);
+    const orphan = { ...initial.ships[0]!, homeStationId: null };
+    expect(selectionPanel({ ...initial, ships: [orphan] }, [orphan.id])?.homeStation).toBeNull();
+  });
+
+  it("shows Home for a ship loaded from a save without homeStationId", () => {
+    const initial = createInitialState(7);
+    const { homeStationId: _old, ...legacyShip } = initial.ships[0]!;
+    expect(selectionPanel({ ...initial, ships: [legacyShip] }, [legacyShip.id])?.homeStation).toBe(0);
   });
 
   it("shows Mine in other sectors off by default and mixed when selected ships disagree", () => {
@@ -50,14 +63,14 @@ describe("RTS selection helpers", () => {
     const state = {
       ...initial,
       sectors: initial.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
-      claimSites: [{ id: 3, sectorId: 1, position: { x: 100, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null }],
+      stations: [{ ...initial.stations[0]!, inventory: { Metal: 100, Ice: 100 } }, foundedStation(3, 1, 100, 50)],
       ships: [{ ...initial.ships[0]!, defaultBehaviour: "haul" as const,
-        haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } }],
+        haulRoute: { from: "home" as const, to: "station:3" as const, material: "Ice" as const } }],
     };
     expect(selectionPanel(state, [0])).toMatchObject({
       canHaul: true,
-      stations: [{ id: "home", name: "Home" }, { id: "claim:3", name: "Kessel" }],
-      haulRoute: { from: "home", to: "claim:3", material: "Ice" },
+      stations: [{ id: "home", name: "Home" }, { id: "station:3", name: "Station 3" }],
+      haulRoute: { from: "home", to: "station:3", material: "Ice" },
     });
   });
 
@@ -94,10 +107,10 @@ describe("RTS selection helpers", () => {
     const state = createInitialState(7);
     const viewport = { width: 800, height: 600 };
     const camera = { center: { x: 0, y: 0 }, zoom: 1 };
-    const pointer = worldToScreen(camera, viewport, state.station.dock.position);
+    const pointer = worldToScreen(camera, viewport, state.stations[0]!.dock.position);
     const hovered = hoveredBody(state, camera, viewport, pointer, 0, { includeShips: false });
 
-    expect(orderTargetAt(state, hovered, state.station.dock.position)).toEqual({ kind: "home" });
+    expect(orderTargetAt(state, hovered, state.stations[0]!.dock.position)).toEqual({ kind: "home" });
   });
 
   it("orders a haul to a gate end overlapped by a ship", () => {
@@ -119,21 +132,18 @@ describe("RTS selection helpers", () => {
       return {
         ...initial,
         sectors: initial.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
-        claimSites: [
-          { id: 3, sectorId: 1, position: { x: 100, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null },
-          { id: 4, sectorId: 2, position: { x: 200, y: 50 }, stage: 2, delivered: { Metal: 0, Ice: 0 }, timer: null },
-        ],
+        stations: [{ ...initial.stations[0]!, inventory: { Metal: 100, Ice: 100 } }, foundedStation(3, 1, 100, 50), foundedStation(4, 2, 200, 50)],
       };
     }
 
     it("shows shared route when all selected haulers have the same route (criterion 8)", () => {
       const state = haulState();
       state.ships = [
-        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
-        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:3" as const, material: "Ice" as const } },
       ];
       const panel = selectionPanel(state, [0, 1]);
-      expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+      expect(panel?.haulRoute).toEqual({ from: "home", to: "station:3", material: "Ice" });
       // No "mixed" sentinel anywhere
       expect(panel?.haulRoute?.from).not.toBe("mixed");
       expect(panel?.haulRoute?.to).not.toBe("mixed");
@@ -143,20 +153,20 @@ describe("RTS selection helpers", () => {
     it("shows Mixed for From when haulers differ on From (criterion 2)", () => {
       const state = haulState();
       state.ships = [
-        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
-        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "claim:4" as const, to: "claim:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "station:4" as const, to: "station:3" as const, material: "Ice" as const } },
       ];
       const panel = selectionPanel(state, [0, 1]);
       expect(panel?.haulRoute?.from).toBe("mixed");
-      expect(panel?.haulRoute?.to).toBe("claim:3");
+      expect(panel?.haulRoute?.to).toBe("station:3");
       expect(panel?.haulRoute?.material).toBe("Ice");
     });
 
     it("shows Mixed for To when haulers differ on To (criterion 2)", () => {
       const state = haulState();
       state.ships = [
-        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
-        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:4" as const, material: "Ice" as const } },
       ];
       const panel = selectionPanel(state, [0, 1]);
       expect(panel?.haulRoute?.from).toBe("home");
@@ -167,20 +177,20 @@ describe("RTS selection helpers", () => {
     it("shows Mixed for Material when haulers differ on Material (criterion 2)", () => {
       const state = haulState();
       state.ships = [
-        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
-        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Metal" as const } },
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:3" as const, material: "Metal" as const } },
       ];
       const panel = selectionPanel(state, [0, 1]);
       expect(panel?.haulRoute?.from).toBe("home");
-      expect(panel?.haulRoute?.to).toBe("claim:3");
+      expect(panel?.haulRoute?.to).toBe("station:3");
       expect(panel?.haulRoute?.material).toBe("mixed");
     });
 
     it("shows shared values for agreeing fields and Mixed for disagreeing (criterion 3)", () => {
       const state = haulState();
       state.ships = [
-        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
-        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:4" as const, material: "Metal" as const } },
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:4" as const, material: "Metal" as const } },
       ];
       const panel = selectionPanel(state, [0, 1]);
       expect(panel?.haulRoute?.from).toBe("home");
@@ -191,12 +201,12 @@ describe("RTS selection helpers", () => {
     it("returns haulRoute with Mixed sentinels when defaultBehaviour is mixed but some haulers have routes (criterion 1)", () => {
       const state = haulState();
       state.ships = [
-        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
-        { ...state.ships[0]!, id: 1, defaultBehaviour: "mine" as const, haulRoute: { from: "home" as const, to: "claim:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 0, defaultBehaviour: "haul" as const, haulRoute: { from: "home" as const, to: "station:3" as const, material: "Ice" as const } },
+        { ...state.ships[0]!, id: 1, defaultBehaviour: "mine" as const, haulRoute: { from: "home" as const, to: "station:3" as const, material: "Ice" as const } },
       ];
       const panel = selectionPanel(state, [0, 1]);
       expect(panel?.defaultBehaviour).toBe("mixed");
-      expect(panel?.haulRoute).toEqual({ from: "home", to: "claim:3", material: "Ice" });
+      expect(panel?.haulRoute).toEqual({ from: "home", to: "station:3", material: "Ice" });
     });
 
     it("returns null haulRoute when no selected ships have a haul route", () => {

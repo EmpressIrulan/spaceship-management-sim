@@ -22,15 +22,11 @@ export function renderHoverInfo(
   // Re-checked every frame, so zooming under a still pointer updates it too,
   // and the box closes by itself when a hovered asteroid runs out.
   let hovered = ui.mapOpen ? null : hoveredBody(getState(), ui.camera, ui.viewport, ui.pointer, ui.currentSector);
-  if (hovered?.kind === "claimSite") ui.stickySite = hovered.id;
-  else if (ui.infoHovered && ui.stickySite !== null && !ui.mapOpen) hovered = { kind: "claimSite", id: ui.stickySite };
-  else if (ui.infoHovered && ui.stickyQueuedBuild !== null && !ui.mapOpen) {
-    const index = queuedBuildIndexAt(getState(), ui.stickyQueuedBuild);
-    hovered = index < 0 ? null : { kind: "queuedBuild", index };
-  }
-  else {
-    ui.stickySite = null;
-    if (hovered?.kind !== "queuedBuild") ui.stickyQueuedBuild = null;
+  if (ui.infoHovered && ui.stickyQueuedBuild !== null && !ui.mapOpen) {
+    const index = queuedBuildIndexAt(getState(), ui.stickyQueuedBuild.position, ui.stickyQueuedBuild.stationId);
+    hovered = index < 0 ? null : { kind: "queuedBuild", index, stationId: ui.stickyQueuedBuild.stationId };
+  } else if (hovered?.kind !== "queuedBuild") {
+    ui.stickyQueuedBuild = null;
   }
 
   // A + cell sits above the canvas, so a ship beside it would never hear the
@@ -49,12 +45,14 @@ export function renderHoverInfo(
   delete infoAction.dataset.site;
   delete infoAction.dataset.carrier;
   delete infoAction.dataset.queuedBuild;
+  delete infoAction.dataset.stationId;
   if (info?.action) {
     infoAction.textContent = info.action.label;
     infoAction.disabled = !!info.action.disabled;
     if (info.action.siteId !== undefined) infoAction.dataset.site = String(info.action.siteId);
     if (info.action.carrierId !== undefined) infoAction.dataset.carrier = String(info.action.carrierId);
     if (info.action.queuedBuild !== undefined) infoAction.dataset.queuedBuild = String(info.action.queuedBuild);
+    if (info.action.stationId !== undefined) infoAction.dataset.stationId = String(info.action.stationId);
   }
   const body = hovered && bodyOf(getState(), hovered);
   if (body && info) {

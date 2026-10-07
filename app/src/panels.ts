@@ -1,5 +1,5 @@
 import {
-  deleteStock, resumeDefault, setDefaultBehaviour, setMineMaterial,
+  deleteStock, resumeDefault, setDefaultBehaviour, setMineMaterial, setShipHome,
   setMineOtherSectors, setStorageLimit, type DefaultBehaviour,
   launchAll, type Material, type SimState,
 } from "sim";
@@ -48,6 +48,10 @@ export function installPanels(
   shipPanelBox.addEventListener("change", (event) => {
     const select = event.target as HTMLSelectElement;
     if (select.name === "default") setState(setDefaultBehaviour(getState(), ui.selectedShips, select.value as DefaultBehaviour));
+    if (select.name === "ship-home" && select.value !== "mixed") {
+      const home = select.value === "none" ? null : Number(select.value);
+      setState(setShipHome(getState(), ui.selectedShips, home));
+    }
     if (["haul-from", "haul-to", "haul-material"].includes(select.name)) {
       ui.routeRefusalMessage = null;
       const panel = selectionPanel(getState(), ui.selectedShips);

@@ -9,6 +9,7 @@ import {
   hangarReserved,
   launchAll,
   pixelCount,
+  removeStation,
   tick,
   type Ship,
   type ShipDesign,
@@ -164,5 +165,20 @@ describe("carrier hangars", () => {
     const jumping = { ...docked, ships: docked.ships.map((ship) => ship.id === 1 ? { ...ship, state: "jumpingHome" as const } : ship) };
 
     expect(launchAll(jumping, 1)).toBe(jumping);
+  });
+
+  it("keeps a hangared ship inside its carrier when their station is removed", () => {
+    const state = fleet(1);
+    const dock = state.stations[0]!.dock.position;
+    const carrier = { ...state.ships[0]!, state: "docked" as const, position: { ...dock }, sectorId: 0 };
+    const fighter = { ...state.ships[1]!, state: "docked" as const, hangarId: carrier.id, position: { ...dock }, sectorId: 0 };
+
+    const removed = removeStation({ ...state, ships: [carrier, fighter] }, 0);
+    const movedCarrier = removed.ships.find((ship) => ship.id === carrier.id)!;
+    const retainedFighter = removed.ships.find((ship) => ship.id === fighter.id)!;
+
+    expect(movedCarrier.state).toBe("holding");
+    expect(movedCarrier.hangarId).toBeFalsy();
+    expect(retainedFighter).toMatchObject({ state: "docked", hangarId: carrier.id, position: movedCarrier.position });
   });
 });

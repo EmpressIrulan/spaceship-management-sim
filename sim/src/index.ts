@@ -28,6 +28,10 @@ export {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  homeStation,
+  stationById,
+  replaceHomeStation,
+  replaceStation,
   cargoByMaterial,
   minableRocks,
   nearestMineableRock,
@@ -76,6 +80,7 @@ export {
 } from "./state";
 export { cancelQueuedModuleBuild, queueModuleBuild, queuedDependents, startNextQueuedModule } from "./station-build-queue";
 export { supplyQueueStatus } from "./station-build-queue";
+export { stationOwningSite } from "./station-building";
 export {
   PIXEL_SIZE,
   SHIP_BUILD_SECONDS_PER_RESOURCE,
@@ -96,21 +101,16 @@ export {
   type ShipStats,
 } from "./ship";
 export {
-  CLAIM_BUILD_ORDER,
-  CLAIM_BUILD_SECONDS,
-  CLAIM_MODULE_COST,
-  CLAIM_SITE_SIZE,
-  claimSiteBuilt,
-  claimSiteNeeds,
-  claimSiteSlots,
-  removeClaimSite,
+  STATION_SITE_SIZE,
+  placeStation,
+  setSupplyStation,
+  renameStation,
+  removeStation,
   renameSector,
   sectorClaimed,
-  startClaimSite,
-  type ClaimSite,
-  type ClaimSiteNeeds,
-} from "./claim";
+  stationFounded,
+} from "./station-placement";
 export { tick } from "./tick";
-export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, setMineOtherSectors, type OrderTarget } from "./orders";
+export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, setMineOtherSectors, setShipHome, type OrderTarget } from "./orders";
 export { giveDockOrder, giveDockOrderWithFeedback, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, hangarUsed, launchAll } from "./hangars";
 export { haulStationDetails, type HaulStation } from "./haul";

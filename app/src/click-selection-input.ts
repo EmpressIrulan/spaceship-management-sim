@@ -2,6 +2,7 @@ import { hoveredBody } from "./camera";
 import { storagePanelOpenAfterClick } from "./storage";
 import { openStoragePanel } from "./storage-panel";
 import { toggleShip } from "./selection";
+import { stationById } from "sim";
 import type { InputContext } from "./input-context";
 
 export function selectClick(context: InputContext, event: MouseEvent, additive: boolean): void {
@@ -11,10 +12,10 @@ export function selectClick(context: InputContext, event: MouseEvent, additive: 
   const point = mousePoint(event);
   const hovered = hoveredBody(getState(), ui.camera, ui.viewport, point, ui.currentSector);
   ui.stickyQueuedBuild = hovered?.kind === "queuedBuild"
-    ? { ...getState().station.buildQueue[hovered.index]!.position }
+    ? { position: { ...stationById(getState(), hovered.stationId ?? 0)!.buildQueue[hovered.index]!.position }, stationId: hovered.stationId ?? 0 }
     : null;
   const clickedStorage = hovered?.kind === "storage"
-    || (hovered?.kind === "module" && getState().station.modules[hovered.index]?.type === "Storage");
+    || (hovered?.kind === "module" && stationById(getState(), hovered.stationId)?.modules[hovered.index]?.type === "Storage");
   const storageOpen = storagePanelOpenAfterClick(ui.storagePanelOpen, clickedStorage ? "storage" : hovered ? "other" : "empty");
   if (storageOpen && !ui.storagePanelOpen) openStoragePanel(storagePanel, getState(), () => { ui.storagePanelOpen = true; });
   else if (!storageOpen && ui.storagePanelOpen) closeStoragePanel();
@@ -22,5 +23,14 @@ export function selectClick(context: InputContext, event: MouseEvent, additive: 
   else if (!additive) ui.selectedShips = [];
   if (ui.selectedShips.join(",") !== priorSelection) ui.routeRefusalMessage = null;
   ui.selectedShip = ui.selectedShips[0] ?? null;
-  if (hovered?.kind === "module" && getState().station.modules[hovered.index]?.type === "Builder") openShipMenu(hovered.index);
+  if (hovered?.kind === "module" && stationById(getState(), hovered.stationId)?.modules[hovered.index]?.type === "Builder") openShipMenu(hovered.index, hovered.stationId);
+  const stationDockId = hovered?.kind === "dock" ? hovered.stationId
+    : hovered?.kind === "module" && stationById(getState(), hovered.stationId)?.modules[hovered.index]?.type === "Dock" ? hovered.stationId : null;
+  if (stationDockId !== null) {
+    ui.stationPanelId = stationById(getState(), stationDockId) ? stationDockId : null;
+    ui.removeStationConfirmation = null;
+  } else {
+    ui.stationPanelId = null;
+    ui.removeStationConfirmation = null;
+  }
 }

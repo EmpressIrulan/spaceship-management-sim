@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "sim";
+import { createInitialState, placeStation } from "sim";
 import { installCancelHoverInput } from "./cancel-hover-input";
 import { createUiState } from "./ui-state";
 
@@ -18,16 +18,16 @@ class FakeButton {
 
 describe("cancel hover input", () => {
   it("wires pointerenter and pointerleave to the queued build highlight", () => {
-    const state = createInitialState(7);
-    state.station.buildQueue = [{ type: "Storage", position: { x: 80, y: 0 }, size: { width: 30, height: 40 } }];
+    const state = placeStation(createInitialState(7), 0, { x: 900, y: 900 });
     const ui = createUiState([]);
     const button = new FakeButton();
-    button.dataset.queuedBuild = "0";
+    button.dataset.queuedBuild = "1";
+    button.dataset.stationId = "1";
 
     installCancelHoverInput(ui, () => state, button as unknown as HTMLButtonElement);
 
     button.fire("pointerenter");
-    expect(ui.cancelHoveredBuild).toEqual({ x: 80, y: 0 });
+    expect(ui.cancelHoveredBuild).toEqual({ position: state.stations[1]!.buildQueue[1]!.position, stationId: 1 });
 
     button.fire("pointerleave");
     expect(ui.cancelHoveredBuild).toBeNull();
