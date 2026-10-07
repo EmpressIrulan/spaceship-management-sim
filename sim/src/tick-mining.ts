@@ -12,6 +12,7 @@ export interface Draft {
   time: number;
   activeStationId: number;
   primaryStationId: number;
+  founding: boolean;
   deliveries: Station["deliveries"];
   rng: number;
   nextAsteroidId: number;

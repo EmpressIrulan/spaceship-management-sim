@@ -239,6 +239,31 @@ describe("criterion 2: ships supply the site and a Dock builds", () => {
     expect(haulStations(state).map((entry) => entry.id)).toEqual([`station:${id}`]);
   });
 
+  it("builds the surviving site's Dock after Home is removed", () => {
+    let state = spot(createInitialState(7), 0).state;
+    const id = state.nextStationId - 1;
+    state = fundSite(state, id);
+    state = removeStation(state, 0);
+
+    const built = tick(state, 300);
+
+    expect(stationById(built, id)!.modules.map((module) => module.type)).toContain("Dock");
+  });
+
+  it("continues the surviving site's Storage build after its Dock", () => {
+    let state = spot(createInitialState(7), 0).state;
+    const id = state.nextStationId - 1;
+    state = { ...state, stations: state.stations.map((station) => station.id === id ? {
+      ...station, constructionSite: { ...station.constructionSite, inventory: { Metal: 50, Ice: 50 } },
+    } : station) };
+    state = removeStation(state, 0);
+
+    const built = tick(state, 300);
+
+    expect(stationById(built, id)!.modules.map((module) => module.type)).toEqual(["Dock", "Storage"]);
+    expect(stationById(built, id)!.founding).toBe(false);
+  });
+
   it("delivers construction cargo to a surviving station by id after Home is removed", () => {
     let state = spot(createInitialState(7), 0).state;
     const id = state.nextStationId - 1;

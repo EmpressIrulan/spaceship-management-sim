@@ -646,7 +646,7 @@ function settle(draft: Draft): void {
     // A module that has lost its footing is given back to the site rather than
     // finished off the station, which is the one place a build can end up
     // unattached no matter how the queue got there.
-    if (constructionAttached(draft)) completeBuild(draft);
+    if (draft.modules.length === 0 || constructionAttached(draft)) completeBuild(draft);
     else refundDetachedBuild(draft);
   }
   const due = draft.respawns.filter((r) => r.timer <= 0);
@@ -731,6 +731,7 @@ function settle(draft: Draft): void {
     if (ship.timer <= 0) draft.ships[i] = forShipHome(draft, ship, () => finish(draft, ship));
   }
   settleQueuedBuild(draft);
+  if (draft.founding && draft.buildQueue.length === 0 && !draft.construction) draft.founding = false;
 }
 
 // Steps from one timer running out to the next, so a large dt (a tab coming
@@ -749,6 +750,7 @@ export function tick(state: SimState, dt: number): SimState {
     time: state.time,
     activeStationId: primaryStationId,
     primaryStationId,
+    founding: home.founding,
     deliveries: home.deliveries,
     rng: state.rng,
     nextAsteroidId: state.nextAsteroidId,
@@ -778,6 +780,11 @@ export function tick(state: SimState, dt: number): SimState {
       : state.stations.find((station) => station.id === state.supplyStation)?.buildQueue.length ?? 0,
   };
 
+  // Start a funded primary-station build before spending a potentially large
+  // dt on other events; otherwise a newly exposed primary queue can wait until
+  // the end of the tick to begin construction.
+  settleQueuedBuild(draft);
+
   // A negative or NaN dt would wind timers backwards, so it counts as no time.
   let remaining = dt > 0 ? dt : 0;
   do {
@@ -796,6 +803,7 @@ export function tick(state: SimState, dt: number): SimState {
     nextShipId: draft.nextShipId,
     stations: state.stations.map((station) => station.id === primaryStationId ? {
       ...home,
+      founding: draft.founding,
       dock: { ...home.dock, capacity: draft.dockCapacity },
       storage: { ...home.storage, capacity: draft.storageCapacity },
       inventory: draft.inventory,

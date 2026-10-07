@@ -16,6 +16,7 @@ import {
   startShipBuild,
   validDesign,
   tick,
+  removeStation,
   type Ship,
   type ShipDesign,
   type SimState,
@@ -199,6 +200,22 @@ describe("building a ship", () => {
     const withStation = { ...state, stations: [...state.stations, origin] };
     const building = startShipBuild(withStation, 2, miner, 1);
     const done = tick(building, shipBuildSeconds(miner));
+    const built = done.ships.at(-1)!;
+
+    expect(built.homeStationId).toBe(1);
+    expect(built.sectorId).toBe(2);
+    expect(built.position).toEqual(origin.dock.position);
+  });
+
+  it("finishes a ship build at the primary station after Home is removed", () => {
+    const base = shipyard();
+    const origin = foundedStation(1, 2, 900, 900, { Metal: 1000, Ice: 1000 });
+    origin.modules.push({ type: "Builder", position: { x: 940, y: 900 }, size: { width: 30, height: 40 } });
+    const withStation = { ...base, stations: [...base.stations, origin] };
+    const building = startShipBuild(withStation, 2, miner, 1);
+    const withoutHome = removeStation(building, 0);
+
+    const done = tick(withoutHome, 300);
     const built = done.ships.at(-1)!;
 
     expect(built.homeStationId).toBe(1);
