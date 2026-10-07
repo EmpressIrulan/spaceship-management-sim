@@ -73,7 +73,7 @@ function setStationContext(draft: Draft, context: StationContext): void {
 
 function saveStationContext(draft: Draft, stationId: number): void {
   const context = currentStationContext(draft);
-  if (stationId === draft.activeStationId) return;
+  if (stationId === draft.primaryStationId) return;
   draft.others = draft.others.map((station) => station.id === stationId ? {
     ...station, deliveries: context.deliveries,
     dock: { ...station.dock, capacity: context.dockCapacity }, sectorId: context.stationSector,
@@ -748,6 +748,7 @@ export function tick(state: SimState, dt: number): SimState {
   const draft: Draft = {
     time: state.time,
     activeStationId: primaryStationId,
+    primaryStationId,
     deliveries: home.deliveries,
     rng: state.rng,
     nextAsteroidId: state.nextAsteroidId,

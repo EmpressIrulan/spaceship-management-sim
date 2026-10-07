@@ -11,6 +11,7 @@ export function miningSeconds(ship: Ship): number {
 export interface Draft {
   time: number;
   activeStationId: number;
+  primaryStationId: number;
   deliveries: Station["deliveries"];
   rng: number;
   nextAsteroidId: number;
