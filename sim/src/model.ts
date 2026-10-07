@@ -30,7 +30,10 @@ export type ShipState =
   | "haulJumpingReturning" | "haulWaitingSource" | "haulWaitingFull";
 export type DefaultBehaviour = "mine" | "haul" | "supply" | "none";
 export type HaulStationId = "home" | `station:${number}`;
-export interface HaulRoute { from: HaulStationId; to: HaulStationId; material: Material }
+// Haul loads at a station's Storage; a route may end at the same station's
+// construction site instead of another Storage.
+export type HaulDestinationId = HaulStationId | `site:${number}`;
+export interface HaulRoute { from: HaulStationId; to: HaulDestinationId; material: Material }
 export type Order =
   | { kind: "mine"; asteroidId: number; loaded: boolean }
   | { kind: "move"; point: Vec; sectorId: number }

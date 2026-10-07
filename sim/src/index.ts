@@ -62,6 +62,7 @@ export {
   type GateProject,
   type HaulRoute,
   type HaulStationId,
+  type HaulDestinationId,
   type ModuleBuildOption,
   type ModuleConstruction,
   type QueuedModuleBuild,
@@ -113,4 +114,4 @@ export {
 export { tick } from "./tick";
 export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, setMineOtherSectors, setShipHome, type OrderTarget } from "./orders";
 export { giveDockOrder, giveDockOrderWithFeedback, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, hangarUsed, launchAll } from "./hangars";
-export { haulStationDetails, type HaulStation } from "./haul";
+export { haulStationDetails, haulDestinations, haulSites, type HaulStation, type HaulDestination } from "./haul";

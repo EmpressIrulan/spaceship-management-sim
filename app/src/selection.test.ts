@@ -52,12 +52,14 @@ describe("RTS selection helpers", () => {
     expect(selectionPanel(state, [0])?.rows[0]?.status).toBe("Order: move (holding)");
   });
 
-  it("disables Haul with one station and names the route controls with two", () => {
+  it("allows Haul with one station and names the route controls", () => {
     const initial = createInitialState(7);
     expect(selectionPanel(initial, [0])).toMatchObject({
-      canHaul: false,
-      haulDisabledReason: "Needs two stations",
+      canHaul: true,
+      haulDisabledReason: null,
       haulRoute: null,
+      stations: [{ id: "home", name: "Home" }],
+      destinations: [{ id: "home", name: "Home" }, { id: "site:0", name: "Home construction site" }],
     });
 
     const state = {
@@ -70,6 +72,10 @@ describe("RTS selection helpers", () => {
     expect(selectionPanel(state, [0])).toMatchObject({
       canHaul: true,
       stations: [{ id: "home", name: "Home" }, { id: "station:3", name: "Station 3" }],
+      destinations: [
+        { id: "home", name: "Home" }, { id: "site:0", name: "Home construction site" },
+        { id: "station:3", name: "Station 3" }, { id: "site:3", name: "Station 3 construction site" },
+      ],
       haulRoute: { from: "home", to: "station:3", material: "Ice" },
     });
   });

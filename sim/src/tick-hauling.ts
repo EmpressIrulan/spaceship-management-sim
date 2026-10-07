@@ -1,5 +1,5 @@
 import { haulCargoDestination, haulStationDetails } from "./haul";
-import { type HaulStationId, type Ship } from "./state";
+import { type HaulDestinationId, type Ship } from "./state";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import type { Draft } from "./tick-mining";
 import { addCargo, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
@@ -8,9 +8,32 @@ export function haulStored(end: NonNullable<ReturnType<typeof haulStationDetails
   return end.inventory.Metal + end.inventory.Ice;
 }
 
-export function changeHaulInventory(draft: Draft, id: HaulStationId, material: "Metal" | "Ice", amount: number): void {
+export function changeHaulInventory(draft: Draft, id: HaulDestinationId, material: "Metal" | "Ice", amount: number): void {
   if (id === "home") {
     draft.inventory = { ...draft.inventory, [material]: draft.inventory[material] + amount };
+    return;
+  }
+  if (id.startsWith("site:")) {
+    const stationId = Number(id.slice("site:".length));
+    // Ore into a site's inventory is ore toward what it is building, the
+    // same as any other delivery to it.
+    if (stationId === draft.activeStationId) {
+      draft.constructionSite = { ...draft.constructionSite,
+        inventory: { ...draft.constructionSite.inventory, [material]: draft.constructionSite.inventory[material] + amount } };
+      return;
+    }
+    if (stationId === draft.primaryStationId) {
+      // A haul runs under its ship's home station's context, so a delivery to
+      // the primary's site credits the context kept aside in homeContext,
+      // which the tick folds back into the primary station's own context.
+      const held = draft.homeContext!;
+      draft.homeContext = { ...held, constructionSite: { ...held.constructionSite,
+        inventory: { ...held.constructionSite.inventory, [material]: held.constructionSite.inventory[material] + amount } } };
+      return;
+    }
+    draft.others = draft.others.map((station) => station.id === stationId
+      ? { ...station, constructionSite: { ...station.constructionSite,
+        inventory: { ...station.constructionSite.inventory, [material]: station.constructionSite.inventory[material] + amount } } } : station);
     return;
   }
   const stationId = Number(id.slice("station:".length));
@@ -40,7 +63,7 @@ export function unloadHauler(draft: Draft, ship: Ship, units: number): Ship {
   });
 }
 
-export function startHaulTransfer(draft: Draft, ship: Ship, stationId: HaulStationId, loading: boolean): Ship {
+export function startHaulTransfer(draft: Draft, ship: Ship, stationId: HaulDestinationId, loading: boolean): Ship {
   const amount = loading ? shipStats(ship.design).hold : ship.cargo;
   const planned = { ...ship, cargoMaterial: loading ? ship.haulRoute?.material ?? null : ship.cargoMaterial,
     transfer: { startingCargo: loading ? 0 : ship.cargo, amount } };

@@ -1,5 +1,5 @@
 import { supplyQueueStatus } from "./station-build-queue";
-import { haulStations, resumeHaulShip, validHaulRoute } from "./haul";
+import { haulSites, haulStations, resumeHaulShip, validHaulRoute } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { travelSeconds } from "./motion";
 import { canMine, cargoTransferSeconds, shipSize, shipStats, speedFactor } from "./ship";
@@ -229,11 +229,14 @@ export function resumeDefault(state: SimState, ids: number[]): SimState {
 }
 
 export function setDefaultBehaviour(state: SimState, ids: number[], behaviour: DefaultBehaviour): SimState {
-  if (behaviour === "haul" && haulStations(state).length < 2) return state;
+  if (behaviour === "haul" && haulStations(state).length < 1) return state;
   return { ...state, ships: state.ships.map((ship) => {
     if (!ids.includes(ship.id)) return ship;
     const stations = haulStations(state);
-    const haulRoute = ship.haulRoute ?? (stations[1] ? { from: stations[0]!.id, to: stations[1].id, material: "Metal" as const } : undefined);
+    // Home is the only From, and a second Storage is the default To; with one
+    // station the hauler carries between Home Storage and its own site.
+    const to = stations[1]?.id ?? haulSites(state)[0]?.id;
+    const haulRoute = ship.haulRoute ?? (to ? { from: stations[0]!.id, to, material: "Metal" as const } : undefined);
     const next = { ...ship, defaultBehaviour: behaviour, haulRoute };
     const wasHauling = ship.state.startsWith("haul");
     if (!next.order && (behaviour === "haul" || wasHauling || next.state === "holding")) return resumeDefaultShip(state, next);

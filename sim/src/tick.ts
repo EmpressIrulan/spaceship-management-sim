@@ -73,7 +73,13 @@ function setStationContext(draft: Draft, context: StationContext): void {
 
 function saveStationContext(draft: Draft, stationId: number): void {
   const context = currentStationContext(draft);
-  if (stationId === draft.primaryStationId) return;
+  if (stationId === draft.primaryStationId) {
+    // The primary station keeps no whole-station copy in others; its context
+    // is held aside instead, so hauls can reach site:0 while the tick is
+    // working another station's context into the top level.
+    draft.homeContext = context;
+    return;
+  }
   draft.others = draft.others.map((station) => station.id === stationId ? {
     ...station, deliveries: context.deliveries,
     dock: { ...station.dock, capacity: context.dockCapacity }, sectorId: context.stationSector,
@@ -108,7 +114,13 @@ function forShipHome<T>(draft: Draft, ship: Ship, action: () => T): T {
   draft.activeStationId = id;
   const result = action();
   saveStationContext(draft, id);
-  setStationContext(draft, prior);
+  if (priorId === draft.primaryStationId) {
+    // Haul writes during the window went through homeContext; folding its
+    // site back keeps deliveries to the primary's site on the switch home.
+    setStationContext(draft, { ...prior, constructionSite: draft.homeContext!.constructionSite });
+  } else {
+    setStationContext(draft, prior);
+  }
   draft.activeStationId = priorId;
   return result;
 }
@@ -775,6 +787,7 @@ export function tick(state: SimState, dt: number): SimState {
     // Every non-Home station, kept whole. Founding ones advance their own
     // first Dock and Storage; founded ones only move haul stock this tick.
     others: state.stations.filter((station) => station.id !== primaryStationId),
+    homeContext: { stationSector: home.sectorId, constructionSite: home.constructionSite },
     supplyStation: state.supplyStation,
     supplyQueue: state.supplyStation === 0 ? home.buildQueue.length
       : state.stations.find((station) => station.id === state.supplyStation)?.buildQueue.length ?? 0,

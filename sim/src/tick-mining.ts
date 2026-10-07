@@ -6,6 +6,10 @@ export function miningSeconds(ship: Ship): number {
   return shipStats(ship.design).miningSeconds ?? 0;
 }
 
+// The parts of the primary station's context a haul naming site:0 needs while
+// the draft's top level holds another station's context.
+export type HomeHaulContext = Pick<Draft, "stationSector" | "constructionSite">;
+
 // Mutable copy of the parts of SimState that one tick changes. Built fresh
 // from the input, so the caller's state is never touched.
 export interface Draft {
@@ -38,6 +42,10 @@ export interface Draft {
   // Every non-Home station, kept whole so hauling can move its stock and a
   // founding one can advance its own first Dock and Storage.
   others: Station[];
+  // The primary station's context, kept aside while the tick works another
+  // station's context into the top level, so a haul naming site:0 resolves
+  // and credits the primary site instead of whichever station is active.
+  homeContext: HomeHaulContext | null;
   // The station whose construction site supply ships bring stock to, and the
   // length of its build queue: the queue a supply default watches.
   supplyStation: number;

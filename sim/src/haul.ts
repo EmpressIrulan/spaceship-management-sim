@@ -1,9 +1,11 @@
 import { travelSeconds } from "./motion";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { stationFounded } from "./station-placement";
-import { berthLayout, gateRoute, homeStation, stationById, toBerth, toParking, type HaulRoute, type HaulStationId, type Ship, type SimState, type Station, type Vec } from "./state";
+import type { HomeHaulContext } from "./tick-mining";
+import { berthLayout, gateRoute, homeStation, stationById, toBerth, toParking, type HaulDestinationId, type HaulRoute, type HaulStationId, type Ship, type SimState, type Station, type Vec } from "./state";
 
 export interface HaulStation { id: HaulStationId; name: string }
+export interface HaulDestination { id: HaulDestinationId; name: string }
 
 interface HaulStateBase {
   sectors: SimState["sectors"];
@@ -11,8 +13,8 @@ interface HaulStateBase {
 }
 
 export type HaulState = HaulStateBase & (
-  | { stations: Station[]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never; others?: never }
-  | { stations?: never; stationSector: number; dock: Vec; inventory: Station["inventory"]; storageCapacity: number; others: Station[] }
+  | { stations: Station[]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never; constructionSite?: never; others?: never; activeStationId?: never; primaryStationId?: never; homeContext?: never }
+  | { stations?: never; stationSector: number; dock: Vec; inventory: Station["inventory"]; storageCapacity: number; constructionSite: Station["constructionSite"]; others: Station[]; activeStationId: number; primaryStationId: number; homeContext: HomeHaulContext | null }
 );
 
 // Every station with a Dock of its own joins Home as a haul stop. A site still
@@ -29,7 +31,44 @@ export function haulStations(state: Pick<SimState, "stations" | "sectors">): Hau
   ];
 }
 
-export function haulStationDetails(state: HaulState, id: HaulStationId) {
+// The Storage of every haul stop, each followed by the construction site that
+// stands with it, so a To dropdown shows "Home construction site" and its like.
+// Both functions run the same filter in the same order, so indexes pair up.
+export function haulDestinations(state: Pick<SimState, "stations" | "sectors">): HaulDestination[] {
+  const sites = haulSites(state);
+  return haulStations(state).flatMap((station, index) => [station, sites[index]!]);
+}
+
+export function haulSites(state: Pick<SimState, "stations" | "sectors">): HaulDestination[] {
+  const home = stationById(state, 0);
+  return [
+    ...(home ? [{ id: "site:0" as const, name: `${home.name} construction site` }] : []),
+    ...state.stations.filter((station) => station.id !== 0 && stationFounded(station)).map((station) => ({
+      id: `site:${station.id}` as const,
+      name: `${station.name} construction site`,
+    })),
+  ];
+}
+
+export function haulStationDetails(state: HaulState, id: HaulDestinationId) {
+  if (id.startsWith("site:")) {
+    const stationId = Number(id.slice("site:".length));
+    if (state.stations) return siteDetails(id, stationById(state, stationId));
+    // The tick's draft keeps the active station's context at the top level;
+    // a haul runs under its ship's home station's context, so a site resolves
+    // by the station its id names: the active station's site reads from the
+    // top level, the primary station's is kept aside in homeContext, the rest
+    // stand in others.
+    if (stationId === state.activeStationId) return {
+      id, sectorId: state.stationSector, position: state.constructionSite.position,
+      inventory: state.constructionSite.inventory, capacity: Infinity,
+    };
+    if (stationId === state.primaryStationId && state.homeContext) return {
+      id, sectorId: state.homeContext.stationSector, position: state.homeContext.constructionSite.position,
+      inventory: state.homeContext.constructionSite.inventory, capacity: Infinity,
+    };
+    return siteDetails(id, state.others.find((candidate) => candidate.id === stationId));
+  }
   if (id === "home") {
     if (state.stations) return {
       id, sectorId: homeStation(state).sectorId, position: homeStation(state).dock.position,
@@ -43,11 +82,21 @@ export function haulStationDetails(state: HaulState, id: HaulStationId) {
     ? { id, sectorId: station.sectorId, position: station.dock.position, inventory: station.inventory, capacity: station.storage.capacity }
     : null;}
 
+// The construction site of one station, resolved for the haul stop list. A
+// site has no cap, so every room check sees room left and a hauler never
+// waits for space there.
+function siteDetails(id: HaulDestinationId, station: Station | undefined) {
+  return station && (station.id === 0 || stationFounded(station))
+    ? { id, sectorId: station.sectorId, position: station.constructionSite.position,
+      inventory: station.constructionSite.inventory, capacity: Infinity }
+    : null;
+}
+
 function stored(station: NonNullable<ReturnType<typeof haulStationDetails>>): number {
   return station.inventory.Metal + station.inventory.Ice;
 }
 
-export function flyHaul(ship: Ship, state: HaulState, stationId: HaulStationId, kind: "outbound" | "returning"): Ship {
+export function flyHaul(ship: Ship, state: HaulState, stationId: HaulDestinationId, kind: "outbound" | "returning"): Ship {
   const station = haulStationDetails(state, stationId);
   if (!station) return { ...ship, state: "holding", timer: 0, leg: null };
   let to: Vec;
@@ -62,7 +111,7 @@ export function flyHaul(ship: Ship, state: HaulState, stationId: HaulStationId, 
     timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
 }
 
-function transferAt(state: SimState, ship: Ship, stationId: HaulStationId, loading: boolean): Ship {
+function transferAt(state: SimState, ship: Ship, stationId: HaulDestinationId, loading: boolean): Ship {
   const amount = loading ? shipStats(ship.design).hold : ship.cargo;
   const planned = { ...ship, cargoMaterial: loading ? ship.haulRoute?.material ?? null : ship.cargoMaterial,
     transfer: { startingCargo: loading ? 0 : ship.cargo, amount } };
@@ -74,13 +123,14 @@ function transferAt(state: SimState, ship: Ship, stationId: HaulStationId, loadi
 }
 
 export function validHaulRoute(state: SimState, route: HaulRoute): boolean {
-  const stations = new Set(haulStations(state).map((station) => station.id));
-  return route.from !== route.to && stations.has(route.from) && stations.has(route.to);
+  const sources = new Set(haulStations(state).map((station) => station.id));
+  const destinations = new Set(haulDestinations(state).map((destination) => destination.id));
+  return sources.has(route.from) && destinations.has(route.to) && route.from !== route.to;
 }
 
 // Cargo that no longer matches the configured route goes back to From before
 // the ship starts loading the newly selected material.
-export function haulCargoDestination(ship: Ship): HaulStationId | null {
+export function haulCargoDestination(ship: Ship): HaulDestinationId | null {
   const route = ship.haulRoute;
   if (!route) return null;
   return ship.cargo > 0 && ship.cargoMaterial && ship.cargoMaterial !== route.material ? route.from : route.to;

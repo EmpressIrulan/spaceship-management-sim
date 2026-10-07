@@ -2,7 +2,7 @@ import {
   MATERIALS,
   cargoByMaterial,
   canMine,
-  haulStations,
+  haulDestinations,
   nearestMineableRock,
   shipStats,
   type Order,
@@ -123,7 +123,7 @@ export function shipStatus(state: SimState, ship: Ship): string {
   if (intoSite(ship)) return "Unloading into the construction site";
   if (ship.order) return orderLabel(ship.order);
   const route = ship.haulRoute;
-  const names = new Map(haulStations(state).map((station) => [station.id, station.name]));
+  const names = new Map(haulDestinations(state).map((stop) => [stop.id, stop.name]));
   const source = route ? names.get(route.from) ?? null : null;
   const destination = route ? names.get(route.to) ?? null : null;
   const cargoDestination = ship.cargo > 0 && ship.cargoMaterial && ship.cargoMaterial !== route?.material ? source : destination;

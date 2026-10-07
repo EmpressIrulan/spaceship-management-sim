@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { configureHaul, giveOrder, haulStations, resumeDefault, setDefaultBehaviour } from "./orders";
+import { configureHaul, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setShipHome } from "./orders";
+import { haulDestinations } from "./haul";
 import { createInitialState, dockBerths, homeStation, type SimState } from "./state";
 import { foundedStation } from "./test-ships";
 import { cargoTransferSeconds } from "./ship";
@@ -204,8 +205,119 @@ describe("Haul default", () => {
       leg: ordered.leg, defaultBehaviour: "haul", haulRoute: { material: "Metal" } });
   });
 
-  it("cannot select Haul with only one station", () => {
+  it("defaults a one-station hauler to Home Storage -> Home construction site", () => {
     const state = createInitialState(7);
-    expect(setDefaultBehaviour(state, [0], "haul")).toBe(state);
+    expect(setDefaultBehaviour(state, [0], "haul").ships[0]).toMatchObject({
+      defaultBehaviour: "haul",
+      haulRoute: { from: "home", to: "site:0", material: "Metal" },
+    });
+  });
+});
+
+describe("Haul to construction sites (criteria 1-2)", () => {
+  it("lists each station's Storage and its construction site as To destinations", () => {
+    expect(haulDestinations(twoStations())).toEqual([
+      { id: "home", name: "Home" },
+      { id: "site:0", name: "Home construction site" },
+      { id: "station:1", name: "Station 1" },
+      { id: "site:1", name: "Station 1 construction site" },
+    ]);
+  });
+
+  it("offers only Home Storage and Home construction site with one station", () => {
+    expect(haulDestinations(createInitialState(7))).toEqual([
+      { id: "home", name: "Home" },
+      { id: "site:0", name: "Home construction site" },
+    ]);
+  });
+
+  it("accepts a Haul order from Home Storage to Home construction site with one station", () => {
+    const state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
+    expect(state.ships[0]).toMatchObject({ defaultBehaviour: "haul", haulRoute: { from: "home", to: "site:0", material: "Metal" } });
+  });
+
+  it("a hauler on a site route starts delivering without an order queued", () => {
+    const state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
+    const later = run(state, 10);
+    expect(later.ships[0]!.cargo + later.stations[0]!.constructionSite.inventory.Metal).toBeGreaterThan(0);
+  });
+
+  it("keeps To a different stop and From a Storage", () => {
+    const state = twoStations();
+    expect(configureHaul(state, [0], { from: "site:1" as never, to: "home", material: "Metal" })).toBe(state);
+    expect(configureHaul(state, [0], { from: "home", to: "home", material: "Metal" })).toBe(state);
+  });
+});
+
+describe("Haul to construction sites (delivery loop)", () => {
+  it("loads at From, unloads into the site over time, and repeats", () => {
+    const base = createInitialState(7);
+    const stocked = { ...base, stations: [{ ...base.stations[0]!, inventory: { Metal: 100, Ice: 20 } }] };
+    let state = configureHaul(stocked, [0], { from: "home", to: "site:0", material: "Metal" });
+    const loading = until(state, (next) => next.ships[0]!.state === "haulLoading");
+    const unloading = until(loading, (next) => next.ships[0]!.state === "haulUnloading");
+    // Unloading into the site takes the same timed transfer as at the Dock (#48).
+    // The sampler lands partway into the first countdown tick.
+    expect(unloading.ships[0]!.timer).toBeCloseTo(cargoTransferSeconds(20), 0);
+    const mid = run(unloading, 3.01);
+    expect(mid.ships[0]).toMatchObject({ cargo: 15, cargoMaterial: "Metal" });
+    expect(mid.stations[0]!.constructionSite.inventory.Metal).toBe(5);
+
+    const repeated = until(mid, (next) => next.ships[0]!.state === "haulLoading");
+    expect(repeated.ships[0]).toMatchObject({ cargo: 0 });
+    expect(repeated.stations[0]!.inventory).toEqual({ Metal: 80, Ice: 20 });
+    expect(repeated.stations[0]!.constructionSite.inventory).toEqual({ Metal: 20, Ice: 0 });
+  });
+
+  it("never waits for room, since the site has no cap", () => {
+    const base = createInitialState(7);
+    const stacked = { ...base, stations: [{ ...base.stations[0]!,
+      constructionSite: { ...base.stations[0]!.constructionSite, inventory: { Metal: 100000, Ice: 0 } } }] };
+    let state = configureHaul(stacked, [0], { from: "home", to: "site:0", material: "Metal" });
+    const unloading = until(state, (next) => next.ships[0]!.state === "haulUnloading");
+    const done = run(unloading, 12.01);
+    expect(done.ships[0]!.cargo).toBe(0);
+    expect(done.stations[0]!.constructionSite.inventory.Metal).toBe(100020);
+    expect(run(state, 30).ships[0]!.state).not.toBe("haulWaitingFull");
+  });
+
+  it("unloads into another station's site through the gate, not its Storage", () => {
+    const base = twoStations();
+    let state = configureHaul(base, [0], { from: "home", to: "site:1", material: "Ice" });
+    const unloading = until(state, (next) => next.ships[0]!.state === "haulUnloading");
+    expect(unloading.ships[0]).toMatchObject({ sectorId: 1, position: base.stations[1]!.constructionSite.position });
+    const done = run(unloading, 12.01);
+    expect(done.stations[1]!.constructionSite.inventory).toEqual({ Metal: 0, Ice: 20 });
+    expect(done.stations[1]!.inventory).toEqual({ Metal: 0, Ice: 0 });
+  });
+
+  it("a right-click order interrupts a site run and Resume sends the ship back to it", () => {
+    let state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
+    state = until(state, (next) => next.ships[0]!.state === "haulUnloading");
+    const cargo = state.ships[0]!.cargo;
+    const ordered = giveOrder(state, [0], { kind: "move", point: { x: 30, y: 20 }, sectorId: 0 });
+    const resumed = resumeDefault(ordered, [0]);
+    expect(resumed.ships[0]).toMatchObject({ order: null, defaultBehaviour: "haul", cargo });
+    expect(["haulOutbound", "haulUnloading"]).toContain(resumed.ships[0]!.state);
+  });
+});
+
+describe("Haul across stations", () => {
+  it("a ship based at a station hauls to the primary's construction site", () => {
+    let state = setShipHome(twoStations(), [0], 1);
+    state = { ...state, stations: [state.stations[0]!, { ...state.stations[1]!, inventory: { Metal: 0, Ice: 20 } }] };
+    state = configureHaul(state, [0], { from: "station:1", to: "site:0", material: "Ice" });
+
+    const unloading = until(state, (next) => next.ships[0]!.state === "haulUnloading" && next.ships[0]!.cargo > 0);
+    const mid = run(unloading, 3.01);
+    // The ore arrives in the site the route names, station 0's, not in the
+    // hauler's own station's site, and never leaves the ship uncredited.
+    expect(mid.ships[0]!.cargo).toBe(15);
+    expect(mid.stations[0]!.constructionSite.inventory.Ice).toBe(5);
+    expect(mid.stations[1]!.constructionSite.inventory.Ice).toBe(0);
+
+    const delivered = until(mid, (next) => next.stations[0]!.constructionSite.inventory.Ice >= 20);
+    expect(delivered.ships[0]!.cargo).toBe(0);
+    expect(delivered.stations[1]!.constructionSite.inventory.Ice).toBe(0);
   });
 });
