@@ -12,8 +12,8 @@ interface HaulStateBase {
 }
 
 export type HaulState = HaulStateBase & (
-  | { stations: Station[]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never; others?: never }
-  | { stations?: never; stationSector: number; dock: Vec; inventory: Station["inventory"]; storageCapacity: number; others: Station[] }
+  | { stations: Station[]; stationSector?: never; dock?: never; inventory?: never; storageCapacity?: never; constructionSite?: never; others?: never }
+  | { stations?: never; stationSector: number; dock: Vec; inventory: Station["inventory"]; storageCapacity: number; constructionSite: Station["constructionSite"]; others: Station[] }
 );
 
 // Every station with a Dock of its own joins Home as a haul stop. A site still
@@ -51,14 +51,15 @@ export function haulSites(state: Pick<SimState, "stations" | "sectors">): HaulDe
 
 export function haulStationDetails(state: HaulState, id: HaulDestinationId) {
   if (id.startsWith("site:")) {
-    const stations = state.stations ?? state.others ?? [];
-    const station = stationById({ stations }, Number(id.slice("site:".length)));
-    // A site has no haul room of its own yet: until a route into it can
-    // unload (the delivery slice), a hauler on a site route never fills it.
-    return station && (station.id === 0 || stationFounded(station))
-      ? { id, sectorId: station.sectorId, position: station.constructionSite.position,
-        inventory: station.constructionSite.inventory, capacity: 0 }
-      : null;
+    const stationId = Number(id.slice("site:".length));
+    if (state.stations) return siteDetails(id, stationById(state, stationId));
+    // The tick's draft keeps the active station's context at the top level,
+    // the way the "home" stop reads it; the rest stand in others.
+    if (stationId === 0) return {
+      id, sectorId: state.stationSector, position: state.constructionSite.position,
+      inventory: state.constructionSite.inventory, capacity: Infinity,
+    };
+    return siteDetails(id, state.others.find((candidate) => candidate.id === stationId));
   }
   if (id === "home") {
     if (state.stations) return {
@@ -72,6 +73,16 @@ export function haulStationDetails(state: HaulState, id: HaulDestinationId) {
   return station && station.id !== 0 && stationFounded(station)
     ? { id, sectorId: station.sectorId, position: station.dock.position, inventory: station.inventory, capacity: station.storage.capacity }
     : null;}
+
+// The construction site of one station, resolved for the haul stop list. A
+// site has no cap, so every room check sees room left and a hauler never
+// waits for space there.
+function siteDetails(id: HaulDestinationId, station: Station | undefined) {
+  return station && (station.id === 0 || stationFounded(station))
+    ? { id, sectorId: station.sectorId, position: station.constructionSite.position,
+      inventory: station.constructionSite.inventory, capacity: Infinity }
+    : null;
+}
 
 function stored(station: NonNullable<ReturnType<typeof haulStationDetails>>): number {
   return station.inventory.Metal + station.inventory.Ice;

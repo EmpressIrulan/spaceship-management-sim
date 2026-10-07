@@ -13,6 +13,20 @@ export function changeHaulInventory(draft: Draft, id: HaulDestinationId, materia
     draft.inventory = { ...draft.inventory, [material]: draft.inventory[material] + amount };
     return;
   }
+  if (id.startsWith("site:")) {
+    const stationId = Number(id.slice("site:".length));
+    // Ore into a site's inventory is ore toward what it is building, the
+    // same as any other delivery to it.
+    if (stationId === draft.activeStationId) {
+      draft.constructionSite = { ...draft.constructionSite,
+        inventory: { ...draft.constructionSite.inventory, [material]: draft.constructionSite.inventory[material] + amount } };
+      return;
+    }
+    draft.others = draft.others.map((station) => station.id === stationId
+      ? { ...station, constructionSite: { ...station.constructionSite,
+        inventory: { ...station.constructionSite.inventory, [material]: station.constructionSite.inventory[material] + amount } } } : station);
+    return;
+  }
   const stationId = Number(id.slice("station:".length));
   draft.others = draft.others.map((station) => station.id === stationId
     ? { ...station, inventory: { ...station.inventory, [material]: station.inventory[material] + amount } } : station);

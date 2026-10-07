@@ -236,17 +236,68 @@ describe("Haul to construction sites (criteria 1-2)", () => {
     expect(state.ships[0]).toMatchObject({ defaultBehaviour: "haul", haulRoute: { from: "home", to: "site:0", material: "Metal" } });
   });
 
-  it("a hauler on a site route starts no delivery yet", () => {
+  it("a hauler on a site route starts delivering without an order queued", () => {
     const state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
     const later = run(state, 10);
-    expect(later.stations[0]!.inventory).toEqual(state.stations[0]!.inventory);
-    expect(later.stations[0]!.constructionSite.inventory).toEqual({ Metal: 0, Ice: 0 });
-    expect(later.ships[0]!.cargo).toBe(0);
+    expect(later.ships[0]!.cargo + later.stations[0]!.constructionSite.inventory.Metal).toBeGreaterThan(0);
   });
 
   it("keeps To a different stop and From a Storage", () => {
     const state = twoStations();
     expect(configureHaul(state, [0], { from: "site:1" as never, to: "home", material: "Metal" })).toBe(state);
     expect(configureHaul(state, [0], { from: "home", to: "home", material: "Metal" })).toBe(state);
+  });
+});
+
+describe("Haul to construction sites (delivery loop)", () => {
+  it("loads at From, unloads into the site over time, and repeats", () => {
+    const base = createInitialState(7);
+    const stocked = { ...base, stations: [{ ...base.stations[0]!, inventory: { Metal: 100, Ice: 20 } }] };
+    let state = configureHaul(stocked, [0], { from: "home", to: "site:0", material: "Metal" });
+    const loading = until(state, (next) => next.ships[0]!.state === "haulLoading");
+    const unloading = until(loading, (next) => next.ships[0]!.state === "haulUnloading");
+    // Unloading into the site takes the same timed transfer as at the Dock (#48).
+    // The sampler lands partway into the first countdown tick.
+    expect(unloading.ships[0]!.timer).toBeCloseTo(cargoTransferSeconds(20), 0);
+    const mid = run(unloading, 3.01);
+    expect(mid.ships[0]).toMatchObject({ cargo: 15, cargoMaterial: "Metal" });
+    expect(mid.stations[0]!.constructionSite.inventory.Metal).toBe(5);
+
+    const repeated = until(mid, (next) => next.ships[0]!.state === "haulLoading");
+    expect(repeated.ships[0]).toMatchObject({ cargo: 0 });
+    expect(repeated.stations[0]!.inventory).toEqual({ Metal: 80, Ice: 20 });
+    expect(repeated.stations[0]!.constructionSite.inventory).toEqual({ Metal: 20, Ice: 0 });
+  });
+
+  it("never waits for room, since the site has no cap", () => {
+    const base = createInitialState(7);
+    const stacked = { ...base, stations: [{ ...base.stations[0]!,
+      constructionSite: { ...base.stations[0]!.constructionSite, inventory: { Metal: 100000, Ice: 0 } } }] };
+    let state = configureHaul(stacked, [0], { from: "home", to: "site:0", material: "Metal" });
+    const unloading = until(state, (next) => next.ships[0]!.state === "haulUnloading");
+    const done = run(unloading, 12.01);
+    expect(done.ships[0]!.cargo).toBe(0);
+    expect(done.stations[0]!.constructionSite.inventory.Metal).toBe(100020);
+    expect(run(state, 30).ships[0]!.state).not.toBe("haulWaitingFull");
+  });
+
+  it("unloads into another station's site through the gate, not its Storage", () => {
+    const base = twoStations();
+    let state = configureHaul(base, [0], { from: "home", to: "site:1", material: "Ice" });
+    const unloading = until(state, (next) => next.ships[0]!.state === "haulUnloading");
+    expect(unloading.ships[0]).toMatchObject({ sectorId: 1, position: base.stations[1]!.constructionSite.position });
+    const done = run(unloading, 12.01);
+    expect(done.stations[1]!.constructionSite.inventory).toEqual({ Metal: 0, Ice: 20 });
+    expect(done.stations[1]!.inventory).toEqual({ Metal: 0, Ice: 0 });
+  });
+
+  it("a right-click order interrupts a site run and Resume sends the ship back to it", () => {
+    let state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
+    state = until(state, (next) => next.ships[0]!.state === "haulUnloading");
+    const cargo = state.ships[0]!.cargo;
+    const ordered = giveOrder(state, [0], { kind: "move", point: { x: 30, y: 20 }, sectorId: 0 });
+    const resumed = resumeDefault(ordered, [0]);
+    expect(resumed.ships[0]).toMatchObject({ order: null, defaultBehaviour: "haul", cargo });
+    expect(["haulOutbound", "haulUnloading"]).toContain(resumed.ships[0]!.state);
   });
 });
