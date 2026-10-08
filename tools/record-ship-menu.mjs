@@ -1,3 +1,4 @@
+// npm install --prefix ~/.cache/spaceship-management-sim-133 playwright-core
 // node tools/record-ship-menu.mjs ~/.cache/spaceship-management-sim-133/rec/run1
 // Headless recording of the real game entry point with a recording-only state driver.
 import { build } from "esbuild";
