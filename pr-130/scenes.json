@@ -1,0 +1,38 @@
+[
+  {
+    "scene": 1,
+    "seconds": 0.072
+  },
+  {
+    "scene": 2,
+    "seconds": 4.42
+  },
+  {
+    "scene": 3,
+    "seconds": 8.759
+  },
+  {
+    "scene": "3b",
+    "seconds": 18.711
+  },
+  {
+    "scene": 4,
+    "seconds": 23.06
+  },
+  {
+    "scene": "4b",
+    "seconds": 27.4
+  },
+  {
+    "scene": 5,
+    "seconds": 31.935
+  },
+  {
+    "scene": 6,
+    "seconds": 36.321
+  },
+  {
+    "scene": 7,
+    "seconds": 40.719
+  }
+]
