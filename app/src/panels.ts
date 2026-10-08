@@ -1,5 +1,5 @@
 import {
-  deleteStock, resumeDefault, setDefaultBehaviour, setMineMaterial, setShipHome,
+  deleteStock, resumeDefault, setDefaultBehaviour, setMineMaterial, setShipHome, shipHomeRefusal,
   setMineOtherSectors, setStorageLimit, type DefaultBehaviour,
   launchAll, type Material, type SimState,
 } from "sim";
@@ -50,7 +50,9 @@ export function installPanels(
     if (select.name === "default") setState(setDefaultBehaviour(getState(), ui.selectedShips, select.value as DefaultBehaviour));
     if (select.name === "ship-home" && select.value !== "mixed") {
       const home = select.value === "none" ? null : Number(select.value);
+      ui.routeRefusalMessage = shipHomeRefusal(getState(), ui.selectedShips, home);
       setState(setShipHome(getState(), ui.selectedShips, home));
+      ui.renderedPanel = "";
     }
     if (["haul-from", "haul-to", "haul-material"].includes(select.name)) {
       ui.routeRefusalMessage = null;

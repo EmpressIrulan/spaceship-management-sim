@@ -1,4 +1,11 @@
 import { supplyQueueStatus } from "./station-build-queue";
+import { fitsDock } from "./dock-packing";
+
+export function shipHomeRefusal(state: SimState, ids: number[], stationId: number | null): string | null {
+  if (stationId === null || !stationById(state, stationId)) return null;
+  const ship = state.ships.find((ship) => ids.includes(ship.id) && !fitsDock(ship.design));
+  return ship ? `Ship ${ship.id + 1} is too big for this Dock` : null;
+}
 import { haulSites, haulStations, resumeHaulShip, validHaulRoute } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { travelSeconds } from "./motion";
@@ -113,7 +120,7 @@ export function setShipHome(state: SimState, ids: number[], stationId: number | 
   if (stationId !== null && !stationById(state, stationId)) return state;
   let changed = false;
   const ships = state.ships.map((ship) => {
-    if (!ids.includes(ship.id) || ship.homeStationId === stationId) return ship;
+    if (!ids.includes(ship.id) || ship.homeStationId === stationId || (stationId !== null && !fitsDock(ship.design))) return ship;
     changed = true;
     return { ...ship, homeStationId: stationId };
   });

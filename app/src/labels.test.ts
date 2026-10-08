@@ -139,9 +139,9 @@ describe("hover box", () => {
   it("counts ships loading as well as unloading at the Dock", () => {
     const loading = { ...ship("loading", 3), berth: 0, transfer: { startingCargo: 0, amount: 8 } };
     const unloading = { ...ship("unloading", 7), berth: 1, transfer: { startingCargo: 10, amount: 10 } };
-    const transferring = { ...state, ships: [loading, unloading] };
+    const transferring = { ...state, ships: [loading, unloading].map((ship) => ({ ...ship, position: { ...state.stations[0]!.dock.position } })) };
 
-    expect(infoBox(transferring, { kind: "dock", stationId: 0 })).toEqual({ title: "Home", line: "Occupied 2 / 6" });
+    expect(infoBox(transferring, { kind: "dock", stationId: 0 })).toEqual({ title: "Home", line: "Dock 32/96\n2 ships inside" });
   });
 
   it("shows the destination name instead of materials once a gate is complete", () => {

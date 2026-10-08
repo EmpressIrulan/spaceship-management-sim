@@ -1,6 +1,7 @@
 import {
   laserBeam,
   shipSize,
+  holdsBerth,
   type Beam,
   type Ship,
   type Size,
@@ -36,13 +37,24 @@ export function createShipDrawing(
     });
     const x = Math.round(a.x);
     const y = Math.round(a.y);
+    const width = Math.max(1, Math.round(b.x) - x);
+    const height = Math.max(1, Math.round(b.y) - y);
     ctx.drawImage(
       shipSprite(ship.design),
       x,
       y,
-      Math.max(1, Math.round(b.x) - x),
-      Math.max(1, Math.round(b.y) - y),
+      width,
+      height,
     );
+    // Packed ships can touch edge to edge. An inset outline separates their
+    // hulls without adding gaps, fixed pads, or an occupancy bar.
+    if (holdsBerth(ship) && ship.berth !== null && ship.state !== "berthing") {
+      ctx.save();
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
+      ctx.restore();
+    }
   }
 
   function drawSelectionRing(center: Vec, size: Size): void {

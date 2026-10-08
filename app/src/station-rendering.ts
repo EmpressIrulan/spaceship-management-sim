@@ -1,6 +1,4 @@
 import {
-  BERTH_PAD_SIZE,
-  dockBerths,
   type SimState,
   type Station,
   type StationModule,
@@ -41,35 +39,20 @@ export function createStationDrawing(
     ctx.restore();
   }
 
-  // The Dock's pads, marked whether or not a ship is on them. Called with the
-  // canvas already translated to the Dock's centre.
-  function drawBerthPads(dock: Vec): void {
-    const side = BERTH_PAD_SIZE * ui.camera.zoom;
-    ctx.save();
-    ctx.strokeStyle = moduleAppearance("Dock").accent;
-    ctx.globalAlpha = 0.7;
-    ctx.lineWidth = Math.max(1, ui.camera.zoom);
-    ctx.setLineDash([
-      Math.max(2, 3 * ui.camera.zoom),
-      Math.max(2, 2 * ui.camera.zoom),
-    ]);
-    for (const pad of dockBerths(dock)) {
-      ctx.strokeRect(
-        (pad.x - dock.x) * ui.camera.zoom - side / 2,
-        (pad.y - dock.y) * ui.camera.zoom - side / 2,
-        side,
-        side,
-      );
-    }
-    ctx.restore();
-  }
-
   function drawStationModule(module: StationModule): void {
     const center = worldToScreen(ui.camera, ui.viewport, module.position);
     const width = module.size.width * ui.camera.zoom;
     const height = module.size.height * ui.camera.zoom;
     const appearance = moduleAppearance(module.type);
     const detailWidth = Math.max(1.5, 2 * ui.camera.zoom);
+
+    // The complete rectangular outline is the usable packing bay. No pads and
+    // no always-on fullness gauge; occupancy is available on hover only.
+    if (module.type === "Dock") {
+      fillWorldRect(module.position, module.size, "#020617");
+      strokeWorldRect(module.position, module.size, appearance.accent);
+      return;
+    }
 
     ctx.save();
     ctx.translate(center.x, center.y);
@@ -153,7 +136,6 @@ export function createStationDrawing(
       );
       ctx.fill();
     }
-    if (module.type === "Dock") drawBerthPads(module.position);
     ctx.restore();
   }
 

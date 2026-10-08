@@ -8,10 +8,10 @@ export function storageRemaining(draft: Draft): number {
 }
 
 export function layoutOf(draft: Draft): BerthLayout {
-  return { dock: draft.dock, modules: draft.modules, capacity: draft.dockCapacity };
+  return { dock: draft.dock, sectorId: draft.stationSector, modules: draft.modules, capacity: draft.dockCapacity };
 }
 
-// Puts a ship home with cargo on a free pad, or parks it to wait for one.
+// Reserves Dock room for a ship home with cargo, or parks it to wait.
 export function berth(draft: Draft, ship: Ship): Ship {
   return toBerth(layoutOf(draft), draft.ships, ship) ?? toParking(layoutOf(draft), draft.ships, ship);
 }

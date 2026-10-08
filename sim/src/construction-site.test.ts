@@ -83,7 +83,7 @@ describe("the construction site", () => {
       const overlaps = Math.abs(slot.x - position.x) < (40 + size.width) / 2 && Math.abs(slot.y - position.y) < (70 + size.height) / 2;
       expect(overlaps, JSON.stringify(slot)).toBe(false);
     }
-    expect(availableModuleBuildSites(state, 0)).toEqual([{ x: -40, y: 0 }, { x: 80, y: 0 }]);
+    expect(availableModuleBuildSites(state, 0)).toEqual([{ x: -40, y: 0 }, { x: 0, y: -40 }, { x: 0, y: 40 }, { x: 40, y: -40 }, { x: 40, y: 40 }, { x: 80, y: 0 }]);
     expect(state.asteroids.every((rock) => Math.hypot(rock.position.x - position.x, rock.position.y - position.y) > 40)).toBe(true);
   });
 });

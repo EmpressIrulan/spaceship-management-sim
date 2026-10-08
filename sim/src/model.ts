@@ -81,8 +81,8 @@ export interface Ship {
   mineOtherSectors?: boolean;
   order: Order | null;
   leg: Leg | null;
-  // The pad this ship is unloading on or flying to, or null. Only meaningful
-  // while it is unloading or berthing.
+  // Dock module * 96 + top-left pixel of the reserved bounding rectangle,
+  // or null when no Dock room is reserved.
   berth: number | null;
   // The cargo aboard when this transfer began and the total units it will move.
   // This makes partial transfers deterministic and safe to interrupt.
@@ -215,6 +215,7 @@ export interface GateProject {
 export interface BerthLayout {
   // The Dock ships route to. Parking spots are measured from here.
   dock: Vec;
+  sectorId: number;
   modules: StationModule[];
   capacity: number;
 }

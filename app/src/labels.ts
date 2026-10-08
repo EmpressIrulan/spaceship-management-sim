@@ -1,4 +1,4 @@
-import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, moduleCost, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
+import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -81,11 +81,13 @@ function storageBox(state: SimState, stationId = 0): InfoBox {
 }
 
 function dockBox(state: SimState, stationId = 0): InfoBox {
-  const transferring = state.ships.filter((ship) => ship.state === "loading"
-    || ((ship.state === "haulLoading" || ship.state === "haulUnloading") && ship.berth !== null)
-    || (ship.state === "unloading" && ship.transfer?.destination !== "constructionSite")).length;
   const station = stationById(state, stationId) ?? homeStation(state);
-  return { title: station.name, line: `Occupied ${transferring} / ${station.dock.capacity}` };
+  const inside = state.ships.filter((ship) => holdsBerth(ship) && ship.state !== "berthing" && ship.sectorId === station.sectorId
+    && station.modules.some((module) => module.type === "Dock"
+      && Math.abs(ship.position.x - module.position.x) <= module.size.width / 2
+      && Math.abs(ship.position.y - module.position.y) <= module.size.height / 2));
+  const area = inside.reduce((sum, ship) => sum + ship.design.width * ship.design.height, 0);
+  return { title: station.name, line: `Dock ${area}/${station.dock.capacity}\n${inside.length} ships inside` };
 }
 
 // Null closes the box, including when the hovered asteroid has just gone.
@@ -133,7 +135,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       const size = `${job.design.width}x${job.design.height}`;
       return { title: "Builder", line: `Building ${size}: ${formatDuration(Math.ceil(job.timer))}` };
     }
-    if (module.type === "Dock") return dockBox(state);
+    if (module.type === "Dock") return dockBox(state, hovered.stationId);
     return storageBox(state, hovered.stationId);
   }
   if (hovered.kind === "ship") {
