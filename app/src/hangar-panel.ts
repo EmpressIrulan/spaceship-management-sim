@@ -22,6 +22,10 @@ export function launchAllButton(state: SimState, shipId: number): HTMLButtonElem
   const button = document.createElement("button");
   button.textContent = "Launch all";
   button.dataset.launchAll = String(ship.id);
-  button.disabled = hangarContents(state, ship.id).length === 0;
+  button.disabled = launchAllDisabled(state, ship.id);
   return button;
+}
+
+export function launchAllDisabled(state: SimState, shipId: number): boolean {
+  return hangarContents(state, shipId).length === 0;
 }
