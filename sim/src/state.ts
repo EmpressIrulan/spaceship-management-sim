@@ -1,6 +1,6 @@
 import {
   ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR,
-  MODULE_COST, BUILDER_SIZE, STORAGE_SIZE,
+  MODULE_COST, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
 } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import { freeBerth, berthPoint, DOCK_AREA } from "./dock-packing";
@@ -14,6 +14,11 @@ import type {
 } from "./model";
 export type * from "./model";
 export { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MODULE_COST, BUILDER_SIZE, STORAGE_SIZE } from "./build-constants";
+export {
+  BUG_ATTACK_THRESHOLD, BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP,
+  BUG_SPAWN_SECONDS, BUG_SIZE, BUG_SPEED_FACTOR, HIVE_GATE_FRACTION, HIVE_HP,
+  HIVE_SECTOR, HIVE_SIZE,
+} from "./build-constants";
 export { MATERIALS, MODULE_TYPES } from "./model";
 export { MODULE_SPACING } from "./build-constants";
 export function homeStation(state: Pick<SimState, "stations">): Station {
@@ -43,6 +48,7 @@ export {
 export { placeInField } from "./fields";
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
+import { hivePosition, makeHive } from "./enemies";
 import {
   MINING_GAP,
   STARTING_SHIP,
@@ -351,6 +357,8 @@ export function createInitialState(seed: number): SimState {
     )));
   }
 
+  // The hive sits in the sector next to home, ready to breed bugs.
+  const hive = makeHive(0, HIVE_SECTOR, hivePosition(sectors[HIVE_SECTOR]!.gate.position));
   const idle: Ship = {
     id: 0,
     design: STARTING_SHIP,
@@ -375,6 +383,7 @@ export function createInitialState(seed: number): SimState {
     tickCount: 0,
     time: 0,
     rng,
+    enemyRng: (seed ^ 0x5bf03635) >>> 0,
     nextAsteroidId: asteroids.length,
     sectors,
     fields,
@@ -405,6 +414,9 @@ export function createInitialState(seed: number): SimState {
     asteroids,
     respawns: [],
     ships: [depart(idle, dockPosition, asteroids)],
+    hives: [hive],
+    bugs: [],
+    nextBugId: 0,
     finishedClaims: [],
   };
 }

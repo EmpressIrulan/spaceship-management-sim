@@ -155,6 +155,36 @@ export interface Asteroid {
   material: Material;
 }
 
+// Enemies. The hive breeds the bugs; hunting ships, drops and dead-hive
+// founding are the slices that follow this one.
+export interface Hive {
+  id: number;
+  sectorId: number;
+  position: Vec;
+  hp: number;
+  maxHp: number;
+  // Seconds until the next bug hatches.
+  spawnTimer: number;
+  // False once killed: a dead hive stops releasing bugs.
+  alive: boolean;
+}
+// Loitering bugs hang about the hive; hunting is the state that arrives with
+// the bugs-attack slice.
+export type BugState = "hovering";
+export interface Bug {
+  id: number;
+  // The hive this bug came from, so loitering has a centre.
+  hiveId: number;
+  sectorId: number;
+  position: Vec;
+  hp: number;
+  maxHp: number;
+  state: BugState;
+  leg: Leg | null;
+  // Seconds left in the current leg. Unused while holding still.
+  timer: number;
+}
+
 export interface Respawn {
   sectorId: number;
   fieldId: number;
@@ -172,6 +202,10 @@ export interface SimState {
   time: number;
   // PRNG state, carried here so respawn spots replay exactly from the seed.
   rng: number;
+  // The enemies' PRNG stream of their own, so their constant, everywhere-in
+  // the tick loitering never perturbs where the main stream puts a rock.
+  // Missing on older fixtures: falls out of the main stream's seed.
+  enemyRng?: number;
   nextAsteroidId: number;
   nextShipId: number;
   sectors: Sector[];
@@ -187,6 +221,10 @@ export interface SimState {
   asteroids: Asteroid[];
   respawns: Respawn[];
   ships: Ship[];
+  // The hive and its bugs. Missing on older fixtures means no enemies.
+  hives?: Hive[];
+  bugs?: Bug[];
+  nextBugId?: number;
   // The sector of each Claim module that stood during the last tick, one entry
   // per Claim. The app asks for a name for the first.
   finishedClaims: number[];

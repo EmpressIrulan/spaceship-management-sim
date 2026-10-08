@@ -1,6 +1,7 @@
 import { flyHaul, haulCargoDestination, haulStationDetails } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { asteroidGone, mine, miningSeconds, type Draft } from "./tick-mining";
+import { advanceEnemies, nextEnemyEvent, settleEnemies } from "./enemies";
 import { beginHaulLoading, beginHaulUnloading, loadHauler, unloadHauler } from "./tick-hauling";
 import { addCargo, arrivesAtPark, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
 import { distanceAlong, travelSeconds } from "./motion";
@@ -622,7 +623,7 @@ function afterUnloading(draft: Draft, ship: Ship): Ship {
 
 // Seconds until the next timer anywhere in the sector runs out.
 function nextEvent(draft: Draft): number {
-  let soonest = Infinity;
+  let soonest = nextEnemyEvent(draft);
   for (const ship of draft.ships) {
     if (ship.state !== "idle" && ship.state !== "waiting" && ship.state !== "holding" && ship.state !== "docked"
       && ship.state !== "haulWaitingSource" && ship.state !== "haulWaitingFull") soonest = Math.min(soonest, ship.timer);
@@ -649,6 +650,7 @@ function advance(draft: Draft, seconds: number): void {
   draft.others = draft.others.map((station) => (station.construction
     ? { ...station, construction: { ...station.construction, timer: station.construction.timer - seconds }, shipBuilds: station.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds })) }
     : { ...station, shipBuilds: station.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds })) }));
+  advanceEnemies(draft, seconds);
 }
 
 // Fires every timer that has reached zero. Respawns go first so a ship that
@@ -703,6 +705,7 @@ function settle(draft: Draft): void {
     ];
     draft.nextAsteroidId += 1;
   }
+  settleEnemies(draft);
   // A finished ship appears at the Dock with nothing to do, and the loop
   // below sends it out in the same step.
   const completedShipBuilds = [
@@ -771,6 +774,7 @@ function simulate(state: SimState, dt: number): SimState {
     founding: home.founding,
     deliveries: home.deliveries,
     rng: state.rng,
+    enemyRng: state.enemyRng ?? ((state.rng ^ 0x1bd0e5f3) >>> 0),
     nextAsteroidId: state.nextAsteroidId,
     nextShipId: state.nextShipId,
     dock: home.dock.position,
@@ -783,6 +787,9 @@ function simulate(state: SimState, dt: number): SimState {
     respawns: state.respawns,
     fields: state.fields,
     ships: state.ships,
+    hives: state.hives ?? [],
+    bugs: state.bugs ?? [],
+    nextBugId: state.nextBugId ?? 0,
     modules: home.modules,
     construction: home.construction,
     buildQueue: home.buildQueue,
@@ -818,6 +825,7 @@ function simulate(state: SimState, dt: number): SimState {
     tickCount: state.tickCount + 1,
     time: draft.time,
     rng: draft.rng,
+    enemyRng: draft.enemyRng,
     nextAsteroidId: draft.nextAsteroidId,
     nextShipId: draft.nextShipId,
     stations: state.stations.map((station) => station.id === primaryStationId ? {
@@ -836,6 +844,9 @@ function simulate(state: SimState, dt: number): SimState {
     asteroids: draft.asteroids,
     respawns: draft.respawns,
     ships: syncDockedShips(draft.ships),
+    hives: draft.hives,
+    bugs: draft.bugs,
+    nextBugId: draft.nextBugId,
     gateProjects: draft.gateProjects,
   };
 }
