@@ -51,6 +51,10 @@ describe("building station modules", () => {
   it("offers every empty adjacent slot so the station can grow in any direction", () => {
     expect(availableModuleBuildSites(funded(), 0)).toEqual([
       { x: -40, y: 0 },
+      { x: 0, y: -40 },
+      { x: 0, y: 40 },
+      { x: 40, y: -40 },
+      { x: 40, y: 40 },
       { x: 80, y: 0 },
     ]);
 
@@ -91,7 +95,7 @@ describe("building station modules", () => {
     expect(storage.stations[0]!.storage.capacity).toBe(200);
 
     const dock = tick(startModuleBuild(funded(), 0, "Dock", east), BUILD_SECONDS);
-    expect(dock.stations[0]!.dock.capacity).toBe(12);
+    expect(dock.stations[0]!.dock.capacity).toBe(192);
 
     const builder = tick(startModuleBuild(funded(), 0, "Builder", east), BUILD_SECONDS);
     expect(builder.stations[0]!.modules.at(-1)).toMatchObject({ type: "Builder" });

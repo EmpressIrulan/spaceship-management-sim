@@ -65,18 +65,18 @@ describe("station module hover", () => {
       }],
     };
     const dockEdge = {
-      x: unloading.stations[0]!.dock.position.x + 12,
+      x: unloading.stations[0]!.dock.position.x + 7,
       y: unloading.stations[0]!.dock.position.y,
     };
 
     expect(hoveredBody(unloading, camera, viewport, worldToScreen(camera, viewport, dockEdge))).toEqual({ kind: "dock", stationId: 0 });
   });
 
-  it("shows Dock berth use increasing from zero to one out of six", () => {
+  it("shows Dock pixel area increasing from zero to sixteen", () => {
     const empty = createInitialState(7);
     expect(infoBox(empty, { kind: "dock", stationId: 0 })).toEqual({
       title: "Home",
-      line: "Occupied 0 / 6",
+      line: "Dock 0/96\n0 ships inside",
     });
 
     const unloading: SimState = {
@@ -84,14 +84,15 @@ describe("station module hover", () => {
       ships: [
         {
           ...empty.ships[0]!,
-          state: "unloading",
+           state: "unloading",
+           position: { ...empty.stations[0]!.dock.position },
           timer: UNLOADING_SECONDS,
         },
       ],
     };
     expect(infoBox(unloading, { kind: "dock", stationId: 0 })).toEqual({
       title: "Home",
-      line: "Occupied 1 / 6",
+      line: "Dock 16/96\n1 ships inside",
     });
   });
 

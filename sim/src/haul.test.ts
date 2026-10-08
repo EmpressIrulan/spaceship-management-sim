@@ -190,7 +190,7 @@ describe("Haul default", () => {
       haulRoute: { from: "home", to: "station:1", material: "Metal" } });
 
     const unloading = until(hauling, (next) => next.ships[0]!.state === "haulUnloading");
-    const unloaded = run(unloading, 12.01);
+    const unloaded = until(unloading, (next) => next.ships[0]!.state !== "haulUnloading");
     expect(unloaded.stations[0]!.inventory).toEqual({ Metal: 20, Ice: 50 });
     expect(unloaded.stations[1]!.inventory).toEqual({ Metal: 0, Ice: 0 });
   });

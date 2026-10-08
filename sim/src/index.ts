@@ -15,8 +15,6 @@ export {
   CARGO_PER_TRIP,
   CONSTRUCTION_SITE_POSITION,
   CONSTRUCTION_SITE_SIZE,
-  BERTHS_PER_DOCK,
-  BERTH_PAD_SIZE,
   DOCK_CAPACITY,
   DOCK_SIZE,
   MATERIALS,
@@ -116,3 +114,5 @@ export { tick } from "./tick";
 export { configureHaul, formation, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setMineMaterial, setMineOtherSectors, setShipHome, type OrderTarget } from "./orders";
 export { giveDockOrder, giveDockOrderWithFeedback, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, hangarUsed, launchAll } from "./hangars";
 export { haulStationDetails, haulDestinations, haulSites, type HaulStation, type HaulDestination } from "./haul";
+export { fitsDock, holdsBerth } from "./dock-packing";
+export { shipHomeRefusal } from "./orders";

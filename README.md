@@ -24,3 +24,5 @@ npm run dev      # then open the printed URL
 ## Stations and ships
 
 Use **Build station** to place construction sites in any sector. Select a site to direct supply ships to it; once its first Dock is built, the station can grow from its own site stock. Stations have generated names and can be renamed or removed from their Dock panel. Ship panels show each ship's home station and allow changing it. Miners unload at their home station (into its construction site until Storage exists), and ships built at a Builder start with that station as home. Removing a station clears the home of ships assigned there; those ships show `Home: None` and `Default: None` and hold in place.
+
+Each Dock is 8×12 ship pixels: ships pack into its 96 pixels of room by their own bounding-box size, with no fixed pads. Six starting 4×4 ships fit, or twelve 2×4 ships, or one 8×12 ship. Ships wait outside when no rectangle fits and fly in when room frees up. Extra Dock modules each add another 96 pixels; hover a Dock to see used area and the number of ships inside. A ship too wide or tall for a Dock cannot be assigned that station as home, and keeps its old home.

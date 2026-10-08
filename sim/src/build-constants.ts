@@ -1,9 +1,11 @@
 import type { Material, Size } from "./model";
+import { PIXEL_SIZE } from "./ship";
+import { DOCK_WIDTH, DOCK_HEIGHT } from "./dock-packing";
 
 export const ASTEROID_MIN_SPACING = 40;
 export const BUILD_SECONDS = 15;
 export const CLAIM_BUILD_SECONDS = 300;
-export const DOCK_SIZE: Size = { width: 40, height: 70 };
+export const DOCK_SIZE: Size = { width: DOCK_WIDTH * PIXEL_SIZE, height: DOCK_HEIGHT * PIXEL_SIZE };
 export const HOME_SECTOR = 0;
 // The cost of Dock, Storage and Builder. A Claim costs CLAIM_COST.
 export const MODULE_COST: Record<Material, number> = { Metal: 25, Ice: 25 };
