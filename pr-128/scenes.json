@@ -1,0 +1,26 @@
+[
+  {
+    "scene": "1-queued",
+    "seconds": 1.619
+  },
+  {
+    "scene": "1-built",
+    "seconds": 13.631
+  },
+  {
+    "scene": "2-queued",
+    "seconds": 19.09
+  },
+  {
+    "scene": "2-built",
+    "seconds": 31.101
+  },
+  {
+    "scene": "3-queued",
+    "seconds": 36.36
+  },
+  {
+    "scene": "3-built",
+    "seconds": 44.65
+  }
+]
