@@ -87,6 +87,11 @@ export interface Ship {
   // The cargo aboard when this transfer began and the total units it will move.
   // This makes partial transfers deterministic and safe to interrupt.
   transfer: CargoTransfer | null;
+  // Current and full hull. Bugs bite these down; at 0 the ship explodes and it
+  // and its cargo are gone. Missing on older fixtures and on ships that have
+  // not been bitten: a fresh ship still has SHIP_HP of hull.
+  hp?: number;
+  maxHp?: number;
   // Set while this ship is hidden inside another ship.
   hangarId?: number | null;
 }
@@ -155,8 +160,8 @@ export interface Asteroid {
   material: Material;
 }
 
-// Enemies. The hive breeds the bugs; hunting ships, drops and dead-hive
-// founding are the slices that follow this one.
+// Enemies. The hive breeds the bugs; drops and dead-hive founding are the
+// slices that follow this one.
 export interface Hive {
   id: number;
   sectorId: number;
@@ -168,9 +173,8 @@ export interface Hive {
   // False once killed: a dead hive stops releasing bugs.
   alive: boolean;
 }
-// Loitering bugs hang about the hive; hunting is the state that arrives with
-// the bugs-attack slice.
-export type BugState = "hovering";
+// Hovering bugs hang about the hive; hunting ones fly at a ship and bite it.
+export type BugState = "hovering" | "hunting";
 export interface Bug {
   id: number;
   // The hive this bug came from, so loitering has a centre.
@@ -180,6 +184,8 @@ export interface Bug {
   hp: number;
   maxHp: number;
   state: BugState;
+  // The ship this bug flies at and bites, when it hunts. Null while hovering.
+  targetShipId: number | null;
   leg: Leg | null;
   // Seconds left in the current leg. Unused while holding still.
   timer: number;
