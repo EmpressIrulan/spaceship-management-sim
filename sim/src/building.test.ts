@@ -23,7 +23,7 @@ describe("building station modules", () => {
 
   const east = { x: 80, y: 0 };
 
-  it("lists every module at 25 Metal and 25 Ice and disables unaffordable choices", () => {
+  it("lists each module at its own cost and disables unaffordable choices", () => {
     const state = miningStart(7);
 
     expect(MODULE_COST).toEqual({ Metal: 25, Ice: 25 });
@@ -32,6 +32,7 @@ describe("building station modules", () => {
       { type: "Dock", enabled: false, missing },
       { type: "Storage", enabled: false, missing },
       { type: "Builder", enabled: false, missing },
+      { type: "Claim", enabled: false, missing: { Metal: 1000, Ice: 1000 } },
     ]);
   });
 

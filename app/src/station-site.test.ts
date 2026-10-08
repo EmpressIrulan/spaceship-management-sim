@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MODULE_COST, createInitialState, placeStation, setSupplyStation, stationById, type SimState } from "sim";
+import { MODULE_COST, createInitialState, placeStation, removeStation, setSupplyStation, stationById, type SimState } from "sim";
 import { fitCamera, hoveredBody, worldToScreen, type Camera, type Viewport } from "./camera";
 import { infoBox } from "./labels";
 import { mapHit, mapLayout, renameHit } from "./sectors";
@@ -16,6 +16,16 @@ function withSite(inventory = { Metal: 0, Ice: 0 }): SimState {
     ...state,
     stations: state.stations.map((station) => (station.id === id
       ? { ...station, constructionSite: { ...site, inventory: { ...inventory } } }
+      : station)),
+  };
+}
+
+// The same placed site with a Claim standing on it, which is what claims the sector.
+function withClaim(state: SimState): SimState {
+  return {
+    ...state,
+    stations: state.stations.map((station) => (station.id === 1
+      ? { ...station, modules: [...station.modules, { type: "Claim" as const, position: { x: 300, y: 300 }, size: { width: 40, height: 40 } }] }
       : station)),
   };
 }
@@ -62,7 +72,20 @@ describe("placed site on the map", () => {
     const layout = mapLayout(state, viewport);
     const circle = layout.circles[1]!;
     expect(mapHit(layout, circle.center)).toBe(1);
-    // The site has no Rename of its own until a station is founded in the sector.
+    // The site has no Rename of its own until a Claim stands in the sector.
     expect(renameHit(layout, { x: circle.center.x - 39, y: circle.center.y + 26 })).toBeNull();
+  });
+
+  it("shows Rename on the sector only while a Claim stands in it", () => {
+    const state = withSite();
+    const at = (layout: ReturnType<typeof mapLayout>) => ({ x: layout.circles[1]!.center.x - 39, y: layout.circles[1]!.center.y + 26 });
+    const unclaimed = mapLayout(state, viewport);
+    expect(renameHit(unclaimed, at(unclaimed))).toBeNull();
+
+    const claimed = mapLayout(withClaim(state), viewport);
+    expect(renameHit(claimed, at(claimed))).toBe(1);
+
+    const unclaimedAgain = mapLayout(removeStation(withClaim(state), 1), viewport);
+    expect(renameHit(unclaimedAgain, at(unclaimedAgain))).toBeNull();
   });
 });

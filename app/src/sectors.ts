@@ -66,3 +66,19 @@ export function renameHit(layout: ReturnType<typeof mapLayout>, point: Vec): num
     return circle.claimed && point.x >= label.x && point.x <= label.x + label.width && point.y >= label.y && point.y <= label.y + label.height;
   })?.id ?? null;
 }
+
+// The player's colour, drawn as the ring round a sector they claimed. Amber sits
+// apart from the blue, rust, teal and purple sector tints and from the cyan gate links.
+export const PLAYER_COLOUR = "#fbbf24";
+
+// The claimed circle under the pointer, which gets the "Claimed" hover text.
+export function claimHover(layout: ReturnType<typeof mapLayout>, point: Vec): { id: number; center: Vec; radius: number } | null {
+  const id = mapHit(layout, point);
+  const circle = layout.circles.find((candidate) => candidate.id === id);
+  return circle?.claimed ? { id: circle.id, center: circle.center, radius: circle.radius } : null;
+}
+
+// The ring round a claimed circle, in screen pixels. Unclaimed circles have none.
+export function claimRing(circle: { radius: number; claimed: boolean }): { radius: number; colour: string } | null {
+  return circle.claimed ? { radius: circle.radius + 5, colour: PLAYER_COLOUR } : null;
+}

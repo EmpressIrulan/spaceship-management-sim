@@ -36,7 +36,7 @@ export function installInput(
   setState: (state: SimState) => void,
   elements: InputElements,
   actions: InputActions,
-): void {
+): (sectorId: number) => void {
   const {
     canvas,
     box,
@@ -99,4 +99,5 @@ export function installInput(
       selectClick(context, event, additive);
     }
   });
+  return startRename;
 }

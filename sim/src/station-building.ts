@@ -1,9 +1,9 @@
-import { ASTEROID_MIN_SPACING, BUILD_SECONDS, BUILDER_SIZE, DOCK_SIZE, MODULE_COST, STORAGE_SIZE, MODULE_SPACING } from "./build-constants";
+import { ASTEROID_MIN_SPACING, DOCK_SIZE, MODULE_SPACING } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import type { Material, ModuleType, SimState, Station, Size, Vec } from "./model";
 import { homeStation, replaceStation, stationById } from "./state";
 import { distance } from "./fields";
-import { moduleSize, samePosition } from "./station-module-geometry";
+import { moduleBuildSeconds, moduleCost, moduleSize, samePosition } from "./station-module-geometry";
 
 export interface ModuleBuildOption {
   type: ModuleType;
@@ -17,11 +17,14 @@ export interface ModuleBuildOption {
 export function availableModuleBuilds(state: SimState, stationId: number): ModuleBuildOption[] {
   const station = stationById(state, stationId) ?? homeStation(state);
   const stock = station.constructionSite.inventory;
-  const missing = Object.fromEntries(
-    MATERIALS.map((material) => [material, Math.max(0, MODULE_COST[material] - stock[material])]),
-  ) as Record<Material, number>;
-  const enabled = MATERIALS.every((material) => missing[material] === 0) && station.construction === null;
-  return MODULE_TYPES.map((type) => ({ type, enabled, missing }));
+  return MODULE_TYPES.map((type) => {
+    const cost = moduleCost(type);
+    const missing = Object.fromEntries(
+      MATERIALS.map((material) => [material, Math.max(0, cost[material] - stock[material])]),
+    ) as Record<Material, number>;
+    const enabled = MATERIALS.every((material) => missing[material] === 0) && station.construction === null;
+    return { type, enabled, missing };
+  });
 }
 
 // Centre-to-centre distance between neighbouring module slots.
@@ -76,14 +79,15 @@ export function startModuleBuild(state: SimState, stationId: number, type: Modul
   const station = stationById(state, stationId);
   if (!station) return state;
 
+  const cost = moduleCost(type);
   const inventory = Object.fromEntries(
-    MATERIALS.map((material) => [material, station.constructionSite.inventory[material] - MODULE_COST[material]]),
+    MATERIALS.map((material) => [material, station.constructionSite.inventory[material] - cost[material]]),
   ) as Record<Material, number>;
   const construction = {
     type,
     position: { ...site },
     size: moduleSize(type),
-    timer: BUILD_SECONDS,
+    timer: moduleBuildSeconds(type),
   };
   return replaceStation(state, { ...station, constructionSite: { ...station.constructionSite, inventory }, construction });
 }

@@ -101,17 +101,26 @@ export function removeStation(state: SimState, stationId: number): SimState {
   }
   const stations = state.stations.filter((candidate) => candidate.id !== stationId);
   const supplyStation = state.supplyStation === stationId ? (stations[0]?.id ?? 0) : state.supplyStation;
-  return { ...state, stations, ships, supplyStation };
+  // Losing the last Claim gives the sector back its generated name, so a
+  // later claim starts from the same name rather than a stale one.
+  const unclaimed = sectorClaimed(state, station.sectorId) && !sectorClaimed({ stations }, station.sectorId);
+  const sectors = unclaimed
+    ? state.sectors.map((sector) => (sector.id === station.sectorId ? { ...sector, name: sector.generatedName } : sector))
+    : state.sectors;
+  return { ...state, stations, ships, supplyStation, sectors };
 }
 
-// A station is founded once it stands on its own Dock: that is when it can
-// take a sector name and a haul route, the way a built-out claim site did.
+// A station is founded once it stands on its own Dock. Haul routes only list
+// founded stations.
 export function stationFounded(station: Station): boolean {
   return station.modules.some((module) => module.type === "Dock");
 }
 
+// A sector is claimed while one of its stations holds a Claim module. Removing
+// the station that holds the last one unclaims it, see removeStation.
 export function sectorClaimed(state: Pick<SimState, "stations">, sectorId: number): boolean {
-  return state.stations.some((station) => station.sectorId === sectorId && station.id !== 0 && stationFounded(station));
+  return state.stations.some((station) => station.sectorId === sectorId
+    && station.modules.some((module) => module.type === "Claim"));
 }
 
 export function renameSector(state: SimState, sectorId: number, name: string): SimState {

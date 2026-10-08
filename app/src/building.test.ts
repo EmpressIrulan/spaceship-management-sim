@@ -139,12 +139,24 @@ describe("station building controls", () => {
     expect(buildMenuItems(createInitialState(7), 0).every((item) => !item.disabled)).toBe(true);
   });
 
-  it("presents all module choices with their shared cost and queue-ready state", () => {
+  it("presents each module choice with its own cost and queue-ready state", () => {
     expect(buildMenuItems(createInitialState(7), 0)).toEqual([
       { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
+      { type: "Claim", cost: "1000 Metal, 1000 Ice", disabled: false, title: "Needs 1000 more Metal and 1000 more Ice" },
     ]);
+  });
+
+  it("shows a queued Claim's full cost, not the ordinary module cost", () => {
+    let state = queueModuleBuild(createInitialState(7), "Storage", east);
+    state = queueModuleBuild(state, "Claim", farEast);
+
+    expect(infoBox(state, { kind: "queuedBuild", index: 1 })).toEqual({
+      title: "Claim, queued",
+      line: "Needs 1000 Metal and 1000 Ice",
+      action: { label: "Cancel", queuedBuild: 1 },
+    });
   });
 
   it("labels construction with its remaining time and a completed Builder as idle", () => {

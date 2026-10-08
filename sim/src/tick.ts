@@ -14,6 +14,7 @@ import {
   parksForEmptyQueue,
   refundDetachedBuild,
   settleQueuedBuild,
+  finishedClaimSectors,
   settleStationBuild,
   supplyQueueStatus,
   unloadSupplierIntoEmptyQueue,
@@ -750,6 +751,11 @@ function settle(draft: Draft): void {
 // back from the background) plays out every trip and respawn it covers, in
 // the order they would have happened.
 export function tick(state: SimState, dt: number): SimState {
+  const next = simulate(state, dt);
+  return { ...next, finishedClaims: finishedClaimSectors(state, next) };
+}
+
+function simulate(state: SimState, dt: number): SimState {
   if (state.stations.length === 0) return {
     ...state,
     tickCount: state.tickCount + 1,

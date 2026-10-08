@@ -113,6 +113,21 @@ export function createStationDrawing(
         ctx.fill();
         ctx.stroke();
       }
+    } else if (appearance.silhouette === "beacon") {
+      ctx.strokeStyle = appearance.accent;
+      ctx.lineWidth = detailWidth;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(0, height * 0.3);
+      ctx.lineTo(0, -height * 0.3);
+      ctx.stroke();
+      ctx.fillStyle = appearance.accent;
+      ctx.beginPath();
+      ctx.moveTo(0, -height * 0.3);
+      ctx.lineTo(width * 0.3, -height * 0.18);
+      ctx.lineTo(0, -height * 0.06);
+      ctx.closePath();
+      ctx.fill();
     } else {
       ctx.strokeStyle = appearance.accent;
       ctx.lineWidth = detailWidth;

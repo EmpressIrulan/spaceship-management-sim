@@ -8,6 +8,7 @@ import { installPanels } from "./panels";
 import { installContextMenu } from "./context-menu";
 import { installBuildMenu } from "./build-menu";
 import { installShipMenu } from "./ship-menu";
+import { openClaimNaming } from "./claim-naming";
 import { installInput, mousePoint } from "./input";
 import { renderSpeedControls } from "./menu-rendering";
 import { createUiState } from "./ui-state";
@@ -83,7 +84,7 @@ const closeStoragePanel = installPanels(ui, () => state, (next) => { state = nex
 const closeBuildMenu = installBuildMenu(ui, () => state, (next) => { state = next; }, buildControls, buildMenu, (event) => mousePoint(canvas, event));
 const shipMenuSystem = installShipMenu(ui, () => state, (next) => { state = next; }, shipMenu, shipPanelBox, blueprintStore);
 const closeGateMenu = installContextMenu(ui, () => state, (next) => { state = next; }, canvas, gateMenu, stationButton, (event) => mousePoint(canvas, event));
-installInput(ui, () => state, (next) => { state = next; }, { canvas, box, infoAction, renameBox, speedControls, storagePanel, ctx }, { closeStoragePanel, closeBuildMenu, closeGateMenu, openShipMenu: shipMenuSystem.openShipMenu, closeShipMenu: shipMenuSystem.closeShipMenu });
+const startRename = installInput(ui, () => state, (next) => { state = next; }, { canvas, box, infoAction, renameBox, speedControls, storagePanel, ctx }, { closeStoragePanel, closeBuildMenu, closeGateMenu, openShipMenu: shipMenuSystem.openShipMenu, closeShipMenu: shipMenuSystem.closeShipMenu });
 
 const draw = createRenderer(ui, () => state, { ctx, canvas, shipPanelBox, partTip, sectorNameEl, buildControls, box, boxTitle, boxLine, infoAction, buildMenu, stationButton, hint, renameBox, shipMenu, storagePanel, stationPanel, paintViewport: shipMenuSystem.paintViewport, paintPointAt: shipMenuSystem.paintPointAt });
 
@@ -95,7 +96,10 @@ function frame(nowMs: number): void {
   // Paused frames skip the tick, so selecting, ordering and the menus keep
   // working on a state that simply does not advance.
   const seconds = gameSeconds(ui.clock, dt);
-  if (seconds > 0) state = tick(state, seconds);
+  if (seconds > 0) {
+    state = tick(state, seconds);
+    openClaimNaming(ui, state.finishedClaims, startRename);
+  }
   renderSpeedControls(speedControls, ui.clock);
   draw(nowMs / 1000);
   requestAnimationFrame(frame);
