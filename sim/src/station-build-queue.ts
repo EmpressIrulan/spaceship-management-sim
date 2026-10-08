@@ -148,8 +148,13 @@ export function queueModuleBuild(state: SimState, type: ModuleType, position: Ve
   return replaceStation(state, next);
 }
 
+// Positions come from world coordinates, so a zoomed click lands on a fraction
+// and the distance between two neighbours can miss MODULE_SPACING by a rounding
+// step. An exact comparison then drops a Storage that was placed beside its Dock.
+const TOUCH_TOLERANCE = 1e-6;
+
 function touching(a: Vec, b: Vec): boolean {
-  return Math.hypot(a.x - b.x, a.y - b.y) === MODULE_SPACING;
+  return Math.abs(Math.hypot(a.x - b.x, a.y - b.y) - MODULE_SPACING) < TOUCH_TOLERANCE;
 }
 
 // The modules the station already stands on.
