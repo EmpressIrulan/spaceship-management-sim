@@ -4,19 +4,31 @@ import { dismissBuildMenuForKey } from "./building";
 import type { InputActions } from "./input-context";
 import { mapToggled } from "./sectors";
 
+export function isTextEntryTarget(target: EventTarget | null): boolean {
+  let element = target as (EventTarget & {
+    tagName?: string;
+    isContentEditable?: boolean;
+    parentElement?: Element | null;
+  }) | null;
+  while (element) {
+    if (["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName ?? "") || element.isContentEditable) return true;
+    element = element.parentElement as typeof element;
+  }
+  return false;
+}
+
 export function installSpeedInput(ui: UiState, speedControls: HTMLElement, actions: Pick<InputActions, "closeBuildMenu" | "closeGateMenu" | "closeShipMenu">): void {
   const { closeBuildMenu, closeGateMenu, closeShipMenu } = actions;
   window.addEventListener("keydown", (event) => {
+    if (isTextEntryTarget(event.target)) return;
     if (event.key === "Escape") ui.pendingStation = false;
     if (event.key.toLowerCase() === "m" || event.key === "Escape") ui.mapOpen = mapToggled(ui.mapOpen, event.key);
     if (event.key === "Escape") closeGateMenu();
     if (ui.buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
     if (ui.shipMenuBuilder !== null && event.key === "Escape") closeShipMenu();
-    if (!(event.target instanceof HTMLSelectElement) && !(event.target instanceof HTMLInputElement)) {
-      ui.heldKeys.add(event.key);
-      const next = clockAfterKey(ui.clock, event.key, event.repeat);
-      if (next !== ui.clock || event.key === " ") { ui.clock = next; event.preventDefault(); }
-    }
+    ui.heldKeys.add(event.key);
+    const next = clockAfterKey(ui.clock, event.key, event.repeat);
+    if (next !== ui.clock || event.key === " ") { ui.clock = next; event.preventDefault(); }
     if (event.key.startsWith("Arrow")) event.preventDefault();
   });
   window.addEventListener("keyup", (event) => { ui.heldKeys.delete(event.key); ui.heldKeys.delete(event.key.toLowerCase()); });
