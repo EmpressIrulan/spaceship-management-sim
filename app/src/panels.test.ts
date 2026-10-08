@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { foundedStation } from "./test-stations";
-import { createInitialState, type SimState, type Ship, type HaulRoute, type DefaultBehaviour, type Material, type HaulStationId, type HaulDestinationId } from "sim";
+import { miningStart } from "./test-mining";
+import { createInitialState, tick, type SimState, type Ship, type HaulRoute, type DefaultBehaviour, type Material, type HaulStationId, type HaulDestinationId } from "sim";
 import { installPanels } from "./panels";
 import { applyHaulRouteFieldChange } from "./haul-route";
 import { selectionPanel } from "./selection";
 import { renderShipPanel } from "./ship-panel";
+import { shipPanel } from "./ships";
 import { createUiState } from "./ui-state";
 
 function baseShip(initial: SimState, overrides: Partial<Ship> = {}): Ship {
@@ -174,10 +176,15 @@ class FakeElement {
   }
   replaceChildren(...children: FakeElement[]): void { this.children = children; }
   addEventListener(name: string, listener: (event: Event) => void): void { this.listeners.set(name, [...(this.listeners.get(name) ?? []), listener]); }
+  style: Record<string, string> = {};
+  width = 0;
+  height = 0;
+  // A ship's thumbnail draws onto a canvas, so the fake needs one to draw on.
+  getContext(): { drawImage: () => void; putImageData: () => void } { return { drawImage: () => {}, putImageData: () => {} }; }
 }
 
-function fakeDocument(): { createElement: (tag: string) => FakeElement } {
-  return { createElement: () => new FakeElement() };
+function fakeDocument(): { createElement: (tag: string) => FakeElement; activeElement: unknown } {
+  return { createElement: () => new FakeElement(), activeElement: null };
 }
 
 describe("haul route panel", () => {
@@ -362,3 +369,88 @@ function haulStateForPanel(): SimState {
     ],
   };
 }
+
+describe("ship panel while the ship changes", () => {
+  // Enough ticks for a mining ship to fly out, mine, fly home and unload.
+  const CYCLE_TICKS = 1200;
+  const DT = 0.5;
+
+  beforeEach(() => {
+    // The thumbnail's sprite is painted with ImageData, which Node does not have.
+    vi.stubGlobal("ImageData", class { constructor(readonly data: unknown, readonly width: number, readonly height: number) {} });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  function valueCell(box: FakeElement, label: string): FakeElement {
+    return box.children[1]!.children.find((child) => child.dataset.row === label)!;
+  }
+
+  function stateLabel(state: SimState): string {
+    return shipPanel(state, 0)!.rows.find(([label]) => label === "State")![1];
+  }
+
+  it("keeps every control on the same element, in the same order, through a mining cycle", () => {
+    const originalDocument = globalThis.document;
+    globalThis.document = fakeDocument() as unknown as Document;
+    try {
+      let state = miningStart(7);
+      const box = new FakeElement();
+      let context = renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0], selectedShip: null, renderedPanel: "" });
+      const controls = [...box.children];
+      const states = new Set<string>();
+      for (let step = 0; step < CYCLE_TICKS; step++) {
+        state = tick(state, DT);
+        context = renderShipPanel(state, box as unknown as HTMLElement, context);
+        states.add(stateLabel(state));
+        expect(box.children).toHaveLength(controls.length);
+        controls.forEach((control, index) => expect(box.children[index]).toBe(control));
+      }
+      expect(states.size).toBeGreaterThan(2);
+    } finally {
+      globalThis.document = originalDocument;
+    }
+  });
+
+  it("shows each ship figure and the state text as they change", () => {
+    const originalDocument = globalThis.document;
+    globalThis.document = fakeDocument() as unknown as Document;
+    try {
+      let state = miningStart(7);
+      const box = new FakeElement();
+      let context = renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0], selectedShip: null, renderedPanel: "" });
+      for (let step = 0; step < CYCLE_TICKS; step++) {
+        state = tick(state, DT);
+        context = renderShipPanel(state, box as unknown as HTMLElement, context);
+        for (const [label, value] of shipPanel(state, 0)!.rows) expect(valueCell(box, label).textContent).toBe(value);
+      }
+    } finally {
+      globalThis.document = originalDocument;
+    }
+  });
+
+  it("leaves a dropdown the player has open alone, then applies the choice they make", () => {
+    const originalDocument = globalThis.document;
+    const doc = fakeDocument();
+    globalThis.document = doc as unknown as Document;
+    try {
+      let current = miningStart(7);
+      const box = new FakeElement();
+      let context = renderShipPanel(current, box as unknown as HTMLElement, { selectedShips: [0], selectedShip: null, renderedPanel: "" });
+      const select = box.children.find((child) => child.name === "default")!;
+      doc.activeElement = select;
+      select.value = "none";
+      const ui = { ...createUiState([]), selectedShips: [0] };
+      installPanels(ui, () => current, (next) => { current = next; }, new FakeElement() as unknown as HTMLElement, box as unknown as HTMLElement);
+      for (let step = 0; step < CYCLE_TICKS; step++) {
+        current = tick(current, DT);
+        context = renderShipPanel(current, box as unknown as HTMLElement, context);
+      }
+      expect(box.children.find((child) => child.name === "default")).toBe(select);
+      expect(select.value).toBe("none");
+      box.listeners.get("change")![0]!({ target: select } as unknown as Event);
+      expect(current.ships[0]!.defaultBehaviour).toBe("none");
+    } finally {
+      globalThis.document = originalDocument;
+    }
+  });
+});
