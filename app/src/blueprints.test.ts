@@ -43,6 +43,13 @@ describe("blueprints", () => {
     expect(loadBlueprints(memoryStore())).toEqual([]);
   });
 
+  it("keeps a blueprint whose pixels include the Gun", () => {
+    const store = memoryStore();
+    const gunship: ShipDesign = { width: 1, height: 2, slots: ["Gun", "Engine"] };
+    saveBlueprint(store, "Gunship", gunship);
+    expect(loadBlueprints(store)).toEqual([{ name: "Gunship", design: gunship }]);
+  });
+
   it("keeps a saved design under its name, and a fresh page load still finds it", () => {
     const store = memoryStore();
     saveBlueprint(store, "Scout", SCOUT);

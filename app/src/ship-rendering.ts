@@ -18,7 +18,7 @@ export interface ShipDrawing {
   drawShip: (ship: Ship) => void;
   drawSelectionRing: (center: Vec, size: Size) => void;
   drawGauge: (position: Vec, gauge: Gauge, size: Size) => void;
-  drawLaser: (beam: Beam, seconds: number) => void;
+  drawLaser: (beam: Beam, seconds: number, color?: string) => void;
 }
 export function createShipDrawing(
   ui: UiState,
@@ -95,14 +95,15 @@ export function createShipDrawing(
   }
 
   // Screen-space, like the gauge, so the beam and flicker read at any zoom.
-  function drawLaser(beam: Beam, seconds: number): void {
+  // The mining beam wears the laser red; gun shots and bites pass their own.
+  function drawLaser(beam: Beam, seconds: number, color: string = LASER_COLOR): void {
     const from = worldToScreen(ui.camera, ui.viewport, beam.from);
     const to = worldToScreen(ui.camera, ui.viewport, beam.to);
     const pulse = laserPulse(seconds);
 
     ctx.save();
     ctx.globalAlpha = pulse;
-    ctx.strokeStyle = LASER_COLOR;
+    ctx.strokeStyle = color;
     ctx.lineWidth = 1 + pulse;
     ctx.beginPath();
     ctx.moveTo(from.x, from.y);
@@ -110,7 +111,8 @@ export function createShipDrawing(
     ctx.stroke();
     ctx.restore();
 
-    // 2 by 2 so a single spark is still visible on a low-density screen.
+    // Sparks burn white-hot whatever the beam's colour: 2 by 2 so a single
+    // spark is still visible on a low-density screen.
     ctx.fillStyle = "#fff1f2";
     for (const pixel of flickerPixels(
       { x: Math.round(to.x), y: Math.round(to.y) },
