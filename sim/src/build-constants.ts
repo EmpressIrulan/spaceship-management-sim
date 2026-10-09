@@ -28,10 +28,16 @@ export const BUG_SPAWN_SECONDS = 10;
 export const BUG_HP = 6;
 export const BUG_SIZE: Size = { width: 10, height: 8 };
 // Alive bugs below this count loiter by the hive; at it or above they hunt
-// ships in their sector (a later slice).
+// ships in their sector.
 export const BUG_ATTACK_THRESHOLD = 5;
 // How far a loitering bug strays from the hive, the closest it settles, and
 // how fast it flits (a share of a ship's cruise speed).
 export const BUG_HOVER_RADIUS = 40;
 export const BUG_HOVER_MIN_REACH = 10;
 export const BUG_SPEED_FACTOR = 0.6;
+// How far from its quarry a bug stands alongside and bites, how much hull
+// each bite takes, and how long between bites. Placeholders, like the hive
+// numbers, until there is something to play with.
+export const BUG_BITE_RANGE = 2;
+export const BUG_BITE_DAMAGE = 1;
+export const BUG_BITE_SECONDS = 6;
