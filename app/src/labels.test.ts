@@ -6,6 +6,8 @@ import {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  type Bug,
+  type Drop,
   type Ship,
 } from "sim";
 import { cargoGauge, infoBox } from "./labels";
@@ -152,6 +154,34 @@ describe("hover box", () => {
     } as typeof state;
     expect(infoBox(completed, { kind: "gateProject", id: 5, end: 0 })).toEqual({ title: "Gate", line: "Gate to " + completed.sectors[3]!.name });
     expect(infoBox(completed, { kind: "gateProject", id: 5, end: 1 })).toEqual({ title: "Gate", line: "Gate to " + completed.sectors[0]!.name });
+  });
+
+  it("shows the hive's hull as HP now / full", () => {
+    expect(infoBox(createInitialState(7), { kind: "hive", id: 0 })).toEqual({ title: "Hive", line: "HP 200/200" });
+  });
+
+  it("shows a bug's hull as HP now / full, and closes once the bug has gone", () => {
+    const bug: Bug = { id: 9, hiveId: 0, sectorId: 1, position: { x: 20, y: 0 }, hp: 3, maxHp: 6, state: "hunting", targetShipId: null, leg: null, timer: 1 };
+    const state = { ...createInitialState(7), bugs: [bug] };
+    expect(infoBox(state, { kind: "bug", id: bug.id })).toEqual({ title: "Bug", line: "HP 3/6" });
+    expect(infoBox({ ...state, bugs: [] }, { kind: "bug", id: bug.id })).toBeNull();
+  });
+
+  it("names a drop by what it holds", () => {
+    const juice: Drop = { id: 1, sectorId: 1, kind: "bugJuice", position: { x: 4, y: 0 } };
+    const larvae: Drop = { id: 2, sectorId: 1, kind: "queenLarvae", position: { x: -4, y: 0 } };
+    const state = { ...createInitialState(7), drops: [juice, larvae] };
+    expect(infoBox(state, { kind: "drop", id: juice.id })).toEqual({ title: "Bug juice", line: "Nothing collects it yet" });
+    expect(infoBox(state, { kind: "drop", id: larvae.id })?.title).toBe("Queen larvae");
+    expect(infoBox(state, { kind: "drop", id: 7 })).toBeNull();
+  });
+
+  it("adds the hull to a hurt ship's hover, and leaves an unhurt ship's line alone", () => {
+    const hurt = { ...ship("working", 0), hp: 24 };
+    const damaging = { ...createInitialState(7), ships: [hurt] };
+    expect(infoBox(damaging, { kind: "ship", index: 0 })?.line).toContain("HP 24/40");
+    expect(infoBox(damaging, { kind: "ship", index: 0 })?.line).toContain("Mining");
+    expect(infoBox({ ...damaging, ships: [ship("working", 0)] }, { kind: "ship", index: 0 })?.line).not.toContain("HP");
   });
 });
 

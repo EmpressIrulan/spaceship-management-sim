@@ -1,4 +1,4 @@
-import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
+import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipHp, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 import { formatDuration } from "./shipyard";
@@ -145,7 +145,11 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const incoming = hangarIncoming(state, ship.id);
     const hangarValue = `${hangarReserved(state, ship.id)}/${capacity}${incoming > 0 ? `, ${incoming} incoming` : ""}`;
     const hangar = capacity > 0 ? `\nHangar ${hangarValue}\nDocked ships: ${hangarContents(state, ship.id).length}` : "";
-    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}`,
+    // A fresh hull has nothing worth reading: the HP line appears once a bite
+    // or a shot has taken it below full.
+    const { hp, maxHp } = shipHp(ship);
+    const hull = hp < maxHp ? `\nHP ${hp}/${maxHp}` : "";
+    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}${hull}`,
       ...(capacity > 0 ? { action: { label: "Launch all", carrierId: ship.id, disabled: hangarContents(state, ship.id).length === 0 } } : {}) };
   }
   if (hovered.kind === "gateProject") {
@@ -157,6 +161,20 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       return other ? { title: "Gate", line: `Gate to ${state.sectors[other.sectorId]!.name}` } : null;
     }
     return { title: "Gate", line: `Gate ${project.delivered.Metal} / ${GATE_COST.Metal} Metal, ${project.delivered.Ice} / ${GATE_COST.Ice} Ice` };
+  }
+  // Dead things leave the hover with the drop that replaced them: a killed
+  // hive stops answering already in hoveredBody.
+  if (hovered.kind === "hive") {
+    const hive = (state.hives ?? []).find((candidate) => candidate.id === hovered.id);
+    return hive?.alive ? { title: "Hive", line: `HP ${hive.hp}/${hive.maxHp}` } : null;
+  }
+  if (hovered.kind === "bug") {
+    const bug = (state.bugs ?? []).find((candidate) => candidate.id === hovered.id);
+    return bug ? { title: "Bug", line: `HP ${bug.hp}/${bug.maxHp}` } : null;
+  }
+  if (hovered.kind === "drop") {
+    const drop = (state.drops ?? []).find((candidate) => candidate.id === hovered.id);
+    return drop ? { title: drop.kind === "bugJuice" ? "Bug juice" : "Queen larvae", line: "Nothing collects it yet" } : null;
   }
   const asteroid = state.asteroids.find((a) => a.id === hovered.id);
   return asteroid ? { title: asteroid.rich ? "Rich asteroid" : "Asteroid", line: `${asteroid.material}: ${asteroid.ore}` } : null;

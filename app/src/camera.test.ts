@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "sim";
+import { createInitialState, type Bug, type Drop, type Hive } from "sim";
 import { miningStart } from "./test-mining";
 import {
   MAX_ZOOM,
@@ -182,5 +182,56 @@ describe("hovering", () => {
     const hovered = hoveredBody(seeded, home, viewport, homeRockPoint, 1);
     expect(hovered).toBeNull();
     expect(orderTargetAt(seeded, hovered, homeRock.position, 1)).toEqual({ kind: "move", point: homeRock.position, sectorId: 1 });
+  });
+});
+
+describe("hovering the enemies", () => {
+  // Bodies alone at chosen points, so the pointer never has to guess what it
+  // is over: the home station's own bodies stay at Home, everything else is
+  // cleared.
+  const seeded = createInitialState(7);
+  const hive: Hive = { ...seeded.hives![0]!, position: { x: 400, y: 0 } };
+  const bug: Bug = { id: 9, hiveId: hive.id, sectorId: hive.sectorId, position: { x: 420, y: 0 }, hp: 6, maxHp: 6, state: "hovering", targetShipId: null, leg: null, timer: 1 };
+  const drop: Drop = { id: 4, sectorId: hive.sectorId, kind: "bugJuice", position: { x: 460, y: 0 } };
+  const state = { ...seeded, hives: [hive], bugs: [bug], drops: [drop] };
+  const sector = hive.sectorId;
+
+  it("points at the hive, a bug and a drop by id", () => {
+    const onHive = worldToScreen(home, viewport, hive.position);
+    const onBug = worldToScreen(home, viewport, bug.position);
+    const onDrop = worldToScreen(home, viewport, drop.position);
+    expect(hoveredBody(state, home, viewport, onHive, sector)).toEqual({ kind: "hive", id: hive.id });
+    expect(hoveredBody(state, home, viewport, onBug, sector)).toEqual({ kind: "bug", id: bug.id });
+    expect(hoveredBody(state, home, viewport, onDrop, sector)).toEqual({ kind: "drop", id: drop.id });
+  });
+
+  it("still catches them when zoomed out", () => {
+    const zoomedOut: Camera = { center: { x: 0, y: 0 }, zoom: 0.5 };
+    const onBug = worldToScreen(zoomedOut, viewport, { x: bug.position.x + 5, y: bug.position.y });
+    expect(hoveredBody(state, zoomedOut, viewport, onBug, sector)).toEqual({ kind: "bug", id: bug.id });
+  });
+
+  it("closes once the hovered hive, bug or drop is gone", () => {
+    const onHive = worldToScreen(home, viewport, hive.position);
+    expect(hoveredBody({ ...state, hives: [] }, home, viewport, onHive, sector)).toBeNull();
+    const onBug = worldToScreen(home, viewport, bug.position);
+    expect(hoveredBody({ ...state, bugs: [] }, home, viewport, onBug, sector)).toBeNull();
+    const onDrop = worldToScreen(home, viewport, drop.position);
+    expect(hoveredBody({ ...state, drops: [] }, home, viewport, onDrop, sector)).toBeNull();
+  });
+
+  it("closes once the hovered hive is dead", () => {
+    const onHive = worldToScreen(home, viewport, hive.position);
+    const dead = { ...hive, hp: 0, alive: false };
+    expect(hoveredBody({ ...state, hives: [dead] }, home, viewport, onHive, sector)).toBeNull();
+  });
+
+  it("does not hover hive bodies when viewing another sector", () => {
+    const onHive = worldToScreen(home, viewport, hive.position);
+    const onBug = worldToScreen(home, viewport, bug.position);
+    const onDrop = worldToScreen(home, viewport, drop.position);
+    expect(hoveredBody(state, home, viewport, onHive)).toBeNull();
+    expect(hoveredBody(state, home, viewport, onBug)).toBeNull();
+    expect(hoveredBody(state, home, viewport, onDrop)).toBeNull();
   });
 });
