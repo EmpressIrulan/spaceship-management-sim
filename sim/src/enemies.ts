@@ -7,7 +7,7 @@ import {
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
 import { shipHp, shipModuleCounts } from "./ship";
-import type { Beam, Bug, GunShot, Hive, Ship, ShipDesign, SimState, Vec } from "./model";
+import type { Beam, Bug, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Vec } from "./model";
 import type { Draft } from "./tick-mining";
 
 // Where a sector's hive sits: along the line from the sector's middle to its
@@ -228,6 +228,17 @@ function bugTarget(draft: Draft, ship: Ship): Bug | null {
   return best;
 }
 
+// A drop holds the next event when everything else has burned down, at this
+// cadence: seconds until the next loop step once only drops are left. A
+// dyadic fraction, a step nothing else can race.
+const DROP_EVENT_SECONDS = 1;
+
+// Loot for the bug's kill. Same stream as the hive's, never the main one.
+function addDrop(draft: Draft, sectorId: number, kind: DropKind, position: Vec): void {
+  draft.drops = [...draft.drops, { id: draft.nextDropId, sectorId, kind, position: { ...position } }];
+  draft.nextDropId += 1;
+}
+
 // One shot: fresh aim (the target's position when it fired), a burn-out clock
 // for the renderer to draw, and the reload, which keeps the event loop
 // stepping until the next shot.
@@ -243,9 +254,13 @@ function settleGuns(draft: Draft): void {
     const bug = bugTarget(draft, ship);
     if (bug) {
       const damaged = { ...bug, hp: bug.hp - GUN_DAMAGE };
-      draft.bugs = damaged.hp > 0
-        ? draft.bugs.map((candidate) => (candidate.id === bug.id ? damaged : candidate))
-        : draft.bugs.filter((candidate) => candidate.id !== bug.id);
+      if (damaged.hp > 0) {
+        draft.bugs = draft.bugs.map((candidate) => (candidate.id === bug.id ? damaged : candidate));
+      } else {
+        draft.bugs = draft.bugs.filter((candidate) => candidate.id !== bug.id);
+        // A dead bug leaves 1 bug juice floating where it died (criterion 7).
+        addDrop(draft, bug.sectorId, "bugJuice", bug.position);
+      }
       return fire(ship, bug.position);
     }
     const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === ship.sectorId
@@ -253,6 +268,8 @@ function settleGuns(draft: Draft): void {
     if (hive) {
       const hp = Math.max(0, hive.hp - GUN_DAMAGE);
       draft.hives = draft.hives.map((candidate) => (candidate.id === hive.id ? { ...candidate, hp, alive: hp > 0 } : candidate));
+      // A dead hive leaves 1 queen larvae floating where it stood (criterion 7).
+      if (hp === 0) addDrop(draft, hive.sectorId, "queenLarvae", hive.position);
       return fire(ship, hive.position);
     }
     // Nothing in range: the gun stays loaded, timer at zero, and fires the
@@ -289,5 +306,8 @@ export function nextEnemyEvent(draft: Draft): number {
     if (ship.gunTimer && ship.gunTimer > 0) soonest = Math.min(soonest, ship.gunTimer);
     if (ship.gunShot) soonest = Math.min(soonest, ship.gunShot.timer);
   }
+  // Drops outlast the shoot-out that left them, so once only they are left
+  // the loop would otherwise go silent: let the next step reach them.
+  if (draft.drops.length > 0) soonest = Math.min(soonest, DROP_EVENT_SECONDS);
   return soonest;
 }

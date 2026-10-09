@@ -790,6 +790,8 @@ function simulate(state: SimState, dt: number): SimState {
     hives: state.hives ?? [],
     bugs: state.bugs ?? [],
     nextBugId: state.nextBugId ?? 0,
+    drops: state.drops ?? [],
+    nextDropId: state.nextDropId ?? 0,
     modules: home.modules,
     construction: home.construction,
     buildQueue: home.buildQueue,
@@ -847,6 +849,8 @@ function simulate(state: SimState, dt: number): SimState {
     hives: draft.hives,
     bugs: draft.bugs,
     nextBugId: draft.nextBugId,
+    drops: draft.drops,
+    nextDropId: draft.nextDropId,
     gateProjects: draft.gateProjects,
   };
 }

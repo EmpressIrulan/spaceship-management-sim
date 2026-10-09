@@ -168,8 +168,16 @@ export interface Asteroid {
   material: Material;
 }
 
-// Enemies. The hive breeds the bugs; drops and dead-hive founding are the
-// slices that follow this one.
+// Loot that floats where the thing died. Nothing collects these yet.
+export type DropKind = "bugJuice" | "queenLarvae";
+export interface Drop {
+  id: number;
+  sectorId: number;
+  kind: DropKind;
+  position: Vec;
+}
+
+// Enemies. The hive breeds the bugs; dead-hive founding is a later slice.
 export interface Hive {
   id: number;
   sectorId: number;
@@ -239,6 +247,10 @@ export interface SimState {
   hives?: Hive[];
   bugs?: Bug[];
   nextBugId?: number;
+  // Loot floating where a bug or the hive died. Missing on older fixtures
+  // means no drops.
+  drops?: Drop[];
+  nextDropId?: number;
   // The sector of each Claim module that stood during the last tick, one entry
   // per Claim. The app asks for a name for the first.
   finishedClaims: number[];

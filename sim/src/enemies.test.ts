@@ -332,3 +332,70 @@ describe("gun ships", () => {
     expect(state.ships[0]!.sectorId).toBe(HIVE_SECTOR);
   });
 });
+
+describe("drops", () => {
+  it("a shot bug keeps floating until a hit kills it, and then leaves 1 bug juice where it died", () => {
+    const { state: start, shipId, hive } = gunStart(7);
+    const ship = start.ships.find((candidate) => candidate.id === shipId)!;
+    const bug = plantedBug(0, hive, ship.position.x + 20, ship.position.y);
+    const hits = Math.ceil(BUG_HP / GUN_DAMAGE);
+    let state: SimState = { ...start, bugs: [bug] };
+    // Every hit but the last only dents the hull: no drop, bug still up.
+    for (let hit = 1; hit < hits; hit += 1) {
+      state = tick(state, GUN_SECONDS);
+      expect(state.drops).toEqual([]);
+      expect(state.bugs).toHaveLength(1);
+    }
+    // The killing shot: the bug is gone and its juice floats in its place.
+    state = tick(state, GUN_SECONDS);
+    expect(state.bugs).toHaveLength(0);
+    expect(state.drops).toEqual([{ id: 0, sectorId: HIVE_SECTOR, kind: "bugJuice", position: { ...bug.position } }]);
+  });
+
+  it("each dead bug leaves its own drop", () => {
+    const { state: start, shipId, hive } = gunStart(7);
+    const ship = start.ships.find((candidate) => candidate.id === shipId)!;
+    // Two planted bugs the same distance apart as one: the nearer (lower id
+    // wins the tie, and here they tie) falls first.
+    const near = plantedBug(0, hive, ship.position.x + 20, ship.position.y);
+    const far = plantedBug(1, hive, ship.position.x + 40, ship.position.y);
+    let state: SimState = { ...start, bugs: [far, near] };
+    for (let hits = 0; hits < Math.ceil(2 * BUG_HP / GUN_DAMAGE); hits += 1) state = tick(state, GUN_SECONDS);
+    expect(state.bugs).toHaveLength(0);
+    expect(state.drops).toEqual([
+      { id: 0, sectorId: HIVE_SECTOR, kind: "bugJuice", position: { ...near.position } },
+      { id: 1, sectorId: HIVE_SECTOR, kind: "bugJuice", position: { ...far.position } },
+    ]);
+  });
+
+  it("a killed hive leaves 1 queen larvae where it stood, and it stays", () => {
+    const { state: start, hive } = gunStart(7);
+    // One shot's worth of hull left, so the next shot kills it.
+    let state: SimState = { ...start, hives: [{ ...start.hives![0]!, hp: GUN_DAMAGE }] };
+    state = tick(state, 1);
+    expect(state.hives![0]!.alive).toBe(false);
+    expect(state.drops).toEqual([{ id: 0, sectorId: HIVE_SECTOR, kind: "queenLarvae", position: { ...hive.position } }]);
+    // Nothing collects the larvae: it is still floating much later.
+    state = tick(state, BUG_SPAWN_SECONDS * 3);
+    expect(state.drops).toEqual([{ id: 0, sectorId: HIVE_SECTOR, kind: "queenLarvae", position: { ...hive.position } }]);
+  });
+
+  it("drops replay exactly from the seed", () => {
+    const run = () => {
+      const start = gunStart(7);
+      const ship = start.state.ships.find((candidate) => candidate.id === start.shipId)!;
+      const seeded: SimState = {
+        ...start.state,
+        hives: [{ ...start.state.hives![0]!, hp: GUN_DAMAGE }],
+        bugs: [plantedBug(0, start.state.hives![0]!, ship.position.x + 20, ship.position.y)],
+      };
+      const run = () => {
+        let state = seeded;
+        for (const dt of [1, 2, 4, 8]) state = tick(state, dt);
+        return JSON.stringify(state);
+      };
+      return run() === run();
+    };
+    expect(run()).toBe(true);
+  });
+});

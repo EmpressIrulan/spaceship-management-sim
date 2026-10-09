@@ -17,7 +17,7 @@ export { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MODULE_COS
 export {
   BUG_ATTACK_THRESHOLD, BUG_BITE_DAMAGE, BUG_BITE_RANGE, BUG_BITE_SECONDS,
   BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP,
-  BUG_SPAWN_SECONDS, BUG_SIZE, BUG_SPEED_FACTOR, GUN_DAMAGE, GUN_RANGE,
+  BUG_SPAWN_SECONDS, BUG_SIZE, BUG_SPEED_FACTOR, DROP_SIZE, GUN_DAMAGE, GUN_RANGE,
   GUN_SECONDS, GUN_SHOT_SECONDS, HIVE_GATE_FRACTION, HIVE_HP,
   HIVE_SECTOR, HIVE_SIZE,
 } from "./build-constants";
@@ -419,6 +419,8 @@ export function createInitialState(seed: number): SimState {
     hives: [hive],
     bugs: [],
     nextBugId: 0,
+    drops: [],
+    nextDropId: 0,
     finishedClaims: [],
   };
 }
