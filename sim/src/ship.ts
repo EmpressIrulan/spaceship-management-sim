@@ -1,6 +1,6 @@
 import { SHIP_CRUISE_SPEED } from "./motion";
 import { SHIP_MODULES } from "./model";
-import type { Material, ShipDesign, ShipModule, Size } from "./model";
+import type { Material, Ship, ShipDesign, ShipModule, Size } from "./model";
 export { SHIP_MODULES };
 export type { ShipDesign, ShipModule } from "./model";
 
@@ -45,6 +45,9 @@ export const SHIP_MODULE_COST: Record<ShipModule, Record<Material, number>> = {
   // Placeholder: a Hangar costs the same total as Storage, but leans Metal.
   Hangar: { Metal: 10, Ice: 5 },
   Hull: { Metal: 5, Ice: 5 },
+  // Placeholder: a Gun is a weapon like the Laser, a little cheaper and with
+  // the same Metal lean.
+  Gun: { Metal: 15, Ice: 10 },
 };
 export const SHIP_BUILD_SECONDS_PER_RESOURCE = 0.1;
 // Engines per painted pixel that move a ship at SHIP_CRUISE_SPEED: one in four.
@@ -103,6 +106,16 @@ export function canMine(design: ShipDesign): boolean {
 
 export function shipSize(design: ShipDesign): Size {
   return { width: design.width * PIXEL_SIZE, height: design.height * PIXEL_SIZE };
+}
+
+// Hull of a whole ship, no matter the design. Placeholders until the demo
+// tunes it; Structure HP (#68) replaces this later. Bugs bite it down and the
+// ship explodes at zero. Older fixtures and ships that have never been bitten
+// leave the fields unset, which means full hull.
+export const SHIP_HP = 40;
+
+export function shipHp(ship: Pick<Ship, "hp" | "maxHp">): { hp: number; maxHp: number } {
+  return { hp: ship.hp ?? SHIP_HP, maxHp: ship.maxHp ?? SHIP_HP };
 }
 
 export function shipBuildCost(design: ShipDesign): Record<Material, number> {

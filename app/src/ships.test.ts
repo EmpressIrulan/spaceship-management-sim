@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInitialState, tick, type GateProject, type Ship, type ShipDesign, type SimState, type Station } from "sim";
 import { hoveredBody, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
-import { spritePixels, shipPanel } from "./ships";
+import { MODULE_COLORS, spritePixels, shipPanel } from "./ships";
 
 const viewport = { width: 800, height: 600 };
 const camera: Camera = { center: { x: 0, y: 0 }, zoom: 1 };
@@ -147,6 +147,13 @@ describe("ships drawn from their pixels", () => {
   it("colours each painted pixel by its module and leaves the empty ones clear", () => {
     const pixels = spritePixels({ width: 3, height: 1, slots: ["Engine", null, "Hull"] });
     expect([...pixels]).toEqual([0xf9, 0x73, 0x16, 255, 0, 0, 0, 0, 0x47, 0x55, 0x69, 255]);
+  });
+
+  it("paints the Gun a colour no other part wears", () => {
+    const colours = Object.values(MODULE_COLORS);
+    expect(new Set(colours).size).toBe(colours.length);
+    const pixels = spritePixels({ width: 1, height: 1, slots: ["Gun"] });
+    expect([...pixels]).toEqual([0xfa, 0xcc, 0x15, 255]);
   });
 
   it("makes a 6x6 pixel ship's hover area bigger than the starting ship's", () => {

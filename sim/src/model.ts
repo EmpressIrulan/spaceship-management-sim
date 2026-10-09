@@ -14,7 +14,8 @@ export type ModuleType = (typeof MODULE_TYPES)[number];
 export const MODULE_TYPES = ["Dock", "Storage", "Builder", "Claim"] as const;
 
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and draws, but does nothing.
-export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull"] as const;
+// Gun shoots bugs and the hive on the ship's own; see enemies.ts.
+export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun"] as const;
 export type ShipModule = (typeof SHIP_MODULES)[number];
 export interface ShipDesign { width: number; height: number; slots: (ShipModule | null)[] }
 
@@ -87,8 +88,20 @@ export interface Ship {
   // The cargo aboard when this transfer began and the total units it will move.
   // This makes partial transfers deterministic and safe to interrupt.
   transfer: CargoTransfer | null;
+  // Current and full hull. Bugs bite these down; at 0 the ship explodes and it
+  // and its cargo are gone. Missing on older fixtures and on ships that have
+  // not been bitten: a fresh ship still has SHIP_HP of hull.
+  hp?: number;
+  maxHp?: number;
   // Set while this ship is hidden inside another ship.
   hangarId?: number | null;
+  // A Gun ship's reload: seconds until the gun may fire again. Missing means
+  // the gun has never counted: it fires the moment a target walks in range.
+  // Only gun ships carry it.
+  gunTimer?: number;
+  // The shot in flight: where the last one went and how much longer the
+  // renderer draws it. Null once the flash has burned out.
+  gunShot?: GunShot | null;
 }
 
 export interface Station {
@@ -155,6 +168,45 @@ export interface Asteroid {
   material: Material;
 }
 
+// Loot that floats where the thing died. Nothing collects these yet.
+export type DropKind = "bugJuice" | "queenLarvae";
+export interface Drop {
+  id: number;
+  sectorId: number;
+  kind: DropKind;
+  position: Vec;
+}
+
+// Enemies. The hive breeds the bugs; dead-hive founding is a later slice.
+export interface Hive {
+  id: number;
+  sectorId: number;
+  position: Vec;
+  hp: number;
+  maxHp: number;
+  // Seconds until the next bug hatches.
+  spawnTimer: number;
+  // False once killed: a dead hive stops releasing bugs.
+  alive: boolean;
+}
+// Hovering bugs hang about the hive; hunting ones fly at a ship and bite it.
+export type BugState = "hovering" | "hunting";
+export interface Bug {
+  id: number;
+  // The hive this bug came from, so loitering has a centre.
+  hiveId: number;
+  sectorId: number;
+  position: Vec;
+  hp: number;
+  maxHp: number;
+  state: BugState;
+  // The ship this bug flies at and bites, when it hunts. Null while hovering.
+  targetShipId: number | null;
+  leg: Leg | null;
+  // Seconds left in the current leg. Unused while holding still.
+  timer: number;
+}
+
 export interface Respawn {
   sectorId: number;
   fieldId: number;
@@ -172,6 +224,10 @@ export interface SimState {
   time: number;
   // PRNG state, carried here so respawn spots replay exactly from the seed.
   rng: number;
+  // The enemies' PRNG stream of their own, so their constant, everywhere-in
+  // the tick loitering never perturbs where the main stream puts a rock.
+  // Missing on older fixtures: falls out of the main stream's seed.
+  enemyRng?: number;
   nextAsteroidId: number;
   nextShipId: number;
   sectors: Sector[];
@@ -187,6 +243,14 @@ export interface SimState {
   asteroids: Asteroid[];
   respawns: Respawn[];
   ships: Ship[];
+  // The hive and its bugs. Missing on older fixtures means no enemies.
+  hives?: Hive[];
+  bugs?: Bug[];
+  nextBugId?: number;
+  // Loot floating where a bug or the hive died. Missing on older fixtures
+  // means no drops.
+  drops?: Drop[];
+  nextDropId?: number;
   // The sector of each Claim module that stood during the last tick, one entry
   // per Claim. The app asks for a name for the first.
   finishedClaims: number[];
@@ -223,4 +287,13 @@ export interface BerthLayout {
 export interface Beam {
   from: Vec;
   to: Vec;
+}
+
+// One gun shot, drawn for GUN_SHOT_SECONDS after it fires: where the shot was
+// aimed (the target's position when it fired) and how much longer it draws.
+export interface GunShot {
+  from: Vec;
+  to: Vec;
+  target: { kind: "bug" | "hive"; id: number };
+  timer: number;
 }

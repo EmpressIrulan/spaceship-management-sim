@@ -19,6 +19,8 @@ export interface Draft {
   founding: boolean;
   deliveries: Station["deliveries"];
   rng: number;
+  // The enemies' own stream, per SimState.rng.
+  enemyRng: number;
   nextAsteroidId: number;
   nextShipId: number;
   // The Dock module's position, the station's home point and route origin.
@@ -32,6 +34,13 @@ export interface Draft {
   respawns: SimState["respawns"];
   fields: SimState["fields"];
   ships: Ship[];
+  // The hive and its bugs, with the next bug id to hand out.
+  hives: NonNullable<SimState["hives"]>;
+  bugs: NonNullable<SimState["bugs"]>;
+  nextBugId: number;
+  // Loot floating where something died, with the next drop id to hand out.
+  drops: NonNullable<SimState["drops"]>;
+  nextDropId: number;
   modules: Station["modules"];
   construction: Station["construction"];
   buildQueue: Station["buildQueue"];
