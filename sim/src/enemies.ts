@@ -154,8 +154,8 @@ export function advanceEnemies(draft: Draft, seconds: number): void {
   });
 }
 
-function burnOut(shot: GunShot, seconds: number): GunShot | null {
-  return shot.timer <= seconds ? null : { ...shot, timer: shot.timer - seconds };
+function burnOut(shot: GunShot, seconds: number): GunShot {
+  return { ...shot, timer: Math.max(0, shot.timer - seconds) };
 }
 
 // Fires every enemy timer that has reached zero: hives hatch, hovering bugs
@@ -242,35 +242,45 @@ function addDrop(draft: Draft, sectorId: number, kind: DropKind, position: Vec):
 // One shot: fresh aim (the target's position when it fired), a burn-out clock
 // for the renderer to draw, and the reload, which keeps the event loop
 // stepping until the next shot.
-function fire(ship: Ship, to: Vec): Ship {
-  return { ...ship, gunTimer: GUN_SECONDS, gunShot: { to: { ...to }, timer: GUN_SHOT_SECONDS } };
+function fire(ship: Ship, to: Vec, target: GunShot["target"]): Ship {
+  return { ...ship, gunTimer: GUN_SECONDS, gunShot: { from: { ...ship.position }, to: { ...to }, target, timer: GUN_SHOT_SECONDS } };
+}
+
+function hitTarget(draft: Draft, target: GunShot["target"]): void {
+  if (target.kind === "bug") {
+    const bug = draft.bugs.find((candidate) => candidate.id === target.id);
+    if (!bug) return;
+    const hp = bug.hp - GUN_DAMAGE;
+    if (hp > 0) draft.bugs = draft.bugs.map((candidate) => candidate.id === bug.id ? { ...candidate, hp } : candidate);
+    else {
+      draft.bugs = draft.bugs.filter((candidate) => candidate.id !== bug.id);
+      addDrop(draft, bug.sectorId, "bugJuice", bug.position);
+    }
+    return;
+  }
+  const hive = draft.hives.find((candidate) => candidate.id === target.id && candidate.alive);
+  if (!hive) return;
+  const hp = Math.max(0, hive.hp - GUN_DAMAGE);
+  draft.hives = draft.hives.map((candidate) => candidate.id === hive.id ? { ...candidate, hp, alive: hp > 0 } : candidate);
+  if (hp === 0) addDrop(draft, hive.sectorId, "queenLarvae", hive.position);
 }
 
 // Every loaded, undocked gun ship in a sector with enemies fires on its own.
 // Guns work while holding, flying or mining.
 function settleGuns(draft: Draft): void {
+  // Resolve arrivals before considering a new shot. A target killed or removed
+  // before impact simply absorbs nothing.
+  for (const ship of draft.ships) if (ship.gunShot?.timer === 0) hitTarget(draft, ship.gunShot.target);
   draft.ships = draft.ships.map((ship) => {
+    if (ship.gunShot?.timer === 0) ship = { ...ship, gunShot: null };
+    if (ship.gunShot) return ship;
     if (ship.state === "docked" || guns(ship.design) === 0 || (ship.gunTimer ?? 0) > 0) return ship;
     const bug = bugTarget(draft, ship);
-    if (bug) {
-      const damaged = { ...bug, hp: bug.hp - GUN_DAMAGE };
-      if (damaged.hp > 0) {
-        draft.bugs = draft.bugs.map((candidate) => (candidate.id === bug.id ? damaged : candidate));
-      } else {
-        draft.bugs = draft.bugs.filter((candidate) => candidate.id !== bug.id);
-        // A dead bug leaves 1 bug juice floating where it died (criterion 7).
-        addDrop(draft, bug.sectorId, "bugJuice", bug.position);
-      }
-      return fire(ship, bug.position);
-    }
+    if (bug) return fire(ship, bug.position, { kind: "bug", id: bug.id });
     const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === ship.sectorId
       && Math.hypot(candidate.position.x - ship.position.x, candidate.position.y - ship.position.y) <= GUN_RANGE);
     if (hive) {
-      const hp = Math.max(0, hive.hp - GUN_DAMAGE);
-      draft.hives = draft.hives.map((candidate) => (candidate.id === hive.id ? { ...candidate, hp, alive: hp > 0 } : candidate));
-      // A dead hive leaves 1 queen larvae floating where it stood (criterion 7).
-      if (hp === 0) addDrop(draft, hive.sectorId, "queenLarvae", hive.position);
-      return fire(ship, hive.position);
+      return fire(ship, hive.position, { kind: "hive", id: hive.id });
     }
     // Nothing in range: the gun stays loaded, timer at zero, and fires the
     // moment a target walks in.
@@ -281,7 +291,7 @@ function settleGuns(draft: Draft): void {
 // The shots every renderer can draw while they fly: from each gun ship to
 // where its shot was aimed. A ship with nothing in flight draws nothing.
 export function gunBeams(state: Pick<SimState, "ships">): Beam[] {
-  return state.ships.flatMap((ship) => (ship.gunShot ? [{ from: { ...ship.position }, to: { ...ship.gunShot.to } }] : []));
+  return state.ships.flatMap((ship) => (ship.gunShot ? [{ from: { ...ship.gunShot.from }, to: { ...ship.gunShot.to } }] : []));
 }
 
 // Seconds until the next ENEMY timer that drives the event loop runs out: the

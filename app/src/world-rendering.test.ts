@@ -125,10 +125,10 @@ function shotState(ship: Ship, bugs: Bug[] = []): SimState {
   return withBodies(createInitialState(7), { ships: [ship], bugs, stations: [] });
 }
 
-const SHOT = { to: { x: 30, y: 30 }, timer: 0.2 };
+const SHOT = { from: { x: 0, y: 0 }, to: { x: 30, y: 30 }, target: { kind: "bug" as const, id: 1 }, timer: 0.2 };
 
 describe("the world draws gun shots", () => {
-  it("draws the shot in flight from its ship to where it was aimed", () => {
+  it("draws a projectile between its ship and aim, without a line", () => {
     const uiState = ui();
     const ctx = mockCtx();
     const fillWorldRect = vi.fn();
@@ -138,8 +138,9 @@ describe("the world draws gun shots", () => {
     const drawing = createWorldDrawing(uiState, () => shotState(ship), ctx, fillWorldRect, strokeWorldRect);
     drawing.draw(0);
     // worldToScreen with the test camera maps world (x, y) to (400 + x, 300 + y).
-    expect(ctx.moveTo).toHaveBeenCalledWith(400, 300);
-    expect(ctx.lineTo).toHaveBeenCalledWith(430, 330);
+    expect(ctx.moveTo).not.toHaveBeenCalled();
+    expect(ctx.lineTo).not.toHaveBeenCalled();
+    expect(ctx.fillRect).toHaveBeenCalledWith(416, 316, 4, 4);
   });
 
   it("draws nothing for a ship with no shot in flight", () => {
@@ -199,11 +200,13 @@ describe("a hull that vanishes between frames explodes", () => {
     // One frame later the whole hull is gone: the sim removes it in a step.
     state = withBodies(state, { ships: [] });
     drawing.draw(0.25);
-    expect(ctx.arc).toHaveBeenCalled();
-    (ctx.arc as unknown as { mockClear: () => void }).mockClear();
+    expect(ctx.arc).not.toHaveBeenCalled();
+    expect(ctx.fillRect).toHaveBeenCalled();
+    (ctx.fillRect as unknown as { mockClear: () => void }).mockClear();
     // Past the blast's life, nothing is left to draw.
     drawing.draw(5);
-    expect(ctx.arc).not.toHaveBeenCalled();
+    expect((ctx.fillRect as unknown as { mock: { calls: number[][] } }).mock.calls
+      .some((call) => call[2] === 4 && call[3] === 4)).toBe(false);
   });
 
   it("never blasts for a hull that only changed where it was", () => {

@@ -3,7 +3,7 @@ import {
   BUG_BITE_SECONDS,
   DROP_SIZE,
   HIVE_SIZE,
-  gunBeams,
+  GUN_SHOT_SECONDS,
   laserBeam,
   shipSize,
   type DropKind,
@@ -14,7 +14,6 @@ import {
 import { worldToScreen } from "./camera";
 import { asteroidColor } from "./asteroid";
 import { cargoGauge } from "./labels";
-import { flickerPixels } from "./laser";
 import { slotColor } from "./ships";
 import { cancelDependentsAt } from "./building";
 import { stationConnectors } from "./station-appearance";
@@ -45,8 +44,7 @@ const BITE_FLASH_SECONDS = 0.35;
 // it was last seen, then fades. Sector switches and first frames blast
 // nothing.
 const EXPLOSION_SECONDS = 0.9;
-const EXPLOSION_RADIUS = 30;
-const EXPLOSION_COLOR = "#fbbf24";
+const FIRE_COLORS = ["#fff7ed", "#fde047", "#fb923c", "#ef4444", "#7f1d1d"];
 
 export interface WorldDrawing {
   draw: (seconds: number) => { sectorRocks: SimState["asteroids"]; legacyGateVisible: boolean; gate: SimState["sectors"][number]["gate"]; gateScreen: Vec };
@@ -121,9 +119,20 @@ export function createWorldDrawing(
       const beam = laserBeam(getState(), ship);
       if (beam) shipDrawing.drawLaser(beam, seconds);
     }
-    // Every gun shot burning out in the sector draws its beam; a bite flashes
+    // Every gun shot burning out in the sector draws its projectile; a bite flashes
     // briefly after the event, rather than throughout its cooldown.
-    for (const beam of gunBeams({ ships: sectorShips })) shipDrawing.drawLaser(beam, seconds, GUN_SHOT_COLOR);
+    for (const ship of sectorShips) {
+      const shot = ship.gunShot;
+      if (!shot) continue;
+      const progress = 1 - shot.timer / GUN_SHOT_SECONDS;
+      const point = {
+        x: shot.from.x + (shot.to.x - shot.from.x) * progress,
+        y: shot.from.y + (shot.to.y - shot.from.y) * progress,
+      };
+      const pixel = worldToScreen(ui.camera, ui.viewport, point);
+      ctx.fillStyle = GUN_SHOT_COLOR;
+      ctx.fillRect(Math.round(pixel.x) - 2, Math.round(pixel.y) - 2, 4, 4);
+    }
     for (const bug of sectorBugs) {
       if (bug.state !== "hunting" || bug.leg !== null || bug.targetShipId === null
         || bug.timer < BUG_BITE_SECONDS - BITE_FLASH_SECONDS) continue;
@@ -158,19 +167,20 @@ export function createWorldDrawing(
       }
       const progress = age / EXPLOSION_SECONDS;
       const screen = worldToScreen(ui.camera, ui.viewport, blast.position);
+      // Pixel trajectories are fixed per blast and expand smoothly, never
+      // regenerated from frame time (which would make the fire flicker).
       ctx.save();
       ctx.globalAlpha = 1 - progress;
-      ctx.strokeStyle = EXPLOSION_COLOR;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(screen.x, screen.y, EXPLOSION_RADIUS * (0.3 + progress), 0, 2 * Math.PI);
-      ctx.stroke();
-      ctx.restore();
-      // Sparks fly as the ring grows, hashed from the clock like the laser's.
-      ctx.fillStyle = EXPLOSION_COLOR;
-      for (const pixel of flickerPixels({ x: Math.round(screen.x), y: Math.round(screen.y) }, seconds)) {
-        ctx.fillRect(pixel.x - 1, pixel.y - 1, 2, 2);
+      for (let pixel = 0; pixel < 18; pixel += 1) {
+        const angle = pixel * 2.399963229728653;
+        const speed = 7 + ((pixel * 37) % 19);
+        const distance = speed * progress * progress;
+        const x = Math.round(screen.x + Math.cos(angle) * distance);
+        const y = Math.round(screen.y + Math.sin(angle) * distance);
+        ctx.fillStyle = FIRE_COLORS[Math.min(FIRE_COLORS.length - 1, Math.floor(progress * FIRE_COLORS.length))]!;
+        ctx.fillRect(x - 2, y - 2, 4, 4);
       }
+      ctx.restore();
     }
     return { sectorRocks, legacyGateVisible, gate, gateScreen };
   }

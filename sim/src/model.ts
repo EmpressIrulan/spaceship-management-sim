@@ -292,6 +292,8 @@ export interface Beam {
 // One gun shot, drawn for GUN_SHOT_SECONDS after it fires: where the shot was
 // aimed (the target's position when it fired) and how much longer it draws.
 export interface GunShot {
+  from: Vec;
   to: Vec;
+  target: { kind: "bug" | "hive"; id: number };
   timer: number;
 }
