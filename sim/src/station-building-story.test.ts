@@ -46,11 +46,38 @@ describe("station growth story acceptance criteria", () => {
     }
   });
 
+  // Every site is a cardinal neighbour slot of a module, so the full
+  // expectation is derivable: a side with a module behind it must be hidden,
+  // a free side must still be offered.
+  const SIDES: ReadonlyArray<readonly [number, number]> = [
+    [-MODULE_SPACING, 0], [0, -MODULE_SPACING], [0, MODULE_SPACING], [MODULE_SPACING, 0],
+  ];
+
+  function expectsEverySide(state: SimState, modules: StationModule[]) {
+    const sites = availableModuleBuildSites(state, 0);
+    for (const module of modules) {
+      for (const [dx, dy] of SIDES) {
+        const site = { x: module.position.x + dx, y: module.position.y + dy };
+        const taken = modules.some((other) => other.position.x === site.x && other.position.y === site.y);
+        if (taken) {
+          expect(sites).not.toContainEqual(site);
+        } else {
+          expect(sites).toContainEqual(site);
+        }
+      }
+    }
+  }
+
   it("continues offering sites after a station has grown to twelve modules", () => {
     const modules = [-80, -40, 0, 40, 80].map((y) => dock(0, y))
       .concat([-120, -80, -40, 40, 80, 120, 160].map((x) => dock(x, 0)));
-    const state = layout(modules);
-    expect(availableModuleBuildSites(state, 0).length).toBeGreaterThan(0);
+    expectsEverySide(layout(modules), modules);
+  });
+
+  it("offers each free side and hides each taken side on an L-shaped station of twelve modules", () => {
+    const modules = [-80, -40, 0, 40, 80].map((y) => dock(0, y))
+      .concat([40, 80, 120, 160, 200, 240, 280].map((x) => dock(x, 80)));
+    expectsEverySide(layout(modules), modules);
   });
 
   it("hides a site overlapping a module, a large asteroid, or another station", () => {
