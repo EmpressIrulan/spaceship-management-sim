@@ -81,8 +81,8 @@ describe("the starting ship", () => {
 });
 
 describe("ship stats", () => {
-  it("offers Hull and Hangar next to the three working modules", () => {
-    expect(SHIP_MODULES).toEqual(["Engine", "Laser", "Storage", "Hangar", "Hull"]);
+  it("offers Hull, Hangar and Gun next to the three working modules", () => {
+    expect(SHIP_MODULES).toEqual(["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun"]);
   });
 
   it("takes speed from the share of painted pixels that are engines, hull included", () => {
@@ -138,6 +138,10 @@ describe("building a ship", () => {
     expect(shipBuildCost(solid(1, 1, "Engine"))).toEqual({ Metal: 30, Ice: 10 });
   });
 
+  it("prices the Gun a little under a Laser, leaning Metal like it", () => {
+    expect(shipBuildCost(solid(1, 1, "Gun"))).toEqual({ Metal: 15, Ice: 10 });
+  });
+
   it("counts each painted part for the menu breakdown", () => {
     expect(shipModuleCounts(design(6, 1, ["Hull", "Hull", "Engine", "Laser", "Storage", null]))).toEqual({
       Engine: 1,
@@ -145,6 +149,7 @@ describe("building a ship", () => {
       Storage: 1,
       Hangar: 0,
       Hull: 2,
+      Gun: 0,
     });
   });
 

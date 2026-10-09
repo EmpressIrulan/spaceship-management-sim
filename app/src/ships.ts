@@ -21,6 +21,8 @@ export const MODULE_COLORS: Record<ShipModule, string> = {
   Storage: "#94a3b8",
   Hangar: "#38bdf8",
   Hull: "#475569",
+  // Placeholder tint of its own, so a painted Gun pixel is not transparent.
+  Gun: "#e2e8f0",
 };
 
 export function slotColor(slot: ShipModule): string {

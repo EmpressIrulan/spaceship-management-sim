@@ -45,6 +45,9 @@ export const SHIP_MODULE_COST: Record<ShipModule, Record<Material, number>> = {
   // Placeholder: a Hangar costs the same total as Storage, but leans Metal.
   Hangar: { Metal: 10, Ice: 5 },
   Hull: { Metal: 5, Ice: 5 },
+  // Placeholder: a Gun is a weapon like the Laser, a little cheaper and with
+  // the same Metal lean.
+  Gun: { Metal: 15, Ice: 10 },
 };
 export const SHIP_BUILD_SECONDS_PER_RESOURCE = 0.1;
 // Engines per painted pixel that move a ship at SHIP_CRUISE_SPEED: one in four.

@@ -1,16 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { tick } from "./tick";
 import { createInitialState, homeStation } from "./state";
+import { miningStart } from "./test-ships";
 import {
   BUG_ATTACK_THRESHOLD,
   BUG_BITE_DAMAGE,
   BUG_HOVER_RADIUS,
+  BUG_HP,
   BUG_SPAWN_SECONDS,
+  GUN_DAMAGE,
+  GUN_RANGE,
+  GUN_SECONDS,
   HIVE_HP,
   HIVE_SECTOR,
 } from "./build-constants";
+import { giveOrder } from "./orders";
+import { gunBeams } from "./enemies";
 import { shipHp } from "./ship";
-import type { Ship, SimState } from "./state";
+import type { Bug, Hive, Ship, ShipDesign, SimState } from "./state";
 
 function hive(state: SimState) {
   const found = state.hives?.[0];
@@ -162,5 +169,166 @@ describe("bugs hunt ships", () => {
       return JSON.stringify(state);
     };
     expect(run()).toBe(run());
+  });
+});
+
+// A one-pixel gun ship parked in the hive's sector, holding still with nothing
+// queued, so nothing about it moves and the guns do the only acting.
+function gunStart(seed: number, spawnTimer = 10_000): { state: SimState; shipId: number; hive: Hive } {
+  const state = createInitialState(seed);
+  const hive = state.hives![0]!;
+  const shipId = state.nextShipId;
+  const gunner: Ship = {
+    ...state.ships[0]!,
+    id: shipId,
+    state: "holding",
+    timer: 0,
+    sectorId: HIVE_SECTOR,
+    position: { x: hive.position.x + 25, y: hive.position.y },
+    design: GUN_SHIP,
+    defaultBehaviour: "none",
+    order: null,
+    target: null,
+    leg: null,
+    berth: null,
+    transfer: null,
+  };
+  return {
+    state: {
+      ...state,
+      ships: [...state.ships, gunner],
+      hives: [{ ...hive, spawnTimer }],
+      nextShipId: shipId + 1,
+    },
+    shipId,
+    hive: { ...hive, spawnTimer },
+  };
+}
+
+// A bare Gun pixel. Valid on its own: a gun ship needs no engine for the gun
+// tests, which park it still.
+const GUN_SHIP: ShipDesign = { width: 1, height: 1, slots: ["Gun"] };
+
+// An engine and a Gun, so the ship can actually be flown to the hive's sector.
+const GUN_PATROL: ShipDesign = { width: 2, height: 1, slots: ["Engine", "Gun"] };
+
+// A bug planted at an exact spot, holding still (no leg, timer far off), so a
+// test aims the guns at a known point.
+function plantedBug(id: number, hive: Hive, x: number, y: number, timer = 10_000): Bug {
+  return {
+    id,
+    hiveId: hive.id,
+    sectorId: hive.sectorId,
+    position: { x, y },
+    hp: BUG_HP,
+    maxHp: BUG_HP,
+    state: "hovering",
+    targetShipId: null,
+    leg: null,
+    timer,
+  };
+}
+
+describe("gun ships", () => {
+  it("shoot the nearest bug in range on their own, and no other", () => {
+    const { state: start, shipId, hive } = gunStart(7);
+    const ship = start.ships.find((candidate) => candidate.id === shipId)!;
+    const near = plantedBug(0, hive, ship.position.x + 20, ship.position.y);
+    const far = plantedBug(1, hive, ship.position.x + 40, ship.position.y);
+    let state: SimState = { ...start, bugs: [far, near] };
+    state = tick(state, 1);
+    const gunner = state.ships.find((candidate) => candidate.id === shipId)!;
+    expect(gunner.gunTimer).toBe(GUN_SECONDS);
+    // The nearer bug took the shot; the other kept its full hull.
+    expect(state.bugs!.find((bug) => bug.id === 1)!.hp).toBe(far.hp);
+    expect(state.bugs!.find((bug) => bug.id === 0)!.hp).toBe(BUG_HP - GUN_DAMAGE);
+    // The shot is visible: a beam from the ship to the bug it hit.
+    expect(gunBeams(state)).toEqual([{ from: { ...gunner.position }, to: { ...near.position } }]);
+  });
+
+  it("kill a bug in a few hits: BUG_HP over GUN_DAMAGE, rounded up", () => {
+    const { state: start, shipId, hive } = gunStart(7);
+    const ship = start.ships.find((candidate) => candidate.id === shipId)!;
+    const bug = plantedBug(0, hive, ship.position.x + 20, ship.position.y);
+    const hits = Math.ceil(BUG_HP / GUN_DAMAGE);
+    let state: SimState = { ...start, bugs: [bug] };
+    for (let hit = 1; hit < hits; hit += 1) {
+      state = tick(state, GUN_SECONDS);
+      expect(state.bugs!.length).toBe(1);
+    }
+    state = tick(state, GUN_SECONDS);
+    expect(state.bugs).toHaveLength(0);
+  });
+
+  it("shoot the hive when no bug is in range", () => {
+    const { state: start, shipId, hive } = gunStart(7);
+    // No bugs have hatched yet: the hive itself is the only target in range.
+    let state = tick(start, 1);
+    const hiveState = state.hives![0]!;
+    expect(hiveState.hp).toBe(HIVE_HP - GUN_DAMAGE);
+    expect(hiveState.alive).toBe(true);
+    const gunner = state.ships.find((candidate) => candidate.id === shipId)!;
+    expect(gunBeams(state)).toEqual([{ from: { ...gunner.position }, to: { ...hive.position } }]);
+  });
+
+  it("leave everything out of range alone", () => {
+    const { state: start, shipId, hive } = gunStart(7);
+    // The ship sits a whole gun range off the hive, and the bug beyond that.
+    const far: Ship = {
+      ...start.ships.find((candidate) => candidate.id === shipId)!,
+      position: { x: hive.position.x + GUN_RANGE + 5, y: hive.position.y },
+    };
+    let state: SimState = {
+      ...start,
+      ships: start.ships.map((candidate) => (candidate.id === shipId ? far : candidate)),
+      bugs: [plantedBug(0, hive, hive.position.x + 2 * GUN_RANGE + 15, hive.position.y)],
+    };
+    state = tick(state, 1);
+    expect(state.bugs![0]!.hp).toBe(BUG_HP);
+    expect(state.hives![0]!.hp).toBe(HIVE_HP);
+    const gunner = state.ships.find((candidate) => candidate.id === shipId)!;
+    expect(gunBeams(state)).toEqual([]);
+    expect(gunner.gunShot ?? null).toBeNull();
+  });
+
+  it("kill a dying hive dead, and it stops releasing bugs", () => {
+    const { state: start, shipId, hive } = gunStart(7);
+    // One shot's worth of hull left, so the next shot kills it.
+    let state: SimState = { ...start, hives: [{ ...start.hives![0]!, hp: GUN_DAMAGE }] };
+    state = tick(state, 1);
+    expect(state.hives![0]!.alive).toBe(false);
+    expect(state.hives![0]!.hp).toBe(0);
+    // No matter how long the run goes on, no bug ever hatches again.
+    for (let round = 0; round < 5; round += 1) {
+      const before = (state.bugs ?? []).map((bug) => bug.id);
+      state = tick(state, BUG_SPAWN_SECONDS);
+      expect((state.bugs ?? []).map((bug) => bug.id)).toEqual(before);
+    }
+    // A dead hive is not a target either, so the guns go quiet.
+    expect(gunBeams(state)).toEqual([]);
+    expect(state.ships.find((candidate) => candidate.id === shipId)!.gunShot ?? null).toBeNull();
+  });
+
+  it("replay the whole fight exactly from the seed", () => {
+    const run = () => {
+      let state = gunStart(7, 10).state;
+      for (const dt of [10, 3, 37, 120]) state = tick(state, dt);
+      return JSON.stringify(state);
+    };
+    expect(run()).toBe(run());
+  });
+
+  it("a ship with Guns can be sent to the hive's sector with a move order", () => {
+    let state = miningStart(7);
+    state = {
+      ...state,
+      ships: state.ships.map((ship) => (ship.id === 0 ? { ...ship, design: GUN_PATROL } : ship)),
+    };
+    const hive = state.hives![0]!;
+    state = giveOrder(state, [0], { kind: "move", point: { x: hive.position.x + 60, y: hive.position.y }, sectorId: HIVE_SECTOR });
+    expect(state.ships[0]!.order?.kind).toBe("move");
+    // A cruise over the gate lands it in the hive's sector.
+    state = tick(state, 200);
+    expect(state.ships[0]!.sectorId).toBe(HIVE_SECTOR);
   });
 });

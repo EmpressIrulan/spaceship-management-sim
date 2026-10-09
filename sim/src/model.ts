@@ -14,7 +14,8 @@ export type ModuleType = (typeof MODULE_TYPES)[number];
 export const MODULE_TYPES = ["Dock", "Storage", "Builder", "Claim"] as const;
 
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and draws, but does nothing.
-export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull"] as const;
+// Gun shoots bugs and the hive on the ship's own; see enemies.ts.
+export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun"] as const;
 export type ShipModule = (typeof SHIP_MODULES)[number];
 export interface ShipDesign { width: number; height: number; slots: (ShipModule | null)[] }
 
@@ -94,6 +95,13 @@ export interface Ship {
   maxHp?: number;
   // Set while this ship is hidden inside another ship.
   hangarId?: number | null;
+  // A Gun ship's reload: seconds until the gun may fire again. Missing means
+  // the gun has never counted: it fires the moment a target walks in range.
+  // Only gun ships carry it.
+  gunTimer?: number;
+  // The shot in flight: where the last one went and how much longer the
+  // renderer draws it. Null once the flash has burned out.
+  gunShot?: GunShot | null;
 }
 
 export interface Station {
@@ -267,4 +275,11 @@ export interface BerthLayout {
 export interface Beam {
   from: Vec;
   to: Vec;
+}
+
+// One gun shot, drawn for GUN_SHOT_SECONDS after it fires: where the shot was
+// aimed (the target's position when it fired) and how much longer it draws.
+export interface GunShot {
+  to: Vec;
+  timer: number;
 }

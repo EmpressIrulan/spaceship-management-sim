@@ -55,7 +55,7 @@ function stroke(draft: ShipDraft, module: ShipModule, ...cells: [number, number]
 
 function rows(draft: ShipDraft): string {
   const design = designOf(draft);
-  const letter = { Engine: "E", Laser: "L", Storage: "S", Hangar: "A", Hull: "H" } as const;
+  const letter = { Engine: "E", Laser: "L", Storage: "S", Hangar: "A", Hull: "H", Gun: "G" } as const;
   const lines: string[] = [];
   for (let y = 0; y < design.height; y += 1) {
     lines.push(

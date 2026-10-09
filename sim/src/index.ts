@@ -10,6 +10,10 @@ export {
   GATE_SIZE,
   GATE_COST,
   SECTOR_MAP_POINTS,
+  GUN_DAMAGE,
+  GUN_RANGE,
+  GUN_SECONDS,
+  GUN_SHOT_SECONDS,
   BUG_ATTACK_THRESHOLD,
   BUG_BITE_DAMAGE,
   BUG_BITE_RANGE,
@@ -74,6 +78,7 @@ export {
   type GateProject,
   type Bug,
   type BugState,
+  type GunShot,
   type Hive,
   type HaulRoute,
   type HaulStationId,
@@ -95,6 +100,7 @@ export {
   type Vec,
 } from "./state";
 export { cancelQueuedModuleBuild, queueModuleBuild, queuedDependents, startNextQueuedModule } from "./station-build-queue";
+export { gunBeams } from "./enemies";
 export { supplyQueueStatus } from "./station-build-queue";
 export { stationOwningSite } from "./station-building";
 export { moduleBuildSeconds, moduleCost } from "./station-module-geometry";

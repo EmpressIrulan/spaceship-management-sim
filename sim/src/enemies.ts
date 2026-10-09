@@ -1,12 +1,13 @@
 import {
   BUG_ATTACK_THRESHOLD, BUG_BITE_DAMAGE, BUG_BITE_RANGE, BUG_BITE_SECONDS,
   BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP, BUG_SPAWN_SECONDS,
-  BUG_SPEED_FACTOR, HIVE_GATE_FRACTION, HIVE_HP,
+  BUG_SPEED_FACTOR, GUN_DAMAGE, GUN_RANGE, GUN_SECONDS, GUN_SHOT_SECONDS,
+  HIVE_GATE_FRACTION, HIVE_HP,
 } from "./build-constants";
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
-import { shipHp } from "./ship";
-import type { Bug, Hive, Ship, Vec } from "./model";
+import { shipHp, shipModuleCounts } from "./ship";
+import type { Beam, Bug, GunShot, Hive, Ship, ShipDesign, SimState, Vec } from "./model";
 import type { Draft } from "./tick-mining";
 
 // Where a sector's hive sits: along the line from the sector's middle to its
@@ -144,6 +145,17 @@ function bite(draft: Draft, ship: Ship): boolean {
 export function advanceEnemies(draft: Draft, seconds: number): void {
   draft.hives = draft.hives.map((hive) => (hive.alive ? { ...hive, spawnTimer: hive.spawnTimer - seconds } : hive));
   draft.bugs = draft.bugs.map((bug) => progressBug(bug, seconds));
+  // Gun ships reload towards their next shot, and shots in flight burn out.
+  draft.ships = draft.ships.map((ship) => {
+    if (!ship.gunTimer && !ship.gunShot) return ship;
+    const gunTimer = Math.max(0, (ship.gunTimer ?? 0) - seconds);
+    const gunShot = ship.gunShot ? burnOut(ship.gunShot, seconds) : null;
+    return { ...ship, gunTimer, gunShot };
+  });
+}
+
+function burnOut(shot: GunShot, seconds: number): GunShot | null {
+  return shot.timer <= seconds ? null : { ...shot, timer: shot.timer - seconds };
 }
 
 // Fires every enemy timer that has reached zero: hives hatch, hovering bugs
@@ -188,6 +200,71 @@ export function settleEnemies(draft: Draft): void {
     const loiter = loiterPoint(draft, hive, bug);
     return { ...bug, state: "hovering", targetShipId: null, leg: { from: { ...bug.position }, to: loiter.to }, timer: loiter.seconds };
   });
+  // After the bugs have taken their bites, every gun ship that is loaded
+  // shoots the nearest bug in range, or the hive when no bug is close enough.
+  settleGuns(draft);
+}
+
+// The Gun-value of a design. Zero on ships without guns.
+function guns(design: ShipDesign): number {
+  return design.slots.filter((slot) => slot === "Gun").length;
+}
+
+// The nearest bug inside gun range of the ship, without regard to state: a
+// hovering or hunting bug is a target all the same. Ties go to the lower id,
+// so the pick replays exactly from the seed.
+function bugTarget(draft: Draft, ship: Ship): Bug | null {
+  let best: Bug | null = null;
+  let bestDistance = Infinity;
+  for (const bug of draft.bugs) {
+    if (bug.sectorId !== ship.sectorId) continue;
+    const length = Math.hypot(bug.position.x - ship.position.x, bug.position.y - ship.position.y);
+    if (length > GUN_RANGE) continue;
+    if (!best || length < bestDistance || (length === bestDistance && bug.id < best.id)) {
+      best = bug;
+      bestDistance = length;
+    }
+  }
+  return best;
+}
+
+// One shot: fresh aim (the target's position when it fired), a burn-out clock
+// for the renderer to draw, and the reload, which keeps the event loop
+// stepping until the next shot.
+function fire(ship: Ship, to: Vec): Ship {
+  return { ...ship, gunTimer: GUN_SECONDS, gunShot: { to: { ...to }, timer: GUN_SHOT_SECONDS } };
+}
+
+// Every loaded gun ship in a sector with enemies fires on its own. Guns work
+// through any state the ship is in: holding, flying or mining, the gun shoots.
+function settleGuns(draft: Draft): void {
+  draft.ships = draft.ships.map((ship) => {
+    if (guns(ship.design) === 0 || (ship.gunTimer ?? 0) > 0) return ship;
+    const bug = bugTarget(draft, ship);
+    if (bug) {
+      const damaged = { ...bug, hp: bug.hp - GUN_DAMAGE };
+      draft.bugs = damaged.hp > 0
+        ? draft.bugs.map((candidate) => (candidate.id === bug.id ? damaged : candidate))
+        : draft.bugs.filter((candidate) => candidate.id !== bug.id);
+      return fire(ship, bug.position);
+    }
+    const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === ship.sectorId
+      && Math.hypot(candidate.position.x - ship.position.x, candidate.position.y - ship.position.y) <= GUN_RANGE);
+    if (hive) {
+      const hp = Math.max(0, hive.hp - GUN_DAMAGE);
+      draft.hives = draft.hives.map((candidate) => (candidate.id === hive.id ? { ...candidate, hp, alive: hp > 0 } : candidate));
+      return fire(ship, hive.position);
+    }
+    // Nothing in range: the gun stays loaded, timer at zero, and fires the
+    // moment a target walks in.
+    return ship;
+  });
+}
+
+// The shots every renderer can draw while they fly: from each gun ship to
+// where its shot was aimed. A ship with nothing in flight draws nothing.
+export function gunBeams(state: Pick<SimState, "ships">): Beam[] {
+  return state.ships.flatMap((ship) => (ship.gunShot ? [{ from: { ...ship.position }, to: { ...ship.gunShot.to } }] : []));
 }
 
 // Seconds until the next ENEMY timer that drives the event loop runs out: the
@@ -204,6 +281,13 @@ export function nextEnemyEvent(draft: Draft): number {
   }
   for (const bug of draft.bugs) {
     if (bug.state === "hunting") soonest = Math.min(soonest, bug.timer);
+  }
+  // A reloading gun holds the next event, and a burning-out shot holds one
+  // last event to clear it. A loaded gun with nothing in range holds nothing:
+  // it fires on whatever step lands next without racing the clock to zero.
+  for (const ship of draft.ships) {
+    if (ship.gunTimer && ship.gunTimer > 0) soonest = Math.min(soonest, ship.gunTimer);
+    if (ship.gunShot) soonest = Math.min(soonest, ship.gunShot.timer);
   }
   return soonest;
 }

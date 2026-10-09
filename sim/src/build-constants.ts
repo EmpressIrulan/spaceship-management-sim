@@ -41,3 +41,13 @@ export const BUG_SPEED_FACTOR = 0.6;
 export const BUG_BITE_RANGE = 2;
 export const BUG_BITE_DAMAGE = 1;
 export const BUG_BITE_SECONDS = 6;
+// A gun ship shoots the nearest bug in range, or the hive when no bug is
+// close enough, every GUN_SECONDS. Range, damage and cadence are placeholders,
+// like the hive numbers, until there is something to play with. A bug's BUG_HP
+// lasts a few shots; the hive's 200 are a long stand-off.
+export const GUN_RANGE = 80;
+export const GUN_DAMAGE = 3;
+export const GUN_SECONDS = 2;
+// How long a fired shot stays on screen, in game seconds, for the renderer to
+// draw. A dyadic fraction, so it burns out exactly on a tick boundary.
+export const GUN_SHOT_SECONDS = 1 / 2;
