@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": 1,
+    "startSeconds": 0,
+    "recordingRun": 7
+  },
+  {
+    "criterion": 2,
+    "startSeconds": 8.16,
+    "recordingRun": 8
+  },
+  {
+    "criterion": 3,
+    "startSeconds": 24.72,
+    "recordingRun": 10
+  },
+  {
+    "criterion": 4,
+    "startSeconds": 43.44,
+    "recordingRun": 16
+  },
+  {
+    "criterion": 5,
+    "startSeconds": 84.4,
+    "recordingRun": 12
+  },
+  {
+    "criterion": 6,
+    "startSeconds": 110.52,
+    "recordingRun": 13
+  },
+  {
+    "criterion": 7,
+    "startSeconds": 130.12,
+    "recordingRun": 14
+  },
+  {
+    "criterion": 8,
+    "startSeconds": 152.64,
+    "recordingRun": 15
+  }
+]
