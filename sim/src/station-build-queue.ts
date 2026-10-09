@@ -108,10 +108,11 @@ export function completeBuild(draft: Draft): void {
 // its own object: finish the module that ran out, then pay for the next one.
 // The context carries the obstacles the pad search shares with the home path:
 // the sector's asteroids and the bodies of the stations settled alongside.
+export type SettleStation = Pick<Station, "id" | "sectorId" | "modules" | "buildQueue" | "construction" | "constructionSite">;
 export interface SettleContext {
   asteroids: SimState["asteroids"];
-  // The whole stations settled in the same tick, one of which is this station.
-  stations: Station[];
+  // Every station settled alongside this one, this station included.
+  stations: SettleStation[];
 }
 
 const emptySettleContext: SettleContext = { asteroids: [], stations: [] };
