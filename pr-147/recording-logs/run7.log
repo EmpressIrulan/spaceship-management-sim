@@ -1,0 +1,23 @@
+SCENE 1
+CAPTION 1 
+CAPTION 1 Building: Miner — 10 s left
+Waiting: Miner x2
+SCENE 2
+CAPTION 2, 5 Building: Ship 2x2 — 7 s left
+Waiting: Miner x3
+CAPTION 2, 5 Building: Miner — 10 s left
+Waiting: Miner x2
+SCENE 3
+CAPTION 3, 4 Waiting: Miner
+Waiting: 40 more Metal
+VIDEO=/home/alice/.cache/spaceship-management-sim-119/recording/page@a33e1c6a8cf184580bc8af798b63779e.webm
+file:///tmp/opencode/spaceship-management-sim-119/rec/demo.mjs:14
+function check(cond,msg){if(!cond)throw Error(msg);}
+                                        ^
+
+Error: delivery did not start build
+    at check (file:///tmp/opencode/spaceship-management-sim-119/rec/demo.mjs:14:41)
+    at file:///tmp/opencode/spaceship-management-sim-119/rec/demo.mjs:25:746
+
+Node.js v22.23.2
+EXIT=1

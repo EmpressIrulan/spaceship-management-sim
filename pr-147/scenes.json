@@ -1,0 +1,67 @@
+[
+  {
+    "name": "scene1",
+    "time": 5.974,
+    "videoTime": 7.47
+  },
+  {
+    "name": "scene2",
+    "time": 11.745,
+    "videoTime": 13.24
+  },
+  {
+    "name": "scene2-started",
+    "time": 15.672,
+    "videoTime": 17.17
+  },
+  {
+    "name": "scene3",
+    "time": 20.149,
+    "videoTime": 21.65
+  },
+  {
+    "name": "scene3-unloading",
+    "time": 23.763,
+    "videoTime": 25.26
+  },
+  {
+    "name": "scene3-delivered",
+    "time": 28.749,
+    "videoTime": 30.25
+  },
+  {
+    "name": "scene4-before",
+    "time": 36.999,
+    "videoTime": 38.5
+  },
+  {
+    "name": "scene4",
+    "time": 39.899,
+    "videoTime": 41.4
+  },
+  {
+    "name": "scene5-before",
+    "time": 45.124,
+    "videoTime": 46.62
+  },
+  {
+    "name": "scene5",
+    "time": 48.148,
+    "videoTime": 49.65
+  },
+  {
+    "name": "scene6",
+    "time": 62.659,
+    "videoTime": 64.16
+  },
+  {
+    "name": "scene6-middle",
+    "time": 65.069,
+    "videoTime": 66.57
+  },
+  {
+    "name": "scene6-bottom",
+    "time": 67.205,
+    "videoTime": 68.7
+  }
+]
