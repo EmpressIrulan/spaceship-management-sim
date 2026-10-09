@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { foundedStation, miningStart } from "./test-ships";
 import {
+  cancelShipBuild,
   queueShipBuild,
   shipBuildQueue,
+  shipBuildCost,
   shipBuildSeconds,
   shipBuildShortfall,
   startShipBuild,
@@ -167,5 +169,147 @@ describe("starting a single ship", () => {
     expect(shipBuildQueue(state, BUILDER)).toEqual([
       { stationId: 0, builder: BUILDER, design: miner, timer: shipBuildSeconds(miner) },
     ]);
+  });
+});
+
+describe("cancelling ships at a Builder", () => {
+  const designs = (state: SimState, builder = BUILDER, stationId = 0) =>
+    shipBuildQueue(state, builder, stationId).map((job) => job.design);
+  const freighter: ShipDesign = { width: 2, height: 2, slots: ["Engine", "Storage", "Storage", "Storage"] };
+
+  it("removes a waiting line from the middle of a mixed queue and keeps the rest in order", () => {
+    let state = queueShipBuild(shipyard({ Metal: 0, Ice: 0 }), BUILDER, miner, 1);
+    state = queueShipBuild(state, BUILDER, scout, 2);
+    state = queueShipBuild(state, BUILDER, freighter, 1);
+    const before = inventory(state);
+
+    state = cancelShipBuild(state, BUILDER, 2);
+
+    expect(designs(state)).toEqual([miner, freighter]);
+    expect(shipBuildQueue(state, BUILDER).every((job) => job.waiting)).toBe(true);
+    expect(inventory(state)).toEqual(before);
+  });
+
+  it("cancels a run of three identical waiting ships as one line, leaving a later one of the same design", () => {
+    let state = queueShipBuild(shipyard({ Metal: 0, Ice: 0 }), BUILDER, scout, 1);
+    state = queueShipBuild(state, BUILDER, miner, 3);
+    state = queueShipBuild(state, BUILDER, scout, 1);
+    state = queueShipBuild(state, BUILDER, miner, 1);
+
+    state = cancelShipBuild(state, BUILDER, 2);
+
+    expect(designs(state)).toEqual([scout, scout, miner]);
+    expect(inventory(state)).toEqual({ Metal: 0, Ice: 0 });
+  });
+
+  it("takes nothing from Storage when a waiting line behind a building ship is cancelled", () => {
+    let state = queueShipBuild(shipyard({ ...rich }), BUILDER, miner, 4);
+    const paid = inventory(state);
+
+    state = cancelShipBuild(state, BUILDER, 1);
+
+    expect(shipBuildQueue(state, BUILDER)).toHaveLength(1);
+    expect(shipBuildQueue(state, BUILDER)[0]!.waiting).toBeUndefined();
+    expect(inventory(state)).toEqual(paid);
+  });
+
+  it("refunds every material of the ship being built", () => {
+    const start = { Metal: 1000, Ice: 1000 };
+    let state = queueShipBuild(shipyard({ ...start }), BUILDER, miner, 1);
+    state = tick(state, shipBuildSeconds(miner) / 2);
+    const cost = shipBuildCost(miner);
+    expect(inventory(state)).toEqual({ Metal: 1000 - cost.Metal, Ice: 1000 - cost.Ice });
+
+    state = cancelShipBuild(state, BUILDER, 0);
+
+    expect(shipBuildQueue(state, BUILDER)).toEqual([]);
+    expect(inventory(state).Metal).toBe(1000);
+    expect(inventory(state).Ice).toBe(1000);
+    state = tick(state, shipBuildSeconds(miner));
+    expect(state.ships).toEqual([]);
+  });
+
+  it("cancels only the building ship, even when identical ships wait behind it, and starts the next at once", () => {
+    let state = queueShipBuild(shipyard({ ...rich }), BUILDER, miner, 3);
+    state = tick(state, 1);
+
+    state = cancelShipBuild(state, BUILDER, 0);
+
+    const queue = shipBuildQueue(state, BUILDER);
+    expect(queue).toHaveLength(2);
+    expect(queue[0]).toEqual({ stationId: 0, builder: BUILDER, design: miner, timer: shipBuildSeconds(miner) });
+    expect(queue[1]!.waiting).toBe(true);
+    expect(inventory(state)).toEqual({
+      Metal: rich.Metal - shipBuildCost(miner).Metal,
+      Ice: rich.Ice - shipBuildCost(miner).Ice,
+    });
+  });
+
+  it("waits on the next ship after a cancel when the refund still can't pay for it", () => {
+    const cost = shipBuildCost(scout);
+    let state = queueShipBuild(shipyard({ ...cost }), BUILDER, scout, 1);
+    state = queueShipBuild(state, BUILDER, miner, 1);
+
+    state = cancelShipBuild(state, BUILDER, 0);
+
+    expect(designs(state)).toEqual([miner]);
+    expect(inventory(state)).toEqual(cost);
+    expect(shipBuildShortfall(state, BUILDER)).toEqual({
+      Metal: shipBuildCost(miner).Metal - cost.Metal,
+      Ice: shipBuildCost(miner).Ice - cost.Ice,
+    });
+
+    state = withStock(state, { ...rich });
+    state = tick(state, 0.1);
+    expect(shipBuildQueue(state, BUILDER)[0]!.waiting).toBeUndefined();
+  });
+
+  it("starts the next ship when the waiting line at the front is cancelled and the one behind is affordable", () => {
+    let state = queueShipBuild(shipyard({ ...shipBuildCost(scout) }), BUILDER, miner, 2);
+    state = queueShipBuild(state, BUILDER, scout, 1);
+
+    state = cancelShipBuild(state, BUILDER, 0);
+
+    expect(shipBuildQueue(state, BUILDER)).toEqual([
+      { stationId: 0, builder: BUILDER, design: scout, timer: shipBuildSeconds(scout) },
+    ]);
+    expect(inventory(state)).toEqual({ Metal: 0, Ice: 0 });
+  });
+
+  it("leaves another Builder's queue alone", () => {
+    let state = queueShipBuild(shipyard({ ...rich }), BUILDER, miner, 2);
+    state = queueShipBuild(state, OTHER_BUILDER, miner, 2);
+
+    state = cancelShipBuild(state, BUILDER, 0);
+
+    expect(shipBuildQueue(state, OTHER_BUILDER)).toHaveLength(2);
+    expect(shipBuildQueue(state, OTHER_BUILDER)[0]!.timer).toBe(shipBuildSeconds(miner));
+  });
+
+  it("returns the same state for a place past the end of the queue", () => {
+    const state = queueShipBuild(shipyard({ ...rich }), BUILDER, miner, 2);
+    expect(cancelShipBuild(state, BUILDER, 2)).toBe(state);
+    expect(cancelShipBuild(state, BUILDER, -1)).toBe(state);
+    expect(cancelShipBuild(state, OTHER_BUILDER, 0)).toBe(state);
+  });
+
+  it("cancels and refunds at a station other than Home", () => {
+    const base = shipyard({ Metal: 0, Ice: 0 });
+    const origin = foundedStation(1, 2, 900, 900, { Metal: 300, Ice: 200 });
+    origin.modules.push({ type: "Builder", position: { x: 940, y: 900 }, size: { width: 30, height: 40 } });
+    const builder = origin.modules.length - 1;
+    let state = queueShipBuild({ ...base, stations: [...base.stations, origin] }, builder, miner, 1, 1);
+    state = queueShipBuild(state, builder, scout, 2, 1);
+    state = queueShipBuild(state, builder, miner, 1, 1);
+
+    state = cancelShipBuild(state, builder, 1, 1);
+    expect(designs(state, builder, 1)).toEqual([miner, miner]);
+
+    state = cancelShipBuild(state, builder, 0, 1);
+    expect(state.stations[1]!.inventory).toEqual({ Metal: 300 - shipBuildCost(miner).Metal, Ice: 200 - shipBuildCost(miner).Ice });
+    expect(shipBuildQueue(state, builder, 1)).toEqual([
+      { stationId: 1, builder, design: miner, timer: shipBuildSeconds(miner) },
+    ]);
+    expect(inventory(state)).toEqual({ Metal: 0, Ice: 0 });
   });
 });
