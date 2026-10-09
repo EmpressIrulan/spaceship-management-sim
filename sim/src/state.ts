@@ -71,7 +71,7 @@ export const ASTEROID_ORE = 30;
 export const RESPAWN_SECONDS = 30;
 
 export const DOCK_CAPACITY = DOCK_AREA;
-export const STORAGE_CAPACITY = 100;
+export const STORAGE_CAPACITY = 1000;
 // The construction site sits off the Dock's north-east corner. Placed between
 // two module slots, so it takes none of the ones Home offers at the start.
 export const CONSTRUCTION_SITE_POSITION: Vec = { x: 75, y: -60 };

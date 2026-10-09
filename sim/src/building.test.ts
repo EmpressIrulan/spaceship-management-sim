@@ -92,13 +92,30 @@ describe("building station modules", () => {
     const storage = tick(startModuleBuild(funded(), 0, "Storage", east), BUILD_SECONDS);
     expect(storage.stations[0]!.construction).toBeNull();
     expect(storage.stations[0]!.modules.at(-1)).toMatchObject({ type: "Storage", position: { x: 80, y: 0 } });
-    expect(storage.stations[0]!.storage.capacity).toBe(200);
+    expect(storage.stations[0]!.storage.capacity).toBe(2000);
 
     const dock = tick(startModuleBuild(funded(), 0, "Dock", east), BUILD_SECONDS);
     expect(dock.stations[0]!.dock.capacity).toBe(192);
 
     const builder = tick(startModuleBuild(funded(), 0, "Builder", east), BUILD_SECONDS);
     expect(builder.stations[0]!.modules.at(-1)).toMatchObject({ type: "Builder" });
+  });
+
+  it("adds one thousand shared units for each additional Storage module", () => {
+    let state = tick(startModuleBuild(funded(), 0, "Storage", east), BUILD_SECONDS);
+    expect(state.stations[0]!.storage.capacity).toBe(2000);
+    for (const amount of [50]) {
+      const site = availableModuleBuildSites(state, 0)[0]!;
+      state = {
+        ...state,
+        stations: [{ ...state.stations[0]!, constructionSite: {
+          ...state.stations[0]!.constructionSite,
+          inventory: { Metal: amount, Ice: amount },
+        } }],
+      };
+      state = tick(startModuleBuild(state, 0, "Storage", site), BUILD_SECONDS);
+    }
+    expect(state.stations[0]!.storage.capacity).toBe(3000);
   });
 
   it("gives a build that lost its footing back to the site instead of finishing it", () => {
@@ -136,19 +153,19 @@ describe("building station modules", () => {
     const building = startModuleBuild(funded(), 0, "Storage", east);
     const full: SimState = {
       ...building,
-      stations: [{ ...building.stations[0]!, inventory: { Metal: 75, Ice: 25 } }],
+      stations: [{ ...building.stations[0]!, inventory: { Metal: 750, Ice: 250 } }],
       ships: [{ ...building.ships[0]!, state: "waiting", cargo: 10, cargoMaterial: "Metal", timer: 0 }],
     };
 
     const completed = tick(full, BUILD_SECONDS);
-    expect(completed.stations[0]!.storage.capacity).toBe(200);
+    expect(completed.stations[0]!.storage.capacity).toBe(2000);
     expect(completed.ships[0]).toMatchObject({ state: "berthing", cargo: 10 });
 
     const docked = tick(completed, completed.ships[0]!.timer);
     expect(docked.ships[0]).toMatchObject({ state: "unloading", cargo: 10 });
 
     const unloaded = tick(docked, docked.ships[0]!.timer);
-    expect(unloaded.stations[0]!.inventory).toEqual({ Metal: 85, Ice: 25 });
+    expect(unloaded.stations[0]!.inventory).toEqual({ Metal: 760, Ice: 250 });
     expect(unloaded.ships[0]).toMatchObject({ state: "outbound", cargo: 0 });
   });
 

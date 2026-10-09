@@ -141,14 +141,14 @@ describe("Haul default", () => {
 
   it("does not load while To is full, and waits there if To fills en route", () => {
     const base = twoStations();
-    const fullStore = foundedStation(1, 1, 120, 40, { Metal: 100, Ice: 0 });
+    const fullStore = foundedStation(1, 1, 120, 40, { Metal: 1000, Ice: 0 });
     let full = { ...base, stations: [base.stations[0]!, fullStore] };
     full = configureHaul(full, [0], { from: "home", to: "station:1", material: "Ice" });
     expect(run(full, 10).ships[0]).toMatchObject({ state: "haulWaitingFull", cargo: 0, position: base.stations[0]!.dock.position });
 
     let travelling = configureHaul(base, [0], { from: "home", to: "station:1", material: "Ice" });
     travelling = until(travelling, (next) => next.ships[0]!.state === "haulOutbound");
-    travelling = { ...travelling, stations: [travelling.stations[0]!, foundedStation(1, 1, 120, 40, { Metal: 100, Ice: 0 })] };
+    travelling = { ...travelling, stations: [travelling.stations[0]!, foundedStation(1, 1, 120, 40, { Metal: 1000, Ice: 0 })] };
     const waiting = until(travelling, (next) => next.ships[0]!.state === "haulWaitingFull" && next.ships[0]!.sectorId === 1);
     expect(waiting.ships[0]).toMatchObject({ cargo: 20, cargoMaterial: "Ice", position: base.stations[1]!.dock.position });
   });

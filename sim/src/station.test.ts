@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ONE_STORAGE, oneStorageStart, padHopSeconds } from "./test-ships";
+import { ONE_STORAGE, foundedStation, oneStorageStart, padHopSeconds } from "./test-ships";
 import { shipSize } from "./ship";
 const ONE_STORAGE_SIZE = shipSize(ONE_STORAGE);
 import { tick } from "./tick";
@@ -33,9 +33,14 @@ describe("Dock and Storage", () => {
 
     expect(state.stations[0]!).toMatchObject({
       dock: { capacity: 96 },
-      storage: { capacity: 100 },
+      storage: { capacity: 1000 },
     });
     expect(state.stations[0]!.dock.position).not.toEqual(state.stations[0]!.storage.position);
+  });
+
+  it("gives a newly founded station one module of Storage", () => {
+    const station = foundedStation(1, 1, 100, 50);
+    expect(station.storage.capacity).toBe(1000);
   });
 
   it("returns the ship to the Dock to unload", () => {
@@ -54,14 +59,23 @@ describe("Dock and Storage", () => {
     expect(arrived.ships[0]!.position).toEqual(dockBerths(state.stations[0]!.dock.position)[0]);
   });
 
-  it("stops at 100 stored and leaves the ship waiting beside the Dock with the rest", () => {
+  it("keeps delivering past 100 and stops at 1000 stored, leaving the ship waiting with the rest", () => {
     const initial = oneStorageStart(7);
     const dock = initial.stations[0]!.dock.position;
+    const pastOneHundred: SimState = {
+      ...initial,
+      stations: [{ ...initial.stations[0]!, inventory: { Metal: 90, Ice: 0 } }],
+      ships: [{ ...initial.ships[0]!, state: "unloading", position: dock, timer: UNLOADING_SECONDS,
+        cargo: 20, cargoMaterial: "Metal" }],
+    };
+    const delivered = tick(pastOneHundred, UNLOADING_SECONDS + 0.1);
+    expect(stored(delivered)).toBeGreaterThan(100);
+
     const nearlyFull: SimState = {
       ...initial,
       stations: [{
         ...initial.stations[0]!,
-        inventory: { Metal: 79, Ice: 20 },
+        inventory: { Metal: 995, Ice: 0 },
       }],
       ships: [
         {
@@ -78,16 +92,16 @@ describe("Dock and Storage", () => {
     // Long enough for the ship to fly to its parking spot.
     const full = tick(nearlyFull, UNLOADING_SECONDS + 10);
 
-    expect(stored(full)).toBe(100);
+    expect(stored(full)).toBe(1000);
     expect(full.ships[0]).toMatchObject({
       state: "waiting",
-      cargo: CARGO_PER_TRIP - 1,
+      cargo: CARGO_PER_TRIP - 5,
       cargoMaterial: "Metal",
     });
     expect(full.ships[0]!.position).not.toEqual(dock);
 
     const stillWaiting = tick(full, 10);
-    expect(stored(stillWaiting)).toBe(100);
-    expect(stillWaiting.ships[0]!.cargo).toBe(CARGO_PER_TRIP - 1);
+    expect(stored(stillWaiting)).toBe(1000);
+    expect(stillWaiting.ships[0]!.cargo).toBe(CARGO_PER_TRIP - 5);
   });
 });

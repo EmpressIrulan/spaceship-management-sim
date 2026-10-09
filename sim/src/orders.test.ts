@@ -62,7 +62,7 @@ describe("RTS ship orders", () => {
     let start = startGateBuild(miningStart(7), 0, { x: 1, y: 0 }, 3, { x: -1, y: 0 });
     const ship = start.ships[0]!;
     start = { ...start,
-      stations: [{ ...start.stations[0]!, inventory: { Metal: 50, Ice: 50 } }],
+      stations: [{ ...start.stations[0]!, inventory: { Metal: 500, Ice: 500 } }],
       ships: [{ ...ship, state: "unloading", position: { ...start.stations[0]!.dock.position }, timer: 0,
         cargo: 20, cargoMaterial: "Ice", cargoByMaterial: { Metal: 6, Ice: 14 }, target: null, leg: null,
         order: { kind: "haulGate", gateId: 0 } }] };

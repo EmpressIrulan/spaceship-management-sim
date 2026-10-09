@@ -86,7 +86,7 @@ describe("hover box", () => {
     const stocked = { ...state, stations: [{ ...state.stations[0]!, inventory: { Metal: 40, Ice: 0 } }] };
     expect(infoBox(stocked, { kind: "storage" })).toEqual({
       title: "Storage",
-      line: "Stored 40 / 100\nMetal: 40\nIncome: Metal +0/min, Ice +0/min",
+      line: "Stored 40 / 1000\nMetal: 40\nIncome: Metal +0/min, Ice +0/min",
     });
   });
 
@@ -95,7 +95,7 @@ describe("hover box", () => {
       ...state,
       stations: [{
         ...state.stations[0]!,
-        storage: { ...state.stations[0]!.storage, capacity: 200 },
+        storage: { ...state.stations[0]!.storage, capacity: 2000 },
         inventory: { Metal: 70, Ice: 40 },
         modules: [
           ...state.stations[0]!.modules,
@@ -103,7 +103,7 @@ describe("hover box", () => {
         ],
       }],
     };
-    const expected = { title: "Storage", line: "Stored 110 / 200\nMetal: 70\nIce: 40\nIncome: Metal +0/min, Ice +0/min" };
+    const expected = { title: "Storage", line: "Stored 110 / 2000\nMetal: 70\nIce: 40\nIncome: Metal +0/min, Ice +0/min" };
     expect(infoBox(grown, { kind: "storage" })).toEqual(expected);
     expect(infoBox(grown, { kind: "module", index: 2, stationId: 0 })).toEqual(expected);
   });
