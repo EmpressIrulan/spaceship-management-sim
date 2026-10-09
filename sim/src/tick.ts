@@ -17,6 +17,7 @@ import {
   settleQueuedBuild,
   finishedClaimSectors,
   settleStationBuild,
+  type SettleStation,
   supplyQueueStatus,
   unloadSupplierIntoEmptyQueue,
 } from "./station-build-queue";
@@ -656,7 +657,18 @@ function advance(draft: Draft, seconds: number): void {
 // Fires every timer that has reached zero. Respawns go first so a ship that
 // becomes free at the same moment can head for the new asteroid.
 function settle(draft: Draft): void {
-  draft.others = draft.others.map(settleStationBuild);
+  // The primary station keeps no whole-station copy in others, so its body is
+  // assembled from the draft's fields here; a built station's pad search must
+  // see it like any other neighbour.
+  const stations: SettleStation[] = [...draft.others, {
+    id: draft.primaryStationId,
+    sectorId: draft.stationSector,
+    modules: draft.modules,
+    buildQueue: draft.buildQueue,
+    construction: draft.construction,
+    constructionSite: draft.constructionSite,
+  }];
+  draft.others = draft.others.map((station) => settleStationBuild(station, { asteroids: draft.asteroids, stations }));
   if (draft.construction && draft.construction.timer <= 0) {
     // A module that has lost its footing is given back to the site rather than
     // finished off the station, which is the one place a build can end up

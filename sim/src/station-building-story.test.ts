@@ -46,11 +46,60 @@ describe("station growth story acceptance criteria", () => {
     }
   });
 
+  it("moves the hidden construction pad when a module is built on it, then offers another build site", () => {
+    const base = layout([dock(0, 0), dock(40, 0)]);
+    const spot = { x: 80, y: 0 };
+    const initial = {
+      ...base,
+      stations: base.stations.map((station) => station.id === 0
+        ? { ...station, constructionSite: { ...station.constructionSite, position: spot } }
+        : station),
+    };
+    const pad = homeStation(initial).constructionSite.position;
+    expect(pad).toEqual(spot);
+    expect(has(initial, spot.x, spot.y)).toBe(true);
+
+    const started = startModuleBuild(initial, 0, "Storage", spot);
+    expect(homeStation(started).construction?.position).toEqual(spot);
+    const finished = tick(started, 30);
+    const station = homeStation(finished);
+    expect(station.modules.some((module) => module.position.x === spot.x && module.position.y === spot.y)).toBe(true);
+    expect(station.constructionSite.position).not.toEqual(spot);
+    expect(availableModuleBuildSites(finished, 0).length).toBeGreaterThan(0);
+  });
+
+  // Every site is a cardinal neighbour slot of a module, so the full
+  // expectation is derivable: a side with a module behind it must be hidden,
+  // a free side must still be offered.
+  const SIDES: ReadonlyArray<readonly [number, number]> = [
+    [-MODULE_SPACING, 0], [0, -MODULE_SPACING], [0, MODULE_SPACING], [MODULE_SPACING, 0],
+  ];
+
+  function expectsEverySide(state: SimState, modules: StationModule[]) {
+    const sites = availableModuleBuildSites(state, 0);
+    for (const module of modules) {
+      for (const [dx, dy] of SIDES) {
+        const site = { x: module.position.x + dx, y: module.position.y + dy };
+        const taken = modules.some((other) => other.position.x === site.x && other.position.y === site.y);
+        if (taken) {
+          expect(sites).not.toContainEqual(site);
+        } else {
+          expect(sites).toContainEqual(site);
+        }
+      }
+    }
+  }
+
   it("continues offering sites after a station has grown to twelve modules", () => {
     const modules = [-80, -40, 0, 40, 80].map((y) => dock(0, y))
       .concat([-120, -80, -40, 40, 80, 120, 160].map((x) => dock(x, 0)));
-    const state = layout(modules);
-    expect(availableModuleBuildSites(state, 0).length).toBeGreaterThan(0);
+    expectsEverySide(layout(modules), modules);
+  });
+
+  it("offers each free side and hides each taken side on an L-shaped station of twelve modules", () => {
+    const modules = [-80, -40, 0, 40, 80].map((y) => dock(0, y))
+      .concat([40, 80, 120, 160, 200, 240, 280].map((x) => dock(x, 80)));
+    expectsEverySide(layout(modules), modules);
   });
 
   it("hides a site overlapping a module, a large asteroid, or another station", () => {
