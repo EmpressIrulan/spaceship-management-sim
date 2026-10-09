@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   BUG_SIZE,
+  BUG_BITE_SECONDS,
   DROP_SIZE,
   HIVE_SIZE,
   createInitialState,
@@ -157,10 +158,30 @@ describe("the world draws gun shots", () => {
     const ctx = mockCtx();
     const base = createInitialState(7).ships[0]!;
     const ship = { ...base, id: 9, position: { x: 0, y: 0 } };
-    const drawing = createWorldDrawing(uiState, () => shotState(ship, [bug(0, { x: 8, y: 0 }, 9)]), ctx, vi.fn(), vi.fn());
+    const biting = { ...bug(0, { x: 8, y: 0 }, 9), timer: BUG_BITE_SECONDS };
+    const drawing = createWorldDrawing(uiState, () => shotState(ship, [biting]), ctx, vi.fn(), vi.fn());
     drawing.draw(0);
     expect(ctx.moveTo).toHaveBeenCalledWith(408, 300);
     expect(ctx.lineTo).toHaveBeenCalledWith(400, 300);
+  });
+
+  it("does not keep drawing a bite throughout its cooldown or track a moved quarry", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const base = createInitialState(7).ships[0]!;
+    const ship = { ...base, id: 9, position: { x: 0, y: 0 } };
+    let biteBug = { ...bug(0, { x: 8, y: 0 }, 9), timer: BUG_BITE_SECONDS - 0.3 };
+    let state = shotState(ship, [biteBug]);
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    drawing.draw(0);
+    expect(ctx.moveTo).toHaveBeenCalledTimes(1);
+    (ctx.moveTo as unknown as { mockClear: () => void }).mockClear();
+    (ctx.lineTo as unknown as { mockClear: () => void }).mockClear();
+    biteBug = { ...biteBug, timer: BUG_BITE_SECONDS - 1, position: { x: 12, y: 0 } };
+    state = shotState({ ...ship, position: { x: 100, y: 0 } }, [biteBug]);
+    drawing.draw(1);
+    expect(ctx.moveTo).not.toHaveBeenCalled();
+    expect(ctx.lineTo).not.toHaveBeenCalled();
   });
 });
 
@@ -195,6 +216,19 @@ describe("a hull that vanishes between frames explodes", () => {
     const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
     drawing.draw(0.25);
     state = shotState(moved);
+    drawing.draw(0.5);
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+
+  it.each(["docked", "jumpingOut"] as const)("does not blast when a living ship enters %s", (nextState) => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const base = createInitialState(7).ships[0]!;
+    const ship = { ...base, id: 9, position: AT };
+    let state = shotState(ship);
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    drawing.draw(0.25);
+    state = shotState({ ...ship, state: nextState });
     drawing.draw(0.5);
     expect(ctx.arc).not.toHaveBeenCalled();
   });

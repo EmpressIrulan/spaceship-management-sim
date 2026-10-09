@@ -125,6 +125,16 @@ describe("bugs hunt ships", () => {
     }
   });
 
+  it("ignores ships docked inside a hangar when choosing a quarry", () => {
+    const { state: start, shipId } = parkedStart(7);
+    const carrier = { ...start.ships[0]!, id: shipId + 1, state: "holding" as const,
+      sectorId: HIVE_SECTOR, position: start.ships.find((ship) => ship.id === shipId)!.position };
+    const hidden = { ...start.ships.find((ship) => ship.id === shipId)!, state: "docked" as const, hangarId: carrier.id };
+    let state: SimState = { ...start, ships: [carrier, hidden] };
+    for (const dt of [10, 3, 37, 30]) state = tick(state, dt);
+    expect(state.bugs?.every((bug) => bug.targetShipId !== hidden.id)).toBe(true);
+  });
+
   it("bites wear the ship's HP down from full", () => {
     const { state: start, shipId } = parkedStart(7);
     let state = start;
@@ -230,6 +240,16 @@ function plantedBug(id: number, hive: Hive, x: number, y: number, timer = 10_000
 }
 
 describe("gun ships", () => {
+  it("does not let a Gun docked inside a hangar fire", () => {
+    const { state: start, shipId, hive } = gunStart(7);
+    const carrier = { ...start.ships[0]!, id: shipId + 1, state: "holding" as const,
+      sectorId: HIVE_SECTOR, position: start.ships.find((ship) => ship.id === shipId)!.position };
+    const hidden = { ...start.ships.find((ship) => ship.id === shipId)!, state: "docked" as const, hangarId: carrier.id };
+    const state = tick({ ...start, ships: [carrier, hidden] }, 1);
+    expect(state.hives![0]!.hp).toBe(hive.hp);
+    expect(state.ships.find((ship) => ship.id === shipId)!.gunShot ?? null).toBeNull();
+  });
+
   it("shoot the nearest bug in range on their own, and no other", () => {
     const { state: start, shipId, hive } = gunStart(7);
     const ship = start.ships.find((candidate) => candidate.id === shipId)!;

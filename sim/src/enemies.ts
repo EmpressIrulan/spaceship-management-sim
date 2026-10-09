@@ -118,7 +118,7 @@ function quarryFor(draft: Draft, bug: Bug): Ship | null {
   let best: Ship | null = null;
   let bestDistance = Infinity;
   for (const ship of draft.ships) {
-    if (ship.sectorId !== bug.sectorId) continue;
+    if (ship.sectorId !== bug.sectorId || ship.state === "docked") continue;
     const length = Math.hypot(ship.position.x - bug.position.x, ship.position.y - bug.position.y);
     if (!best || length < bestDistance || (length === bestDistance && ship.id < best.id)) {
       best = ship;
@@ -246,11 +246,11 @@ function fire(ship: Ship, to: Vec): Ship {
   return { ...ship, gunTimer: GUN_SECONDS, gunShot: { to: { ...to }, timer: GUN_SHOT_SECONDS } };
 }
 
-// Every loaded gun ship in a sector with enemies fires on its own. Guns work
-// through any state the ship is in: holding, flying or mining, the gun shoots.
+// Every loaded, undocked gun ship in a sector with enemies fires on its own.
+// Guns work while holding, flying or mining.
 function settleGuns(draft: Draft): void {
   draft.ships = draft.ships.map((ship) => {
-    if (guns(ship.design) === 0 || (ship.gunTimer ?? 0) > 0) return ship;
+    if (ship.state === "docked" || guns(ship.design) === 0 || (ship.gunTimer ?? 0) > 0) return ship;
     const bug = bugTarget(draft, ship);
     if (bug) {
       const damaged = { ...bug, hp: bug.hp - GUN_DAMAGE };

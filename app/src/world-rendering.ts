@@ -1,5 +1,6 @@
 import {
   BUG_SIZE,
+  BUG_BITE_SECONDS,
   DROP_SIZE,
   HIVE_SIZE,
   gunBeams,
@@ -37,6 +38,7 @@ const DROP_COLORS: Record<DropKind, string> = {
 // traces straight back to its ship.
 const GUN_SHOT_COLOR = slotColor("Gun");
 const BITE_COLOR = BUG_COLOR;
+const BITE_FLASH_SECONDS = 0.35;
 
 // A destroyed hull is gone from the state in one step, so the burst is
 // render-side: a hull seen last frame and gone this frame blasts at the spot
@@ -119,11 +121,12 @@ export function createWorldDrawing(
       const beam = laserBeam(getState(), ship);
       if (beam) shipDrawing.drawLaser(beam, seconds);
     }
-    // Every gun shot burning out in the sector draws its beam, and every bug
-    // with its quarry pinned flashes its bite alongside the shots.
+    // Every gun shot burning out in the sector draws its beam; a bite flashes
+    // briefly after the event, rather than throughout its cooldown.
     for (const beam of gunBeams({ ships: sectorShips })) shipDrawing.drawLaser(beam, seconds, GUN_SHOT_COLOR);
     for (const bug of sectorBugs) {
-      if (bug.state !== "hunting" || bug.leg !== null || bug.targetShipId === null) continue;
+      if (bug.state !== "hunting" || bug.leg !== null || bug.targetShipId === null
+        || bug.timer < BUG_BITE_SECONDS - BITE_FLASH_SECONDS) continue;
       const quarry = state.ships.find((candidate) => candidate.id === bug.targetShipId);
       if (quarry) shipDrawing.drawLaser({ from: bug.position, to: quarry.position }, seconds, BITE_COLOR);
     }
@@ -134,7 +137,7 @@ export function createWorldDrawing(
       spottedHulls.clear();
     }
     for (const [id, spot] of [...spottedHulls]) {
-      if (!sectorShips.some((ship) => ship.id === id)) {
+      if (!state.ships.some((ship) => ship.id === id)) {
         blasts.push({ position: spot, startedAt: seconds });
         spottedHulls.delete(id);
       }
