@@ -142,4 +142,4 @@ export { giveDockOrder, giveDockOrderWithFeedback, hangarCapacity, hangarContent
 export { haulStationDetails, haulDestinations, haulSites, type HaulStation, type HaulDestination } from "./haul";
 export { fitsDock, holdsBerth } from "./dock-packing";
 export { shipHomeRefusal } from "./orders";
-export { availableShipBuild, queueShipBuild, shipBuildQueue, shipBuildShortfall, startShipBuild } from "./ship-build-queue";
+export { availableShipBuild, cancelShipBuild, queueShipBuild, shipBuildQueue, shipBuildShortfall, startShipBuild } from "./ship-build-queue";

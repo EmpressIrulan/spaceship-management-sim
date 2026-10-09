@@ -63,9 +63,48 @@ export function queueShipBuild(state: SimState, builder: number, design: ShipDes
     timer: shipBuildSeconds(design),
     waiting: true,
   }));
-  const station = startWaitingShipBuilds({ ...home, shipBuilds: [...home.shipBuilds, ...queued] });
+  return withShipYard(state, startWaitingShipBuilds({ ...home, shipBuilds: [...home.shipBuilds, ...queued] }));
+}
+
+// Puts a station back after its queue changed. Paying for a ship frees space
+// in Storage, so ships waiting off the Dock to unload may now berth.
+function withShipYard(state: SimState, station: Station): SimState {
   const next = { ...replaceStation(state, station), ships: dockWaitingShips(station, state.ships) };
-  return stationId === 0 ? { ...replaceHomeStation(next, station), ships: dockWaitingShips(station, state.ships) } : next;
+  return station.id === 0 ? replaceHomeStation(next, station) : next;
+}
+
+function sameDesign(a: ShipDesign, b: ShipDesign): boolean {
+  return a.width === b.width && a.height === b.height && a.slots.every((slot, i) => slot === b.slots[i]);
+}
+
+// Cancels the line at `place` in a Builder's queue, counted as in
+// `shipBuildQueue`. The ship being built is a line of its own: it stops and
+// all its materials go back to Storage. A waiting line is the run of identical
+// waiting ships around `place`, as the panel shows it ("Miner x3"); they have
+// paid nothing, so Storage is untouched. Either way the next ship then starts
+// if Storage can pay, and the rest of the queue keeps its order.
+export function cancelShipBuild(state: SimState, builder: number, place: number, stationId = 0): SimState {
+  const home = stationById(state, stationId);
+  const queue = shipBuildQueue(state, builder, stationId);
+  const target = queue[place];
+  if (!home || !target) return state;
+  const inLine = (job: ShipBuild | undefined) => job?.waiting === true && sameDesign(job.design, target.design);
+  let first = place;
+  let last = place;
+  if (target.waiting) {
+    while (inLine(queue[first - 1])) first -= 1;
+    while (inLine(queue[last + 1])) last += 1;
+  }
+  const cancelled = new Set(queue.slice(first, last + 1));
+  let inventory = home.inventory;
+  if (!target.waiting) {
+    const cost = shipBuildCost(target.design);
+    inventory = Object.fromEntries(
+      MATERIALS.map((material) => [material, inventory[material] + cost[material]]),
+    ) as Record<Material, number>;
+  }
+  const shipBuilds = home.shipBuilds.filter((job) => !cancelled.has(job));
+  return withShipYard(state, startWaitingShipBuilds({ ...home, inventory, shipBuilds }));
 }
 
 // The single-ship entry point: a queue of one, taken only when it can start now.
