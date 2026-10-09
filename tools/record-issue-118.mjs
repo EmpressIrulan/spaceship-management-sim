@@ -45,6 +45,22 @@ async function hoverModule(position) {
   await page.waitForFunction(({ x, y }) => !!window.__repro.ui.pointer && Math.abs(window.__repro.ui.pointer.x - x) < 1 && Math.abs(window.__repro.ui.pointer.y - y) < 1, point);
 }
 
+// Keep the build controls visible while parking the pointer in the empty gap
+// between module footprints and plus buttons, away from the hover info box.
+async function parkPointer() {
+  const point = await page.evaluate(() => {
+    const { camera, viewport } = window.__repro.ui;
+    const x = 20;
+    const y = 20;
+    return { x: (x - camera.center.x) * camera.zoom + viewport.width / 2, y: (y - camera.center.y) * camera.zoom + viewport.height / 2 };
+  });
+  await page.mouse.move(point.x, point.y);
+  await page.waitForFunction(({ x, y }) => !!window.__repro.ui.pointer
+    && Math.abs(window.__repro.ui.pointer.x - x) < 1
+    && Math.abs(window.__repro.ui.pointer.y - y) < 1
+    && !document.querySelector("#build-controls").hidden, point);
+}
+
 async function queue(position, type) {
   await hoverModule({ x: 0, y: 0 });
   const point = await page.evaluate(({ x, y }) => {
@@ -84,12 +100,13 @@ async function caption(text) {
   }, text);
 }
 
-async function hold(scene, predicate, arg, text) {
+async function hold(scene, predicate, arg, text, duration = 4500) {
   await page.waitForFunction(predicate, arg, { timeout: 60000 });
+  await parkPointer();
   await caption(text);
   await page.screenshot({ path: resolve(out, `${scene}.png`) });
-  scenes.push({ scene, seconds: (Date.now() - startedAt) / 1000 });
-  await page.waitForTimeout(4500);
+  scenes.push({ scene, seconds: (Date.now() - startedAt) / 1000, duration: duration / 1000 });
+  await page.waitForTimeout(duration);
 }
 
 const isBuiltAt = (positions, count = positions.length) => ({ positions, count }) => {
@@ -128,13 +145,28 @@ try {
   await hoverModule({ x: 0, y: 0 });
   await hold("criterion-3", () => window.issue118Demo.snapshot().modules.length === 12, null, "3 · Twelve modules; a new build is queued and free sides remain");
 
-  // Criterion 4: the screen shows the plus absent at all three obstructed sites.
+  // Criterion 4a: the north site is occupied by a built module.
   await setup([{ type: "Dock", position: { x: 0, y: 0 } }, { type: "Storage", position: { x: 0, y: -40 } }], {
-    asteroids: [{ id: 500, sectorId: 0, rich: false, fieldId: 0, position: { x: 40, y: 0 }, size: { width: 30, height: 40 }, ore: 10, material: "Metal" }],
-    station: [{ type: "Dock", position: { x: 0, y: 40 } }],
   });
-  await hoverModule({ x: 0, y: 0 });
-  await hold("criterion-4", () => window.issue118Demo.snapshot().modules.length === 2, null, "4 · No plus beside the module, asteroid or nearby station");
+  await hold("criterion-4-module", () => window.issue118Demo.snapshot().modules.length === 2, null,
+    "4a · No plus: another module occupies the site above the Dock", 3200);
+
+  // Criterion 4b: a large, fully visible asteroid occupies the north site.
+  await setup([{ type: "Dock", position: { x: 0, y: 0 } }], {
+    asteroids: [{ id: 501, sectorId: 0, rich: false, fieldId: 0, position: { x: 0, y: -40 }, size: { width: 80, height: 80 }, ore: 10, material: "Metal" }],
+  });
+  await hold("criterion-4-asteroid", () => window.issue118Demo.snapshot().modules.length === 1, null,
+    "4b · No plus: a large asteroid occupies the site above the Dock", 3200);
+
+  // Criterion 4c: a separate station occupies the east site.
+  await setup([{ type: "Dock", position: { x: 0, y: 0 } }], {
+    station: [
+      { type: "Dock", position: { x: 40, y: 0 } },
+      { type: "Storage", position: { x: 80, y: 0 } },
+    ],
+  });
+  await hold("criterion-4-station", () => window.issue118Demo.snapshot().modules.length === 1, null,
+    "4c · No plus: another station occupies the site to the right", 3200);
 
   // Criterion 5: old horizontal behavior still queues and builds both sides.
   await setup([{ type: "Dock", position: { x: 0, y: 0 } }, { type: "Storage", position: { x: -40, y: 0 } }, { type: "Builder", position: { x: 40, y: 0 } }]);
