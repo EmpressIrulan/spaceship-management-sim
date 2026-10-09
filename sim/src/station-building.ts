@@ -1,8 +1,7 @@
-import { ASTEROID_MIN_SPACING, DOCK_SIZE, MODULE_SPACING } from "./build-constants";
+import { DOCK_SIZE, MODULE_SPACING } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import type { Material, ModuleType, SimState, Station, Size, Vec } from "./model";
 import { homeStation, replaceStation, stationById } from "./state";
-import { distance } from "./fields";
 import { moduleBuildSeconds, moduleCost, moduleSize, samePosition } from "./station-module-geometry";
 
 export interface ModuleBuildOption {
@@ -55,7 +54,8 @@ export function availableModuleBuildSites(state: SimState, stationId: number): V
     for (const direction of BUILD_DIRECTIONS) {
       const site = { x: module.position.x + direction.x, y: module.position.y + direction.y };
       const blocked = footprints.some((footprint) => overlapsFootprint(site, footprint))
-        || state.asteroids.some((asteroid) => distance(asteroid.position, site) < ASTEROID_MIN_SPACING);
+        || state.asteroids.some((asteroid) => asteroid.sectorId === station.sectorId
+          && overlapsFootprint(site, asteroid));
       if (!blocked && !sites.some((position) => samePosition(position, site))) sites.push(site);
     }
   }
