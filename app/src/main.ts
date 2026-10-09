@@ -84,7 +84,7 @@ const closeStoragePanel = installPanels(ui, () => state, (next) => { state = nex
 const closeBuildMenu = installBuildMenu(ui, () => state, (next) => { state = next; }, buildControls, buildMenu, (event) => mousePoint(canvas, event));
 const shipMenuSystem = installShipMenu(ui, () => state, (next) => { state = next; }, shipMenu, shipPanelBox, blueprintStore);
 const closeGateMenu = installContextMenu(ui, () => state, (next) => { state = next; }, canvas, gateMenu, stationButton, (event) => mousePoint(canvas, event));
-const startRename = installInput(ui, () => state, (next) => { state = next; }, { canvas, box, infoAction, renameBox, speedControls, storagePanel, ctx }, { closeStoragePanel, closeBuildMenu, closeGateMenu, openShipMenu: shipMenuSystem.openShipMenu, closeShipMenu: shipMenuSystem.closeShipMenu });
+const startRename = installInput(ui, () => state, (next) => { state = next; }, { canvas, box, infoAction, renameBox, speedControls, storagePanel, buildControls, ctx }, { closeStoragePanel, closeBuildMenu, closeGateMenu, openShipMenu: shipMenuSystem.openShipMenu, closeShipMenu: shipMenuSystem.closeShipMenu });
 
 const draw = createRenderer(ui, () => state, { ctx, canvas, shipPanelBox, partTip, sectorNameEl, buildControls, box, boxTitle, boxLine, infoAction, buildMenu, stationButton, hint, renameBox, shipMenu, storagePanel, stationPanel, paintViewport: shipMenuSystem.paintViewport, paintPointAt: shipMenuSystem.paintPointAt });
 

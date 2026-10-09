@@ -2,7 +2,11 @@ import { fitCamera, panBy, wheelZoomFactor, zoomAt } from "./camera";
 import type { SimState, Vec } from "sim";
 import type { UiState } from "./ui-state";
 
-export function installCameraInput(ui: UiState, getState: () => SimState, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, mousePoint: (event: MouseEvent) => Vec): void {
+export function pointerAfterCanvasLeave(pointer: Vec | null, buildControls: Pick<HTMLElement, "contains">, relatedTarget: EventTarget | null): Vec | null {
+  return relatedTarget !== null && buildControls.contains(relatedTarget as Node) ? pointer : null;
+}
+
+export function installCameraInput(ui: UiState, getState: () => SimState, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, mousePoint: (event: MouseEvent) => Vec, buildControls: HTMLElement): void {
   function resize(): void {
     const ratio = window.devicePixelRatio || 1;
     ui.viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
@@ -25,7 +29,9 @@ export function installCameraInput(ui: UiState, getState: () => SimState, canvas
     else if (event.button === 0) ui.dragBox = { start: point, end: point, additive: event.shiftKey };
   });
   canvas.addEventListener("mousemove", (event) => { ui.pointer = mousePoint(event); });
-  canvas.addEventListener("mouseleave", () => { ui.pointer = null; });
+  canvas.addEventListener("mouseleave", (event) => {
+    ui.pointer = pointerAfterCanvasLeave(ui.pointer, buildControls, event.relatedTarget);
+  });
   window.addEventListener("mousemove", (event) => {
     const point = mousePoint(event);
     if (ui.pan) { ui.camera = panBy(ui.camera, point.x - ui.pan.last.x, point.y - ui.pan.last.y); ui.pan.last = point; }
