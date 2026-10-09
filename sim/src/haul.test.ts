@@ -237,7 +237,9 @@ describe("Haul to construction sites (criteria 1-2)", () => {
   });
 
   it("a hauler on a site route starts delivering without an order queued", () => {
-    const state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
+    const initial = createInitialState(7);
+    const stocked = { ...initial, stations: [{ ...initial.stations[0]!, inventory: { Metal: 20, Ice: 20 } }] };
+    const state = configureHaul(stocked, [0], { from: "home", to: "site:0", material: "Metal" });
     const later = run(state, 10);
     expect(later.ships[0]!.cargo + later.stations[0]!.constructionSite.inventory.Metal).toBeGreaterThan(0);
   });
@@ -271,7 +273,7 @@ describe("Haul to construction sites (delivery loop)", () => {
 
   it("never waits for room, since the site has no cap", () => {
     const base = createInitialState(7);
-    const stacked = { ...base, stations: [{ ...base.stations[0]!,
+    const stacked = { ...base, stations: [{ ...base.stations[0]!, inventory: { Metal: 20, Ice: 20 },
       constructionSite: { ...base.stations[0]!.constructionSite, inventory: { Metal: 100000, Ice: 0 } } }] };
     let state = configureHaul(stacked, [0], { from: "home", to: "site:0", material: "Metal" });
     const unloading = until(state, (next) => next.ships[0]!.state === "haulUnloading");
@@ -292,7 +294,9 @@ describe("Haul to construction sites (delivery loop)", () => {
   });
 
   it("a right-click order interrupts a site run and Resume sends the ship back to it", () => {
-    let state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
+    const initial = createInitialState(7);
+    const stocked = { ...initial, stations: [{ ...initial.stations[0]!, inventory: { Metal: 20, Ice: 20 } }] };
+    let state = configureHaul(stocked, [0], { from: "home", to: "site:0", material: "Metal" });
     state = until(state, (next) => next.ships[0]!.state === "haulUnloading");
     const cargo = state.ships[0]!.cargo;
     const ordered = giveOrder(state, [0], { kind: "move", point: { x: 30, y: 20 }, sectorId: 0 });

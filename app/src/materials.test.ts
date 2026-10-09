@@ -24,7 +24,7 @@ describe("material display", () => {
     const hovered = { kind: "storage" as const };
     expect(infoBox(state, hovered)).toEqual({
       title: "Storage",
-      line: "Stored 40 / 1000\nMetal: 20\nIce: 20\nIncome: Metal +0/min, Ice +0/min",
+      line: "Stored 0 / 1000\nIncome: Metal +0/min, Ice +0/min",
     });
     const one = { ...state, stations: [{ ...state.stations[0]!, inventory: { Metal: 10, Ice: 0 } }] };
     expect(infoBox(one, hovered)).toEqual({ title: "Storage", line: "Stored 10 / 1000\nMetal: 10\nIncome: Metal +0/min, Ice +0/min" });

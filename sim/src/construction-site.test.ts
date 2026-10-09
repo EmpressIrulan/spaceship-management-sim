@@ -222,7 +222,7 @@ describe("Supply construction site", () => {
     expect(near(arrived.ships[0]!.position, site(arrived).position)).toBe(false);
     expect(arrived.ships[0]!.berth).not.toBeNull();
     expect(siteTotal(tick(arrived, 30))).toBe(0);
-    expect(tick(arrived, 30).stations[0]!.inventory.Metal + tick(arrived, 30).stations[0]!.inventory.Ice).toBe(40 + 10);
+    expect(tick(arrived, 30).stations[0]!.inventory.Metal + tick(arrived, 30).stations[0]!.inventory.Ice).toBe(10);
   });
 });
 

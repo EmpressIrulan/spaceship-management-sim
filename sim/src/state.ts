@@ -401,7 +401,7 @@ export function createInitialState(seed: number): SimState {
       sectorId: HOME_SECTOR,
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
-      inventory: { Metal: 20, Ice: 20 },
+      inventory: { Metal: 0, Ice: 0 },
       constructionSite: { position: { ...CONSTRUCTION_SITE_POSITION }, size: CONSTRUCTION_SITE_SIZE, inventory: { ...CONSTRUCTION_SITE_START } },
       storageLimits: { Metal: null, Ice: null },
       deliveries: [],

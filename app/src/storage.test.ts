@@ -5,14 +5,14 @@ import { deleteButtonAction, storagePanelOpenAfterClick, storagePanelRows } from
 describe("Storage panel", () => {
   it("lists every material with its amount and a blank unlimited limit", () => {
     expect(storagePanelRows(createInitialState(7))).toEqual([
-      { material: "Metal", amount: 20, limit: "" },
-      { material: "Ice", amount: 20, limit: "" },
+      { material: "Metal", amount: 0, limit: "" },
+      { material: "Ice", amount: 0, limit: "" },
     ]);
   });
 
   it("shows a set material limit", () => {
     const limited = setStorageLimit(createInitialState(7), "Ice", 40);
-    expect(storagePanelRows(limited)[1]).toEqual({ material: "Ice", amount: 20, limit: "40" });
+    expect(storagePanelRows(limited)[1]).toEqual({ material: "Ice", amount: 0, limit: "40" });
   });
 
   it("opens for a Storage click, closes for empty space and otherwise stays as it was", () => {
