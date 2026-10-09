@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DOCK_SIZE, MODULE_SPACING, createInitialState, homeStation, type SimState, type StationModule } from "sim";
 import { availableModuleBuildSites, startModuleBuild } from "./station-building";
+import { tick } from "./tick";
 
 function layout(modules: StationModule[], state = createInitialState(31)): SimState {
   const station = homeStation(state);
@@ -40,6 +41,8 @@ describe("station growth story acceptance criteria", () => {
     for (const [x, y] of [[-40, 0], [40, 0], [0, -40], [0, 40]] as const) {
       const started = startModuleBuild(layout([dock(0, 0)]), 0, "Storage", { x, y });
       expect(homeStation(started).construction?.position).toEqual({ x, y });
+      const finished = tick(started, 30);
+      expect(homeStation(finished).modules.some((module) => module.position.x === x && module.position.y === y)).toBe(true);
     }
   });
 
