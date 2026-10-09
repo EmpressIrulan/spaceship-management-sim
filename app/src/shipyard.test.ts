@@ -55,7 +55,7 @@ function stroke(draft: ShipDraft, module: ShipModule, ...cells: [number, number]
 
 function rows(draft: ShipDraft): string {
   const design = designOf(draft);
-  const letter = { Engine: "E", Laser: "L", Storage: "S", Hangar: "A", Hull: "H" } as const;
+  const letter = { Engine: "E", Laser: "L", Storage: "S", Hangar: "A", Hull: "H", Gun: "G" } as const;
   const lines: string[] = [];
   for (let y = 0; y < design.height; y += 1) {
     lines.push(
@@ -175,7 +175,7 @@ describe("Build ship canvas", () => {
     let draft = emptyDraft();
     expect(shipMenuView(state, BUILDER, draft)).toMatchObject({
       pixels: "0",
-      parts: "Hull 0 px, Engine 0 px, Laser 0 px, Storage 0 px, Hangar 0 px",
+      parts: "Hull 0 px, Engine 0 px, Laser 0 px, Storage 0 px, Hangar 0 px, Gun 0 px",
       buildTime: "0 s",
       materials: [
         { material: "Metal", amount: 0, short: false },
@@ -187,13 +187,17 @@ describe("Build ship canvas", () => {
     applyTool(draft, { x: 0, y: 0 });
     expect(shipMenuView(state, BUILDER, draft)).toMatchObject({
       pixels: "9",
-      parts: "Hull 9 px, Engine 0 px, Laser 0 px, Storage 0 px, Hangar 0 px",
+      parts: "Hull 9 px, Engine 0 px, Laser 0 px, Storage 0 px, Hangar 0 px, Gun 0 px",
       buildTime: "9 s",
       materials: [
         { material: "Metal", amount: 45, short: false },
         { material: "Ice", amount: 45, short: false },
       ],
     });
+
+    draft = withSize(withModule(emptyDraft(), "Gun"), 1);
+    applyTool(draft, { x: 0, y: 0 });
+    expect(shipMenuView(state, BUILDER, draft).parts).toContain("Gun 1 px");
 
     draft = withSize(withModule(emptyDraft(), "Hull"), 5);
     for (let n = 0; n < 5; n += 1) applyTool(draft, { x: n * 5, y: 0 });

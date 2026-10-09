@@ -1,4 +1,4 @@
-import { shipSize, type SimState, type Size, type Vec } from "sim";
+import { BUG_SIZE, DROP_SIZE, HIVE_SIZE, shipSize, type SimState, type Size, type Vec } from "sim";
 
 // Placeholder limits. Revisit when sectors get bigger than one station and
 // a handful of asteroids and the client wants to see more of them at once.
@@ -110,7 +110,10 @@ export type Hovered =
   | { kind: "queuedBuild"; index: number; stationId?: number }
   | { kind: "ship"; index: number }
   | { kind: "gateProject"; id: number; end?: number }
-  | { kind: "asteroid"; id: number };
+  | { kind: "asteroid"; id: number }
+  | { kind: "hive"; id: number }
+  | { kind: "bug"; id: number }
+  | { kind: "drop"; id: number };
 
 function insideRect(point: Vec, center: Vec, size: Size): boolean {
   return (
@@ -226,6 +229,29 @@ export function hoveredBody(
       return { kind: "asteroid", id: asteroid.id };
     }
   }
+  // The loot, the bugs and the hive hover like any other body in the sector.
+  // The drop answers first (it marks the very spot where a bug or the hive
+  // died), then the bug over the hive it flits about on. A dead hive is not
+  // drawn, so it is not hoverable either: the drop left at its spot takes the
+  // pointer instead.
+  for (const drop of state.drops ?? []) {
+    if (drop.sectorId !== currentSector) continue;
+    if (insideRect(world, drop.position, { width: Math.max(DROP_SIZE.width, floor), height: Math.max(DROP_SIZE.height, floor) })) {
+      return { kind: "drop", id: drop.id };
+    }
+  }
+  for (const bug of state.bugs ?? []) {
+    if (bug.sectorId !== currentSector) continue;
+    if (insideRect(world, bug.position, { width: Math.max(BUG_SIZE.width, floor), height: Math.max(BUG_SIZE.height, floor) })) {
+      return { kind: "bug", id: bug.id };
+    }
+  }
+  for (const hive of state.hives ?? []) {
+    if (hive.sectorId !== currentSector || !hive.alive) continue;
+    if (insideRect(world, hive.position, { width: Math.max(HIVE_SIZE.width, floor), height: Math.max(HIVE_SIZE.height, floor) })) {
+      return { kind: "hive", id: hive.id };
+    }
+  }
   // Moving and working ships must not hide the body they are using when
   // zoomed out, so they come last.
   if (includeShips) {
@@ -255,6 +281,18 @@ export function bodyOf(
     const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
     const end = project?.ends[hovered.end ?? 0];
     return end ? { position: end.position, size: { width: 24, height: 24 } } : null;
+  }
+  if (hovered.kind === "hive") {
+    const hive = state.hives?.find((candidate) => candidate.id === hovered.id && candidate.alive);
+    return hive ? { position: hive.position, size: HIVE_SIZE } : null;
+  }
+  if (hovered.kind === "bug") {
+    const bug = state.bugs?.find((candidate) => candidate.id === hovered.id);
+    return bug ? { position: bug.position, size: BUG_SIZE } : null;
+  }
+  if (hovered.kind === "drop") {
+    const drop = state.drops?.find((candidate) => candidate.id === hovered.id);
+    return drop ? { position: drop.position, size: DROP_SIZE } : null;
   }
   return state.asteroids.find((a) => a.id === hovered.id) ?? null;
 }
