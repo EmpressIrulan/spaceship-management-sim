@@ -17,26 +17,26 @@
   {
     "criterion": 4,
     "startSeconds": 43.44,
-    "recordingRun": 16
+    "recordingRun": 18
   },
   {
     "criterion": 5,
-    "startSeconds": 84.4,
+    "startSeconds": 90.4,
     "recordingRun": 12
   },
   {
     "criterion": 6,
-    "startSeconds": 110.52,
-    "recordingRun": 13
+    "startSeconds": 116.52,
+    "recordingRun": 19
   },
   {
     "criterion": 7,
-    "startSeconds": 130.12,
-    "recordingRun": 14
+    "startSeconds": 141.56,
+    "recordingRun": 20
   },
   {
     "criterion": 8,
-    "startSeconds": 152.64,
-    "recordingRun": 15
+    "startSeconds": 163.44,
+    "recordingRun": 22
   }
 ]

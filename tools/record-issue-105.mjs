@@ -91,9 +91,11 @@ try {
     await hover(s.ships[0].position, `HP ${s.ships[0].hp}/40`); await hold("scene-4", "Bites reduce the ship's HP", 3500);
     await run(2); await page.waitForFunction(() => window.__repro.state.ships[0].hp <= 10, null, { timeout: 30000 }); await pause(); s = await snap();
     await hover(s.ships[0].position, `HP ${s.ships[0].hp}/40`); await hold("scene-4-low", "More bites · hull nearly gone", 3000);
-    await park(); await caption("At zero HP the loaded ship explodes"); await run(2);
+    await focus(s.ships[0].position, 1); await park(); await caption("At zero HP the loaded ship explodes"); await run(2);
     await page.waitForFunction(() => !window.__repro.state.ships.some(s => s.id === 0), null, { timeout: 20000 });
-    await hold("scene-4-explosion", "Nearer loaded ship destroyed · farther ship survives", 1500); await pause();
+    await pause(); await page.waitForTimeout(600);
+    await page.evaluate(() => window.issue105Demo.holdAnimation());
+    await hold("scene-4-explosion", "Loaded ship explodes into fire-coloured pixels", 4500);
     s = await snap(); assert.equal(s.ships.length, 1); assert.equal(s.ships[0].id, 99);
   } else if (scene === 5) {
     await page.evaluate(() => window.issue105Demo.designer()); await sector(0); await focus({ x: 40, y: 0 }, 4);
@@ -113,21 +115,25 @@ try {
   } else if (scene === 6 || scene === 7) {
     await page.evaluate(() => window.issue105Demo.combat()); await focus({ x: h.position.x - 30, y: h.position.y }, 5); await park();
     await caption("Gun ship fires automatically · bug needs two hits"); await run(1);
-    await page.waitForFunction(() => window.__repro.state.bugs[0]?.hp === 3 && !!window.__repro.state.ships[0].gunShot); await pause();
-    if (scene === 6) await hold("scene-6", "Automatic yellow gunshot · bug after first hit", 3500);
+    await page.waitForFunction(() => { const shot = window.__repro.state.ships[0].gunShot; return shot?.target.kind === "bug" && shot.timer < .32 && shot.timer > .15; }); await pause();
+    if (scene === 6) await hold("scene-6", "Yellow projectile in flight to the bug", 3500);
+    await run(1); await page.waitForFunction(() => window.__repro.state.bugs[0]?.hp === 3 && !window.__repro.state.ships[0].gunShot); await pause();
+    if (scene === 6) { s = await snap(); await hover(s.bugs[0].position, "HP 3/6"); await hold("scene-6-impact", "Projectile arrives · bug HP falls to 3/6", 2500); await park(); }
     await run(1); await page.waitForFunction(() => window.__repro.state.bugs.length === 0); await pause(); s = await snap();
     if (scene === 7) { await hover(s.drops[0].position, "Bug juice"); await hold("scene-7", "Bug juice floats where the bug died", 4500); }
     await park(); await caption("Gun ship automatically shoots the wounded hive"); await run(1);
-    await page.waitForFunction(() => window.__repro.state.hives[0].hp === 6 && !!window.__repro.state.ships[0].gunShot); await pause();
-    if (scene === 6) await hold("scene-6-hive", "Automatic yellow beam into the wounded hive", 3500);
+    await page.waitForFunction(() => { const shot = window.__repro.state.ships[0].gunShot; return shot?.target.kind === "hive" && shot.timer < .32 && shot.timer > .15; }); await pause();
+    if (scene === 6) await hold("scene-6-hive", "Yellow projectile in flight to the wounded hive", 3500);
     await run(1); await page.waitForFunction(() => !window.__repro.state.hives[0].alive, null, { timeout: 15000 }); await pause(); s = await snap();
     if (scene === 7) { const d = s.drops.find(d => d.kind === "queenLarvae"); await hover(d.position, "Queen larvae"); await hold("scene-7-queen", "Queen larvae floats where the hive died", 4500); }
   } else if (scene === 8) {
     await page.evaluate(() => window.issue105Demo.dead()); await focus(h.position, 5); await park();
-    await hold("scene-8-before", "Dead hive · queen larvae remains", 2500);
+    s = await snap(); assert.equal(s.hives[0].alive, false); assert.ok(s.ships.every(ship => !ship.gunShot));
+    await hold("scene-8-before", "Last projectile landed · Gun ship has stopped firing", 3500);
     await caption("Time passes at 4x · no further hatches"); await run(); await page.waitForTimeout(8500); await pause();
     s = await snap(); assert.ok(s.time >= 30); assert.equal(s.bugs.length, 0); assert.equal(s.nextBugId, 0);
-    await hold("scene-8", "More than 30 game seconds later · still no bugs", 4500);
+    assert.ok(s.ships.every(ship => !ship.gunShot));
+    await hold("scene-8", "30+ game seconds later · no bugs, no shots", 4500);
   }
   await writeFile(resolve(out, "scenes.json"), JSON.stringify(shots, null, 2));
 } finally { await context.close(); }

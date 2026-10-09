@@ -5,6 +5,10 @@ import { applyTool, withModule } from "../app/src/shipyard";
 import type { UiState } from "../app/src/ui-state";
 
 export function installIssue105Demo(ui: UiState, get: () => SimState, set: (s: SimState) => void): void {
+  // Recording-only hold for the renderer's sub-second explosion animation.
+  const requestFrame = window.requestAnimationFrame.bind(window);
+  let heldFrame: number | null = null;
+  window.requestAnimationFrame = callback => requestFrame(now => callback(heldFrame ?? now));
   function setup(count = 0, ships = false): void {
     const s = createInitialState(105);
     s.asteroids = []; s.respawns = []; s.ships = [];
@@ -26,6 +30,7 @@ export function installIssue105Demo(ui: UiState, get: () => SimState, set: (s: S
   }
   Object.assign(window, { issue105Demo: {
     setup,
+    holdAnimation: () => { heldFrame = performance.now(); },
     hunting: () => {
       setup(5, true); const s = get(); const h = s.hives![0]!;
       const farther = { ...structuredClone(s.ships[0]!), id: 99, cargo: 0, cargoMaterial: null,
@@ -57,7 +62,8 @@ export function installIssue105Demo(ui: UiState, get: () => SimState, set: (s: S
       const template = createInitialState(105).ships[0]!;
       s.ships = [{ ...template, design: { width: 2, height: 1, slots: ["Engine", "Gun"] }, state: "holding", sectorId: h.sectorId,
         position: { x: h.position.x - 60, y: h.position.y }, defaultBehaviour: "none", timer: 0, leg: null, order: null }];
-      h.hp = 3; set(tick(s, 0.01));
+      // First tick launches; the next advances through its impact event.
+      h.hp = 3; set(tick(tick(s, 0), 1));
     },
   }});
 }
