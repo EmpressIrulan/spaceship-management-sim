@@ -2,7 +2,7 @@ import { MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
 import { DOCK_CAPACITY, STORAGE_CAPACITY, replaceStation, stationById } from "./state";
-import { availableModuleBuildSites, stationOwningSite } from "./station-building";
+import { availableModuleBuildSites, nearbyClearPosition, stationOwningSite } from "./station-building";
 import { moduleBuildSeconds, moduleCost, moduleSize, samePosition } from "./station-module-geometry";
 import { travelSeconds } from "./motion";
 import { speedFactor } from "./ship";
@@ -93,6 +93,12 @@ export function completeBuild(draft: Draft): void {
   if (!draft.construction) return;
   const { timer: _timer, ...module } = draft.construction;
   draft.modules = [...draft.modules, module];
+  const nearby = [...draft.modules, ...draft.buildQueue, ...(draft.construction ? [draft.construction] : []),
+    ...draft.others.filter((station) => station.sectorId === draft.stationSector)
+      .flatMap((station) => [...station.modules, ...station.buildQueue, ...(station.construction ? [station.construction] : []), station.constructionSite])];
+  draft.constructionSite = { ...draft.constructionSite, position: nearbyClearPosition(
+    draft.constructionSite.position, nearby, draft.asteroids, draft.stationSector,
+  ) };
   if (module.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
   if (module.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
   draft.construction = null;
@@ -118,9 +124,14 @@ export function settleStationBuild(station: Station): Station {
 export function completeStationModule(station: Station): Station {
   if (!station.construction) return station;
   const { timer: _timer, ...module } = station.construction;
+  const modules = [...station.modules, module];
+  const obstacles = [...modules, ...station.buildQueue, ...(station.construction ? [station.construction] : [])];
   return {
     ...station,
-    modules: [...station.modules, module],
+    modules,
+    constructionSite: { ...station.constructionSite, position: nearbyClearPosition(
+      station.constructionSite.position, obstacles, [], station.sectorId,
+    ) },
     dock: module.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + DOCK_CAPACITY } : station.dock,
     storage: module.type === "Storage" ? { ...station.storage, capacity: station.storage.capacity + STORAGE_CAPACITY } : station.storage,
     construction: null,

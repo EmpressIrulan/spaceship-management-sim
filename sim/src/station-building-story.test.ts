@@ -46,6 +46,28 @@ describe("station growth story acceptance criteria", () => {
     }
   });
 
+  it("moves the hidden construction pad when a module is built on it, then offers another build site", () => {
+    const base = layout([dock(0, 0), dock(40, 0)]);
+    const spot = { x: 80, y: 0 };
+    const initial = {
+      ...base,
+      stations: base.stations.map((station) => station.id === 0
+        ? { ...station, constructionSite: { ...station.constructionSite, position: spot } }
+        : station),
+    };
+    const pad = homeStation(initial).constructionSite.position;
+    expect(pad).toEqual(spot);
+    expect(has(initial, spot.x, spot.y)).toBe(true);
+
+    const started = startModuleBuild(initial, 0, "Storage", spot);
+    expect(homeStation(started).construction?.position).toEqual(spot);
+    const finished = tick(started, 30);
+    const station = homeStation(finished);
+    expect(station.modules.some((module) => module.position.x === spot.x && module.position.y === spot.y)).toBe(true);
+    expect(station.constructionSite.position).not.toEqual(spot);
+    expect(availableModuleBuildSites(finished, 0).length).toBeGreaterThan(0);
+  });
+
   // Every site is a cardinal neighbour slot of a module, so the full
   // expectation is derivable: a side with a module behind it must be hidden,
   // a free side must still be offered.

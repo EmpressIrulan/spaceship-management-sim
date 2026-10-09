@@ -45,7 +45,7 @@ export function availableModuleBuildSites(state: SimState, stationId: number): V
   const station = stationById(state, stationId) ?? homeStation(state);
   const footprints = [
     ...state.stations.flatMap((other) => (other.sectorId === station.sectorId
-      ? [...other.modules, ...(other.construction ? [other.construction] : []), ...other.buildQueue, other.constructionSite]
+      ? [...other.modules, ...(other.construction ? [other.construction] : []), ...other.buildQueue]
       : [])),
   ];
   const anchors = [...station.modules, ...station.buildQueue];
@@ -60,6 +60,24 @@ export function availableModuleBuildSites(state: SimState, stationId: number): V
     }
   }
   return sites;
+}
+
+// Find a nearby clear location for the construction pad after a module is
+// completed on top of it. Search outward in small deterministic steps.
+export function nearbyClearPosition(position: Vec, obstacles: Array<{ position: Vec; size: Size }>, asteroids: SimState["asteroids"], sectorId: number): Vec {
+  const blocked = (candidate: Vec) => obstacles.some((obstacle) => overlapsFootprint(candidate, obstacle))
+    || asteroids.some((asteroid) => asteroid.sectorId === sectorId && overlapsFootprint(candidate, asteroid));
+  if (!blocked(position)) return position;
+  for (let radius = 1; radius <= 30; radius += 1) {
+    for (let y = -radius; y <= radius; y += 1) {
+      for (let x = -radius; x <= radius; x += 1) {
+        if (Math.max(Math.abs(x), Math.abs(y)) !== radius) continue;
+        const candidate = { x: position.x + x * 20, y: position.y + y * 20 };
+        if (!blocked(candidate)) return candidate;
+      }
+    }
+  }
+  return position;
 }
 
 // The station that owns the slot a + was clicked at. Slots are offered per
