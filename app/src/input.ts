@@ -20,6 +20,7 @@ export interface InputElements {
   renameBox: HTMLInputElement;
   speedControls: HTMLElement;
   storagePanel: HTMLElement;
+  buildControls: HTMLElement;
   ctx: CanvasRenderingContext2D;
 }
 
@@ -44,6 +45,7 @@ export function installInput(
     renameBox,
     speedControls,
     storagePanel,
+    buildControls,
     ctx,
   } = elements;
   const pointFromEvent = (event: MouseEvent): Vec => mousePoint(canvas, event);
@@ -67,7 +69,7 @@ export function installInput(
     mousePoint: pointFromEvent,
   };
 
-  installCameraInput(ui, getState, canvas, ctx, pointFromEvent);
+  installCameraInput(ui, getState, canvas, ctx, pointFromEvent, buildControls);
   installInfoBoxInput(ui, getState, setState, box, infoAction);
   installCancelHoverInput(ui, getState, infoAction);
   installSpeedInput(ui, speedControls, {
