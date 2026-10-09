@@ -16,7 +16,8 @@ import {
   withTool,
   shouldDismissShipMenuOnMouseDown,
   type ShipDraft,
-  clampBuildCount,
+  buildCountFor,
+  changeBuildCount,
 } from "./shipyard";
 import {
   deleteBlueprint,
@@ -162,7 +163,7 @@ export function installShipMenu(
   function openShipMenu(builder: number, stationId = 0): void {
     ui.shipMenuBuilder = builder;
     ui.shipMenuStation = stationId;
-    ui.shipMenuCount = 1;
+    ui.shipMenuCounts.clear();
     ui.draft = emptyDraft();
     ui.paintView = emptyView();
     renderShipMenu();
@@ -195,7 +196,7 @@ export function installShipMenu(
       );
     else if (data.tool)
       ui.draft = withTool(ui.draft, data.tool as ShipDraft["tool"]);
-    else if (data.count) ui.shipMenuCount = clampBuildCount(ui.shipMenuCount + (data.count === "+" ? 1 : -1));
+    else if (data.count) changeBuildCount(ui.shipMenuCounts, designOf(ui.draft), data.count === "+" ? 1 : -1);
     else if (data.blueprintSave !== undefined) {
       const input =
         shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
@@ -218,12 +219,12 @@ export function installShipMenu(
       ui.blueprints = deleteBlueprint(blueprintStore, blueprint.name);
       renderBlueprints(shipMenu, ui.blueprints);
     } else if (data.build !== undefined) {
-      setState(queueShipBuild(getState(), ui.shipMenuBuilder, designOf(ui.draft), ui.shipMenuCount, ui.shipMenuStation));
+      setState(queueShipBuild(getState(), ui.shipMenuBuilder, designOf(ui.draft), buildCountFor(ui.shipMenuCounts, designOf(ui.draft)), ui.shipMenuStation));
     } else if (data.cancelBuild !== undefined) {
       setState(cancelShipBuild(getState(), ui.shipMenuBuilder, Number(data.cancelBuild), ui.shipMenuStation));
     }
     syncShipMenuButtons();
-    shipMenu.querySelector<HTMLElement>(".count-value")!.textContent = String(ui.shipMenuCount);
+    shipMenu.querySelector<HTMLElement>(".count-value")!.textContent = String(buildCountFor(ui.shipMenuCounts, designOf(ui.draft)));
   });
 
   shipMenu.addEventListener("input", (event) => {

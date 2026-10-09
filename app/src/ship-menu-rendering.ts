@@ -1,5 +1,5 @@
 import { validDesign, type SimState } from "sim";
-import { designOf, shipMenuView, shipQueueView } from "./shipyard";
+import { buildCountFor, designOf, shipMenuView, shipQueueView } from "./shipyard";
 import type { UiState } from "./ui-state";
 
 export function syncShipMenuStats(ui: UiState, getState: () => SimState, shipMenu: HTMLElement): void {
@@ -30,19 +30,20 @@ export function syncShipMenuStats(ui: UiState, getState: () => SimState, shipMen
   if (list.dataset.key !== queueKey) {
     list.dataset.key = queueKey;
     list.replaceChildren();
-    queue.forEach((line, index) => {
+    queue.forEach((line) => {
       const row = document.createElement("div");
       row.className = "ship-build-line";
       row.append(document.createTextNode(`${line.waiting ? "Waiting" : "Building"}: ${line.label}${line.count > 1 ? ` x${line.count}` : ""}${line.remaining ? ` — ${line.remaining} left` : ""}${line.shortfall ? `\n${line.shortfall}` : ""} `));
       const cancel = document.createElement("button");
       cancel.textContent = "Cancel";
-      cancel.dataset.cancelBuild = String(index);
+      cancel.dataset.cancelBuild = String(line.place);
       row.append(cancel);
       list.append(row);
     });
   }
   const count = shipMenu.querySelector<HTMLElement>(".count-value")!;
-  if (count.textContent !== String(ui.shipMenuCount)) count.textContent = String(ui.shipMenuCount);
+  const chosenCount = String(buildCountFor(ui.shipMenuCounts, designOf(ui.draft)));
+  if (count.textContent !== chosenCount) count.textContent = chosenCount;
   const blueprintName = shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
   shipMenu.querySelector<HTMLButtonElement>("button[data-blueprint-save]")!.disabled =
     blueprintName.value.trim() === "" || designOf(ui.draft).width === 0;

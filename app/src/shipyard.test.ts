@@ -25,6 +25,8 @@ import {
   shipMenuView,
   shipQueueView,
   clampBuildCount,
+  buildCountFor,
+  changeBuildCount,
   shouldDismissShipMenuOnMouseDown,
   withModule,
   withSize,
@@ -294,17 +296,17 @@ describe("panning and zooming the canvas", () => {
 });
 
 describe("Builder hover", () => {
-  it("counts down the ship being built", () => {
+  it("keeps both a busy and idle Builder's jobs in the panel, not the hover", () => {
     const draft = withSize(withModule(emptyDraft(), "Hull"), 5);
     applyTool(draft, { x: 0, y: 0 });
     const building = tick(startShipBuild(withBuilder(), BUILDER, designOf(draft)), 7);
     expect(infoBox(building, { kind: "module", index: BUILDER, stationId: 0 })).toEqual({
       title: "Builder",
-      line: "Building 5x5: 18 s",
+      line: "Click to open Builder",
     });
     expect(infoBox(withBuilder(), { kind: "module", index: BUILDER, stationId: 0 })).toEqual({
       title: "Builder",
-      line: "Idle",
+      line: "Click to open Builder",
     });
   });
 
@@ -316,6 +318,36 @@ describe("Builder hover", () => {
 });
 
 describe("Builder queue panel", () => {
+  it("reads design material shortages from the Builder's own station", () => {
+    const state = withBuilder({ Metal: 0, Ice: 0 });
+    state.stations.push({ ...state.stations[0]!, id: 12, inventory: { Metal: 2000, Ice: 2000 } });
+    const draft = stroke(emptyDraft(), "Engine", [0, 0]);
+    expect(shipMenuView(state, BUILDER, draft, 12).materials.every((material) => !material.short)).toBe(true);
+  });
+  it("starts each design at one and remembers its own chosen count", () => {
+    const counts = new Map<string, number>();
+    const a: ShipDesign = { width: 1, height: 1, slots: ["Hull"] };
+    const b: ShipDesign = { width: 1, height: 1, slots: ["Engine"] };
+    expect(buildCountFor(counts, a)).toBe(1);
+    changeBuildCount(counts, a, 1);
+    changeBuildCount(counts, a, 1);
+    expect(buildCountFor(counts, a)).toBe(3);
+    expect(buildCountFor(counts, b)).toBe(1);
+    changeBuildCount(counts, b, -1);
+    expect(buildCountFor(counts, b)).toBe(1);
+  });
+  it("shows no queue summary or stopped timer on Builder hover", () => {
+    const design: ShipDesign = { width: 1, height: 1, slots: ["Laser"] };
+    const waiting = queueShipBuild(withBuilder({ Metal: 0, Ice: 0 }), BUILDER, design, 3);
+    expect(infoBox(waiting, { kind: "module", index: BUILDER, stationId: 0 })).toEqual({ title: "Builder", line: "Click to open Builder" });
+  });
+  it("keeps the underlying queue place after a grouped line for Cancel", () => {
+    const a: ShipDesign = { width: 1, height: 1, slots: ["Hull"] };
+    const b: ShipDesign = { width: 1, height: 1, slots: ["Engine"] };
+    let state = queueShipBuild(withBuilder(), BUILDER, a, 4);
+    state = queueShipBuild(state, BUILDER, b, 2);
+    expect(shipQueueView(state, BUILDER).map((line) => line.place)).toEqual([0, 1, 4]);
+  });
   it("keeps count at one or more and groups identical waiting neighbours", () => {
     expect([clampBuildCount(0), clampBuildCount(1), clampBuildCount(3)]).toEqual([1, 1, 3]);
     const design: ShipDesign = { width: 1, height: 1, slots: ["Hull"] };

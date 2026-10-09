@@ -18,7 +18,7 @@ export interface UiState {
   selectedBuildSite: Vec | null;
   shipMenuBuilder: number | null;
   shipMenuStation: number;
-  shipMenuCount: number;
+  shipMenuCounts: Map<string, number>;
   draft: ShipDraft;
   blueprints: Blueprint[];
   paintView: Camera;
@@ -68,7 +68,7 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     selectedBuildSite: null,
     shipMenuBuilder: null,
     shipMenuStation: 0,
-    shipMenuCount: 1,
+    shipMenuCounts: new Map(),
     draft: emptyDraft(),
     blueprints,
     paintView: emptyView(),
