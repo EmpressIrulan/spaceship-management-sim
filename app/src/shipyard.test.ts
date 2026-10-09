@@ -4,6 +4,7 @@ import {
   pixelCount,
   shipBuildSeconds,
   startShipBuild,
+  queueShipBuild,
   tick,
   type ShipDesign,
   type ShipModule,
@@ -22,6 +23,8 @@ import {
   lineCells,
   placedDesign,
   shipMenuView,
+  shipQueueView,
+  clampBuildCount,
   shouldDismissShipMenuOnMouseDown,
   withModule,
   withSize,
@@ -309,6 +312,28 @@ describe("Builder hover", () => {
     expect(formatDuration(120.4)).toBe("2 min");
     expect(formatDuration(98.8)).toBe("1 min 39 s");
     expect(formatDuration(30.8)).toBe("31 s");
+  });
+});
+
+describe("Builder queue panel", () => {
+  it("keeps count at one or more and groups identical waiting neighbours", () => {
+    expect([clampBuildCount(0), clampBuildCount(1), clampBuildCount(3)]).toEqual([1, 1, 3]);
+    const design: ShipDesign = { width: 1, height: 1, slots: ["Hull"] };
+    let state = withBuilder();
+    state = queueShipBuild(state, BUILDER, design, 1);
+    state = queueShipBuild(state, BUILDER, design, 3);
+    expect(shipQueueView(state, BUILDER)).toMatchObject([
+      { label: "Ship 1x1", count: 1, waiting: false, remaining: expect.any(String) },
+      { label: "Ship 1x1", count: 3, waiting: true, remaining: null },
+    ]);
+  });
+
+  it("shows a waiting line with missing materials in the game's material names", () => {
+    const design: ShipDesign = { width: 1, height: 1, slots: ["Laser"] };
+    const state = queueShipBuild(withBuilder({ Metal: 0, Ice: 2000 }), BUILDER, design, 3);
+    expect(shipQueueView(state, BUILDER)[0]).toMatchObject({
+      label: "Miner", count: 3, waiting: true, remaining: null, shortfall: "Waiting: 20 more Metal",
+    });
   });
 });
 

@@ -1,9 +1,12 @@
 import {
   MATERIALS,
   availableShipBuild,
+  cancelShipBuild,
   pixelCount,
   shipBuildCost,
   shipBuildSeconds,
+  shipBuildQueue,
+  shipBuildShortfall,
   shipModuleCounts,
   shipStats,
   type ShipDesign,
@@ -243,6 +246,27 @@ export interface ShipMenuView {
   buildTime: string;
   materials: { material: Material; amount: number; short: boolean }[];
   canBuild: boolean;
+}
+
+export function clampBuildCount(count: number): number {
+  return Number.isFinite(count) ? Math.max(1, Math.floor(count)) : 1;
+}
+
+export interface ShipQueueLineView { label: string; count: number; waiting: boolean; remaining: string | null; shortfall: string | null }
+
+export function shipQueueView(state: SimState, builder: number, stationId = 0): ShipQueueLineView[] {
+  const queue = shipBuildQueue(state, builder, stationId);
+  const lines: ShipQueueLineView[] = [];
+  for (let i = 0; i < queue.length;) {
+    const job = queue[i]!;
+    let end = i + 1;
+    if (job.waiting) while (end < queue.length && queue[end]!.waiting && queue[end]!.design.width === job.design.width && queue[end]!.design.height === job.design.height && queue[end]!.design.slots.every((slot, n) => slot === job.design.slots[n])) end += 1;
+    const label = job.design.slots.includes("Laser") ? "Miner" : `Ship ${job.design.width}x${job.design.height}`;
+    const shortfall = i === 0 && job.waiting ? shipBuildShortfall(state, builder, stationId) : null;
+    lines.push({ label, count: end - i, waiting: !!job.waiting, remaining: job.waiting ? null : formatDuration(Math.ceil(job.timer)), shortfall: shortfall ? `Waiting: ${Object.entries(shortfall).map(([material, amount]) => `${amount} more ${material}`).join(", ")}` : null });
+    i = end;
+  }
+  return lines;
 }
 
 export function shipMenuView(state: SimState, builder: number, draft: ShipDraft, stationId = 0): ShipMenuView {
