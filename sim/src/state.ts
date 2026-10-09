@@ -9,7 +9,7 @@ import type {
   Asteroid, AsteroidField, Beam, BerthLayout, CargoTransfer,
   DefaultBehaviour, Density, Delivery, GateEnd, GateProject, HaulRoute,
   HaulStationId, Leg, Material, ModuleConstruction, ModuleType, Order, Respawn,
-  Sector, SectorCharacter, Ship, ShipBuild, ShipDesign, ShipState, SimState,
+  Sector, SectorCharacter, Ship, ShipDesign, ShipState, SimState,
   Size, Station, StationModule, Target, Vec,
 } from "./model";
 export type * from "./model";
@@ -55,12 +55,9 @@ import {
   MINING_GAP,
   STARTING_SHIP,
   canMine,
-  shipBuildCost,
-  shipBuildSeconds,
   shipSize,
   speedFactor,
   cargoTransferSeconds,
-  validDesign,
 } from "./ship";
 
 // Ship speed lives in motion.ts, and the mining and unloading rates in ship.ts.
@@ -540,35 +537,6 @@ export function deleteStock(state: SimState, material: Material, amount: number)
     },
   };
   return { ...replaceHomeStation(state, station), ships: dockWaitingShips(station, state.ships) };
-}
-
-// A Builder can take a job when it is built, idle, and Storage can pay.
-export function availableShipBuild(state: SimState, builder: number, design: ShipDesign, stationId = 0): boolean {
-  const home = stationById(state, stationId);
-  if (!home) return false;
-  const module = home.modules[builder];
-  if (module?.type !== "Builder" || !validDesign(design)) return false;
-  if (home.shipBuilds.some((job) => job.builder === builder)) return false;
-  const cost = shipBuildCost(design);
-  return MATERIALS.every((material) => home.inventory[material] >= cost[material]);
-}
-
-export function startShipBuild(state: SimState, builder: number, design: ShipDesign, stationId = 0): SimState {
-  if (!availableShipBuild(state, builder, design, stationId)) return state;
-  const home = stationById(state, stationId)!;
-  const cost = shipBuildCost(design);
-  const inventory = Object.fromEntries(
-    MATERIALS.map((material) => [material, home.inventory[material] - cost[material]]),
-  ) as Record<Material, number>;
-  const job: ShipBuild = {
-    stationId,
-    builder,
-    design: { ...design, slots: [...design.slots] },
-    timer: shipBuildSeconds(design),
-  };
-  const station = { ...home, inventory, shipBuilds: [...home.shipBuilds, job] };
-  const next = { ...replaceStation(state, station), ships: dockWaitingShips(station, state.ships) };
-  return stationId === 0 ? { ...replaceHomeStation(next, station), ships: dockWaitingShips(station, state.ships) } : next;
 }
 
 // A mining ship's laser, from the ship to the near edge of the rock it is

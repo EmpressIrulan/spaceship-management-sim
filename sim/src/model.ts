@@ -142,6 +142,9 @@ export interface ShipBuild {
   builder: number;
   design: ShipDesign;
   timer: number;
+  // Queued behind another ship at this Builder and not paid for yet. Its timer
+  // holds the full build time until it starts.
+  waiting?: true;
 }
 
 export interface StationModule {
