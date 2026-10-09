@@ -44,7 +44,7 @@ export function installIssue119Demo(ui: UiState, getState: () => SimState, setSt
       const initialShip = createInitialState(17).ships[0]!;
       const station = state.stations[0]!;
       const ship = { ...initialShip, id: state.nextShipId, state: "unloading" as const,
-        design: { width: 3, height: 6, slots: [...Array(16).fill("Storage"), "Engine", "Engine"] } as ShipDesign,
+        design: { width: 4, height: 5, slots: [...Array(16).fill("Storage"), "Engine", "Engine", "Engine", "Laser"] } as ShipDesign,
         position: { ...station.dock.position }, timer: cargoTransferSeconds(amount), cargo: amount,
         cargoByMaterial: { Metal: amount, Ice: 0 }, cargoMaterial: "Metal" as const,
         defaultBehaviour: "none" as const, target: null, leg: null, berth: null,

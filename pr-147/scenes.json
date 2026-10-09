@@ -1,67 +1,67 @@
 [
   {
     "name": "scene1",
-    "time": 5.974,
-    "videoTime": 7.47
+    "time": 5.898,
+    "videoTime": 7.4
   },
   {
     "name": "scene2",
-    "time": 11.745,
-    "videoTime": 13.24
+    "time": 11.411,
+    "videoTime": 12.91
   },
   {
     "name": "scene2-started",
-    "time": 15.672,
-    "videoTime": 17.17
+    "time": 14.9,
+    "videoTime": 16.4
   },
   {
     "name": "scene3",
-    "time": 20.149,
-    "videoTime": 21.65
+    "time": 18.802,
+    "videoTime": 20.3
   },
   {
     "name": "scene3-unloading",
-    "time": 23.763,
-    "videoTime": 25.26
+    "time": 22.245,
+    "videoTime": 23.75
   },
   {
     "name": "scene3-delivered",
-    "time": 28.749,
-    "videoTime": 30.25
+    "time": 27.227,
+    "videoTime": 28.73
   },
   {
     "name": "scene4-before",
-    "time": 36.999,
-    "videoTime": 38.5
+    "time": 35.311,
+    "videoTime": 36.81
   },
   {
     "name": "scene4",
-    "time": 39.899,
-    "videoTime": 41.4
+    "time": 38.005,
+    "videoTime": 39.51
   },
   {
     "name": "scene5-before",
-    "time": 45.124,
-    "videoTime": 46.62
+    "time": 43.236,
+    "videoTime": 44.74
   },
   {
     "name": "scene5",
-    "time": 48.148,
-    "videoTime": 49.65
+    "time": 46.415,
+    "videoTime": 47.91
   },
   {
     "name": "scene6",
-    "time": 62.659,
-    "videoTime": 64.16
+    "time": 61.443,
+    "videoTime": 62.94
   },
   {
     "name": "scene6-middle",
-    "time": 65.069,
-    "videoTime": 66.57
+    "time": 63.81,
+    "videoTime": 65.31
   },
   {
     "name": "scene6-bottom",
-    "time": 67.205,
-    "videoTime": 68.7
+    "time": 65.962,
+    "videoTime": 67.46
   }
 ]
