@@ -656,7 +656,7 @@ function advance(draft: Draft, seconds: number): void {
 // Fires every timer that has reached zero. Respawns go first so a ship that
 // becomes free at the same moment can head for the new asteroid.
 function settle(draft: Draft): void {
-  draft.others = draft.others.map(settleStationBuild);
+  draft.others = draft.others.map((station) => settleStationBuild(station, { asteroids: draft.asteroids, stations: draft.others }));
   if (draft.construction && draft.construction.timer <= 0) {
     // A module that has lost its footing is given back to the site rather than
     // finished off the station, which is the one place a build can end up

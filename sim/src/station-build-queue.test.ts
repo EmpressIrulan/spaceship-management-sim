@@ -223,6 +223,60 @@ describe("the station build queue", () => {
     expect(delivered.ships.map((ship) => ship.cargo)).toEqual([0, 0, 0]);
   });
 
+  // Funds a placed site so its founding Dock runs to completion on the next
+  // two ticks; the completion is what moves the pad off the site's spot.
+  function fundFoundingSite(state: SimState, id: number): SimState {
+    return {
+      ...state,
+      stations: state.stations.map((candidate) => candidate.id === id
+        ? { ...candidate, constructionSite: { ...candidate.constructionSite, inventory: { Metal: 50, Ice: 50 } } }
+        : candidate),
+    };
+  }
+
+  it("moves a built station's pad off an asteroid when a module completes", () => {
+    // The pad's nearest free spot, one ring out at (860, 860), sits under this
+    // rock: the home path avoids asteroids here, so the built-station path
+    // must not land the pad on it either.
+    const rock: SimState["asteroids"][number] = {
+      id: 999, sectorId: 0, rich: false, fieldId: 0, position: { x: 860, y: 860 }, size: { width: 40, height: 40 }, ore: 0, material: "Metal",
+    };
+    let state = placeStation(createInitialState(7), 0, { x: 900, y: 900 });
+    const id = state.nextStationId - 1;
+    state = { ...state, asteroids: [...state.asteroids, rock] };
+    state = fundFoundingSite(state, id);
+
+    state = tick(state, BUILD_SECONDS);
+    state = tick(state, BUILD_SECONDS);
+
+    const station = state.stations.find((candidate) => candidate.id === id)!;
+    expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 880, y: 900 } });
+    expect(station.constructionSite.position).toEqual({ x: 900, y: 860 });
+  });
+
+  it("moves a built station's pad off another station's module when a module completes", () => {
+    let state = placeStation(createInitialState(7), 0, { x: 900, y: 900 });
+    const id = state.nextStationId - 1;
+    // A neighbour grown onto the spot one ring out at (860, 860), where the
+    // pad would land if the search only checked this station's own footprint.
+    const neighbour = placeStation(state, 0, { x: 300, y: 300 });
+    const neighbourId = neighbour.nextStationId - 1;
+    state = {
+      ...state,
+      stations: neighbour.stations.map((candidate) => candidate.id === neighbourId
+        ? { ...candidate, founding: false, buildQueue: [], modules: [{ type: "Storage" as const, position: { x: 860, y: 860 }, size: { width: 30, height: 40 } }] }
+        : candidate),
+    };
+    state = fundFoundingSite(state, id);
+
+    state = tick(state, BUILD_SECONDS);
+    state = tick(state, BUILD_SECONDS);
+
+    const station = state.stations.find((candidate) => candidate.id === id)!;
+    expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 880, y: 900 } });
+    expect(station.constructionSite.position).toEqual({ x: 900, y: 860 });
+  });
+
   it("leaves a supply ship at its Move destination while a build is queued", () => {
     const base = createInitialState(7);
     const supply = setDefaultBehaviour(base, [0], "supply");

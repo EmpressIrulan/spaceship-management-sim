@@ -106,13 +106,23 @@ export function completeBuild(draft: Draft): void {
 
 // The same build cycle for a station the tick does not flatten, kept whole in
 // its own object: finish the module that ran out, then pay for the next one.
-export function settleStationBuild(station: Station): Station {
+// The context carries the obstacles the pad search shares with the home path:
+// the sector's asteroids and the bodies of the stations settled alongside.
+export interface SettleContext {
+  asteroids: SimState["asteroids"];
+  // The whole stations settled in the same tick, one of which is this station.
+  stations: Station[];
+}
+
+const emptySettleContext: SettleContext = { asteroids: [], stations: [] };
+
+export function settleStationBuild(station: Station, context: SettleContext = emptySettleContext): Station {
   let next = station;
   if (next.construction && next.construction.timer <= 0) {
     // The first module of a fresh site stands on its own: nothing was on the
     // map to hang it off when the site was placed.
     const attached = next.modules.length === 0 || constructionAttached(next);
-    next = attached ? completeStationModule(next) : refundStationModule(next);
+    next = attached ? completeStationModule(next, context) : refundStationModule(next);
   }
   next = startNextQueuedModule(next);
   if (next.founding && next.buildQueue.length === 0 && !next.construction) return { ...next, founding: false };
@@ -120,17 +130,21 @@ export function settleStationBuild(station: Station): Station {
 }
 
 // completeBuild for a whole station object, written while the tick mainly
-// interprets Home through its flattened fields.
-export function completeStationModule(station: Station): Station {
+// interprets Home through its flattened fields. The context holds the same
+// obstacles completeBuild hands its search: the sector's asteroids and the
+// other stations in it, this station itself left out.
+export function completeStationModule(station: Station, context: SettleContext = emptySettleContext): Station {
   if (!station.construction) return station;
   const { timer: _timer, ...module } = station.construction;
   const modules = [...station.modules, module];
-  const obstacles = [...modules, ...station.buildQueue, ...(station.construction ? [station.construction] : [])];
+  const obstacles = [...modules, ...station.buildQueue, ...(station.construction ? [station.construction] : []),
+    ...context.stations.filter((other) => other.id !== station.id && other.sectorId === station.sectorId)
+      .flatMap((other) => [...other.modules, ...other.buildQueue, ...(other.construction ? [other.construction] : []), other.constructionSite])];
   return {
     ...station,
     modules,
     constructionSite: { ...station.constructionSite, position: nearbyClearPosition(
-      station.constructionSite.position, obstacles, [], station.sectorId,
+      station.constructionSite.position, obstacles, context.asteroids, station.sectorId,
     ) },
     dock: module.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + DOCK_CAPACITY } : station.dock,
     storage: module.type === "Storage" ? { ...station.storage, capacity: station.storage.capacity + STORAGE_CAPACITY } : station.storage,
