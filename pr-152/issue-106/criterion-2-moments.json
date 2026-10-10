@@ -1,0 +1,12 @@
+[
+  {
+    "name": "one-capacitor",
+    "seconds": 1.126,
+    "text": "Ship\nHolding\nShield 10/20  HP 40/40"
+  },
+  {
+    "name": "two-capacitors",
+    "seconds": 6.647,
+    "text": "Ship\nHolding\nShield 20/40  HP 40/40"
+  }
+]

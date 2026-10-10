@@ -1,0 +1,17 @@
+[
+  {
+    "name": "design-with-both",
+    "seconds": 3.699,
+    "text": "\n      \n      \n      \n    "
+  },
+  {
+    "name": "queued",
+    "seconds": 7.748,
+    "text": "\n      \n      \n      \n    "
+  },
+  {
+    "name": "new-ship-full",
+    "seconds": 11.557,
+    "text": "Ship\nIdle: no laser\nShield 20/20  HP 40/40"
+  }
+]

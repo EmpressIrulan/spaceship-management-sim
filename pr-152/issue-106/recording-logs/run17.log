@@ -1,0 +1,5 @@
+design-with-both  |        |        |        |      {"time":0,"ships":[]}
+queued  |        |        |        |      {"time":0,"ships":[]}
+new-ship-full Ship | Idle: no laser | Shield 20/20  HP 40/40 {"time":9,"ships":[{"id":1}]}
+/home/alice/.cache/spaceship-management-sim-106/scene-6/criterion-6.webm
+EXIT=0

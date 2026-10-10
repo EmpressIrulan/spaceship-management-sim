@@ -1,62 +1,62 @@
 [
   {
     "name": "1-generators-before-hit",
-    "seconds": 1.111,
-    "text": "Ship\nHoldingShield 20/20\nHP 40/40"
+    "seconds": 1.128,
+    "text": "Ship\nHolding\nShield 20/20  HP 40/40"
   },
   {
     "name": "1-generators-last-hit",
-    "seconds": 2.749,
-    "text": "Ship\nHoldingShield 15/20\nHP 40/40"
+    "seconds": 2.772,
+    "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "1-generators-four-seconds",
-    "seconds": 7.401,
-    "text": "Ship\nHoldingShield 15/20\nHP 40/40"
+    "seconds": 7.429,
+    "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "1-generators-five-seconds",
-    "seconds": 9.038,
-    "text": "Ship\nHoldingShield 15/20\nHP 40/40"
+    "seconds": 9.068,
+    "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "1-generators-six-seconds",
-    "seconds": 10.671,
-    "text": "Ship\nHoldingShield 16/20\nHP 40/40"
+    "seconds": 10.713,
+    "text": "Ship\nHolding\nShield 16/20  HP 40/40"
   },
   {
     "name": "1-generators-seven-seconds",
-    "seconds": 12.305,
-    "text": "Ship\nHoldingShield 17/20\nHP 40/40"
+    "seconds": 12.355,
+    "text": "Ship\nHolding\nShield 17/20  HP 40/40"
   },
   {
     "name": "3-generators-before-hit",
-    "seconds": 15.823,
-    "text": "Ship\nHoldingShield 20/20\nHP 40/40"
+    "seconds": 15.88,
+    "text": "Ship\nHolding\nShield 20/20  HP 40/40"
   },
   {
     "name": "3-generators-last-hit",
-    "seconds": 17.454,
-    "text": "Ship\nHoldingShield 15/20\nHP 40/40"
+    "seconds": 17.518,
+    "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "3-generators-four-seconds",
-    "seconds": 22.107,
-    "text": "Ship\nHoldingShield 15/20\nHP 40/40"
+    "seconds": 22.177,
+    "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "3-generators-five-seconds",
-    "seconds": 23.737,
-    "text": "Ship\nHoldingShield 15/20\nHP 40/40"
+    "seconds": 23.813,
+    "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "3-generators-six-seconds",
-    "seconds": 25.367,
-    "text": "Ship\nHoldingShield 18/20\nHP 40/40"
+    "seconds": 25.45,
+    "text": "Ship\nHolding\nShield 18/20  HP 40/40"
   },
   {
     "name": "3-generators-seven-seconds",
-    "seconds": 26.997,
-    "text": "Ship\nHoldingShield 20/20\nHP 40/40"
+    "seconds": 27.085,
+    "text": "Ship\nHolding\nShield 20/20  HP 40/40"
   }
 ]

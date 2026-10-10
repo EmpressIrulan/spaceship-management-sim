@@ -1,0 +1,4 @@
+one-capacitor Ship | Holding | Shield 10/20  HP 40/40 {"time":0,"ships":[{"id":0,"shield":10},{"id":1,"shield":20}]}
+two-capacitors Ship | Holding | Shield 20/40  HP 40/40 {"time":0,"ships":[{"id":0,"shield":10},{"id":1,"shield":20}]}
+/home/alice/.cache/spaceship-management-sim-106/scene-2/criterion-2.webm
+EXIT=0
