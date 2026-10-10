@@ -60,7 +60,7 @@ function stroke(draft: ShipDraft, module: ShipModule, ...cells: [number, number]
 
 function rows(draft: ShipDraft): string {
   const design = designOf(draft);
-  const letter = { Engine: "E", Laser: "L", Storage: "S", Hangar: "A", Hull: "H", Gun: "G" } as const;
+  const letter = { Engine: "E", Laser: "L", Storage: "S", Hangar: "A", Hull: "H", Gun: "G", Capacitor: "C", Generator: "R" } as const;
   const lines: string[] = [];
   for (let y = 0; y < design.height; y += 1) {
     lines.push(
@@ -180,7 +180,7 @@ describe("Build ship canvas", () => {
     let draft = emptyDraft();
     expect(shipMenuView(state, BUILDER, draft)).toMatchObject({
       pixels: "0",
-      parts: "Hull 0 px, Engine 0 px, Laser 0 px, Storage 0 px, Hangar 0 px, Gun 0 px",
+      parts: "Hull 0 px, Engine 0 px, Laser 0 px, Storage 0 px, Hangar 0 px, Gun 0 px, Capacitor 0 px, Generator 0 px",
       buildTime: "0 s",
       materials: [
         { material: "Metal", amount: 0, short: false },
@@ -192,7 +192,7 @@ describe("Build ship canvas", () => {
     applyTool(draft, { x: 0, y: 0 });
     expect(shipMenuView(state, BUILDER, draft)).toMatchObject({
       pixels: "9",
-      parts: "Hull 9 px, Engine 0 px, Laser 0 px, Storage 0 px, Hangar 0 px, Gun 0 px",
+      parts: "Hull 9 px, Engine 0 px, Laser 0 px, Storage 0 px, Hangar 0 px, Gun 0 px, Capacitor 0 px, Generator 0 px",
       buildTime: "9 s",
       materials: [
         { material: "Metal", amount: 45, short: false },

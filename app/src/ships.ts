@@ -27,6 +27,8 @@ export const MODULE_COLORS: Record<ShipModule, string> = {
   // A Gun wears the same yellow as the shot it fires, so a hull reads as armed
   // at a glance and its shots trace back to it.
   Gun: "#facc15",
+  Capacitor: "#60a5fa",
+  Generator: "#22d3ee",
 };
 
 export function slotColor(slot: ShipModule): string {
