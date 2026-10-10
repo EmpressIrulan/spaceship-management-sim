@@ -17,8 +17,13 @@ describe("ship shield damage", () => {
     expect(damaged).toMatchObject({ shield: 0, hp: 37, shieldLastHit: 12 });
   });
 
-  it("does not record a shield hit when the shield is already empty", () => {
+  it("records the last hit even when a Capacitor's shield is already empty", () => {
     const damaged = damageShip({ ...ship(), shield: 0, shieldLastHit: undefined }, 3, 12);
+    expect(damaged).toMatchObject({ shield: 0, hp: 37, shieldLastHit: 12 });
+  });
+
+  it("does not start a shield delay without a Capacitor", () => {
+    const damaged = damageShip({ ...ship(), design: { width: 2, height: 1, slots: ["Generator", "Hull"] }, shield: 0, maxShield: 0 }, 3, 12);
     expect(damaged).toMatchObject({ shield: 0, hp: 37 });
     expect(damaged?.shieldLastHit).toBeUndefined();
   });
@@ -51,5 +56,18 @@ describe("ship shield recharge", () => {
     state = { ...state, ships: hit ? [hit] : [] };
     state = tick(state, SHIELD_RECHARGE_DELAY - 0.1);
     expect(state.ships[0]!.shield).toBe(0);
+  });
+
+  it("waits five seconds from the latest hit on an empty shield", () => {
+    let state = miningStart(7);
+    state = { ...state, hives: [], ships: [{ ...ship(), state: "holding", timer: 0, shield: 0, shieldLastHit: 0 }] };
+    state = tick(state, 4);
+    state = { ...state, ships: [damageShip(state.ships[0]!, 1, state.time)!] };
+    state = tick(state, 4);
+    expect(state.ships[0]!).toMatchObject({ shield: 0, hp: 39, shieldLastHit: 4 });
+    state = tick(state, 1);
+    expect(state.ships[0]!.shield).toBe(0);
+    state = tick(state, 1);
+    expect(state.ships[0]!.shield).toBe(SHIELD_RECHARGE_PER_PIXEL);
   });
 });

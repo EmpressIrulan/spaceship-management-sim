@@ -157,9 +157,12 @@ export function createWorldDrawing(
     for (const ship of sectorShips) {
       shipDrawing.drawShip(ship);
       if (ui.selectedShips.includes(ship.id)) shipDrawing.drawSelectionRing(ship.position, shipSize(ship.design));
-      if (ship.shieldLastHit !== undefined) {
+      if (ship.shieldLastAbsorbedHit !== undefined) {
         const previous = spottedShieldHits.get(ship.id);
-        if (previous?.hit !== ship.shieldLastHit) spottedShieldHits.set(ship.id, { hit: ship.shieldLastHit, startedAt: seconds });
+        if (previous?.hit !== ship.shieldLastAbsorbedHit) {
+          const age = Math.max(0, state.time - ship.shieldLastAbsorbedHit) / ui.clock.speed;
+          spottedShieldHits.set(ship.id, { hit: ship.shieldLastAbsorbedHit, startedAt: seconds - age });
+        }
       }
       const shieldHit = spottedShieldHits.get(ship.id);
       if (shieldHit) {

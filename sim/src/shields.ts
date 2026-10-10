@@ -3,7 +3,7 @@ import { shipHp, shipShield } from "./ship";
 import type { Ship } from "./model";
 
 // Applies one hit to the shield and then to the hull. Null means the ship was
-// destroyed. A shield hit time is kept for the recharge clock and renderer.
+// destroyed. Recharge follows all hits; the ring follows only absorbed damage.
 export function damageShip(ship: Ship, damage: number, hitAt: number): Ship | null {
   const { hp, maxHp } = shipHp(ship);
   const { shield, maxShield } = shipShield(ship);
@@ -18,7 +18,8 @@ export function damageShip(ship: Ship, damage: number, hitAt: number): Ship | nu
     maxHp,
     shield: nextShield,
     maxShield,
-    shieldLastHit: shieldDamage > 0 ? hitAt : ship.shieldLastHit,
+    shieldLastHit: maxShield > 0 ? hitAt : ship.shieldLastHit,
+    shieldLastAbsorbedHit: shieldDamage > 0 ? hitAt : ship.shieldLastAbsorbedHit,
   };
 }
 

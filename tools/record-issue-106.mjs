@@ -36,7 +36,7 @@ async function mark(name, delay = 0.12) {
   if (await page.locator("#info").isVisible() && await page.locator("#info-title").textContent() === "Ship") {
     const line = await page.locator("#info-line").textContent();
     if (scene === 3) assert.equal(line, "Holding");
-    else assert.match(line, /^(Holding|Idle: no laser)\nShield [\d.]+\/[\d.]+  HP [\d.]+\/[\d.]+$/);
+    else assert.match(line, /^(Holding|Idle: no laser)\nShield \d+(?:\.[1-9])?\/\d+(?:\.[1-9])?  HP \d+(?:\.[1-9])?\/\d+(?:\.[1-9])?$/);
     assert.equal(await page.locator("#info-line").evaluate(el => getComputedStyle(el).whiteSpace), "pre-wrap");
   }
   const text = await page.locator("#info").innerText();
@@ -57,9 +57,10 @@ async function step(seconds) {
   await page.evaluate(seconds => window.issue106Demo.step(seconds), seconds);
 }
 async function advance(seconds) {
-  for (let i = 0; i < seconds * 4; i++) {
-    await step(0.25);
-    await page.waitForTimeout(250);
+  const frames = scene === 5 ? 60 : 4;
+  for (let i = 0; i < seconds * frames; i++) {
+    await step(1 / frames);
+    await page.waitForTimeout(1000 / frames);
   }
 }
 async function paint() {

@@ -144,7 +144,8 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     // Without a shield, HP appears only once the hull is damaged.
     const { hp, maxHp } = shipHp(ship);
     const { shield, maxShield } = shipShield(ship);
-    const health = maxShield > 0 ? `\nShield ${shield}/${maxShield}  HP ${hp}/${maxHp}` : hp < maxHp ? `\nHP ${hp}/${maxHp}` : "";
+    const figure = (value: number) => Number(value.toFixed(1));
+    const health = maxShield > 0 ? `\nShield ${figure(shield)}/${figure(maxShield)}  HP ${figure(hp)}/${figure(maxHp)}` : hp < maxHp ? `\nHP ${figure(hp)}/${figure(maxHp)}` : "";
     return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}${health}`,
       ...(capacity > 0 ? { action: { label: "Launch all", carrierId: ship.id, disabled: hangarContents(state, ship.id).length === 0 } } : {}) };
   }
