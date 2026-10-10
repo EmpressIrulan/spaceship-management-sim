@@ -175,7 +175,7 @@ describe("station building controls", () => {
     const built = tick(building, BUILD_SECONDS - 3);
     expect(infoBox(built, { kind: "module", index: 2, stationId: 0 })).toEqual({
       title: "Builder",
-      line: "Click to open Builder",
+      line: "Click to open Builder\nHP 40/40",
     });
   });
 

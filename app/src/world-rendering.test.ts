@@ -252,6 +252,43 @@ describe("a hull that vanishes between frames explodes", () => {
   });
 });
 
+describe("a station module destruction explodes", () => {
+  it("blasts at the reported position after the module disappears", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const base = createInitialState(7);
+    const station = base.stations[0]!;
+    const module = station.modules[1]!;
+    let state = withBodies(base, { stations: [station] });
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    drawing.draw(0);
+
+    state = withBodies(state, {
+      stations: [{ ...station, modules: station.modules.filter((candidate) => candidate !== module) }],
+    });
+    state = { ...state, moduleDestructions: [{ time: 0, stationId: station.id, position: { ...module.position } }] };
+    drawing.draw(0.25);
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(438, 298, 4, 4);
+  });
+
+  it("does not replay an old destruction on first draw", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const base = createInitialState(7);
+    const station = base.stations[0]!;
+    const module = station.modules[1]!;
+    const state = {
+      ...withBodies(base, { stations: [{ ...station, modules: station.modules.filter((candidate) => candidate !== module) }] }),
+      moduleDestructions: [{ time: 0, stationId: station.id, position: { ...module.position } }],
+    };
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    drawing.draw(5);
+
+    expect(ctx.fillRect).not.toHaveBeenCalledWith(438, 298, 4, 4);
+  });
+});
+
 describe("a shield hit flashes around the ship", () => {
   it.each([false, true])("does not flash an old hit on first draw (sector switch: %s)", (switchSector) => {
     const uiState = ui(switchSector ? 0 : 1);

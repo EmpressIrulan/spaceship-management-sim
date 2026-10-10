@@ -106,7 +106,21 @@ describe("hover box", () => {
     };
     const expected = { title: "Storage", line: "Stored 110 / 2000\nMetal: 70\nIce: 40\nIncome: Metal +0/min, Ice +0/min" };
     expect(infoBox(grown, { kind: "storage" })).toEqual(expected);
-    expect(infoBox(grown, { kind: "module", index: 2, stationId: 0 })).toEqual(expected);
+    expect(infoBox(grown, { kind: "module", index: 2, stationId: 0 })).toEqual({ ...expected, line: `${expected.line}\nHP 40/40` });
+  });
+
+  it("shows a module's rounded HP on its hover", () => {
+    const initial = createInitialState(7);
+    const module = initial.stations[0]!.modules[1]!;
+    const damaged = {
+      ...initial,
+      stations: [{ ...initial.stations[0]!, modules: initial.stations[0]!.modules.map((candidate, index) =>
+        index === 1 ? { ...candidate, hp: 12.34, maxHp: 40 } : candidate) }],
+    };
+
+    expect(infoBox(damaged, { kind: "module", index: 1, stationId: 0 })?.line).toContain("HP 12.3/40");
+    expect(infoBox(initial, { kind: "module", index: 1, stationId: 0 })?.line).toContain("HP 40/40");
+    expect(module.type).toBe("Storage");
   });
 
   it("shows an asteroid's material and ore left, titled Asteroid", () => {

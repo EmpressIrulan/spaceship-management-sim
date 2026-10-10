@@ -63,6 +63,7 @@ export function createWorldDrawing(
 
   const spottedHulls = new Map<number, Vec>();
   const spottedShieldHits = new Map<number, { hit: number; startedAt: number }>();
+  const spottedModuleDestructions = new Set<string>();
   let spottedSector: number | null = null;
   const blasts: { position: Vec; startedAt: number }[] = [];
 
@@ -145,6 +146,12 @@ export function createWorldDrawing(
     if (spottedSector !== ui.currentSector) {
       spottedSector = ui.currentSector;
       spottedHulls.clear();
+      spottedModuleDestructions.clear();
+      for (const destruction of state.moduleDestructions ?? []) {
+        if (state.stations.find((station) => station.id === destruction.stationId)?.sectorId === ui.currentSector) {
+          spottedModuleDestructions.add(moduleDestructionKey(destruction));
+        }
+      }
     }
     for (const [id, spot] of [...spottedHulls]) {
       if (!state.ships.some((ship) => ship.id === id)) {
@@ -171,6 +178,14 @@ export function createWorldDrawing(
       }
       const gauge = cargoGauge(ship);
       if (gauge) shipDrawing.drawGauge(ship.position, gauge, shipSize(ship.design));
+    }
+    for (const destruction of state.moduleDestructions ?? []) {
+      const station = state.stations.find((candidate) => candidate.id === destruction.stationId);
+      const key = moduleDestructionKey(destruction);
+      if (station?.sectorId !== ui.currentSector || spottedModuleDestructions.has(key)) continue;
+      spottedModuleDestructions.add(key);
+      const age = Math.max(0, state.time - destruction.time) / ui.clock.speed;
+      blasts.push({ position: { ...destruction.position }, startedAt: seconds - age });
     }
     for (let index = blasts.length - 1; index >= 0; index -= 1) {
       const blast = blasts[index]!;
@@ -200,5 +215,9 @@ export function createWorldDrawing(
   }
 
   return { draw };
+}
+
+function moduleDestructionKey(destruction: { stationId: number; time: number; position: Vec }): string {
+  return `${destruction.stationId}:${destruction.time}:${destruction.position.x},${destruction.position.y}`;
 }
 import { homeStation } from "sim";
