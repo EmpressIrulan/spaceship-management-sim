@@ -11,6 +11,7 @@ export const HOME_SECTOR = 0;
 export const MODULE_COST: Record<Material, number> = { Metal: 25, Ice: 25 };
 export const CLAIM_COST: Record<Material, number> = { Metal: 1000, Ice: 1000 };
 export const MODULE_SPACING = 40;
+export const MODULE_HP = 40;
 export const SHIELD_CAPACITY_PER_PIXEL = 20;
 export const SHIELD_RECHARGE_PER_PIXEL = 1;
 export const SHIELD_RECHARGE_DELAY = 5;

@@ -14,6 +14,7 @@ import {
   GUN_SHOT_SECONDS,
   HIVE_HP,
   HIVE_SECTOR,
+  MODULE_HP,
 } from "./build-constants";
 import { giveOrder } from "./orders";
 import { gunBeams } from "./enemies";
@@ -183,6 +184,29 @@ describe("bugs hunt ships", () => {
   });
 });
 
+describe("bugs hunt station modules", () => {
+  it("damages the nearest standing module once five bugs are alive", () => {
+    const start = createInitialState(7);
+    const hive = start.hives![0]!;
+    const module = { ...start.stations[0]!.modules[0]!, position: { x: hive.position.x + 25, y: hive.position.y } };
+    let state: SimState = { ...start, stations: [{ ...start.stations[0]!, sectorId: HIVE_SECTOR, modules: [module] }] };
+    for (const dt of [10, 3, 37, 8]) state = tick(state, dt);
+    const damaged = state.stations[0]!.modules[0]!;
+    expect(damaged.maxHp).toBe(MODULE_HP);
+    expect(damaged.hp).toBeLessThan(MODULE_HP);
+    expect(state.bugs?.every((bug) => bug.targetModule?.stationId === 0)).toBe(true);
+  });
+
+  it("does not target a module at zero HP", () => {
+    const { state: start, shipId } = parkedStart(7);
+    const module = { ...start.stations[0]!.modules[0]!, position: { x: start.hives![0]!.position.x + 5, y: start.hives![0]!.position.y }, hp: 0, maxHp: MODULE_HP };
+    const state = tick({ ...start, stations: [{ ...start.stations[0]!, sectorId: HIVE_SECTOR, modules: [module] }] }, 58);
+    expect(state.stations[0]!.modules[0]!.hp).toBe(0);
+    expect(state.bugs?.some((bug) => bug.targetShipId === shipId)).toBe(true);
+    expect(state.bugs?.some((bug) => bug.targetModule)).toBe(false);
+  });
+});
+
 // A one-pixel gun ship parked in the hive's sector, holding still with nothing
 // queued, so nothing about it moves and the guns do the only acting.
 function gunStart(seed: number, spawnTimer = 10_000): { state: SimState; shipId: number; hive: Hive } {
@@ -235,6 +259,7 @@ function plantedBug(id: number, hive: Hive, x: number, y: number, timer = 10_000
     maxHp: BUG_HP,
     state: "hovering",
     targetShipId: null,
+    targetModule: null,
     leg: null,
     timer,
   };

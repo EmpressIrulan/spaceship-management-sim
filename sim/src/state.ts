@@ -1,6 +1,6 @@
 import {
   ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR,
-  MODULE_COST, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
+  MODULE_COST, MODULE_HP, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
 } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import { freeBerth, berthPoint, DOCK_AREA } from "./dock-packing";
@@ -24,6 +24,7 @@ export {
 } from "./build-constants";
 export { MATERIALS, MODULE_TYPES } from "./model";
 export { MODULE_SPACING } from "./build-constants";
+export { MODULE_HP } from "./build-constants";
 export function homeStation(state: Pick<SimState, "stations">): Station {
   const station = state.stations[0];
   if (!station) throw new Error("Simulation state has no Home station");
@@ -404,8 +405,8 @@ export function createInitialState(seed: number): SimState {
       storageLimits: { Metal: null, Ice: null },
       deliveries: [],
       modules: [
-        { type: "Dock", position: dockPosition, size: DOCK_SIZE },
-        { type: "Storage", position: storagePosition, size: STORAGE_SIZE },
+        { type: "Dock", position: dockPosition, size: DOCK_SIZE, hp: MODULE_HP, maxHp: MODULE_HP },
+        { type: "Storage", position: storagePosition, size: STORAGE_SIZE, hp: MODULE_HP, maxHp: MODULE_HP },
       ],
       construction: null,
       buildQueue: [],

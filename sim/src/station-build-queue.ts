@@ -1,4 +1,4 @@
-import { MODULE_SPACING } from "./build-constants";
+import { MODULE_HP, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
 import { DOCK_CAPACITY, STORAGE_CAPACITY, homeStation, replaceStation, stationById } from "./state";
@@ -99,15 +99,16 @@ export function startNextQueuedModule<T extends QueueState>(station: T): T {
 export function completeBuild(draft: Draft): void {
   if (!draft.construction) return;
   const { timer: _timer, ...module } = draft.construction;
-  draft.modules = [...draft.modules, module];
+  const standing = { ...module, hp: MODULE_HP, maxHp: MODULE_HP };
+  draft.modules = [...draft.modules, standing];
   const nearby = [...draft.modules, ...draft.buildQueue, ...(draft.construction ? [draft.construction] : []),
     ...draft.others.filter((station) => station.sectorId === draft.stationSector)
       .flatMap((station) => [...station.modules, ...station.buildQueue, ...(station.construction ? [station.construction] : []), station.constructionSite])];
   draft.constructionSite = { ...draft.constructionSite, position: nearbyClearPosition(
     draft.constructionSite.position, nearby, draft.asteroids, draft.stationSector,
   ) };
-  if (module.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
-  if (module.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
+  if (standing.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
+  if (standing.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
   draft.construction = null;
 }
 
@@ -144,7 +145,8 @@ export function settleStationBuild(station: Station, context: SettleContext = em
 export function completeStationModule(station: Station, context: SettleContext = emptySettleContext): Station {
   if (!station.construction) return station;
   const { timer: _timer, ...module } = station.construction;
-  const modules = [...station.modules, module];
+  const standing = { ...module, hp: MODULE_HP, maxHp: MODULE_HP };
+  const modules = [...station.modules, standing];
   const obstacles = [...modules, ...station.buildQueue, ...(station.construction ? [station.construction] : []),
     ...context.stations.filter((other) => other.id !== station.id && other.sectorId === station.sectorId)
       .flatMap((other) => [...other.modules, ...other.buildQueue, ...(other.construction ? [other.construction] : []), other.constructionSite])];
@@ -154,8 +156,8 @@ export function completeStationModule(station: Station, context: SettleContext =
     constructionSite: { ...station.constructionSite, position: nearbyClearPosition(
       station.constructionSite.position, obstacles, context.asteroids, station.sectorId,
     ) },
-    dock: module.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + DOCK_CAPACITY } : station.dock,
-    storage: module.type === "Storage" ? { ...station.storage, capacity: station.storage.capacity + STORAGE_CAPACITY } : station.storage,
+    dock: standing.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + DOCK_CAPACITY } : station.dock,
+    storage: standing.type === "Storage" ? { ...station.storage, capacity: station.storage.capacity + STORAGE_CAPACITY } : station.storage,
     construction: null,
   };
 }

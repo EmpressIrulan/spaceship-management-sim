@@ -70,6 +70,7 @@ describe("the station build queue", () => {
 
     state = tick(state, BUILD_SECONDS);
     expect(state.stations[0]!.modules.at(-1)).toMatchObject({ type: "Dock", position: east });
+    expect(state.stations[0]!.modules.at(-1)).toMatchObject({ hp: 40, maxHp: 40 });
     expect(state.stations[0]!.construction).toBeNull();
     expect(state.stations[0]!.buildQueue).toMatchObject([{ type: "Storage", position: west }]);
   });

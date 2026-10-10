@@ -158,6 +158,9 @@ export interface StationModule {
   type: ModuleType;
   position: Vec;
   size: Size;
+  // Missing on older fixtures means a fresh module at full placeholder HP.
+  hp?: number;
+  maxHp?: number;
 }
 
 export interface ModuleConstruction extends StationModule {
@@ -212,6 +215,7 @@ export interface Bug {
   state: BugState;
   // The ship this bug flies at and bites, when it hunts. Null while hovering.
   targetShipId: number | null;
+  targetModule?: { stationId: number; position: Vec } | null;
   leg: Leg | null;
   // Seconds left in the current leg. Unused while holding still.
   timer: number;
