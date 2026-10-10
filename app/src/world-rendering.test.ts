@@ -250,3 +250,21 @@ describe("a hull that vanishes between frames explodes", () => {
     expect(ctx.arc).not.toHaveBeenCalled();
   });
 });
+
+describe("a shield hit flashes around the ship", () => {
+  it("draws a blue ring once when the shield hit timestamp changes", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const base = createInitialState(7).ships[0]!;
+    let state = shotState({ ...base, id: 9, shield: 20, maxShield: 20, shieldLastHit: undefined });
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    drawing.draw(0);
+    state = shotState({ ...state.ships[0]!, shield: 12, shieldLastHit: 1 });
+    drawing.draw(1);
+    expect(ctx.arc).toHaveBeenCalled();
+    expect(ctx.strokeStyle).toBe("#38bdf8");
+    (ctx.arc as unknown as { mockClear: () => void }).mockClear();
+    drawing.draw(1.4);
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+});

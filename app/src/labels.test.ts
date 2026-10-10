@@ -183,6 +183,22 @@ describe("hover box", () => {
     expect(infoBox(damaging, { kind: "ship", index: 0 })?.line).toContain("Mining");
     expect(infoBox({ ...damaging, ships: [ship("working", 0)] }, { kind: "ship", index: 0 })?.line).not.toContain("HP");
   });
+
+  it("shows a capacitor shield and full HP on a ship hover", () => {
+    const shielded = { ...ship("working", 0), design: {
+      ...ship("working", 0).design,
+      slots: ["Capacitor" as const, ...ship("working", 0).design.slots.slice(1)],
+    } };
+    const shield = { ...shielded, shield: 20, maxShield: 30, hp: 40, maxHp: 40 };
+    const box = infoBox({ ...state, ships: [shield] }, { kind: "ship", index: 0 });
+    expect(box?.line).toContain("Shield 20/30");
+    expect(box?.line).toContain("HP 40/40");
+  });
+
+  it("does not show a shield for a ship without Capacitors", () => {
+    const box = infoBox({ ...state, ships: [ship("working", 0)] }, { kind: "ship", index: 0 });
+    expect(box?.line).not.toContain("Shield");
+  });
 });
 
 describe("storage income", () => {

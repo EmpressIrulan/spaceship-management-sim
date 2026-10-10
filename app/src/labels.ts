@@ -1,4 +1,4 @@
-import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipHp, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
+import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipHp, shipShield, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 
@@ -144,8 +144,10 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     // A fresh hull has nothing worth reading: the HP line appears once a bite
     // or a shot has taken it below full.
     const { hp, maxHp } = shipHp(ship);
-    const hull = hp < maxHp ? `\nHP ${hp}/${maxHp}` : "";
-    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}${hull}`,
+    const { shield, maxShield } = shipShield(ship);
+    const shieldLine = maxShield > 0 ? `Shield ${shield}/${maxShield}\n` : "";
+    const hull = maxShield > 0 || hp < maxHp ? `HP ${hp}/${maxHp}` : "";
+    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}${shieldLine}${hull}`,
       ...(capacity > 0 ? { action: { label: "Launch all", carrierId: ship.id, disabled: hangarContents(state, ship.id).length === 0 } } : {}) };
   }
   if (hovered.kind === "gateProject") {

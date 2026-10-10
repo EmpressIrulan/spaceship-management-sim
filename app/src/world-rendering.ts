@@ -62,6 +62,7 @@ export function createWorldDrawing(
   const overlayDrawing = createOverlayDrawing(ui, ctx);
 
   const spottedHulls = new Map<number, Vec>();
+  const spottedShieldHits = new Map<number, { hit: number; startedAt: number }>();
   let spottedSector: number | null = null;
   const blasts: { position: Vec; startedAt: number }[] = [];
 
@@ -155,6 +156,16 @@ export function createWorldDrawing(
     for (const ship of sectorShips) {
       shipDrawing.drawShip(ship);
       if (ui.selectedShips.includes(ship.id)) shipDrawing.drawSelectionRing(ship.position, shipSize(ship.design));
+      if (ship.shieldLastHit !== undefined) {
+        const previous = spottedShieldHits.get(ship.id);
+        if (previous?.hit !== ship.shieldLastHit) spottedShieldHits.set(ship.id, { hit: ship.shieldLastHit, startedAt: seconds });
+      }
+      const shieldHit = spottedShieldHits.get(ship.id);
+      if (shieldHit) {
+        const age = seconds - shieldHit.startedAt;
+        if (age < BITE_FLASH_SECONDS) shipDrawing.drawShieldRing(ship.position, shipSize(ship.design), age / BITE_FLASH_SECONDS);
+        else spottedShieldHits.delete(ship.id);
+      }
       const gauge = cargoGauge(ship);
       if (gauge) shipDrawing.drawGauge(ship.position, gauge, shipSize(ship.design));
     }
