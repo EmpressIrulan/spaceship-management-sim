@@ -347,6 +347,49 @@ describe("haul route panel", () => {
   });
 });
 
+describe("material dropdown on ships holding neither material (#153)", () => {
+  // A ship fresh from the yard has picked no rock: mineMaterials is empty.
+  function emptyMaterialState(): SimState {
+    const initial = createInitialState(7);
+    const ship = { ...initial.ships[0]!, defaultBehaviour: "mine" as const, mineMaterials: [] as Material[] };
+    return { ...initial, ships: [0, 1].map((id) => ({ ...ship, id })) };
+  }
+
+  function panelOver(selectedShips: number[]): { ui: { selectedShips: number[] }; current: () => SimState; fire: (value: string) => void } {
+    const shipPanelBox = new FakeElement();
+    const ui = { ...createUiState([]), selectedShips };
+    let current = emptyMaterialState();
+    installPanels(ui, () => current, (next) => { current = next; }, new FakeElement() as unknown as HTMLElement, shipPanelBox as unknown as HTMLElement);
+    return {
+      ui,
+      current: () => current,
+      fire: (value) => shipPanelBox.listeners.get("change")![0]!({ target: { name: "mine-material", value } } as unknown as Event),
+    };
+  }
+
+  it.each([
+    ["Metal", ["Metal"]],
+    ["Ice", ["Ice"]],
+    ["both", ["Metal", "Ice"]],
+  ] as const)("applies a %s pick from the empty state to one selected ship", (value, expected) => {
+    const panel = panelOver([0]);
+    panel.fire(value);
+    expect(panel.current().ships[0]!.mineMaterials).toEqual(expected);
+    expect(panel.current().ships[1]!.mineMaterials).toEqual([]);
+    expect(panel.ui.selectedShips).toEqual([0]);
+  });
+
+  it.each([
+    ["Metal", ["Metal"], ["Metal"]],
+    ["Ice", ["Ice"], ["Ice"]],
+    ["both", ["Metal", "Ice"], ["Metal", "Ice"]],
+  ] as const)("applies a %s pick from the empty state to every selected ship", (value, first, second) => {
+    const panel = panelOver([0, 1]);
+    panel.fire(value);
+    expect(panel.current().ships.map((ship) => ship.mineMaterials)).toEqual([first, second]);
+  });
+});
+
 describe("hauler status strings on a site route (#87 criteria 4, 5)", () => {
   function siteRouteState(): SimState {
     const initial = createInitialState(7);
