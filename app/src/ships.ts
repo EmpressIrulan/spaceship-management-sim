@@ -96,6 +96,7 @@ function idleMiner(state: SimState, ship: Ship): string {
 
 function supplyStatus(state: SimState, ship: Ship): string | null {
   if (supplyQueueStatus(ship, supplyQueueLength(state)) !== "supplying") return null;
+  if (ship.mineMaterials.length === 0) return idleMiner(state, ship);
   const missing = waitingForOre(state, ship);
   return missing.length > 0 ? `Waiting: no ${missing.join(", ")}` : `Supplying site: ${ship.mineMaterials.join(", ")}`;
 }

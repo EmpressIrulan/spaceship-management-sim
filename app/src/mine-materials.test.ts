@@ -63,6 +63,10 @@ describe("a miner's status names the materials ticked for it", () => {
 });
 
 describe("a supply ship's status names its site materials", () => {
+  it("reads Idle when no materials are ticked", () => {
+    expect(status(withSupplyQueue(withShips([{ defaultBehaviour: "supply", state: "idle", mineMaterials: [] }])))).toBe("Idle");
+  });
+
   it("reads Supplying site with one or both materials", () => {
     expect(status(withSupplyQueue(withShips([{ defaultBehaviour: "supply", state: "working", mineMaterials: ["Ice"] }])))).toBe("Supplying site: Ice");
     expect(status(withSupplyQueue(withShips([{ defaultBehaviour: "supply", state: "working", mineMaterials: ["Metal", "Ice"] }])))).toBe("Supplying site: Metal, Ice");
