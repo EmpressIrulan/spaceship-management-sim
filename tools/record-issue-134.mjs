@@ -154,9 +154,11 @@ try {
         await mark("exploded-ghosts-at-queue-end");
         assert.equal(await page.evaluate(() => window.__repro.state.stations[0].buildQueue.length), scene === 4 ? 4 : 2);
         if (scene === 5) {
-          await hover({ ...target, y: -15 });
-          await page.waitForFunction(() => !document.querySelector("#info").hidden && document.querySelector("#info-line").textContent.includes("Stored 0"));
-          await mark("storage-lost-all-300-stock");
+          await hover({ x: 0, y: -55 });
+          await page.waitForFunction(() => !document.querySelector("#info").hidden && document.querySelector("#info-line").textContent.includes("Stored 150"));
+          assert.deepEqual(await page.evaluate(() => window.__repro.state.stations[0].inventory), { Metal: 100, Ice: 50 });
+          assert.equal(await page.evaluate(() => window.__repro.state.stations[0].modules.filter(m => m.type === "Storage").length), 1);
+          await mark("storage-surviving-share-150");
         } else if (scene === 4) {
           await hover({ x: -65, y: -70 });
           await mark("three-destroyed-ghosts-visible-in-order");

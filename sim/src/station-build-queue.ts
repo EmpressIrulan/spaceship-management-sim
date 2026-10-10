@@ -288,6 +288,14 @@ export function damageStationModule(station: Station, position: Vec, damage: num
     .filter((job) => !destroyedIndices.has(job.builder))
     .map((job) => ({ ...job, builder: job.builder - [...destroyedIndices].filter((index) => index < job.builder).length }));
   const storageCount = destroyed.filter((module) => module.type === "Storage").length;
+  const storageCapacity = Math.max(0, station.storage.capacity - storageCount * STORAGE_CAPACITY);
+  let inventory = station.inventory;
+  if (storageCount > 0) {
+    const standingStorages = station.modules.filter(module => module.type === "Storage").length;
+    const stock = MATERIALS.reduce((total, material) => total + station.inventory[material], 0);
+    const retainedShare = Math.min((standingStorages - storageCount) / standingStorages, stock > 0 ? storageCapacity / stock : 1);
+    inventory = { Metal: station.inventory.Metal * retainedShare, Ice: station.inventory.Ice * retainedShare };
+  }
   const destructions = destroyed.map((module) => ({ time, stationId: station.id, position: { ...module.position } }));
   let next = { ...station, modules };
   const pending = [...station.buildQueue, ...ghosts];
@@ -315,8 +323,8 @@ export function damageStationModule(station: Station, position: Vec, damage: num
       modules,
       buildQueue,
       shipBuilds,
-      inventory: storageCount > 0 ? { Metal: 0, Ice: 0 } : station.inventory,
-      storage: { ...station.storage, capacity: Math.max(0, station.storage.capacity - storageCount * STORAGE_CAPACITY) },
+      inventory,
+      storage: { ...station.storage, capacity: storageCapacity },
       dock: { ...station.dock, capacity: Math.max(0, station.dock.capacity - destroyed.filter((module) => module.type === "Dock").length * DOCK_CAPACITY) },
     },
     destructions,

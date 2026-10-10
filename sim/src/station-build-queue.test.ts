@@ -44,6 +44,50 @@ function withBuilder(state: SimState, position: Vec): SimState {
 }
 
 describe("the station build queue", () => {
+  it.each([
+    { name: "one of two", positions: [40, -40], inventory: { Metal: 200, Ice: 100 }, capacity: 2000, expected: { Metal: 100, Ice: 50 } },
+    { name: "two of three in a cascade", positions: [40, 80, -40], inventory: { Metal: 300, Ice: 150 }, capacity: 3000, expected: { Metal: 100, Ice: 50 } },
+    { name: "the last Storage", positions: [40], inventory: { Metal: 200, Ice: 100 }, capacity: 1000, expected: { Metal: 0, Ice: 0 } },
+    { name: "stock above remaining capacity", positions: [40, -40], inventory: { Metal: 2400, Ice: 1600 }, capacity: 2000, expected: { Metal: 600, Ice: 400 } },
+    { name: "empty stock", positions: [40, -40], inventory: { Metal: 0, Ice: 0 }, capacity: 2000, expected: { Metal: 0, Ice: 0 } },
+  ])("loses only the destroyed Storage shares: $name", ({ positions, inventory, capacity, expected }) => {
+    const base = createInitialState(7).stations[0]!;
+    const station = { ...base, inventory: Object.freeze({ ...inventory }), storage: { ...base.storage, capacity },
+      modules: [base.modules[0]!, ...positions.map(x => ({ type: "Storage" as const, position: { x, y: 0 }, size: { width: 30, height: 40 } }))] };
+    const result = damageStationModule(station, { x: 40, y: 0 }, 40, 1).station;
+    expect(result.inventory).toEqual(expected);
+    expect(result.inventory.Metal + result.inventory.Ice).toBeLessThanOrEqual(result.storage.capacity);
+    expect(station.inventory).toEqual(inventory);
+    expect(station.modules).toHaveLength(positions.length + 1);
+  });
+
+  it("keeps a surviving Storage's share without changing a frozen tick input", () => {
+    function freeze(value: unknown): void {
+      if (value && typeof value === "object") {
+        Object.freeze(value);
+        for (const child of Object.values(value)) freeze(child);
+      }
+    }
+    const state = createInitialState(7);
+    state.ships = [];
+    state.hives = [];
+    const station = state.stations[0]!;
+    station.inventory = { Metal: 200, Ice: 100 };
+    station.storage = { ...station.storage, capacity: 2000 };
+    station.modules[1] = { ...station.modules[1]!, hp: 1 };
+    station.modules.push({ type: "Storage", position: west, size: { width: 30, height: 40 } });
+    state.bugs = Array.from({ length: 5 }, (_, id) => ({ id, hiveId: 0, sectorId: 0,
+      position: { x: 41, y: 0 }, hp: 6, maxHp: 6, state: "hunting", targetShipId: null, leg: null, timer: 0 }));
+    const before = JSON.stringify(state);
+    freeze(state);
+    const result = tick(state, 1 / 60);
+    expect(result.stations[0]!.inventory).toEqual({ Metal: 100, Ice: 50 });
+    expect(result.stations[0]!.storage.capacity).toBe(1000);
+    expect(result.stations[0]!.modules.filter(module => module.type === "Storage")).toHaveLength(1);
+    expect(JSON.stringify(state)).toBe(before);
+    expect(tick(state, 1 / 60)).toEqual(result);
+  });
+
   it.each(["construction", "queued", "only Dock"])("preserves %s builds when their attachment is destroyed", (setup) => {
     let state = createInitialState(7);
     state.ships = [];
