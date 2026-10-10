@@ -8,7 +8,8 @@ import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
 import { shipModuleCounts } from "./ship";
 import { damageShip, advanceShields, nextShieldEvent } from "./shields";
-import type { Beam, Bug, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, StationModule, Vec } from "./model";
+import { damageStationModule } from "./station-build-queue";
+import type { Beam, Bug, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Station, StationModule, Vec } from "./model";
 import type { Draft } from "./tick-mining";
 
 // Where a sector's hive sits: along the line from the sector's middle to its
@@ -170,11 +171,35 @@ function biteModule(draft: Draft, stationId: number, module: StationModule): voi
   const hp = Math.max(0, moduleHp(module) - BUG_BITE_DAMAGE);
   const update = (candidate: StationModule) => candidate.position.x === module.position.x && candidate.position.y === module.position.y
     ? { ...candidate, hp, maxHp: candidate.maxHp ?? MODULE_HP } : candidate;
-  if (stationId === draft.activeStationId) {
-    draft.modules = draft.modules.map(update);
-  } else {
-    draft.others = draft.others.map((station) => station.id === stationId ? { ...station, modules: station.modules.map(update) } : station);
+  if (hp > 0) {
+    if (stationId === draft.activeStationId) draft.modules = draft.modules.map(update);
+    else draft.others = draft.others.map((station) => station.id === stationId ? { ...station, modules: station.modules.map(update) } : station);
+    return;
   }
+  const source = stationId === draft.activeStationId ? activeStation(draft) : draft.others.find((station) => station.id === stationId);
+  if (!source) return;
+  const result = damageStationModule(source, module.position, BUG_BITE_DAMAGE, draft.time);
+  draft.moduleDestructions.push(...result.destructions);
+  if (stationId === draft.activeStationId) {
+    draft.modules = result.station.modules;
+    draft.buildQueue = result.station.buildQueue;
+    draft.shipBuilds = result.station.shipBuilds;
+    draft.inventory = result.station.inventory;
+    draft.storageCapacity = result.station.storage.capacity;
+    draft.dockCapacity = result.station.dock.capacity;
+  } else draft.others = draft.others.map((station) => station.id === stationId ? result.station : station);
+}
+
+function activeStation(draft: Draft): Station {
+  const size = { width: 0, height: 0 };
+  return {
+    id: draft.activeStationId, name: "", founding: draft.founding, sectorId: draft.stationSector,
+    dock: { position: draft.dock, size, capacity: draft.dockCapacity },
+    storage: { position: draft.dock, size, capacity: draft.storageCapacity },
+    inventory: draft.inventory, constructionSite: draft.constructionSite, storageLimits: draft.storageLimits,
+    deliveries: draft.deliveries, modules: draft.modules, construction: draft.construction, buildQueue: draft.buildQueue,
+    shipBuilds: draft.shipBuilds,
+  };
 }
 
 export function advanceEnemies(draft: Draft, seconds: number): void {

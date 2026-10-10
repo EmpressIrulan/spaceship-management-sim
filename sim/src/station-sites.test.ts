@@ -70,6 +70,7 @@ function until(state: SimState, done: (state: SimState) => boolean, limit = 600)
 // The first spot on a coarse grid that the sim accepts, so a test does not
 // depend on where a seed happened to put its asteroids.
 function spot(state: SimState, sectorId: number): { state: SimState; id: number } {
+  state = { ...state, hives: [], bugs: [], nextBugId: 0 };
   for (let y = -300; y <= 300; y += 50) {
     for (let x = -300; x <= 300; x += 50) {
       const next = placeStation(state, sectorId, { x, y });

@@ -420,6 +420,7 @@ export function createInitialState(seed: number): SimState {
     nextBugId: 0,
     drops: [],
     nextDropId: 0,
+    moduleDestructions: [],
     finishedClaims: [],
   };
 }

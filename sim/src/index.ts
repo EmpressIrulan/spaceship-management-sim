@@ -90,6 +90,7 @@ export {
   type HaulDestinationId,
   type ModuleBuildOption,
   type ModuleConstruction,
+  type ModuleDestruction,
   type QueuedModuleBuild,
   type ModuleType,
   type Ship,
@@ -105,6 +106,7 @@ export {
   type Vec,
 } from "./state";
 export { cancelQueuedModuleBuild, queueModuleBuild, queuedDependents, startNextQueuedModule } from "./station-build-queue";
+export { damageStationModule } from "./station-build-queue";
 export { gunBeams } from "./enemies";
 export { supplyQueueLength, supplyQueueStatus } from "./station-build-queue";
 export { stationOwningSite } from "./station-building";

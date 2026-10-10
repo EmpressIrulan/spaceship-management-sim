@@ -1,6 +1,6 @@
 import { MODULE_HP, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
-import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
+import type { Material, ModuleConstruction, ModuleDestruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
 import { DOCK_CAPACITY, STORAGE_CAPACITY, homeStation, replaceStation, stationById } from "./state";
 import { availableModuleBuildSites, nearbyClearPosition, stationOwningSite } from "./station-building";
 import { moduleBuildSeconds, moduleCost, moduleSize, samePosition } from "./station-module-geometry";
@@ -239,6 +239,68 @@ export function queuedDependents(station: StationGraph, index: number): QueuedMo
 export function constructionAttached(station: StationGraph): boolean {
   if (!station.construction) return false;
   return attachedInOrder(standingPositions(station), [station.construction.position]).length > 0;
+}
+
+function moduleHp(module: Station["modules"][number]): number {
+  return module.hp ?? module.maxHp ?? MODULE_HP;
+}
+
+function connectedToDock(modules: Station["modules"]): Set<number> {
+  const connected = new Set<number>(modules.flatMap((module, index) => module.type === "Dock" ? [index] : []));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let index = 0; index < modules.length; index += 1) {
+      if (connected.has(index)) continue;
+      if (modules.some((module, other) => connected.has(other) && touching(module.position, modules[index]!.position))) {
+        connected.add(index);
+        changed = true;
+      }
+    }
+  }
+  return connected;
+}
+
+export function damageStationModule(station: Station, position: Vec, damage: number, time: number): {
+  station: Station;
+  destructions: ModuleDestruction[];
+} {
+  const targetIndex = station.modules.findIndex((module) => samePosition(module.position, position));
+  if (targetIndex < 0) return { station, destructions: [] };
+  const target = station.modules[targetIndex]!;
+  const hp = Math.max(0, moduleHp(target) - damage);
+  if (hp > 0) {
+    return {
+      station: { ...station, modules: station.modules.map((module, index) => index === targetIndex ? { ...module, hp, maxHp: module.maxHp ?? MODULE_HP } : module) },
+      destructions: [],
+    };
+  }
+
+  const standing = station.modules.filter((_, index) => index !== targetIndex);
+  const connected = connectedToDock(standing);
+  const removed = standing.filter((_, index) => !connected.has(index));
+  const destroyed = [target, ...removed];
+  const destroyedPositions = new Set(destroyed.map((module) => `${module.position.x},${module.position.y}`));
+  const modules = station.modules.filter((module) => !destroyedPositions.has(`${module.position.x},${module.position.y}`));
+  const ghosts = destroyed.map(({ hp: _hp, maxHp: _maxHp, ...module }) => module);
+  const destroyedIndices = new Set(station.modules.flatMap((module, index) => destroyedPositions.has(`${module.position.x},${module.position.y}`) ? [index] : []));
+  const shipBuilds = station.shipBuilds
+    .filter((job) => !destroyedIndices.has(job.builder))
+    .map((job) => ({ ...job, builder: job.builder - [...destroyedIndices].filter((index) => index < job.builder).length }));
+  const storageCount = destroyed.filter((module) => module.type === "Storage").length;
+  const destructions = destroyed.map((module) => ({ time, stationId: station.id, position: { ...module.position } }));
+  return {
+    station: {
+      ...station,
+      modules,
+      buildQueue: [...station.buildQueue, ...ghosts],
+      shipBuilds,
+      inventory: storageCount > 0 ? { Metal: 0, Ice: 0 } : station.inventory,
+      storage: { ...station.storage, capacity: Math.max(0, station.storage.capacity - storageCount * STORAGE_CAPACITY) },
+      dock: { ...station.dock, capacity: Math.max(0, station.dock.capacity - destroyed.filter((module) => module.type === "Dock").length * DOCK_CAPACITY) },
+    },
+    destructions,
+  };
 }
 
 export function cancelQueuedModuleBuild(state: SimState, target: Vec | number, stationId = 0): SimState {

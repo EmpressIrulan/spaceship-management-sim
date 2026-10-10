@@ -14,6 +14,7 @@ import {
 } from "./index";
 import { suppliersComingHome } from "./test-ships";
 import { placeStation } from "./station-placement";
+import { damageStationModule } from "./station-build-queue";
 
 const east = { x: 80, y: 0 };
 const farEast = { x: 120, y: 0 };
@@ -43,6 +44,43 @@ function withBuilder(state: SimState, position: Vec): SimState {
 }
 
 describe("the station build queue", () => {
+  it("turns a destroyed module into a ghost and preserves Builder indices", () => {
+    const base = createInitialState(7);
+    const station = {
+      ...base.stations[0]!,
+      modules: [...base.stations[0]!.modules,
+        { type: "Builder" as const, position: { x: -40, y: 0 }, size: { width: 30, height: 40 } },
+        { type: "Storage" as const, position: { x: -80, y: 0 }, size: { width: 30, height: 40 } }],
+      shipBuilds: [{ builder: 2, design: base.ships[0]!.design, timer: 10 }],
+    };
+    const result = damageStationModule(station, { x: 40, y: 0 }, 40, 12);
+
+    expect(result.station.modules.map((module) => module.type)).toEqual(["Dock", "Builder", "Storage"]);
+    expect(result.station.buildQueue.map((module) => module.type)).toEqual(["Storage"]);
+    expect(result.station.shipBuilds[0]!.builder).toBe(1);
+    expect(result.destructions).toEqual([
+      { time: 12, stationId: 0, position: { x: 40, y: 0 } },
+    ]);
+  });
+
+  it("destroys disconnected modules, loses Storage stock, and shrinks capacity", () => {
+    const base = createInitialState(7);
+    const station = {
+      ...base.stations[0]!,
+      inventory: { Metal: 9, Ice: 4 },
+      modules: [...base.stations[0]!.modules,
+        { type: "Builder" as const, position: { x: 80, y: 0 }, size: { width: 30, height: 40 } },
+        { type: "Storage" as const, position: { x: 120, y: 0 }, size: { width: 30, height: 40 } }],
+    };
+    const result = damageStationModule(station, { x: 40, y: 0 }, 40, 12);
+
+    expect(result.station.modules.map((module) => module.type)).toEqual(["Dock"]);
+    expect(result.station.buildQueue.map((module) => module.type)).toEqual(["Storage", "Builder", "Storage"]);
+    expect(result.station.inventory).toEqual({ Metal: 0, Ice: 0 });
+    expect(result.station.storage.capacity).toBe(0);
+    expect(result.destructions).toHaveLength(3);
+  });
+
   it("leaves an unfunded module as a ghost at the chosen site", () => {
     const state = queueModuleBuild(createInitialState(7), "Storage", east);
 

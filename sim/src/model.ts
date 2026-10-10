@@ -163,6 +163,12 @@ export interface StationModule {
   maxHp?: number;
 }
 
+export interface ModuleDestruction {
+  time: number;
+  stationId: number;
+  position: Vec;
+}
+
 export interface ModuleConstruction extends StationModule {
   timer: number;
 }
@@ -265,6 +271,8 @@ export interface SimState {
   // means no drops.
   drops?: Drop[];
   nextDropId?: number;
+  // Modules destroyed during the run, for the renderer's explosion effect.
+  moduleDestructions?: ModuleDestruction[];
   // The sector of each Claim module that stood during the last tick, one entry
   // per Claim. The app asks for a name for the first.
   finishedClaims: number[];
