@@ -11,7 +11,7 @@ export type AsteroidField =
   | (FieldBase & { kind: "belt"; from: number; sweep: number; width: number });
 
 export type ModuleType = (typeof MODULE_TYPES)[number];
-export const MODULE_TYPES = ["Dock", "Storage", "Builder", "Claim"] as const;
+export const MODULE_TYPES = ["Dock", "Storage", "Builder", "Turret", "Claim"] as const;
 
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and draws, but does nothing.
 // Gun shoots bugs and the hive on the ship's own; see enemies.ts.
@@ -161,6 +161,10 @@ export interface StationModule {
   // Missing on older fixtures means a fresh module at full placeholder HP.
   hp?: number;
   maxHp?: number;
+  // Turret timers and its shot in flight. These are absent on other module types.
+  turretTimer?: number;
+  turretShot?: GunShot | null;
+  turretNoMetal?: boolean;
 }
 
 export interface ModuleDestruction {

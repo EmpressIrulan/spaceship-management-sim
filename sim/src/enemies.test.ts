@@ -15,6 +15,11 @@ import {
   HIVE_HP,
   HIVE_SECTOR,
   MODULE_HP,
+  TURRET_DAMAGE,
+  TURRET_METAL_PER_SHOT,
+  TURRET_RANGE,
+  TURRET_SHOT_SECONDS,
+  TURRET_SECONDS,
 } from "./build-constants";
 import { giveOrder } from "./orders";
 import { gunBeams } from "./enemies";
@@ -380,6 +385,62 @@ describe("gun ships", () => {
     // A cruise over the gate lands it in the hive's sector.
     state = tick(state, 200);
     expect(state.ships[0]!.sectorId).toBe(HIVE_SECTOR);
+  });
+});
+
+describe("station Turrets", () => {
+  function turretStart(): { state: SimState; modulePosition: { x: number; y: number }; hive: Hive } {
+    const state = createInitialState(7);
+    const hive = state.hives![0]!;
+    const modulePosition = { x: hive.position.x + 25, y: hive.position.y };
+    return {
+      state: {
+        ...state,
+        stations: [{ ...state.stations[0]!, sectorId: HIVE_SECTOR, inventory: { Metal: 10, Ice: 0 },
+          modules: [{ ...state.stations[0]!.modules[0]!, type: "Turret", position: modulePosition, hp: MODULE_HP, maxHp: MODULE_HP }] }],
+        hives: [{ ...hive, spawnTimer: 10_000 }],
+        bugs: [],
+      },
+      modulePosition,
+      hive,
+    };
+  }
+
+  it("fires at a bug in range, reports its beam, spends Metal, and damages the bug", () => {
+    const { state: start, modulePosition, hive } = turretStart();
+    const bug = plantedBug(0, hive, modulePosition.x + 20, modulePosition.y);
+    let state = tick({ ...start, bugs: [bug] }, 1);
+    expect(state.stations[0]!.inventory.Metal).toBe(10 - TURRET_METAL_PER_SHOT);
+    expect(state.stations[0]!.modules[0]!.turretShot).toMatchObject({ target: { kind: "bug", id: 0 } });
+    expect(state.stations[0]!.modules[0]!.turretShot?.timer).toBe(TURRET_SHOT_SECONDS);
+    expect(gunBeams(state)).toContainEqual({ from: modulePosition, to: bug.position });
+    state = tick(state, TURRET_SHOT_SECONDS);
+    expect(state.bugs![0]!.hp).toBe(BUG_HP - TURRET_DAMAGE);
+  });
+
+  it("shoots the hive when no bug is in range", () => {
+    const { state: start, modulePosition, hive } = turretStart();
+    let state = tick(start, 1);
+    expect(state.stations[0]!.modules[0]!.turretShot?.target).toEqual({ kind: "hive", id: hive.id });
+    state = tick(state, TURRET_SHOT_SECONDS);
+    expect(state.hives![0]!.hp).toBe(hive.hp - TURRET_DAMAGE);
+    expect(state.stations[0]!.inventory.Metal).toBe(10 - TURRET_METAL_PER_SHOT);
+  });
+
+  it("stops firing and reports no Metal", () => {
+    const { state: start, modulePosition, hive } = turretStart();
+    const state = tick({ ...start, stations: [{ ...start.stations[0]!, inventory: { Metal: TURRET_METAL_PER_SHOT - 1, Ice: 0 } }],
+      bugs: [plantedBug(0, hive, modulePosition.x + TURRET_RANGE / 2, modulePosition.y)] }, 1);
+    expect(state.stations[0]!.modules[0]!.turretShot ?? null).toBeNull();
+    expect(state.stations[0]!.modules[0]!.turretNoMetal).toBe(true);
+  });
+
+  it("takes damage as a normal station module", () => {
+    const { state: start, modulePosition, hive } = turretStart();
+    let state = start;
+    const bugs = Array.from({ length: 5 }, (_, id) => plantedBug(id, hive, modulePosition.x + 1, modulePosition.y, 0));
+    state = tick({ ...state, bugs, stations: [{ ...state.stations[0]!, inventory: { Metal: 0, Ice: 0 } }] }, 1);
+    expect(state.stations[0]!.modules[0]!.hp).toBe(MODULE_HP - BUG_BITE_DAMAGE * 5);
   });
 });
 

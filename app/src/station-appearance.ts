@@ -1,6 +1,6 @@
 import { MODULE_SPACING, type ModuleType, type StationModule, type Vec } from "sim";
 
-export type ModuleSilhouette = "open-bay" | "tank-cluster" | "crane" | "beacon";
+export type ModuleSilhouette = "open-bay" | "tank-cluster" | "crane" | "beacon" | "turret";
 
 export interface ModuleAppearance {
   accent: string;
@@ -11,6 +11,7 @@ const APPEARANCE: Record<ModuleType, ModuleAppearance> = {
   Dock: { accent: "#38bdf8", silhouette: "open-bay" },
   Storage: { accent: "#f59e0b", silhouette: "tank-cluster" },
   Builder: { accent: "#a78bfa", silhouette: "crane" },
+  Turret: { accent: "#22d3ee", silhouette: "turret" },
   Claim: { accent: "#f43f5e", silhouette: "beacon" },
 };
 

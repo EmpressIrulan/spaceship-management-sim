@@ -18,6 +18,7 @@ export const SHIELD_RECHARGE_DELAY = 5;
 export const BUILDER_SIZE: Size = { width: 30, height: 40 };
 export const STORAGE_SIZE: Size = { width: 30, height: 40 };
 export const CLAIM_SIZE: Size = { width: 30, height: 40 };
+export const TURRET_SIZE: Size = { width: 30, height: 40 };
 
 // The hive sits in the sector next to home on the map, the one Home's gate
 // leads to. HP, spawn rate and sizes are placeholders in config until there is
@@ -58,3 +59,8 @@ export const DROP_SIZE: Size = { width: 4, height: 4 };
 // How long a fired shot stays on screen, in game seconds, for the renderer to
 // draw. A dyadic fraction, so it burns out exactly on a tick boundary.
 export const GUN_SHOT_SECONDS = 1 / 2;
+export const TURRET_RANGE = GUN_RANGE;
+export const TURRET_DAMAGE = GUN_DAMAGE;
+export const TURRET_SECONDS = GUN_SECONDS;
+export const TURRET_SHOT_SECONDS = GUN_SHOT_SECONDS;
+export const TURRET_METAL_PER_SHOT = 1;

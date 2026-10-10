@@ -144,6 +144,7 @@ describe("station building controls", () => {
       { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
+      { type: "Turret", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Claim", cost: "1000 Metal, 1000 Ice", disabled: false, title: "Needs 1000 more Metal and 1000 more Ice" },
     ]);
   });
