@@ -33,6 +33,12 @@ const moments = [];
 const started = Date.now();
 async function mark(name, delay = 0.12) {
   await page.waitForTimeout(delay * 1000);
+  if (await page.locator("#info").isVisible() && await page.locator("#info-title").textContent() === "Ship") {
+    const line = await page.locator("#info-line").textContent();
+    if (scene === 3) assert.equal(line, "Holding");
+    else assert.match(line, /^(Holding|Idle: no laser)\nShield [\d.]+\/[\d.]+  HP [\d.]+\/[\d.]+$/);
+    assert.equal(await page.locator("#info-line").evaluate(el => getComputedStyle(el).whiteSpace), "pre-wrap");
+  }
   const text = await page.locator("#info").innerText();
   moments.push({ name, seconds: (Date.now() - started) / 1000, text });
   console.log(name, text.replaceAll("\n", " | "), JSON.stringify(await page.evaluate(() => ({ time: window.__repro.state.time, ships: window.__repro.state.ships.map(s => ({ id: s.id, shield: s.shield, hp: s.hp, hit: s.shieldLastHit })) }))));
@@ -101,11 +107,11 @@ try {
     await mark(scene === 2 ? "one-capacitor" : "generators-no-capacitor", 1);
     const text = await page.locator("#info-line").innerText();
     if (scene === 3) assert.ok(!text.includes("Shield"));
-    else assert.match(text, /Shield 10\/20\nHP 40\/40/);
+    else assert.match(text, /Holding\nShield 10\/20  HP 40\/40/);
     await page.waitForTimeout(4000);
     if (scene === 2) {
       await hover(1);
-      assert.match(await page.locator("#info-line").innerText(), /Shield 20\/40\nHP 40\/40/);
+      assert.match(await page.locator("#info-line").innerText(), /Holding\nShield 20\/40  HP 40\/40/);
       await mark("two-capacitors", 1);
       await page.waitForTimeout(4000);
     }
@@ -116,21 +122,21 @@ try {
     await advance(1.75);
     await step(0.25);
     await mark("first-bite-blue-ring");
-    assert.match(await page.locator("#info-line").innerText(), /Shield 1.5\/20\nHP 40\/40/);
+    assert.match(await page.locator("#info-line").innerText(), /Holding\nShield 1.5\/20  HP 40\/40/);
     await page.waitForTimeout(2000);
     await advance(1.75);
     await step(0.25);
     await mark("second-bite-hp-intact");
-    assert.match(await page.locator("#info-line").innerText(), /Shield 0.5\/20\nHP 40\/40/);
+    assert.match(await page.locator("#info-line").innerText(), /Holding\nShield 0.5\/20  HP 40\/40/);
     await page.waitForTimeout(2000);
     await advance(1.75);
     await step(0.25);
     await mark("third-bite-half-carries-to-hp");
-    assert.match(await page.locator("#info-line").innerText(), /Shield 0\/20\nHP 39.5\/40/);
+    assert.match(await page.locator("#info-line").innerText(), /Holding\nShield 0\/20  HP 39.5\/40/);
     await page.waitForTimeout(3000);
     await advance(2);
     await mark("empty-shield-hull-bite");
-    assert.match(await page.locator("#info-line").innerText(), /Shield 0\/20\nHP 38.5\/40/);
+    assert.match(await page.locator("#info-line").innerText(), /Holding\nShield 0\/20  HP 38.5\/40/);
     await page.waitForTimeout(3000);
   } else {
     for (const generators of [1, 3]) {

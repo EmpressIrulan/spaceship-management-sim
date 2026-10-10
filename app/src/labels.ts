@@ -141,13 +141,11 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const incoming = hangarIncoming(state, ship.id);
     const hangarValue = `${hangarReserved(state, ship.id)}/${capacity}${incoming > 0 ? `, ${incoming} incoming` : ""}`;
     const hangar = capacity > 0 ? `\nHangar ${hangarValue}\nDocked ships: ${hangarContents(state, ship.id).length}` : "";
-    // A fresh hull has nothing worth reading: the HP line appears once a bite
-    // or a shot has taken it below full.
+    // Without a shield, HP appears only once the hull is damaged.
     const { hp, maxHp } = shipHp(ship);
     const { shield, maxShield } = shipShield(ship);
-    const shieldLine = maxShield > 0 ? `Shield ${shield}/${maxShield}\n` : "";
-    const hull = maxShield > 0 || hp < maxHp ? `HP ${hp}/${maxHp}` : "";
-    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}${shieldLine}${hull}`,
+    const health = maxShield > 0 ? `\nShield ${shield}/${maxShield}  HP ${hp}/${maxHp}` : hp < maxHp ? `\nHP ${hp}/${maxHp}` : "";
+    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}${health}`,
       ...(capacity > 0 ? { action: { label: "Launch all", carrierId: ship.id, disabled: hangarContents(state, ship.id).length === 0 } } : {}) };
   }
   if (hovered.kind === "gateProject") {

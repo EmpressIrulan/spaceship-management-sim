@@ -191,8 +191,7 @@ describe("hover box", () => {
     } };
     const shield = { ...shielded, shield: 20, maxShield: 30, hp: 40, maxHp: 40 };
     const box = infoBox({ ...state, ships: [shield] }, { kind: "ship", index: 0 });
-    expect(box?.line).toContain("Shield 20/30");
-    expect(box?.line).toContain("HP 40/40");
+    expect(box).toEqual({ title: "Ship", line: "Mining Metal\nShield 20/30  HP 40/40" });
   });
 
   it("does not show a shield for a ship without Capacitors", () => {
