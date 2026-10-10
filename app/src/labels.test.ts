@@ -123,6 +123,25 @@ describe("hover box", () => {
     expect(module.type).toBe("Storage");
   });
 
+  it("shows when a Turret has no Metal to fire", () => {
+    const initial = createInitialState(7);
+    const station = initial.stations[0]!;
+    const turret = {
+      ...station.modules[1]!,
+      type: "Turret" as const,
+      turretNoMetal: true,
+    };
+    const state = {
+      ...initial,
+      stations: [{ ...station, inventory: { Metal: 0, Ice: 0 }, modules: [station.modules[0]!, turret] }],
+    };
+
+    expect(infoBox(state, { kind: "module", index: 1, stationId: 0 })).toEqual({
+      title: "Turret",
+      line: "Turret: no Metal\nHP 40/40",
+    });
+  });
+
   it("shows an asteroid's material and ore left, titled Asteroid", () => {
     expect(infoBox(state, { kind: "asteroid", id: asteroid.id })).toEqual({
       title: "Asteroid",

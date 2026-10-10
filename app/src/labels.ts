@@ -142,6 +142,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       const box = storageBox(state, hovered.stationId);
       return { ...box, line: `${box.line}\n${moduleHealth(module)}` };
     }
+    if (module.type === "Turret" && module.turretNoMetal) return { title: "Turret", line: `Turret: no Metal\n${moduleHealth(module)}` };
     return { title: module.type, line: moduleHealth(module) };
   }
   if (hovered.kind === "ship") {

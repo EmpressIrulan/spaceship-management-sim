@@ -4,6 +4,7 @@ import {
   DROP_SIZE,
   HIVE_SIZE,
   GUN_SHOT_SECONDS,
+  TURRET_SHOT_SECONDS,
   laserBeam,
   shipSize,
   type DropKind,
@@ -134,6 +135,21 @@ export function createWorldDrawing(
       const pixel = worldToScreen(ui.camera, ui.viewport, point);
       ctx.fillStyle = GUN_SHOT_COLOR;
       ctx.fillRect(Math.round(pixel.x) - 2, Math.round(pixel.y) - 2, 4, 4);
+    }
+    for (const station of state.stations) {
+      if (station.sectorId !== ui.currentSector) continue;
+      for (const module of station.modules) {
+        const shot = module.turretShot;
+        if (!shot) continue;
+        const progress = 1 - shot.timer / TURRET_SHOT_SECONDS;
+        const point = {
+          x: shot.from.x + (shot.to.x - shot.from.x) * progress,
+          y: shot.from.y + (shot.to.y - shot.from.y) * progress,
+        };
+        const pixel = worldToScreen(ui.camera, ui.viewport, point);
+        ctx.fillStyle = GUN_SHOT_COLOR;
+        ctx.fillRect(Math.round(pixel.x) - 2, Math.round(pixel.y) - 2, 4, 4);
+      }
     }
     for (const bug of sectorBugs) {
       if (bug.state !== "hunting" || bug.leg !== null || bug.targetShipId === null

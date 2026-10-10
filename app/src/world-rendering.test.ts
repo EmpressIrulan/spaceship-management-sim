@@ -155,6 +155,31 @@ describe("the world draws gun shots", () => {
     expect(ctx.lineTo).not.toHaveBeenCalled();
   });
 
+  it("draws an in-flight station Turret shot like a ship gun shot", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const state = createInitialState(7);
+    const station = state.stations[0]!;
+    const turret = {
+      ...station.modules[1]!,
+      type: "Turret" as const,
+      turretShot: {
+        from: { x: 0, y: 0 },
+        to: { x: 30, y: 30 },
+        target: { kind: "bug" as const, id: 1 },
+        timer: 0,
+      },
+    };
+    const drawing = createWorldDrawing(uiState, () => ({
+      ...state,
+      stations: [{ ...station, modules: [station.modules[0]!, turret] }],
+    }), ctx, vi.fn(), vi.fn());
+
+    drawing.draw(0);
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(428, 328, 4, 4);
+  });
+
   it("draws a bite as a flash between the bug and the ship it is biting", () => {
     const uiState = ui();
     const ctx = mockCtx();
