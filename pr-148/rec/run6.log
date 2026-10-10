@@ -1,0 +1,20 @@
+Stored 0 / 1000
+Income: Metal +0/min, Ice +0/min
+Stored 0 / 1000
+Income: Metal +0/min, Ice +0/min
+Stored 0 / 2000
+Income: Metal +0/min, Ice +0/min
+Stored 0 / 3000
+Income: Metal +0/min, Ice +0/min
+Stored 105 / 1000
+Metal: 80
+Ice: 25
+Income: Metal +10/min, Ice +0/min
+Stored 1000 / 1000
+Metal: 605
+Ice: 395
+Income: Metal +5/min, Ice +0/min
+Full ship {"id":0,"design":{"width":4,"height":4,"slots":["Engine","Engine","Laser","Laser","Engine","Engine","Laser","Laser","Storage","Storage","Hull","Hull","Storage","Storage","Hull","Hull"]},"state":"berthing","sectorId":0,"position":{"x":-17.219421596633836,"y":62.56291398741794},"timer":1.0130221852861436,"cargo":5,"cargoByMaterial":{"Metal":5,"Ice":0},"cargoMaterial":"Metal","target":null,"homeStationId":0,"defaultBehaviour":"mine","mineMaterials":["Metal","Ice"],"mineOtherSectors":false,"order":null,"leg":{"from":{"x":-4.5,"y":-9},"to":{"x":-18.11733315717646,"y":67.61480784023477}},"berth":null,"transfer":null}
+Waiting: storage full
+VIDEO /home/alice/.cache/spaceship-management-sim-120/full/page@ca2739e66c347e1a60ce297d3cd43b7e.webm
+EXIT=0

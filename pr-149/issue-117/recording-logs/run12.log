@@ -1,0 +1,20 @@
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: the ship panel must show its complete state, not an ellipsis
+
+true !== false
+
+    at hold (file:///home/alice/repos/.worktrees/spaceship-117/tools/record-issue-117.mjs:58:10)
+    at async file:///home/alice/repos/.worktrees/spaceship-117/tools/record-issue-117.mjs:113:5 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: true,
+  expected: false,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.2
+EXIT=1

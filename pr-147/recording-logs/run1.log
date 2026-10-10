@@ -1,0 +1,6 @@
+build controls 6
+build menu visible false
+builder menu visible false
+VIDEO=/home/alice/.cache/spaceship-management-sim-119/demo/page@902b803a42b40a53a0bdf6683a20297b.webm
+EXIT=0
+SCENE=1 RESULT=FAIL no Builder panel / no count controls

@@ -1,0 +1,4 @@
+criterion-3-Ice Ship 4x4 | Ship 1 | Supplying site: Ice | Speed | 25 | Hold | 20 | Mining time | 24 s | Cargo | 0/20 | State | Supplying site: Ice | Home: | None | Home | Default: Mine for Station | Default: Supply construction site | Default: Haul | Default: None | From | To | Material |  Metal |  Ice |  Mine in other sectors | Resume
+criterion-3-both Ship 4x4 | Ship 1 | Supplying site: Metal, Ice | Speed | 25 | Hold | 20 | Mining time | 24 s | Cargo | 0/20 | State | Supplying site: Metal, Ice | Home: | None | Home | Default: Mine for Station | Default: Supply construction site | Default: Haul | Default: None | From | To | Material |  Metal |  Ice |  Mine in other sectors | Resume
+/home/alice/.cache/spaceship-management-sim-117/criterion-3/5c96f48bdaa5ca8727d440cd2750fe12.webm
+EXIT=0

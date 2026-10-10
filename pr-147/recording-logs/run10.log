@@ -1,0 +1,41 @@
+SCENE 1
+CAPTION 1 
+CAPTION 1 Building: Miner — 10 s left
+Waiting: Miner x2
+SCENE 2
+CAPTION 2, 5 Building: Ship 2x2 — 7 s left
+Waiting: Miner x3
+CAPTION 2, 5 Building: Miner — 10 s left
+Waiting: Miner x2
+SCENE 3
+CAPTION 3, 4 Waiting: Miner
+Waiting: 40 more Metal
+CAPTION 3, 4 Building: Miner — 10 s left
+SCENE 4
+CAPTION 6 Building: Ship 2x2 — 7 s left
+Waiting: Miner x3
+Waiting: Ship 2x2
+Waiting: Miner
+CAPTION 6 Building: Ship 2x2 — 7 s left
+Waiting: Ship 2x2
+Waiting: Miner
+SCENE 5
+CAPTION 7 Building: Miner — 8 s left
+Waiting: Ship 2x2
+REFUND { Metal: 45, Ice: 25 } { Metal: 60, Ice: 40 }
+CAPTION 7 Building: Ship 2x2 — 7 s left
+SCENE 6
+CAPTION 8 Building: Miner — 10 s left
+Waiting: Ship 2x2
+Waiting: Miner
+Waiting: Ship 2x2
+Waiting: Miner
+Waiting: Ship 2x2
+Waiting: Miner
+Waiting: Ship 2x2
+Waiting: Miner
+Waiting: Ship 2x2
+Waiting: Miner
+Waiting: Ship 2x2
+VIDEO=/home/alice/.cache/spaceship-management-sim-119/recording/page@d622e159dedf149fab7733ea3403dfc1.webm
+EXIT=0
