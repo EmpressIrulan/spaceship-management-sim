@@ -1,0 +1,123 @@
+
+> sim@0.0.0 test
+> vitest run src/station-build-queue.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-134/sim[39m
+
+ [31m❯[39m src/station-build-queue.test.ts [2m([22m[2m28 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[32m 284[2mms[22m[39m
+   [31m❯[39m the station build queue [2m(28)[22m
+[31m     [31m×[31m loses only the destroyed Storage shares: one of two[39m[32m 8[2mms[22m[39m
+[31m     [31m×[31m loses only the destroyed Storage shares: two of three in a cascade[39m[32m 1[2mms[22m[39m
+     [32m✓[39m loses only the destroyed Storage shares: the last Storage[32m 1[2mms[22m[39m
+[31m     [31m×[31m loses only the destroyed Storage shares: stock above remaining capacity[39m[32m 1[2mms[22m[39m
+     [32m✓[39m loses only the destroyed Storage shares: empty stock[32m 1[2mms[22m[39m
+[31m     [31m×[31m keeps a surviving Storage's share without changing a frozen tick input[39m[32m 3[2mms[22m[39m
+     [32m✓[39m preserves construction builds when their attachment is destroyed[32m 33[2mms[22m[39m
+     [32m✓[39m preserves queued builds when their attachment is destroyed[32m 27[2mms[22m[39m
+     [32m✓[39m preserves only Dock builds when their attachment is destroyed[32m 22[2mms[22m[39m
+     [32m✓[39m turns a destroyed module into a ghost and preserves Builder indices[32m 1[2mms[22m[39m
+     [32m✓[39m destroys disconnected modules, loses Storage stock, and shrinks capacity[32m 0[2mms[22m[39m
+     [32m✓[39m leaves an unfunded module as a ghost at the chosen site[32m 1[2mms[22m[39m
+     [32m✓[39m starts the front module immediately when an empty queue can pay[32m 0[2mms[22m[39m
+     [32m✓[39m builds in click order and never skips the front ghost[32m 2[2mms[22m[39m
+     [32m✓[39m offers module sites around ghosts so a row can be queued at once[32m 0[2mms[22m[39m
+     [32m✓[39m cancels a ghost and anything connected only through it, preserving the rest[32m 0[2mms[22m[39m
+     [32m✓[39m cancels a queued module by its owning station id[32m 1[2mms[22m[39m
+     [32m✓[39m names every ghost that reaches the station only through the cancelled one[32m 1[2mms[22m[39m
+     [32m✓[39m keeps a ghost that still reaches the station through a built module[32m 0[2mms[22m[39m
+     [32m✓[39m cancels a ghost nothing depends on on its own[32m 0[2mms[22m[39m
+     [32m✓[39m takes a ghost that would build ahead of the ghost connecting it[32m 1[2mms[22m[39m
+     [32m✓[39m keeps a supply ship and its cargo waiting at Home until something is queued[32m 1[2mms[22m[39m
+     [32m✓[39m brings a supplier home with its cargo when the last ghost is cancelled[32m 0[2mms[22m[39m
+     [32m✓[39m sends three parked suppliers to the site as soon as a module is queued[32m 3[2mms[22m[39m
+     [32m✓[39m moves a built station's pad off an asteroid when a module completes[32m 1[2mms[22m[39m
+     [32m✓[39m moves a built station's pad off another station's module when a module completes[32m 1[2mms[22m[39m
+     [32m✓[39m moves a built station's pad off a home module when a module completes[32m 1[2mms[22m[39m
+     [32m✓[39m leaves a supply ship at its Move destination while a build is queued[32m 172[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 4 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/station-build-queue.test.ts[2m > [22mthe station build queue[2m > [22mloses only the destroyed Storage shares: one of two
+[41m[1m FAIL [22m[49m src/station-build-queue.test.ts[2m > [22mthe station build queue[2m > [22mloses only the destroyed Storage shares: two of three in a cascade
+[31m[1mAssertionError[22m: expected { Metal: +0, Ice: +0 } to deeply equal { Metal: 100, Ice: 50 }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[32m-   "Ice": 50,[39m
+[32m-   "Metal": 100,[39m
+[31m+   "Ice": 0,[39m
+[31m+   "Metal": 0,[39m
+[2m  }[22m
+
+[36m [2m❯[22m src/station-build-queue.test.ts:[2m58:30[22m[39m
+    [90m 56|[39m       modules: [base.modules[0]!, ...positions.map(x => ({ type: "Stor…
+    [90m 57|[39m     const result = damageStationModule(station, { x: 40, y: 0 }, 40, 1…
+    [90m 58|[39m     expect(result.inventory).toEqual(expected);
+    [90m   |[39m                              [31m^[39m
+    [90m 59|[39m     expect(result.inventory.Metal + result.inventory.Ice).toBeLessThan…
+    [90m 60|[39m     expect(station.inventory).toEqual(inventory);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/station-build-queue.test.ts[2m > [22mthe station build queue[2m > [22mloses only the destroyed Storage shares: stock above remaining capacity
+[31m[1mAssertionError[22m: expected { Metal: +0, Ice: +0 } to deeply equal { Metal: 600, Ice: 400 }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[32m-   "Ice": 400,[39m
+[32m-   "Metal": 600,[39m
+[31m+   "Ice": 0,[39m
+[31m+   "Metal": 0,[39m
+[2m  }[22m
+
+[36m [2m❯[22m src/station-build-queue.test.ts:[2m58:30[22m[39m
+    [90m 56|[39m       modules: [base.modules[0]!, ...positions.map(x => ({ type: "Stor…
+    [90m 57|[39m     const result = damageStationModule(station, { x: 40, y: 0 }, 40, 1…
+    [90m 58|[39m     expect(result.inventory).toEqual(expected);
+    [90m   |[39m                              [31m^[39m
+    [90m 59|[39m     expect(result.inventory.Metal + result.inventory.Ice).toBeLessThan…
+    [90m 60|[39m     expect(station.inventory).toEqual(inventory);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/station-build-queue.test.ts[2m > [22mthe station build queue[2m > [22mkeeps a surviving Storage's share without changing a frozen tick input
+[31m[1mAssertionError[22m: expected { Metal: +0, Ice: +0 } to deeply equal { Metal: 100, Ice: 50 }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[32m-   "Ice": 50,[39m
+[32m-   "Metal": 100,[39m
+[31m+   "Ice": 0,[39m
+[31m+   "Metal": 0,[39m
+[2m  }[22m
+
+[36m [2m❯[22m src/station-build-queue.test.ts:[2m84:43[22m[39m
+    [90m 82|[39m     freeze(state);
+    [90m 83|[39m     const result = tick(state, 1 / 60);
+    [90m 84|[39m     expect(result.stations[0]!.inventory).toEqual({ Metal: 100, Ice: 5…
+    [90m   |[39m                                           [31m^[39m
+    [90m 85|[39m     expect(result.stations[0]!.storage.capacity).toBe(1000);
+    [90m 86|[39m     expect(result.stations[0]!.modules.filter(module => module.type ==…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m4 failed[39m[22m[2m | [22m[1m[32m24 passed[39m[22m[90m (28)[39m
+[2m   Start at [22m 20:16:25
+[2m   Duration [22m 517ms[2m (tests 63%, transform 30%, import 6%)[22m
+
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /home/alice/repos/.worktrees/spaceship-134/sim
+npm error workspace sim@0.0.0
+npm error location /home/alice/repos/.worktrees/spaceship-134/sim
+npm error command failed
+npm error command sh -c vitest run src/station-build-queue.test.ts

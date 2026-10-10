@@ -26,72 +26,68 @@ wrote dist/index.html
 
 [1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-134/sim[39m
 
- [32m✓[39m src/sector-claim.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 308[2mms[22m[39m
- [32m✓[39m src/enemies.test.ts [2m([22m[2m34 tests[22m[2m)[22m[33m 450[2mms[22m[39m
- [32m✓[39m src/station-build-queue.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 959[2mms[22m[39m
-   [32m✓[39m the station build queue [2m(22)[22m
-     [33m[2m✓[22m[39m leaves a supply ship at its Move destination while a build is queued[33m 523[2mms[22m[39m
- [32m✓[39m src/fields.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 985[2mms[22m[39m
-   [32m✓[39m asteroid belts and clusters [2m(11)[22m
-     [33m[2m✓[22m[39m keeps every rock in its field through many respawns[33m 765[2mms[22m[39m
- [32m✓[39m src/station-sites.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 991[2mms[22m[39m
- [32m✓[39m src/construction-site.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 1033[2mms[22m[39m
+ [32m✓[39m src/mine-materials.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 384[2mms[22m[39m
+ [32m✓[39m src/orders.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 391[2mms[22m[39m
+ [32m✓[39m src/station-sites.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 722[2mms[22m[39m
+ [32m✓[39m src/materials.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 762[2mms[22m[39m
+   [32m✓[39m material deliveries [2m(3)[22m
+     [33m[2m✓[22m[39m replays replacement positions and types from the seed, while allowing either type[33m 716[2mms[22m[39m
+ [32m✓[39m src/construction-site.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 908[2mms[22m[39m
    [32m✓[39m Supply construction site [2m(5)[22m
      [33m[2m✓[22m[39m mines and unloads into the site, trip after trip, never into Storage[33m 635[2mms[22m[39m
- [32m✓[39m src/haul.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 1241[2mms[22m[39m
- [32m✓[39m src/orders.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 555[2mms[22m[39m
- [32m✓[39m src/laser.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 1303[2mms[22m[39m
+ [32m✓[39m src/fields.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 925[2mms[22m[39m
+   [32m✓[39m asteroid belts and clusters [2m(11)[22m
+     [33m[2m✓[22m[39m keeps every rock in its field through many respawns[33m 730[2mms[22m[39m
+ [32m✓[39m src/station-build-queue.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 999[2mms[22m[39m
+   [32m✓[39m the station build queue [2m(28)[22m
+     [33m[2m✓[22m[39m leaves a supply ship at its Move destination while a build is queued[33m 594[2mms[22m[39m
+ [32m✓[39m src/haul.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 1038[2mms[22m[39m
+ [32m✓[39m src/sectors.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 323[2mms[22m[39m
+ [32m✓[39m src/enemies.test.ts [2m([22m[2m34 tests[22m[2m)[22m[33m 341[2mms[22m[39m
+ [32m✓[39m src/laser.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 1086[2mms[22m[39m
    [32m✓[39m where the ship mines from [2m(4)[22m
-     [33m[2m✓[22m[39m never overlaps the asteroid it mines, flying out, mining or flying home[33m 1169[2mms[22m[39m
- [32m✓[39m src/materials.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1397[2mms[22m[39m
-   [32m✓[39m material deliveries [2m(3)[22m
-     [33m[2m✓[22m[39m replays replacement positions and types from the seed, while allowing either type[33m 1292[2mms[22m[39m
- [32m✓[39m src/fill-hold.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 226[2mms[22m[39m
- [32m✓[39m src/hangars.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 61[2mms[22m[39m
- [32m✓[39m src/character.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 233[2mms[22m[39m
- [32m✓[39m src/supply-materials.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 1519[2mms[22m[39m
+     [33m[2m✓[22m[39m never overlaps the asteroid it mines, flying out, mining or flying home[33m 943[2mms[22m[39m
+ [32m✓[39m src/income.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 166[2mms[22m[39m
+ [32m✓[39m src/sector-claim.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 218[2mms[22m[39m
+ [32m✓[39m src/station-building-story.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/supply-materials.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 1331[2mms[22m[39m
    [32m✓[39m which materials a supply ship mines [2m(6)[22m
-     [33m[2m✓[22m[39m supplies the site from both materials when nobody has touched the ticks[33m 579[2mms[22m[39m
-     [33m[2m✓[22m[39m mines only Metal with only Metal ticked, and the site gains Metal only[33m 507[2mms[22m[39m
- [32m✓[39m src/station-building-story.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 65[2mms[22m[39m
- [32m✓[39m src/mine-materials.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 566[2mms[22m[39m
- [32m✓[39m src/sectors.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 459[2mms[22m[39m
-   [32m✓[39m two linked sectors [2m(5)[22m
-     [33m[2m✓[22m[39m jumps out, mines, returns through the gate, and unloads at home[33m 440[2mms[22m[39m
- [32m✓[39m src/station-fractional-placement.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 102[2mms[22m[39m
- [32m✓[39m src/income.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 240[2mms[22m[39m
- [32m✓[39m src/berths.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 43[2mms[22m[39m
- [32m✓[39m src/ship-build-queue.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 41[2mms[22m[39m
- [32m✓[39m src/station.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 32[2mms[22m[39m
- [32m✓[39m src/building.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 43[2mms[22m[39m
- [32m✓[39m src/ships.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 72[2mms[22m[39m
- [32m✓[39m src/shields.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 26[2mms[22m[39m
- [32m✓[39m src/dock-area.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 37[2mms[22m[39m
- [32m✓[39m src/claim-module.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+     [33m[2m✓[22m[39m supplies the site from both materials when nobody has touched the ticks[33m 593[2mms[22m[39m
+     [33m[2m✓[22m[39m mines only Metal with only Metal ticked, and the site gains Metal only[33m 419[2mms[22m[39m
+ [32m✓[39m src/fill-hold.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 189[2mms[22m[39m
+ [32m✓[39m src/ships.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/station-fractional-placement.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 85[2mms[22m[39m
+ [32m✓[39m src/hangars.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m src/claim-module.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m src/character.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 156[2mms[22m[39m
+ [32m✓[39m src/berths.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/building.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/ship-build-queue.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m src/station.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/shields.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 17[2mms[22m[39m
  [32m✓[39m src/storage.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 13[2mms[22m[39m
- [32m✓[39m src/ship-home-mining.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 11[2mms[22m[39m
- [32m✓[39m src/ship-home.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/ship-home.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/dock-area.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/ship-home-mining.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 10[2mms[22m[39m
 [90mstdout[2m | dbg.test.ts[2m > [22m[2mdbg
 [22m[39mhalf cargo [33m15[39m station1 inv { Metal: [33m5[39m, Ice: [33m0[39m }
 done ship [33m0[39m haulReturning inv { Metal: [33m6[39m, Ice: [33m14[39m }
 
  [32m✓[39m dbg.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 7[2mms[22m[39m
- [32m✓[39m src/last-station.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m src/tick.test.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 3792[2mms[22m[39m
+ [32m✓[39m src/last-station.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/tick.test.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 3152[2mms[22m[39m
    [32m✓[39m mining cycle [2m(10)[22m
-     [33m[2m✓[22m[39m gets through at least two full cycles within two minutes for any seed[33m 1236[2mms[22m[39m
-   [32m✓[39m asteroid field [2m(8)[22m
-     [33m[2m✓[22m[39m reaches the same field whether time comes in small steps or one big one[33m 325[2mms[22m[39m
+     [33m[2m✓[22m[39m gets through at least two full cycles within two minutes for any seed[33m 1096[2mms[22m[39m
    [32m✓[39m ore is conserved [2m(4)[22m
-     [33m[2m✓[22m[39m balances ore mined against cargo and station stock over a long run with many ships[33m 935[2mms[22m[39m
+     [33m[2m✓[22m[39m balances ore mined against cargo and station stock over a long run with many ships[33m 803[2mms[22m[39m
 
 [2m Test Files [22m [1m[32m33 passed[39m[22m[90m (33)[39m
-[2m      Tests [22m [1m[32m388 passed[39m[22m[90m (388)[39m
-[2m   Start at [22m 19:52:07
-[2m   Duration [22m 4.16s[2m (tests 79%, transform 12%, import 8%, worker 1%)[22m
+[2m      Tests [22m [1m[32m394 passed[39m[22m[90m (394)[39m
+[2m   Start at [22m 20:17:32
+[2m   Duration [22m 3.50s[2m (tests 76%, transform 14%, import 8%, worker 1%)[22m
 
-[2m    Isolate [22m [33m33 workers spawned[39m[2m · ~145ms startup each (spawn + environment, per file)[22m
-[2m            [22m [2mat least ~290ms faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+[2m    Isolate [22m [33m33 workers spawned[39m[2m · ~128ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~256ms faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
 
 
 > app@0.0.0 test
@@ -100,45 +96,43 @@ done ship [33m0[39m haulReturning inv { Metal: [33m6[39m, Ice: [33m14[39m 
 
 [1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-134/app[39m
 
- [32m✓[39m src/laser.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 17[2mms[22m[39m
- [32m✓[39m src/station.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 27[2mms[22m[39m
- [32m✓[39m src/shipyard.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 33[2mms[22m[39m
- [32m✓[39m src/building.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 41[2mms[22m[39m
- [32m✓[39m src/mine-materials.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 35[2mms[22m[39m
- [32m✓[39m src/ships.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 49[2mms[22m[39m
- [32m✓[39m src/construction-site.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 41[2mms[22m[39m
- [32m✓[39m src/labels.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 46[2mms[22m[39m
- [32m✓[39m src/selection.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 59[2mms[22m[39m
- [32m✓[39m src/world-rendering.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 89[2mms[22m[39m
- [32m✓[39m src/character.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 26[2mms[22m[39m
- [32m✓[39m src/blueprints.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 8[2mms[22m[39m
- [32m✓[39m src/materials.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
- [32m✓[39m src/station-site.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 12[2mms[22m[39m
- [32m✓[39m src/storage.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 10[2mms[22m[39m
- [32m✓[39m src/sectors.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 9[2mms[22m[39m
- [32m✓[39m src/hangar-interactions.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 24[2mms[22m[39m
- [32m✓[39m src/hangars.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
- [32m✓[39m src/camera.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 438[2mms[22m[39m
-   [32m✓[39m starting view [2m(2)[22m
-     [33m[2m✓[22m[39m shows the station and every asteroid on screen for any seed, even on a short window[33m 422[2mms[22m[39m
+ [32m✓[39m src/station.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/mine-materials.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/labels.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/ships.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/building.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m src/selection.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/shipyard.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/construction-site.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/character.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/laser.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/world-rendering.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [32m✓[39m src/speed.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/materials.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/storage.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/station-site.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/hangar-interactions.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 16[2mms[22m[39m
  [32m✓[39m src/ship-menu.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 21[2mms[22m[39m
- [32m✓[39m src/speed.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 11[2mms[22m[39m
- [32m✓[39m src/dock-ship-rendering.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m src/cancel-hover-input.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m src/claim-naming.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/sectors.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/blueprints.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/cancel-hover-input.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/hangars.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/claim-naming.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
  [32m✓[39m src/speed-input.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/camera.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 417[2mms[22m[39m
+   [32m✓[39m starting view [2m(2)[22m
+     [33m[2m✓[22m[39m shows the station and every asteroid on screen for any seed, even on a short window[33m 409[2mms[22m[39m
+ [32m✓[39m src/dock-ship-rendering.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
  [32m✓[39m src/station-appearance.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
  [32m✓[39m src/camera-input.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
- [32m✓[39m src/panels.test.ts [2m([22m[2m35 tests[22m[2m)[22m[33m 481[2mms[22m[39m
-   [32m✓[39m ship panel while the ship changes [2m(3)[22m
-     [33m[2m✓[22m[39m keeps every control on the same element, in the same order, through a mining cycle[33m 316[2mms[22m[39m
+ [32m✓[39m src/panels.test.ts [2m([22m[2m35 tests[22m[2m)[22m[33m 410[2mms[22m[39m
 
 [2m Test Files [22m [1m[32m28 passed[39m[22m[90m (28)[39m
 [2m      Tests [22m [1m[32m329 passed[39m[22m[90m (329)[39m
-[2m   Start at [22m 19:52:12
-[2m   Duration [22m 1.14s[2m (transform 57%, tests 21%, import 20%, worker 2%)[22m
+[2m   Start at [22m 20:17:36
+[2m   Duration [22m 933ms[2m (transform 54%, tests 24%, import 21%, worker 2%)[22m
 
-[2m  Transform [22m [33mtransforming modules took 4.04s[39m[2m · 57% of tracked time, re-done on every run[22m
+[2m  Transform [22m [33mtransforming modules took 3.06s[39m[2m · 54% of tracked time, re-done on every run[22m
 [2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
 [2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
 
@@ -152,11 +146,11 @@ done ship [33m0[39m haulReturning inv { Metal: [33m6[39m, Ice: [33m14[39m 
 [90mstdout[2m | build.test.mjs[2m > [22m[2mbuild inlining[2m > [22m[2mleaves replacement tokens in the bundle literal
 [22m[39mwrote dist/index.html
 
- [32m✓[39m build.test.mjs [2m([22m[2m2 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m build.test.mjs [2m([22m[2m2 tests[22m[2m)[22m[32m 16[2mms[22m[39m
 
 [2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
 [2m      Tests [22m [1m[32m2 passed[39m[22m[90m (2)[39m
-[2m   Start at [22m 19:52:13
-[2m   Duration [22m 114ms[2m (import 33%, transform 32%, tests 30%, worker 4%)[22m
+[2m   Start at [22m 20:17:37
+[2m   Duration [22m 115ms[2m (transform 32%, tests 31%, import 31%, worker 6%)[22m
 
 EXIT=0

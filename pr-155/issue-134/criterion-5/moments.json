@@ -1,7 +1,7 @@
 [
   {
     "name": "storage-stock-before-300",
-    "seconds": 1.505,
+    "seconds": 0.294,
     "time": 0,
     "info": "Storage\nStored 300 / 2000\nMetal: 200\nIce: 100\nIncome: Metal +0/min, Ice +0/min",
     "inventory": {
@@ -66,7 +66,7 @@
   },
   {
     "name": "bugs-released",
-    "seconds": 5.56,
+    "seconds": 4.298,
     "time": 0,
     "info": "Storage\nStored 300 / 2000\nMetal: 200\nIce: 100\nIncome: Metal +0/min, Ice +0/min",
     "inventory": {
@@ -212,12 +212,12 @@
   },
   {
     "name": "exploded-ghosts-at-queue-end",
-    "seconds": 16.396,
+    "seconds": 10.224,
     "time": 4.56666666666666,
-    "info": "Storage\nStored 0 / 1000\nIncome: Metal +0/min, Ice +0/min",
+    "info": "Storage\nStored 150 / 1000\nMetal: 100\nIce: 50\nIncome: Metal +0/min, Ice +0/min",
     "inventory": {
-      "Metal": 0,
-      "Ice": 0
+      "Metal": 100,
+      "Ice": 50
     },
     "site": {
       "Metal": 0,
@@ -275,13 +275,13 @@
     ]
   },
   {
-    "name": "storage-lost-all-300-stock",
-    "seconds": 20.6,
+    "name": "storage-surviving-share-150",
+    "seconds": 14.279,
     "time": 4.56666666666666,
-    "info": "Storage\nStored 0 / 1000\nIncome: Metal +0/min, Ice +0/min",
+    "info": "Storage\nStored 150 / 1000\nMetal: 100\nIce: 50\nIncome: Metal +0/min, Ice +0/min\nHP 40/40",
     "inventory": {
-      "Metal": 0,
-      "Ice": 0
+      "Metal": 100,
+      "Ice": 50
     },
     "site": {
       "Metal": 0,
