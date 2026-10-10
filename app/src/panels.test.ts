@@ -188,6 +188,18 @@ function fakeDocument(): { createElement: (tag: string) => FakeElement; activeEl
 }
 
 describe("haul route panel", () => {
+  it("applies a material checkbox to every selected supply ship", () => {
+    const state = createInitialState(7);
+    const first = state.ships[0]!;
+    state.ships = [0, 1].map((id) => ({ ...first, id, defaultBehaviour: "supply", mineMaterials: ["Metal", "Ice"] }));
+    const shipPanelBox = new FakeElement();
+    const ui = { ...createUiState([]), selectedShips: [0, 1] };
+    let current = state;
+    installPanels(ui, () => current, (next) => { current = next; }, new FakeElement() as unknown as HTMLElement, shipPanelBox as unknown as HTMLElement);
+    shipPanelBox.listeners.get("change")![1]!({ target: { name: "mine-material", value: "Ice", checked: false } } as unknown as Event);
+    expect(current.ships.map((ship) => ship.mineMaterials)).toEqual([["Metal"], ["Metal"]]);
+  });
+
   it("only reads and writes haulers in a mixed selection", () => {
     const initial = haulStateForPanel();
     initial.ships[1] = { ...initial.ships[1]!, defaultBehaviour: "mine", haulRoute: { from: "home", to: "station:4", material: "Ice" } };

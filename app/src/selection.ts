@@ -82,7 +82,7 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
   return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order && !intoSite(ship)
     ? `${orderLabel(ship.order)}${ship.state === "holding" ? " (holding)" : ""}` : shipStatus(state, ship) })),
     defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed",
-    materials: defaults.size === 1 && ships[0]!.defaultBehaviour === "mine" ? MATERIALS.map((material) => {
+    materials: defaults.size === 1 && (ships[0]!.defaultBehaviour === "mine" || ships[0]!.defaultBehaviour === "supply") ? MATERIALS.map((material) => {
       const count = ships.filter((ship) => ship.mineMaterials.includes(material)).length;
       return { material, ticked: count === ships.length ? "on" : count === 0 ? "off" : "mixed" } as MaterialBox;
     }) : null,

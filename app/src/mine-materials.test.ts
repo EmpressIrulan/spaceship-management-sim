@@ -68,7 +68,12 @@ describe("the selection panel's tickboxes", () => {
     expect(panel.materials).toEqual([{ material: "Metal", ticked: "mixed" }, { material: "Ice", ticked: "on" }]);
   });
 
-  it("has no boxes unless every selected ship is on Mine for Station", () => {
+  it("shows the same boxes for a supply ship", () => {
+    const panel = selectionPanel(withShips([{ defaultBehaviour: "supply", mineMaterials: ["Metal", "Ice"] }]), [0])!;
+    expect(panel.materials).toEqual([{ material: "Metal", ticked: "on" }, { material: "Ice", ticked: "on" }]);
+  });
+
+  it("has no boxes unless every selected ship is on Mine or Supply", () => {
     expect(selectionPanel(withShips([{ defaultBehaviour: "none" }]), [0])!.materials).toBeNull();
     expect(selectionPanel(withShips([{}, { defaultBehaviour: "none" }]), [0, 1])!.materials).toBeNull();
   });
