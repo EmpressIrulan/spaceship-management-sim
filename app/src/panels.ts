@@ -54,6 +54,14 @@ export function installPanels(
       setState(setShipHome(getState(), ui.selectedShips, home));
       ui.renderedPanel = "";
     }
+    if (select.name === "mine-material") {
+      if (select.value === "mixed") return;
+      const materials = select.value === "both" ? ["Metal", "Ice"] : [select.value];
+      let next = getState();
+      for (const material of ["Metal", "Ice"] as const) next = setMineMaterial(next, ui.selectedShips, material, materials.includes(material));
+      setState(next);
+      return;
+    }
     if (["haul-from", "haul-to", "haul-material"].includes(select.name)) {
       ui.routeRefusalMessage = null;
       const panel = selectionPanel(getState(), ui.selectedShips);
@@ -77,7 +85,6 @@ export function installPanels(
   });
   shipPanelBox.addEventListener("change", (event) => {
     const input = event.target as HTMLInputElement;
-    if (input.name === "mine-material") setState(setMineMaterial(getState(), ui.selectedShips, input.value as Material, input.checked));
     if (input.name === "mine-other-sectors") setState(setMineOtherSectors(getState(), ui.selectedShips, input.checked));
   });
   shipPanelBox.addEventListener("click", (event) => {

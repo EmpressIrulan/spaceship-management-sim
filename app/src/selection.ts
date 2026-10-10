@@ -33,8 +33,7 @@ export function keyPan(keys: ReadonlySet<string>, dt: number): Vec {
     y: (held("w", "ArrowUp") ? speed : 0) - (held("s", "ArrowDown") ? speed : 0) };
 }
 export function orderLineAlpha(elapsed: number): number { return Math.max(0, 1 - elapsed / ORDER_LINE_SECONDS); }
-// "mixed" is the half-ticked box, where the selected ships disagree.
-export interface MaterialBox { material: Material; ticked: "on" | "off" | "mixed" }
+// "mixed" is the sentinel used when the selected ships have no one dropdown choice in common.
 // Display version of HaulRoute that allows "mixed" sentinels for divergent fields.
 export interface DisplayHaulRoute {
   from: HaulStationId | "mixed";
@@ -44,7 +43,7 @@ export interface DisplayHaulRoute {
 export interface SelectionPanel {
   rows: { id: number; name: string; status: string }[];
   defaultBehaviour: DefaultBehaviour | "mixed";
-  materials: MaterialBox[] | null;
+  materials: "both" | Material | "mixed" | null;
   mineOtherSectors: "on" | "off" | "mixed" | null;
   canResume: boolean;
   canHaul: boolean;
@@ -82,15 +81,19 @@ export function selectionPanel(state: SimState, ids: number[]): SelectionPanel |
   return { rows: ships.map((ship) => ({ id: ship.id, name: `Ship ${ship.id + 1}`, status: ship.order && !intoSite(ship)
     ? `${orderLabel(ship.order)}${ship.state === "holding" ? " (holding)" : ""}` : shipStatus(state, ship) })),
     defaultBehaviour: defaults.size === 1 ? ships[0]!.defaultBehaviour : "mixed",
-    materials: defaults.size === 1 && (ships[0]!.defaultBehaviour === "mine" || ships[0]!.defaultBehaviour === "supply") ? MATERIALS.map((material) => {
-      const count = ships.filter((ship) => ship.mineMaterials.includes(material)).length;
-      return { material, ticked: count === ships.length ? "on" : count === 0 ? "off" : "mixed" } as MaterialBox;
-    }) : null,
+    materials: defaults.size === 1 && (ships[0]!.defaultBehaviour === "mine" || ships[0]!.defaultBehaviour === "supply")
+      ? materialChoice(ships.map((ship) => ship.mineMaterials)) : null,
     mineOtherSectors: defaults.size === 1 && ships[0]!.defaultBehaviour === "mine"
       ? otherSectorSettings.size === 1 ? ships[0]!.mineOtherSectors ? "on" : "off" : "mixed"
       : null,
     canResume: ships.some((ship) => ship.order !== null),
     canHaul: stations.length >= 1, haulDisabledReason: stations.length >= 1 ? null : "Needs a station", stations, destinations: haulDestinations(state),
       haulRoute, homeStation: homes.size === 1 ? (ships[0]!.homeStationId === undefined ? 0 : ships[0]!.homeStationId) : "mixed" };
+}
+
+function materialChoice(materials: Material[][]): "both" | Material | "mixed" {
+  const choices = new Set(materials.map((items) => items.length === MATERIALS.length && MATERIALS.every((material) => items.includes(material))
+    ? "both" : items.length === 1 ? items[0]! : "mixed"));
+  return choices.size === 1 ? [...choices][0] as "both" | Material | "mixed" : "mixed";
 }
 import { homeStation } from "sim";
