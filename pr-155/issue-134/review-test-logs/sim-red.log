@@ -1,0 +1,218 @@
+
+> sim@0.0.0 test
+> vitest run src/station-build-queue.test.ts src/enemies.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-134/sim[39m
+
+ [31m❯[39m src/enemies.test.ts [2m([22m[2m34 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[32m 61[2mms[22m[39m
+   [32m✓[39m hive [2m(5)[22m
+     [32m✓[39m starts in the sector next to home, with full HP[32m 3[2mms[22m[39m
+     [32m✓[39m releases a bug every BUG_SPAWN_SECONDS[32m 3[2mms[22m[39m
+     [32m✓[39m spawns each bug in the hive's sector, from the hive[32m 1[2mms[22m[39m
+     [32m✓[39m with fewer than 5 alive, bugs loiter by the hive and ignore ships[32m 1[2mms[22m[39m
+     [32m✓[39m replays exactly from the seed[32m 4[2mms[22m[39m
+   [32m✓[39m bugs hunt ships [2m(6)[22m
+     [32m✓[39m at 5 or more alive, bugs fly at the nearest ship in their sector[32m 2[2mms[22m[39m
+     [32m✓[39m ignores ships docked inside a hangar when choosing a quarry[32m 1[2mms[22m[39m
+     [32m✓[39m bites wear the ship's HP down from full[32m 1[2mms[22m[39m
+     [32m✓[39m at 0 HP the ship explodes and it and its cargo are gone[32m 7[2mms[22m[39m
+     [32m✓[39m with no ship in their sector, bugs at the threshold keep loitering[32m 1[2mms[22m[39m
+     [32m✓[39m hunting replays exactly from the seed[32m 6[2mms[22m[39m
+   [32m✓[39m bugs hunt station modules [2m(2)[22m
+     [32m✓[39m damages the nearest standing module once five bugs are alive[32m 1[2mms[22m[39m
+     [32m✓[39m does not target a module at zero HP[32m 1[2mms[22m[39m
+   [32m✓[39m gun ships [2m(8)[22m
+     [32m✓[39m does not let a Gun docked inside a hangar fire[32m 0[2mms[22m[39m
+     [32m✓[39m shoot the nearest bug in range on their own, and no other[32m 1[2mms[22m[39m
+     [32m✓[39m kill a bug in a few hits: BUG_HP over GUN_DAMAGE, rounded up[32m 1[2mms[22m[39m
+     [32m✓[39m shoot the hive when no bug is in range[32m 0[2mms[22m[39m
+     [32m✓[39m leave everything out of range alone[32m 0[2mms[22m[39m
+     [32m✓[39m kill a dying hive dead, and it stops releasing bugs[32m 1[2mms[22m[39m
+     [32m✓[39m replay the whole fight exactly from the seed[32m 6[2mms[22m[39m
+     [32m✓[39m a ship with Guns can be sent to the hive's sector with a move order[32m 2[2mms[22m[39m
+   [31m❯[39m station Turrets [2m(9)[22m
+[31m     [31m×[31m does not mutate frozen station 0 during a shot or destruction[39m[32m 6[2mms[22m[39m
+[31m     [31m×[31m does not mutate frozen station 1 during a shot or destruction[39m[32m 1[2mms[22m[39m
+     [32m✓[39m fires at a bug in range, reports its beam, spends Metal, and damages the bug[32m 1[2mms[22m[39m
+     [32m✓[39m shoots the hive when no bug is in range[32m 0[2mms[22m[39m
+     [32m✓[39m stops firing and reports no Metal[32m 0[2mms[22m[39m
+[31m     [31m×[31m reports insufficient Metal with no target[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m reports insufficient Metal with reload[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m reports insufficient Metal with in flight[39m[32m 0[2mms[22m[39m
+     [32m✓[39m takes damage as a normal station module[32m 0[2mms[22m[39m
+   [32m✓[39m drops [2m(4)[22m
+     [32m✓[39m a shot bug keeps floating until a hit kills it, and then leaves 1 bug juice where it died[32m 1[2mms[22m[39m
+     [32m✓[39m each dead bug leaves its own drop[32m 0[2mms[22m[39m
+     [32m✓[39m a killed hive leaves 1 queen larvae where it stood, and it stays[32m 1[2mms[22m[39m
+     [32m✓[39m drops replay exactly from the seed[32m 1[2mms[22m[39m
+ [31m❯[39m src/station-build-queue.test.ts [2m([22m[2m22 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 208[2mms[22m[39m
+   [31m❯[39m the station build queue [2m(22)[22m
+[31m     [31m×[31m preserves construction builds when their attachment is destroyed[39m[32m 7[2mms[22m[39m
+[31m     [31m×[31m preserves queued builds when their attachment is destroyed[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m preserves only Dock builds when their attachment is destroyed[39m[32m 1[2mms[22m[39m
+     [32m✓[39m turns a destroyed module into a ghost and preserves Builder indices[32m 1[2mms[22m[39m
+     [32m✓[39m destroys disconnected modules, loses Storage stock, and shrinks capacity[32m 1[2mms[22m[39m
+     [32m✓[39m leaves an unfunded module as a ghost at the chosen site[32m 2[2mms[22m[39m
+     [32m✓[39m starts the front module immediately when an empty queue can pay[32m 0[2mms[22m[39m
+     [32m✓[39m builds in click order and never skips the front ghost[32m 2[2mms[22m[39m
+     [32m✓[39m offers module sites around ghosts so a row can be queued at once[32m 1[2mms[22m[39m
+     [32m✓[39m cancels a ghost and anything connected only through it, preserving the rest[32m 1[2mms[22m[39m
+     [32m✓[39m cancels a queued module by its owning station id[32m 0[2mms[22m[39m
+     [32m✓[39m names every ghost that reaches the station only through the cancelled one[32m 1[2mms[22m[39m
+     [32m✓[39m keeps a ghost that still reaches the station through a built module[32m 0[2mms[22m[39m
+     [32m✓[39m cancels a ghost nothing depends on on its own[32m 1[2mms[22m[39m
+     [32m✓[39m takes a ghost that would build ahead of the ghost connecting it[32m 1[2mms[22m[39m
+     [32m✓[39m keeps a supply ship and its cargo waiting at Home until something is queued[32m 2[2mms[22m[39m
+     [32m✓[39m brings a supplier home with its cargo when the last ghost is cancelled[32m 1[2mms[22m[39m
+     [32m✓[39m sends three parked suppliers to the site as soon as a module is queued[32m 4[2mms[22m[39m
+     [32m✓[39m moves a built station's pad off an asteroid when a module completes[32m 1[2mms[22m[39m
+     [32m✓[39m moves a built station's pad off another station's module when a module completes[32m 1[2mms[22m[39m
+     [32m✓[39m moves a built station's pad off a home module when a module completes[32m 0[2mms[22m[39m
+     [32m✓[39m leaves a supply ship at its Move destination while a build is queued[32m 176[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 8 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mstation Turrets[2m > [22mdoes not mutate frozen station 0 during a shot or destruction
+[31m[1mTypeError[22m: Cannot assign to read only property 'Metal' of object '#<Object>'[39m
+[36m [2m❯[22m src/enemies.ts:[2m411:15[22m[39m
+    [90m409|[39m     if (!target) return { ...current, turretNoMetal: false };
+    [90m410|[39m     if (inventory.Metal < TURRET_METAL_PER_SHOT) return { ...current, …
+    [90m411|[39m     inventory.Metal -= TURRET_METAL_PER_SHOT;
+    [90m   |[39m               [31m^[39m
+    [90m412|[39m     return fireTurret(current, target);
+    [90m413|[39m   });
+[90m [2m❯[22m settleTurretSet src/enemies.ts:[2m402:24[22m[39m
+[90m [2m❯[22m settleTurrets src/enemies.ts:[2m420:19[22m[39m
+[90m [2m❯[22m settleEnemies src/enemies.ts:[2m275:3[22m[39m
+[90m [2m❯[22m settle src/tick.ts:[2m741:3[22m[39m
+[90m [2m❯[22m simulate src/tick.ts:[2m860:5[22m[39m
+[90m [2m❯[22m tick src/tick.ts:[2m793:16[22m[39m
+[90m [2m❯[22m src/enemies.test.ts:[2m414:19[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mstation Turrets[2m > [22mdoes not mutate frozen station 1 during a shot or destruction
+[31m[1mTypeError[22m: Cannot assign to read only property 'Metal' of object '#<Object>'[39m
+[36m [2m❯[22m src/enemies.ts:[2m411:15[22m[39m
+    [90m409|[39m     if (!target) return { ...current, turretNoMetal: false };
+    [90m410|[39m     if (inventory.Metal < TURRET_METAL_PER_SHOT) return { ...current, …
+    [90m411|[39m     inventory.Metal -= TURRET_METAL_PER_SHOT;
+    [90m   |[39m               [31m^[39m
+    [90m412|[39m     return fireTurret(current, target);
+    [90m413|[39m   });
+[90m [2m❯[22m settleTurretSet src/enemies.ts:[2m402:24[22m[39m
+[90m [2m❯[22m src/enemies.ts:[2m423:14[22m[39m
+[90m [2m❯[22m settleTurrets src/enemies.ts:[2m421:31[22m[39m
+[90m [2m❯[22m settleEnemies src/enemies.ts:[2m275:3[22m[39m
+[90m [2m❯[22m settle src/tick.ts:[2m741:3[22m[39m
+[90m [2m❯[22m simulate src/tick.ts:[2m860:5[22m[39m
+[90m [2m❯[22m tick src/tick.ts:[2m793:16[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mstation Turrets[2m > [22mreports insufficient Metal with no target
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/enemies.test.ts:[2m489:58[22m[39m
+    [90m487|[39m     };
+    [90m488|[39m     const state = tick(start, 1 / 60);
+    [90m489|[39m     expect(state.stations[0]!.modules[0]!.turretNoMetal).toBe(true);
+    [90m   |[39m                                                          [31m^[39m
+    [90m490|[39m     expect(state.stations[0]!.inventory.Metal).toBe(TURRET_METAL_PER_S…
+    [90m491|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mstation Turrets[2m > [22mreports insufficient Metal with reload
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mstation Turrets[2m > [22mreports insufficient Metal with in flight
+[31m[1mAssertionError[22m: expected undefined to be true // Object.is equality[39m
+
+[32m- Expected:[39m
+true
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m src/enemies.test.ts:[2m489:58[22m[39m
+    [90m487|[39m     };
+    [90m488|[39m     const state = tick(start, 1 / 60);
+    [90m489|[39m     expect(state.stations[0]!.modules[0]!.turretNoMetal).toBe(true);
+    [90m   |[39m                                                          [31m^[39m
+    [90m490|[39m     expect(state.stations[0]!.inventory.Metal).toBe(TURRET_METAL_PER_S…
+    [90m491|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/station-build-queue.test.ts[2m > [22mthe station build queue[2m > [22mpreserves construction builds when their attachment is destroyed
+[41m[1m FAIL [22m[49m src/station-build-queue.test.ts[2m > [22mthe station build queue[2m > [22mpreserves only Dock builds when their attachment is destroyed
+[31m[1mAssertionError[22m: expected { type: 'Builder', …(3) } to be null[39m
+
+[32m- Expected:[39m
+null
+
+[31m+ Received:[39m
+{
+  "position": {
+    "x": 80,
+    "y": 0,
+  },
+  "size": {
+    "height": 40,
+    "width": 30,
+  },
+  "timer": 14.983333333333333,
+  "type": "Builder",
+}
+
+[36m [2m❯[22m src/station-build-queue.test.ts:[2m71:39[22m[39m
+    [90m 69|[39m     const damaged = state.stations[0]!;
+    [90m 70|[39m     if (setup === "queued") expect(damaged.construction).toMatchObject…
+    [90m 71|[39m     else expect(damaged.construction).toBeNull();
+    [90m   |[39m                                       [31m^[39m
+    [90m 72|[39m     expect(damaged.buildQueue.map((module) => module.type)).toEqual(
+    [90m 73|[39m       setup === "only Dock" ? ["Dock", "Storage", "Builder"] : ["Stora…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/station-build-queue.test.ts[2m > [22mthe station build queue[2m > [22mpreserves queued builds when their attachment is destroyed
+[31m[1mAssertionError[22m: expected [ 'Builder', 'Storage' ] to deeply equal [ 'Storage', 'Builder' ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[32m-   "Storage",[39m
+[2m    "Builder",[22m
+[31m+   "Storage",[39m
+[2m  ][22m
+
+[36m [2m❯[22m src/station-build-queue.test.ts:[2m72:61[22m[39m
+    [90m 70|[39m     if (setup === "queued") expect(damaged.construction).toMatchObject…
+    [90m 71|[39m     else expect(damaged.construction).toBeNull();
+    [90m 72|[39m     expect(damaged.buildQueue.map((module) => module.type)).toEqual(
+    [90m   |[39m                                                             [31m^[39m
+    [90m 73|[39m       setup === "only Dock" ? ["Dock", "Storage", "Builder"] : ["Stora…
+    [90m 74|[39m     );
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m8 failed[39m[22m[2m | [22m[1m[32m48 passed[39m[22m[90m (56)[39m
+[2m   Start at [22m 19:42:23
+[2m   Duration [22m 444ms[2m (tests 45%, transform 45%, import 9%, worker 1%)[22m
+
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /home/alice/repos/.worktrees/spaceship-134/sim
+npm error workspace sim@0.0.0
+npm error location /home/alice/repos/.worktrees/spaceship-134/sim
+npm error command failed
+npm error command sh -c vitest run src/station-build-queue.test.ts src/enemies.test.ts

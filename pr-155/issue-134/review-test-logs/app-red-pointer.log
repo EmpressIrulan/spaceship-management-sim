@@ -1,0 +1,88 @@
+
+> app@0.0.0 test
+> vitest run src/ship-menu.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-134/app[39m
+
+ [31m❯[39m src/ship-menu.test.ts [2m([22m[2m3 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 11[2mms[22m[39m
+   [31m❯[39m Builder identity after module destruction [2m(3)[22m
+[31m     [31m×[31m remaps before a Build click, even before the next render[39m[32m 7[2mms[22m[39m
+[31m     [31m×[31m remaps the open menu on render and keeps a still pointer on the same Builder[39m[32m 3[2mms[22m[39m
+[31m     [31m×[31m closes a destroyed Builder instead of sending Build to the other Builder[39m[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 3 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/ship-menu.test.ts[2m > [22mBuilder identity after module destruction[2m > [22mremaps before a Build click, even before the next render
+[31m[1mAssertionError[22m: expected 2 to be 1 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 1[39m
+[31m+ 2[39m
+
+[36m [2m❯[22m src/ship-menu.test.ts:[2m62:37[22m[39m
+    [90m 60|[39m     demo.destroy({ x: 40, y: 0 });
+    [90m 61|[39m     demo.click({ build: "" });
+    [90m 62|[39m     expect(demo.ui.shipMenuBuilder).toBe(1);
+    [90m   |[39m                                     [31m^[39m
+    [90m 63|[39m     expect(demo.getState().stations[0]!.shipBuilds.map(job => job.buil…
+    [90m 64|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/ship-menu.test.ts[2m > [22mBuilder identity after module destruction[2m > [22mremaps the open menu on render and keeps a still pointer on the same Builder
+[31m[1mAssertionError[22m: expected null to match object { kind: 'module', index: 1 }[39m
+
+[32m- Expected:[39m
+{
+  "index": 1,
+  "kind": "module",
+}
+
+[31m+ Received:[39m
+null
+
+[36m [2m❯[22m src/ship-menu.test.ts:[2m73:21[22m[39m
+    [90m 71|[39m     syncShipMenuStats(demo.ui, demo.getState, demo.menu as unknown as …
+    [90m 72|[39m     const hovered = hoveredBody(demo.getState(), demo.ui.camera, demo.…
+    [90m 73|[39m     expect(hovered).toMatchObject({ kind: "module", index: 1 });
+    [90m   |[39m                     [31m^[39m
+    [90m 74|[39m     expect(infoBox(demo.getState(), hovered)?.line).toContain("HP 21/4…
+    [90m 75|[39m     expect(demo.ui.shipMenuBuilder).toBe(1);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/ship-menu.test.ts[2m > [22mBuilder identity after module destruction[2m > [22mcloses a destroyed Builder instead of sending Build to the other Builder
+[31m[1mAssertionError[22m: expected 2 to be null[39m
+
+[32m- Expected:[39m
+null
+
+[31m+ Received:[39m
+2
+
+[36m [2m❯[22m src/ship-menu.test.ts:[2m82:37[22m[39m
+    [90m 80|[39m     demo.destroy({ x: 0, y: -40 });
+    [90m 81|[39m     demo.click({ build: "" });
+    [90m 82|[39m     expect(demo.ui.shipMenuBuilder).toBeNull();
+    [90m   |[39m                                     [31m^[39m
+    [90m 83|[39m     expect(demo.menu.hidden).toBe(true);
+    [90m 84|[39m     expect(demo.getState().stations[0]!.shipBuilds).toEqual([]);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m3 failed[39m[22m[90m (3)[39m
+[2m   Start at [22m 19:47:20
+[2m   Duration [22m 272ms[2m (transform 78%, import 15%, tests 6%, worker 1%)[22m
+
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /home/alice/repos/.worktrees/spaceship-134/app
+npm error workspace app@0.0.0
+npm error location /home/alice/repos/.worktrees/spaceship-134/app
+npm error command failed
+npm error command sh -c vitest run src/ship-menu.test.ts
