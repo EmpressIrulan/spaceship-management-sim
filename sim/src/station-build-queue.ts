@@ -1,7 +1,7 @@
 import { MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
-import { DOCK_CAPACITY, STORAGE_CAPACITY, replaceStation, stationById } from "./state";
+import { DOCK_CAPACITY, STORAGE_CAPACITY, homeStation, replaceStation, stationById } from "./state";
 import { availableModuleBuildSites, nearbyClearPosition, stationOwningSite } from "./station-building";
 import { moduleBuildSeconds, moduleCost, moduleSize, samePosition } from "./station-module-geometry";
 import { travelSeconds } from "./motion";
@@ -12,6 +12,13 @@ type QueueState = Pick<Station, "constructionSite" | "construction" | "buildQueu
 // What the queue needs to know about how the station hangs together: the
 // finished modules, the one under construction and what is still waiting.
 type StationGraph = Pick<Station, "modules" | "construction" | "buildQueue">;
+
+// How many builds are queued at the site supply ships deliver to: the selected
+// one, or Home's when none is selected.
+export function supplyQueueLength(state: SimState): number {
+  const target = state.supplyStation === 0 ? undefined : stationById(state, state.supplyStation);
+  return (target ?? homeStation(state)).buildQueue.length;
+}
 
 export function supplyQueueStatus(ship: Pick<Ship, "defaultBehaviour" | "order">, queuedCount: number): "waiting" | "supplying" | null {
   if (ship.defaultBehaviour !== "supply" || ship.order !== null) return null;
