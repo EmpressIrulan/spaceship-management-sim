@@ -1,0 +1,69 @@
+
+> app@0.0.0 test
+> vitest run --run src/world-rendering.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-106/app[39m
+
+ [31m❯[39m src/world-rendering.test.ts [2m([22m[2m13 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 29[2mms[22m[39m
+   [32m✓[39m the world draws the hive and its bugs [2m(3)[22m
+     [32m✓[39m draws the hive of the sector on its spot[32m 7[2mms[22m[39m
+     [32m✓[39m draws every bug, but not a bug of another sector or a dead hive[32m 2[2mms[22m[39m
+     [32m✓[39m draws a bug juice drop and a queen larvae drop, each its own colour[32m 2[2mms[22m[39m
+   [32m✓[39m the world draws gun shots [2m(4)[22m
+     [32m✓[39m draws a projectile between its ship and aim, without a line[32m 2[2mms[22m[39m
+     [32m✓[39m draws nothing for a ship with no shot in flight[32m 2[2mms[22m[39m
+     [32m✓[39m draws a bite as a flash between the bug and the ship it is biting[32m 1[2mms[22m[39m
+     [32m✓[39m does not keep drawing a bite throughout its cooldown or track a moved quarry[32m 2[2mms[22m[39m
+   [32m✓[39m a hull that vanishes between frames explodes [2m(5)[22m
+     [32m✓[39m blasts once on the spot where the ship was last seen, then fades[32m 2[2mms[22m[39m
+     [32m✓[39m never blasts for a hull that only changed where it was[32m 1[2mms[22m[39m
+     [32m✓[39m does not blast when a living ship enters docked[32m 1[2mms[22m[39m
+     [32m✓[39m does not blast when a living ship enters jumpingOut[32m 1[2mms[22m[39m
+     [32m✓[39m blasts nothing when the sector changes view[32m 1[2mms[22m[39m
+   [31m❯[39m a shield hit flashes around the ship [2m(1)[22m
+[31m     [31m×[31m draws a blue ring once when the shield hit timestamp changes[39m[32m 4[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/world-rendering.test.ts[2m > [22ma shield hit flashes around the ship[2m > [22mdraws a blue ring once when the shield hit timestamp changes
+[31m[1mAssertionError[22m: expected "vi.fn()" to not be called at all, but actually been called 1 times[90m
+
+Received:
+
+[1m  1st vi.fn() call:
+
+[22m    Array [
+      400,
+      300,
+      11.36396103067893,
+      0,
+      6.283185307179586,
+    ]
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m src/world-rendering.test.ts:[2m270:25[22m[39m
+    [90m268|[39m     expect(ctx.arc).not.toHaveBeenCalled();
+    [90m269|[39m     drawing.draw(1.5);
+    [90m270|[39m     expect(ctx.arc).not.toHaveBeenCalled();
+    [90m   |[39m                         [31m^[39m
+    [90m271|[39m     state = shotState({ ...state.ships[0]!, shield: 11, shieldLastHit:…
+    [90m272|[39m     drawing.draw(2);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m12 passed[39m[22m[90m (13)[39m
+[2m   Start at [22m 11:47:35
+[2m   Duration [22m 315ms[2m (transform 72%, import 15%, tests 12%, worker 1%)[22m
+
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /home/alice/repos/.worktrees/spaceship-106/app
+npm error workspace app@0.0.0
+npm error location /home/alice/repos/.worktrees/spaceship-106/app
+npm error command failed
+npm error command sh -c vitest run --run src/world-rendering.test.ts

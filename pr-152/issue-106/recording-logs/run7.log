@@ -1,0 +1,14 @@
+1-generators-before-hit Ship | HoldingShield 20/20 | HP 40/40 {"time":0,"ships":[{"id":0}]}
+1-generators-last-hit Ship | HoldingShield 15/20 | HP 40/40 {"time":1,"ships":[{"id":0,"shield":15,"hp":40,"hit":1}]}
+1-generators-four-seconds Ship | HoldingShield 15/20 | HP 40/40 {"time":5,"ships":[{"id":0,"shield":15,"hp":40,"hit":1}]}
+1-generators-five-seconds Ship | HoldingShield 15/20 | HP 40/40 {"time":6,"ships":[{"id":0,"shield":15,"hp":40,"hit":1}]}
+1-generators-six-seconds Ship | HoldingShield 16/20 | HP 40/40 {"time":7,"ships":[{"id":0,"shield":16,"hp":40,"hit":1}]}
+1-generators-seven-seconds Ship | HoldingShield 17/20 | HP 40/40 {"time":8,"ships":[{"id":0,"shield":17,"hp":40,"hit":1}]}
+3-generators-before-hit Ship | HoldingShield 20/20 | HP 40/40 {"time":0,"ships":[{"id":0}]}
+3-generators-last-hit Ship | HoldingShield 15/20 | HP 40/40 {"time":1,"ships":[{"id":0,"shield":15,"hp":40,"hit":1}]}
+3-generators-four-seconds Ship | HoldingShield 15/20 | HP 40/40 {"time":5,"ships":[{"id":0,"shield":15,"hp":40,"hit":1}]}
+3-generators-five-seconds Ship | HoldingShield 15/20 | HP 40/40 {"time":6,"ships":[{"id":0,"shield":15,"hp":40,"hit":1}]}
+3-generators-six-seconds Ship | HoldingShield 18/20 | HP 40/40 {"time":7,"ships":[{"id":0,"shield":18,"hp":40,"hit":1}]}
+3-generators-seven-seconds Ship | HoldingShield 20/20 | HP 40/40 {"time":8,"ships":[{"id":0,"shield":20,"hp":40,"hit":1}]}
+/home/alice/.cache/spaceship-management-sim-106/scene-5/criterion-5.webm
+EXIT=0

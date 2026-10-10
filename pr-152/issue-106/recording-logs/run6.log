@@ -1,0 +1,7 @@
+before-bites Ship | HoldingShield 2.5/20 | HP 40/40 {"time":0,"ships":[{"id":0,"shield":2.5}]}
+first-bite-blue-ring Ship | HoldingShield 1.5/20 | HP 40/40 {"time":2,"ships":[{"id":0,"shield":1.5,"hp":40,"hit":2}]}
+second-bite-hp-intact Ship | HoldingShield 0.5/20 | HP 40/40 {"time":4,"ships":[{"id":0,"shield":0.5,"hp":40,"hit":4}]}
+third-bite-half-carries-to-hp Ship | HoldingShield 0/20 | HP 39.5/40 {"time":6,"ships":[{"id":0,"shield":0,"hp":39.5,"hit":6}]}
+empty-shield-hull-bite Ship | HoldingShield 0/20 | HP 38.5/40 {"time":8,"ships":[{"id":0,"shield":0,"hp":38.5,"hit":6}]}
+/home/alice/.cache/spaceship-management-sim-106/scene-4/criterion-4.webm
+EXIT=0
