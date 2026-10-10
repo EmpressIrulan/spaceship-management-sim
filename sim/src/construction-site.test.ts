@@ -109,7 +109,7 @@ describe("building from the construction site", () => {
 
     expect(availableModuleBuilds(state, 0).map(({ enabled, missing }) => ({ enabled, missing })))
       .toEqual([
-        ...Array(3).fill({ enabled: false, missing: { Metal: 0, Ice: 15 } }),
+        ...Array(4).fill({ enabled: false, missing: { Metal: 0, Ice: 15 } }),
         { enabled: false, missing: { Metal: 970, Ice: 990 } },
       ]);
   });

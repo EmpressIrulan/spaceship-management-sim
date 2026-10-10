@@ -14,6 +14,7 @@ import {
 } from "./index";
 import { suppliersComingHome } from "./test-ships";
 import { placeStation } from "./station-placement";
+import { damageStationModule } from "./station-build-queue";
 
 const east = { x: 80, y: 0 };
 const farEast = { x: 120, y: 0 };
@@ -43,6 +44,130 @@ function withBuilder(state: SimState, position: Vec): SimState {
 }
 
 describe("the station build queue", () => {
+  it.each([
+    { name: "one of two", positions: [40, -40], inventory: { Metal: 200, Ice: 100 }, capacity: 2000, expected: { Metal: 100, Ice: 50 } },
+    { name: "two of three in a cascade", positions: [40, 80, -40], inventory: { Metal: 300, Ice: 150 }, capacity: 3000, expected: { Metal: 100, Ice: 50 } },
+    { name: "the last Storage", positions: [40], inventory: { Metal: 200, Ice: 100 }, capacity: 1000, expected: { Metal: 0, Ice: 0 } },
+    { name: "stock above remaining capacity", positions: [40, -40], inventory: { Metal: 2400, Ice: 1600 }, capacity: 2000, expected: { Metal: 600, Ice: 400 } },
+    { name: "empty stock", positions: [40, -40], inventory: { Metal: 0, Ice: 0 }, capacity: 2000, expected: { Metal: 0, Ice: 0 } },
+  ])("loses only the destroyed Storage shares: $name", ({ positions, inventory, capacity, expected }) => {
+    const base = createInitialState(7).stations[0]!;
+    const station = { ...base, inventory: Object.freeze({ ...inventory }), storage: { ...base.storage, capacity },
+      modules: [base.modules[0]!, ...positions.map(x => ({ type: "Storage" as const, position: { x, y: 0 }, size: { width: 30, height: 40 } }))] };
+    const result = damageStationModule(station, { x: 40, y: 0 }, 40, 1).station;
+    expect(result.inventory).toEqual(expected);
+    expect(result.inventory.Metal + result.inventory.Ice).toBeLessThanOrEqual(result.storage.capacity);
+    expect(station.inventory).toEqual(inventory);
+    expect(station.modules).toHaveLength(positions.length + 1);
+  });
+
+  it("keeps a surviving Storage's share without changing a frozen tick input", () => {
+    function freeze(value: unknown): void {
+      if (value && typeof value === "object") {
+        Object.freeze(value);
+        for (const child of Object.values(value)) freeze(child);
+      }
+    }
+    const state = createInitialState(7);
+    state.ships = [];
+    state.hives = [];
+    const station = state.stations[0]!;
+    station.inventory = { Metal: 200, Ice: 100 };
+    station.storage = { ...station.storage, capacity: 2000 };
+    station.modules[1] = { ...station.modules[1]!, hp: 1 };
+    station.modules.push({ type: "Storage", position: west, size: { width: 30, height: 40 } });
+    state.bugs = Array.from({ length: 5 }, (_, id) => ({ id, hiveId: 0, sectorId: 0,
+      position: { x: 41, y: 0 }, hp: 6, maxHp: 6, state: "hunting", targetShipId: null, leg: null, timer: 0 }));
+    const before = JSON.stringify(state);
+    freeze(state);
+    const result = tick(state, 1 / 60);
+    expect(result.stations[0]!.inventory).toEqual({ Metal: 100, Ice: 50 });
+    expect(result.stations[0]!.storage.capacity).toBe(1000);
+    expect(result.stations[0]!.modules.filter(module => module.type === "Storage")).toHaveLength(1);
+    expect(JSON.stringify(state)).toBe(before);
+    expect(tick(state, 1 / 60)).toEqual(result);
+  });
+
+  it.each(["construction", "queued", "only Dock"])("preserves %s builds when their attachment is destroyed", (setup) => {
+    let state = createInitialState(7);
+    state.ships = [];
+    state.asteroids = [];
+    state.hives = [];
+    const station = state.stations[0]!;
+    station.construction = null;
+    station.buildQueue = [];
+    station.constructionSite.inventory = { Metal: 150, Ice: 150 };
+    const builder = { type: "Builder" as const, position: east, size: { width: 30, height: 40 } };
+    if (setup === "queued") {
+      station.buildQueue = [builder];
+      station.construction = { type: "Storage", position: west, size: { width: 30, height: 40 }, timer: BUILD_SECONDS };
+    }
+    else station.construction = { ...builder, timer: BUILD_SECONDS };
+    const target = station.modules[setup === "only Dock" ? 0 : 1]!;
+    target.hp = 3;
+    state.bugs = Array.from({ length: 5 }, (_, id) => ({ id, hiveId: 0, sectorId: 0,
+      position: { x: target.position.x + 1, y: target.position.y }, hp: 6, maxHp: 6,
+      state: "hunting", targetShipId: null, leg: null, timer: 0 }));
+    state = tick(state, 1 / 60);
+    state = { ...state, bugs: [] };
+    const damaged = state.stations[0]!;
+    expect(damaged.construction).toMatchObject(setup === "queued"
+      ? { type: "Storage", position: west }
+      : { type: setup === "only Dock" ? "Dock" : "Storage", position: target.position });
+    expect((setup === "queued" ? damaged.buildQueue : [damaged.construction!, ...damaged.buildQueue]).map((module) => module.type)).toEqual(
+      setup === "only Dock" ? ["Dock", "Storage", "Builder"] : ["Storage", "Builder"],
+    );
+    expect(damaged.constructionSite.inventory).toEqual({ Metal: 150, Ice: 150 });
+    for (let frame = 0; frame < 60 * BUILD_SECONDS * 4; frame += 1) {
+      state = tick(state, 1 / 60);
+      const s = state.stations[0]!;
+      if (s.construction && s.modules.length > 0) {
+        expect(s.modules.some(module => Math.abs(Math.hypot(module.position.x - s.construction!.position.x, module.position.y - s.construction!.position.y) - 40) < 1e-6)).toBe(true);
+      }
+    }
+    expect(state.stations[0]!.modules.map(module => module.type)).toEqual(setup === "queued" ? ["Dock", "Storage", "Storage", "Builder"] : ["Dock", "Storage", "Builder"]);
+    expect(state.stations[0]!.dock.capacity).toBeGreaterThan(0);
+    expect(state.stations[0]!.buildQueue).toEqual([]);
+    expect(state.stations[0]!.construction).toBeNull();
+  });
+
+  it("turns a destroyed module into a ghost and preserves Builder indices", () => {
+    const base = createInitialState(7);
+    const station = {
+      ...base.stations[0]!,
+      modules: [...base.stations[0]!.modules,
+        { type: "Builder" as const, position: { x: -40, y: 0 }, size: { width: 30, height: 40 } },
+        { type: "Storage" as const, position: { x: -80, y: 0 }, size: { width: 30, height: 40 } }],
+      shipBuilds: [{ builder: 2, design: base.ships[0]!.design, timer: 10 }],
+    };
+    const result = damageStationModule(station, { x: 40, y: 0 }, 40, 12);
+
+    expect(result.station.modules.map((module) => module.type)).toEqual(["Dock", "Builder", "Storage"]);
+    expect(result.station.buildQueue.map((module) => module.type)).toEqual(["Storage"]);
+    expect(result.station.shipBuilds[0]!.builder).toBe(1);
+    expect(result.destructions).toEqual([
+      { time: 12, stationId: 0, position: { x: 40, y: 0 } },
+    ]);
+  });
+
+  it("destroys disconnected modules, loses Storage stock, and shrinks capacity", () => {
+    const base = createInitialState(7);
+    const station = {
+      ...base.stations[0]!,
+      inventory: { Metal: 9, Ice: 4 },
+      modules: [...base.stations[0]!.modules,
+        { type: "Builder" as const, position: { x: 80, y: 0 }, size: { width: 30, height: 40 } },
+        { type: "Storage" as const, position: { x: 120, y: 0 }, size: { width: 30, height: 40 } }],
+    };
+    const result = damageStationModule(station, { x: 40, y: 0 }, 40, 12);
+
+    expect(result.station.modules.map((module) => module.type)).toEqual(["Dock"]);
+    expect(result.station.buildQueue.map((module) => module.type)).toEqual(["Storage", "Builder", "Storage"]);
+    expect(result.station.inventory).toEqual({ Metal: 0, Ice: 0 });
+    expect(result.station.storage.capacity).toBe(0);
+    expect(result.destructions).toHaveLength(3);
+  });
+
   it("leaves an unfunded module as a ghost at the chosen site", () => {
     const state = queueModuleBuild(createInitialState(7), "Storage", east);
 
@@ -70,6 +195,7 @@ describe("the station build queue", () => {
 
     state = tick(state, BUILD_SECONDS);
     expect(state.stations[0]!.modules.at(-1)).toMatchObject({ type: "Dock", position: east });
+    expect(state.stations[0]!.modules.at(-1)).toMatchObject({ hp: 40, maxHp: 40 });
     expect(state.stations[0]!.construction).toBeNull();
     expect(state.stations[0]!.buildQueue).toMatchObject([{ type: "Storage", position: west }]);
   });

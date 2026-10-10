@@ -32,6 +32,7 @@ describe("building station modules", () => {
       { type: "Dock", enabled: false, missing },
       { type: "Storage", enabled: false, missing },
       { type: "Builder", enabled: false, missing },
+      { type: "Turret", enabled: false, missing },
       { type: "Claim", enabled: false, missing: { Metal: 1000, Ice: 1000 } },
     ]);
   });
@@ -99,6 +100,13 @@ describe("building station modules", () => {
 
     const builder = tick(startModuleBuild(funded(), 0, "Builder", east), BUILD_SECONDS);
     expect(builder.stations[0]!.modules.at(-1)).toMatchObject({ type: "Builder" });
+  });
+
+  it("queues and builds a Turret like any other module", () => {
+    const started = startModuleBuild(funded(), 0, "Turret", east);
+    expect(started.stations[0]!.construction).toMatchObject({ type: "Turret", timer: BUILD_SECONDS });
+    const built = tick(started, BUILD_SECONDS);
+    expect(built.stations[0]!.modules.at(-1)).toMatchObject({ type: "Turret", hp: 40, maxHp: 40 });
   });
 
   it("adds one thousand shared units for each additional Storage module", () => {

@@ -14,6 +14,12 @@ export {
   GUN_RANGE,
   GUN_SECONDS,
   GUN_SHOT_SECONDS,
+  TURRET_DAMAGE,
+  TURRET_METAL_PER_SHOT,
+  TURRET_RANGE,
+  TURRET_SECONDS,
+  TURRET_SHOT_SECONDS,
+  TURRET_SIZE,
   BUG_ATTACK_THRESHOLD,
   BUG_BITE_DAMAGE,
   BUG_BITE_RANGE,
@@ -42,6 +48,7 @@ export {
   MATERIALS,
   MODULE_COST,
   MODULE_SPACING,
+  MODULE_HP,
   MODULE_TYPES,
   STORAGE_CAPACITY,
   STORAGE_SIZE,
@@ -89,6 +96,7 @@ export {
   type HaulDestinationId,
   type ModuleBuildOption,
   type ModuleConstruction,
+  type ModuleDestruction,
   type QueuedModuleBuild,
   type ModuleType,
   type Ship,
@@ -104,6 +112,7 @@ export {
   type Vec,
 } from "./state";
 export { cancelQueuedModuleBuild, queueModuleBuild, queuedDependents, startNextQueuedModule } from "./station-build-queue";
+export { damageStationModule } from "./station-build-queue";
 export { gunBeams } from "./enemies";
 export { supplyQueueLength, supplyQueueStatus } from "./station-build-queue";
 export { stationOwningSite } from "./station-building";

@@ -2,13 +2,15 @@ import {
   BUG_ATTACK_THRESHOLD, BUG_BITE_DAMAGE, BUG_BITE_RANGE, BUG_BITE_SECONDS,
   BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP, BUG_SPAWN_SECONDS,
   BUG_SPEED_FACTOR, GUN_DAMAGE, GUN_RANGE, GUN_SECONDS, GUN_SHOT_SECONDS,
-  HIVE_GATE_FRACTION, HIVE_HP,
+  HIVE_GATE_FRACTION, HIVE_HP, MODULE_HP,
+  TURRET_DAMAGE, TURRET_METAL_PER_SHOT, TURRET_RANGE, TURRET_SECONDS, TURRET_SHOT_SECONDS,
 } from "./build-constants";
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
 import { shipModuleCounts } from "./ship";
 import { damageShip, advanceShields, nextShieldEvent } from "./shields";
-import type { Beam, Bug, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Vec } from "./model";
+import { damageStationModule } from "./station-build-queue";
+import type { Beam, Bug, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Station, StationModule, Vec } from "./model";
 import type { Draft } from "./tick-mining";
 
 // Where a sector's hive sits: along the line from the sector's middle to its
@@ -52,6 +54,7 @@ export function spawnBug(draft: Draft, hive: Hive): Bug {
     maxHp: BUG_HP,
     state: "hovering",
     targetShipId: null,
+    targetModule: null,
     leg: null,
     timer: 0,
   };
@@ -113,17 +116,40 @@ function progressBug(bug: Bug, seconds: number): Bug {
   };
 }
 
-// The nearest ship still standing in the bug's own sector. Distance ties go
-// to the lower id, so the pick replays exactly from the seed.
-function quarryFor(draft: Draft, bug: Bug): Ship | null {
-  let best: Ship | null = null;
+// The nearest ship or standing module in the bug's own sector. Ship distance
+// ties go to the lower id, so the pick replays exactly from the seed.
+type Quarry = { kind: "ship"; ship: Ship } | { kind: "module"; stationId: number; module: StationModule };
+
+function stationModules(draft: Draft, sectorId: number): { stationId: number; modules: StationModule[] }[] {
+  return [
+    ...(draft.stationSector === sectorId ? [{ stationId: draft.activeStationId, modules: draft.modules }] : []),
+    ...draft.others.filter((station) => station.sectorId === sectorId).map((station) => ({ stationId: station.id, modules: station.modules })),
+  ];
+}
+
+function moduleHp(module: StationModule): number {
+  return module.hp ?? module.maxHp ?? MODULE_HP;
+}
+
+function quarryFor(draft: Draft, bug: Bug): Quarry | null {
+  let best: Quarry | null = null;
   let bestDistance = Infinity;
   for (const ship of draft.ships) {
     if (ship.sectorId !== bug.sectorId || ship.state === "docked") continue;
     const length = Math.hypot(ship.position.x - bug.position.x, ship.position.y - bug.position.y);
-    if (!best || length < bestDistance || (length === bestDistance && ship.id < best.id)) {
-      best = ship;
+    if (!best || length < bestDistance || (length === bestDistance && best.kind === "ship" && ship.id < best.ship.id)) {
+      best = { kind: "ship", ship };
       bestDistance = length;
+    }
+  }
+  for (const { stationId, modules } of stationModules(draft, bug.sectorId)) {
+    for (const module of modules) {
+      if (moduleHp(module) <= 0) continue;
+      const length = Math.hypot(module.position.x - bug.position.x, module.position.y - bug.position.y);
+      if (!best || length < bestDistance) {
+        best = { kind: "module", stationId, module };
+        bestDistance = length;
+      }
     }
   }
   return best;
@@ -142,6 +168,43 @@ function bite(draft: Draft, ship: Ship): boolean {
   return false;
 }
 
+function biteModule(draft: Draft, stationId: number, module: StationModule): void {
+  const hp = Math.max(0, moduleHp(module) - BUG_BITE_DAMAGE);
+  const update = (candidate: StationModule) => candidate.position.x === module.position.x && candidate.position.y === module.position.y
+    ? { ...candidate, hp, maxHp: candidate.maxHp ?? MODULE_HP } : candidate;
+  if (hp > 0) {
+    if (stationId === draft.activeStationId) draft.modules = draft.modules.map(update);
+    else draft.others = draft.others.map((station) => station.id === stationId ? { ...station, modules: station.modules.map(update) } : station);
+    return;
+  }
+  const source = stationId === draft.activeStationId ? activeStation(draft) : draft.others.find((station) => station.id === stationId);
+  if (!source) return;
+  const result = damageStationModule(source, module.position, BUG_BITE_DAMAGE, draft.time);
+  draft.moduleDestructions.push(...result.destructions);
+  if (stationId === draft.activeStationId) {
+    draft.modules = result.station.modules;
+    draft.construction = result.station.construction;
+    draft.constructionSite = result.station.constructionSite;
+    draft.buildQueue = result.station.buildQueue;
+    draft.shipBuilds = result.station.shipBuilds;
+    draft.inventory = result.station.inventory;
+    draft.storageCapacity = result.station.storage.capacity;
+    draft.dockCapacity = result.station.dock.capacity;
+  } else draft.others = draft.others.map((station) => station.id === stationId ? result.station : station);
+}
+
+function activeStation(draft: Draft): Station {
+  const size = { width: 0, height: 0 };
+  return {
+    id: draft.activeStationId, name: "", founding: draft.founding, sectorId: draft.stationSector,
+    dock: { position: draft.dock, size, capacity: draft.dockCapacity },
+    storage: { position: draft.dock, size, capacity: draft.storageCapacity },
+    inventory: draft.inventory, constructionSite: draft.constructionSite, storageLimits: draft.storageLimits,
+    deliveries: draft.deliveries, modules: draft.modules, construction: draft.construction, buildQueue: draft.buildQueue,
+    shipBuilds: draft.shipBuilds,
+  };
+}
+
 export function advanceEnemies(draft: Draft, seconds: number): void {
   draft.hives = draft.hives.map((hive) => (hive.alive ? { ...hive, spawnTimer: hive.spawnTimer - seconds } : hive));
   draft.bugs = draft.bugs.map((bug) => progressBug(bug, seconds));
@@ -153,6 +216,8 @@ export function advanceEnemies(draft: Draft, seconds: number): void {
     const gunShot = ship.gunShot ? burnOut(ship.gunShot, seconds) : null;
     return { ...ship, gunTimer, gunShot };
   });
+  draft.modules = advanceTurrets(draft.modules, seconds);
+  draft.others = draft.others.map((station) => ({ ...station, modules: advanceTurrets(station.modules, seconds) }));
 }
 
 function burnOut(shot: GunShot, seconds: number): GunShot {
@@ -180,16 +245,21 @@ export function settleEnemies(draft: Draft): void {
     if (hunting) {
       const quarry = quarryFor(draft, bug);
       if (quarry) {
-        const length = Math.hypot(quarry.position.x - bug.position.x, quarry.position.y - bug.position.y);
+        const target = quarry.kind === "ship" ? quarry.ship : quarry.module;
+        const length = Math.hypot(target.position.x - bug.position.x, target.position.y - bug.position.y);
         if (length <= BUG_BITE_RANGE) {
-          bite(draft, quarry);
-          return { ...bug, state: "hunting", targetShipId: quarry.id, leg: null, timer: BUG_BITE_SECONDS };
+          if (quarry.kind === "ship") bite(draft, quarry.ship);
+          else biteModule(draft, quarry.stationId, quarry.module);
+          return { ...bug, state: "hunting", targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
+            targetModule: quarry.kind === "module" ? { stationId: quarry.stationId, position: { ...quarry.module.position } } : null,
+            leg: null, timer: BUG_BITE_SECONDS };
         }
         return {
           ...bug,
           state: "hunting",
-          targetShipId: quarry.id,
-          leg: { from: { ...bug.position }, to: { ...quarry.position } },
+          targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
+          targetModule: quarry.kind === "module" ? { stationId: quarry.stationId, position: { ...quarry.module.position } } : null,
+          leg: { from: { ...bug.position }, to: { ...target.position } },
           timer: huntSeconds(length),
         };
       }
@@ -197,13 +267,14 @@ export function settleEnemies(draft: Draft): void {
     // Nothing to hunt: loiter, whether the bug was hovering or had lost its
     // quarry to a bite from a sibling.
     // The hive is gone from the state: hold where it is rather than spin.
-    if (!hive) return { ...bug, state: "hovering", targetShipId: null, leg: null, timer: 1 };
+    if (!hive) return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: null, timer: 1 };
     const loiter = loiterPoint(draft, hive, bug);
-    return { ...bug, state: "hovering", targetShipId: null, leg: { from: { ...bug.position }, to: loiter.to }, timer: loiter.seconds };
+    return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: { from: { ...bug.position }, to: loiter.to }, timer: loiter.seconds };
   });
   // After the bugs have taken their bites, every gun ship that is loaded
   // shoots the nearest bug in range, or the hive when no bug is close enough.
   settleGuns(draft);
+  settleTurrets(draft);
 }
 
 // The Gun-value of a design. Zero on ships without guns.
@@ -247,11 +318,11 @@ function fire(ship: Ship, to: Vec, target: GunShot["target"]): Ship {
   return { ...ship, gunTimer: GUN_SECONDS, gunShot: { from: { ...ship.position }, to: { ...to }, target, timer: GUN_SHOT_SECONDS } };
 }
 
-function hitTarget(draft: Draft, target: GunShot["target"]): void {
+function hitTarget(draft: Draft, target: GunShot["target"], damage = GUN_DAMAGE): void {
   if (target.kind === "bug") {
     const bug = draft.bugs.find((candidate) => candidate.id === target.id);
     if (!bug) return;
-    const hp = bug.hp - GUN_DAMAGE;
+    const hp = bug.hp - damage;
     if (hp > 0) draft.bugs = draft.bugs.map((candidate) => candidate.id === bug.id ? { ...candidate, hp } : candidate);
     else {
       draft.bugs = draft.bugs.filter((candidate) => candidate.id !== bug.id);
@@ -261,7 +332,7 @@ function hitTarget(draft: Draft, target: GunShot["target"]): void {
   }
   const hive = draft.hives.find((candidate) => candidate.id === target.id && candidate.alive);
   if (!hive) return;
-  const hp = Math.max(0, hive.hp - GUN_DAMAGE);
+  const hp = Math.max(0, hive.hp - damage);
   draft.hives = draft.hives.map((candidate) => candidate.id === hive.id ? { ...candidate, hp, alive: hp > 0 } : candidate);
   if (hp === 0) addDrop(draft, hive.sectorId, "queenLarvae", hive.position);
 }
@@ -289,10 +360,82 @@ function settleGuns(draft: Draft): void {
   });
 }
 
+function advanceTurrets(modules: StationModule[], seconds: number): StationModule[] {
+  return modules.map((module) => module.type !== "Turret" ? module : {
+    ...module,
+    turretTimer: Math.max(0, (module.turretTimer ?? 0) - seconds),
+    turretShot: module.turretShot ? burnOut(module.turretShot, seconds) : null,
+  });
+}
+
+function targetForPosition(draft: Draft, sectorId: number, position: Vec): { target: GunShot["target"]; point: Vec } | null {
+  let best: { target: GunShot["target"]; point: Vec } | null = null;
+  let bestDistance = Infinity;
+  for (const bug of draft.bugs) {
+    if (bug.sectorId !== sectorId) continue;
+    const distance = Math.hypot(bug.position.x - position.x, bug.position.y - position.y);
+    if (distance <= TURRET_RANGE && (!best || distance < bestDistance || (distance === bestDistance && bug.id < best.target.id))) {
+      best = { target: { kind: "bug", id: bug.id }, point: bug.position };
+      bestDistance = distance;
+    }
+  }
+  if (best) return best;
+  for (const hive of draft.hives) {
+    if (!hive.alive || hive.sectorId !== sectorId) continue;
+    const distance = Math.hypot(hive.position.x - position.x, hive.position.y - position.y);
+    if (distance <= TURRET_RANGE && (!best || distance < bestDistance)) {
+      best = { target: { kind: "hive", id: hive.id }, point: hive.position };
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+function fireTurret(module: StationModule, target: { target: GunShot["target"]; point: Vec }): StationModule {
+  return {
+    ...module,
+    turretTimer: TURRET_SECONDS,
+    turretNoMetal: false,
+    turretShot: { from: { ...module.position }, to: { ...target.point }, target: target.target, timer: TURRET_SHOT_SECONDS },
+  };
+}
+
+function settleTurretSet(draft: Draft, modules: StationModule[], sectorId: number, inventory: Record<"Metal" | "Ice", number>): StationModule[] {
+  const next = modules.map((module) => {
+    if (module.type !== "Turret") return module;
+    let current = module;
+    if (current.turretShot?.timer === 0) hitTarget(draft, current.turretShot.target, TURRET_DAMAGE);
+    if (current.turretShot?.timer === 0) current = { ...current, turretShot: null };
+    if (current.turretShot || (current.turretTimer ?? 0) > 0) return current;
+    const target = targetForPosition(draft, sectorId, current.position);
+    if (!target) return { ...current, turretNoMetal: false };
+    if (inventory.Metal < TURRET_METAL_PER_SHOT) return { ...current, turretNoMetal: true };
+    inventory.Metal -= TURRET_METAL_PER_SHOT;
+    return fireTurret(current, target);
+  });
+  return next.map(module => module.type === "Turret"
+    ? { ...module, turretNoMetal: inventory.Metal < TURRET_METAL_PER_SHOT }
+    : module);
+}
+
+function settleTurrets(draft: Draft): void {
+  draft.inventory = { ...draft.inventory };
+  draft.modules = settleTurretSet(draft, draft.modules, draft.stationSector, draft.inventory);
+  draft.others = draft.others.map((station) => {
+    const inventory = { ...station.inventory };
+    const modules = settleTurretSet(draft, station.modules, station.sectorId, inventory);
+    return { ...station, modules, inventory };
+  });
+}
+
 // The shots every renderer can draw while they fly: from each gun ship to
 // where its shot was aimed. A ship with nothing in flight draws nothing.
 export function gunBeams(state: Pick<SimState, "ships">): Beam[] {
-  return state.ships.flatMap((ship) => (ship.gunShot ? [{ from: { ...ship.gunShot.from }, to: { ...ship.gunShot.to } }] : []));
+  return [
+    ...state.ships.flatMap((ship) => (ship.gunShot ? [{ from: { ...ship.gunShot.from }, to: { ...ship.gunShot.to } }] : [])),
+    ...((state as Pick<SimState, "ships"> & { stations?: SimState["stations"] }).stations ?? []).flatMap((station) => station.modules.flatMap((module) =>
+      module.turretShot ? [{ from: { ...module.turretShot.from }, to: { ...module.turretShot.to } }] : [])),
+  ];
 }
 
 // Seconds until the next ENEMY timer that drives the event loop runs out: the
@@ -316,6 +459,12 @@ export function nextEnemyEvent(draft: Draft): number {
   for (const ship of draft.ships) {
     if (ship.gunTimer && ship.gunTimer > 0) soonest = Math.min(soonest, ship.gunTimer);
     if (ship.gunShot) soonest = Math.min(soonest, ship.gunShot.timer);
+  }
+  for (const module of [...draft.modules, ...draft.others.flatMap((station) => station.modules)]) {
+    if (module.type === "Turret") {
+      if (module.turretTimer && module.turretTimer > 0) soonest = Math.min(soonest, module.turretTimer);
+      if (module.turretShot) soonest = Math.min(soonest, module.turretShot.timer);
+    }
   }
   soonest = Math.min(soonest, nextShieldEvent(draft.ships, draft.time));
   // Drops outlast the shoot-out that left them, so once only they are left

@@ -25,11 +25,11 @@ describe("station appearance", () => {
   });
 
   it("gives every module type a distinct silhouette and colour accent", () => {
-    const appearances = ["Dock", "Storage", "Builder", "Claim"].map((type) =>
+    const appearances = ["Dock", "Storage", "Builder", "Turret", "Claim"].map((type) =>
       moduleAppearance(type as StationModule["type"]),
     );
 
-    expect(appearances.map(({ silhouette }) => silhouette)).toEqual(["open-bay", "tank-cluster", "crane", "beacon"]);
-    expect(new Set(appearances.map(({ accent }) => accent)).size).toBe(4);
+    expect(appearances.map(({ silhouette }) => silhouette)).toEqual(["open-bay", "tank-cluster", "crane", "turret", "beacon"]);
+    expect(new Set(appearances.map(({ accent }) => accent)).size).toBe(5);
   });
 });

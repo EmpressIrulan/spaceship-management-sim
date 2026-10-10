@@ -14,6 +14,8 @@ function twoStations(): SimState {
   const placed = placeStation(state, 1, { x: 120, y: 40 });
   return {
     ...placed,
+    hives: [],
+    bugs: [],
     sectors: placed.sectors.map((sector, index) => ({ ...sector, name: index === 0 ? "Home" : index === 1 ? "Kessel" : sector.name })),
     stations: [
       { ...placed.stations[0]!, inventory: { Metal: 20, Ice: 40 } },

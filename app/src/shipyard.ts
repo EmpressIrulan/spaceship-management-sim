@@ -42,6 +42,12 @@ export function shouldDismissShipMenuOnMouseDown(menuOpen: boolean, insideMenu: 
   return menuOpen && !insideMenu;
 }
 
+export function builderIndexAt(state: SimState, stationId: number, position: Vec | null): number | null {
+  const index = position === null ? -1 : (stationById(state, stationId)?.modules.findIndex(module =>
+    module.type === "Builder" && module.position.x === position.x && module.position.y === position.y) ?? -1);
+  return index < 0 ? null : index;
+}
+
 export function withModule(draft: ShipDraft, module: ShipModule): ShipDraft {
   return { ...draft, module };
 }

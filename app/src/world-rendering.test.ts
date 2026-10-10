@@ -155,6 +155,31 @@ describe("the world draws gun shots", () => {
     expect(ctx.lineTo).not.toHaveBeenCalled();
   });
 
+  it("draws an in-flight station Turret shot like a ship gun shot", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const state = createInitialState(7);
+    const station = state.stations[0]!;
+    const turret = {
+      ...station.modules[1]!,
+      type: "Turret" as const,
+      turretShot: {
+        from: { x: 0, y: 0 },
+        to: { x: 30, y: 30 },
+        target: { kind: "bug" as const, id: 1 },
+        timer: 0,
+      },
+    };
+    const drawing = createWorldDrawing(uiState, () => ({
+      ...state,
+      stations: [{ ...station, modules: [station.modules[0]!, turret] }],
+    }), ctx, vi.fn(), vi.fn());
+
+    drawing.draw(0);
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(428, 328, 4, 4);
+  });
+
   it("draws a bite as a flash between the bug and the ship it is biting", () => {
     const uiState = ui();
     const ctx = mockCtx();
@@ -249,6 +274,43 @@ describe("a hull that vanishes between frames explodes", () => {
     state = shotState({ ...ship, sectorId: 1 });
     drawing.draw(0.5);
     expect(ctx.arc).not.toHaveBeenCalled();
+  });
+});
+
+describe("a station module destruction explodes", () => {
+  it("blasts at the reported position after the module disappears", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const base = createInitialState(7);
+    const station = base.stations[0]!;
+    const module = station.modules[1]!;
+    let state = withBodies(base, { stations: [station] });
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    drawing.draw(0);
+
+    state = withBodies(state, {
+      stations: [{ ...station, modules: station.modules.filter((candidate) => candidate !== module) }],
+    });
+    state = { ...state, moduleDestructions: [{ time: 0, stationId: station.id, position: { ...module.position } }] };
+    drawing.draw(0.25);
+
+    expect(ctx.fillRect).toHaveBeenCalledWith(438, 298, 4, 4);
+  });
+
+  it("does not replay an old destruction on first draw", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const base = createInitialState(7);
+    const station = base.stations[0]!;
+    const module = station.modules[1]!;
+    const state = {
+      ...withBodies(base, { stations: [{ ...station, modules: station.modules.filter((candidate) => candidate !== module) }] }),
+      moduleDestructions: [{ time: 0, stationId: station.id, position: { ...module.position } }],
+    };
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    drawing.draw(5);
+
+    expect(ctx.fillRect).not.toHaveBeenCalledWith(438, 298, 4, 4);
   });
 });
 

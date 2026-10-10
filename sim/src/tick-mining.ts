@@ -41,6 +41,7 @@ export interface Draft {
   // Loot floating where something died, with the next drop id to hand out.
   drops: NonNullable<SimState["drops"]>;
   nextDropId: number;
+  moduleDestructions: NonNullable<SimState["moduleDestructions"]>;
   modules: Station["modules"];
   construction: Station["construction"];
   buildQueue: Station["buildQueue"];

@@ -17,6 +17,7 @@ export interface UiState {
   controlsHovered: boolean;
   selectedBuildSite: Vec | null;
   shipMenuBuilder: number | null;
+  shipMenuPosition: Vec | null;
   shipMenuStation: number;
   shipMenuCounts: Map<string, number>;
   draft: ShipDraft;
@@ -67,6 +68,7 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     controlsHovered: false,
     selectedBuildSite: null,
     shipMenuBuilder: null,
+    shipMenuPosition: null,
     shipMenuStation: 0,
     shipMenuCounts: new Map(),
     draft: emptyDraft(),

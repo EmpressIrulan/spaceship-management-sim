@@ -302,11 +302,11 @@ describe("Builder hover", () => {
     const building = tick(startShipBuild(withBuilder(), BUILDER, designOf(draft)), 7);
     expect(infoBox(building, { kind: "module", index: BUILDER, stationId: 0 })).toEqual({
       title: "Builder",
-      line: "Click to open Builder",
+      line: "Click to open Builder\nHP 40/40",
     });
     expect(infoBox(withBuilder(), { kind: "module", index: BUILDER, stationId: 0 })).toEqual({
       title: "Builder",
-      line: "Click to open Builder",
+      line: "Click to open Builder\nHP 40/40",
     });
   });
 
@@ -339,7 +339,7 @@ describe("Builder queue panel", () => {
   it("shows no queue summary or stopped timer on Builder hover", () => {
     const design: ShipDesign = { width: 1, height: 1, slots: ["Laser"] };
     const waiting = queueShipBuild(withBuilder({ Metal: 0, Ice: 0 }), BUILDER, design, 3);
-    expect(infoBox(waiting, { kind: "module", index: BUILDER, stationId: 0 })).toEqual({ title: "Builder", line: "Click to open Builder" });
+    expect(infoBox(waiting, { kind: "module", index: BUILDER, stationId: 0 })).toEqual({ title: "Builder", line: "Click to open Builder\nHP 40/40" });
   });
   it("keeps the underlying queue place after a grouped line for Cancel", () => {
     const a: ShipDesign = { width: 1, height: 1, slots: ["Hull"] };

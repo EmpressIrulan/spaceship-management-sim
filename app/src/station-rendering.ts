@@ -111,6 +111,17 @@ export function createStationDrawing(
       ctx.lineTo(0, -height * 0.06);
       ctx.closePath();
       ctx.fill();
+    } else if (appearance.silhouette === "turret") {
+      ctx.fillStyle = appearance.accent;
+      ctx.beginPath();
+      ctx.arc(0, 0, width * 0.17, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = appearance.accent;
+      ctx.lineWidth = detailWidth;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(width * 0.34, -height * 0.25);
+      ctx.stroke();
     } else {
       ctx.strokeStyle = appearance.accent;
       ctx.lineWidth = detailWidth;
