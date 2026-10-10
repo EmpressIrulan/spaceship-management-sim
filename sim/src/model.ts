@@ -96,6 +96,8 @@ export interface Ship {
   // Current and full shield. Missing on older fixtures means a new ship's full shield.
   shield?: number;
   maxShield?: number;
+  // Simulation time when the shield last absorbed damage.
+  shieldLastHit?: number;
   // Set while this ship is hidden inside another ship.
   hangarId?: number | null;
   // A Gun ship's reload: seconds until the gun may fire again. Missing means

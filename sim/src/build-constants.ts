@@ -13,6 +13,7 @@ export const CLAIM_COST: Record<Material, number> = { Metal: 1000, Ice: 1000 };
 export const MODULE_SPACING = 40;
 export const SHIELD_CAPACITY_PER_PIXEL = 20;
 export const SHIELD_RECHARGE_PER_PIXEL = 1;
+export const SHIELD_RECHARGE_DELAY = 5;
 export const BUILDER_SIZE: Size = { width: 30, height: 40 };
 export const STORAGE_SIZE: Size = { width: 30, height: 40 };
 export const CLAIM_SIZE: Size = { width: 30, height: 40 };
