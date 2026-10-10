@@ -1,0 +1,26 @@
+[
+  {
+    "name": "criterion-2-empty-Ice",
+    "seconds": 1.9060000000000001
+  },
+  {
+    "name": "criterion-2-mining-Ice",
+    "seconds": 5.84
+  },
+  {
+    "name": "criterion-2-delivered-Ice",
+    "seconds": 15.739
+  },
+  {
+    "name": "criterion-2-empty-Metal",
+    "seconds": 19.838
+  },
+  {
+    "name": "criterion-2-mining-Metal",
+    "seconds": 23.618
+  },
+  {
+    "name": "criterion-2-delivered-Metal",
+    "seconds": 33.834
+  }
+]

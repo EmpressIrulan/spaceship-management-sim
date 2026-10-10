@@ -1,0 +1,28 @@
+✘ [ERROR] No matching export in "sim/src/index.ts" for import "newAsteroid"
+
+    tools/issue-117-demo-fixture.ts:2:29:
+      2 │ import { createInitialState, newAsteroid, queueModuleBuild, setDefa...
+        ╵                              ~~~~~~~~~~~
+
+/home/alice/repos/.worktrees/spaceship-117/node_modules/esbuild/lib/main.js:1752
+  let error = new Error(text);
+              ^
+
+Error: Build failed with 1 error:
+tools/issue-117-demo-fixture.ts:2:29: ERROR: No matching export in "sim/src/index.ts" for import "newAsteroid"
+    at failureErrorWithLog (/home/alice/repos/.worktrees/spaceship-117/node_modules/esbuild/lib/main.js:1752:15)
+    at /home/alice/repos/.worktrees/spaceship-117/node_modules/esbuild/lib/main.js:1211:25
+    at runOnEndCallbacks (/home/alice/repos/.worktrees/spaceship-117/node_modules/esbuild/lib/main.js:1592:45)
+    at buildResponseToResult (/home/alice/repos/.worktrees/spaceship-117/node_modules/esbuild/lib/main.js:1209:7)
+    at /home/alice/repos/.worktrees/spaceship-117/node_modules/esbuild/lib/main.js:1236:16
+    at responseCallbacks.<computed> (/home/alice/repos/.worktrees/spaceship-117/node_modules/esbuild/lib/main.js:886:9)
+    at handleIncomingPacket (/home/alice/repos/.worktrees/spaceship-117/node_modules/esbuild/lib/main.js:941:12)
+    at Socket.readFromStdout (/home/alice/repos/.worktrees/spaceship-117/node_modules/esbuild/lib/main.js:864:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12) {
+  errors: [Getter/Setter],
+  warnings: [Getter/Setter]
+}
+
+Node.js v22.23.2
+EXIT=1

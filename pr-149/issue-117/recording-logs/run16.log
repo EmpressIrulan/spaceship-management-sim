@@ -1,0 +1,4 @@
+criterion-4-waiting Ship 4x4 | Ship 1 | Waiting: no Ice | Speed | 25 | Hold | 20 | Mining time | 24 s | Cargo | 0/20 | State | Waiting: no Ice | Home: | None | Home | Default: Mine for Station | Default: Supply construction site | Default: Haul | Default: None | From | To | Material |  Metal |  Ice |  Mine in other sectors | Resume
+criterion-4-resumed Ship 4x4 | Ship 1 | Supplying site: Ice | Speed | 25 | Hold | 20 | Mining time | 24 s | Cargo | 0/20 | State | Supplying site: Ice | Home: | None | Home | Default: Mine for Station | Default: Supply construction site | Default: Haul | Default: None | From | To | Material |  Metal |  Ice |  Mine in other sectors | Resume
+/home/alice/.cache/spaceship-management-sim-117/final-criterion-4/958d6fc2f17ad997e4cee335313b857c.webm
+EXIT=0

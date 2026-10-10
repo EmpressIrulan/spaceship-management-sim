@@ -1,0 +1,36 @@
+/home/alice/.cache/spaceship-management-sim-117/proof/7afd1f02097322fe427ed0682836600f.webm
+ffmpeg version n7.0.1-playwright-build-1011 Copyright (c) 2000-2024 the FFmpeg developers
+  built with gcc 9 (Ubuntu 9.4.0-1ubuntu1~20.04.2)
+  configuration: --pkg-config=pkg-config --pkg-config-flags=--static --extra-cflags=-I//root/prefix/include --extra-ldflags='-L//root/prefix/lib -static' --prefix=/root/prefix --bindir=/root/ffmpeg/bin --extra-version=playwright-build-1011 --disable-debug --disable-autodetect --disable-everything --enable-ffmpeg --enable-protocol=pipe --enable-protocol=file --enable-parser=mjpeg --enable-decoder=mjpeg --enable-demuxer=image2pipe --enable-filter=pad --enable-filter=crop --enable-filter=scale --enable-muxer=webm --enable-libvpx --enable-static --enable-encoder=libvpx_vp8 --enable-decoder=libvpx_vp8 --enable-demuxer=matroska --enable-encoder=png --enable-zlib --enable-muxer=image2 --disable-iconv --disable-bzlib
+  libavutil      59.  8.100 / 59.  8.100
+  libavcodec     61.  3.100 / 61.  3.100
+  libavformat    61.  1.100 / 61.  1.100
+  libavdevice    61.  1.100 / 61.  1.100
+  libavfilter    10.  1.100 / 10.  1.100
+  libswscale      8.  1.100 /  8.  1.100
+  libswresample   5.  1.100 /  5.  1.100
+[libvpx @ 0x34aa5ac0] v1.14.1
+Input #0, matroska,webm, from '/home/alice/.cache/spaceship-management-sim-117/proof/7afd1f02097322fe427ed0682836600f.webm':
+  Metadata:
+    ENCODER         : Lavf61.1.100
+  Duration: 00:00:05.92, start: 0.000000, bitrate: 77 kb/s
+  Stream #0:0: Video: vp8 (libvpx), yuv420p(tv, progressive), 800x562, SAR 1:1 DAR 400:281, 25 fps, 25 tbr, 1k tbn
+      Metadata:
+        ENCODER         : Lavc61.3.100 libvpx
+        DURATION        : 00:00:05.920000000
+[libvpx @ 0x34ab8000] v1.14.1
+Stream mapping:
+  Stream #0:0 -> #0:0 (vp8 (libvpx) -> png (native))
+Press [q] to stop, [?] for help
+Output #0, image2, to '/home/alice/.cache/spaceship-management-sim-117/proof.png':
+  Metadata:
+    encoder         : Lavf61.1.100
+  Stream #0:0: Video: png, rgb24(pc, gbr/unknown/unknown, progressive), 800x562 [SAR 1:1 DAR 400:281], q=2-31, 200 kb/s, 25 fps, 25 tbn
+      Metadata:
+        DURATION        : 00:00:05.920000000
+        encoder         : Lavc61.3.100 png
+[image2 @ 0x34aaafc0] The specified filename '/home/alice/.cache/spaceship-management-sim-117/proof.png' does not contain an image sequence pattern or a pattern is invalid.
+[image2 @ 0x34aaafc0] Use a pattern such as %03d for an image sequence or use the -update option (with -frames:v 1 if needed) to write a single image.
+[out#0/image2 @ 0x34aa9d00] video:40KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown
+frame=    1 fps=0.0 q=-0.0 Lsize=N/A time=00:00:00.04 bitrate=N/A speed=1.64x    
+EXIT=0

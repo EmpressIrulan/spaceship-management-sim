@@ -1,0 +1,21 @@
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+browserContext.newPage: Executable doesn't exist at /home/alice/.cache/ms-playwright/ffmpeg-1013/ffmpeg-linux
+╔═════════════════════════════════════════════════════════════════╗
+║ Video rendering requires ffmpeg binary.                         ║
+║ Downloading it will not affect any of the system-wide settings. ║
+║ Please run the following command:                               ║
+║                                                                 ║
+║     npx playwright install ffmpeg                               ║
+║                                                                 ║
+║ <3 Playwright Team                                              ║
+╚═════════════════════════════════════════════════════════════════╝
+    at /home/alice/.cache/spaceship-management-sim-117/proof.mjs:5:28 {
+  log: [],
+  name: 'Error'
+}
+
+Node.js v22.23.2
+EXIT=1

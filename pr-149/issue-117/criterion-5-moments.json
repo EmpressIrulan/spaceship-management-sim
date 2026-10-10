@@ -1,0 +1,26 @@
+[
+  {
+    "name": "criterion-5-default-Mine-Ice",
+    "seconds": 2.08
+  },
+  {
+    "name": "criterion-5-mining-Ice",
+    "seconds": 6.081
+  },
+  {
+    "name": "criterion-5-loaded-Ice",
+    "seconds": 11.983
+  },
+  {
+    "name": "criterion-5-one-off-order",
+    "seconds": 15.011
+  },
+  {
+    "name": "criterion-5-delivered-Ice",
+    "seconds": 21.958
+  },
+  {
+    "name": "criterion-5-back-to-mining-Ice",
+    "seconds": 29.875
+  }
+]
