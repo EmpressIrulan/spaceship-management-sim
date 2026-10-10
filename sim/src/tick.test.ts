@@ -91,11 +91,11 @@ describe("initial state", () => {
     );
   });
 
-  it("starts one ship at the Dock with 20 Metal and 20 Ice in Storage", () => {
+  it("starts one ship at the Dock with empty Storage", () => {
     const state = oneStorageStart(7);
     expect(state.ships).toHaveLength(1);
     expect(ship(state).position).toEqual(state.stations[0]!.dock.position);
-    expect(state.stations[0]!.inventory).toEqual({ Metal: 20, Ice: 20 });
+    expect(state.stations[0]!.inventory).toEqual({ Metal: 0, Ice: 0 });
   });
 });
 

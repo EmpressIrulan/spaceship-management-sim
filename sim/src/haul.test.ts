@@ -141,14 +141,14 @@ describe("Haul default", () => {
 
   it("does not load while To is full, and waits there if To fills en route", () => {
     const base = twoStations();
-    const fullStore = foundedStation(1, 1, 120, 40, { Metal: 100, Ice: 0 });
+    const fullStore = foundedStation(1, 1, 120, 40, { Metal: 1000, Ice: 0 });
     let full = { ...base, stations: [base.stations[0]!, fullStore] };
     full = configureHaul(full, [0], { from: "home", to: "station:1", material: "Ice" });
     expect(run(full, 10).ships[0]).toMatchObject({ state: "haulWaitingFull", cargo: 0, position: base.stations[0]!.dock.position });
 
     let travelling = configureHaul(base, [0], { from: "home", to: "station:1", material: "Ice" });
     travelling = until(travelling, (next) => next.ships[0]!.state === "haulOutbound");
-    travelling = { ...travelling, stations: [travelling.stations[0]!, foundedStation(1, 1, 120, 40, { Metal: 100, Ice: 0 })] };
+    travelling = { ...travelling, stations: [travelling.stations[0]!, foundedStation(1, 1, 120, 40, { Metal: 1000, Ice: 0 })] };
     const waiting = until(travelling, (next) => next.ships[0]!.state === "haulWaitingFull" && next.ships[0]!.sectorId === 1);
     expect(waiting.ships[0]).toMatchObject({ cargo: 20, cargoMaterial: "Ice", position: base.stations[1]!.dock.position });
   });
@@ -237,7 +237,9 @@ describe("Haul to construction sites (criteria 1-2)", () => {
   });
 
   it("a hauler on a site route starts delivering without an order queued", () => {
-    const state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
+    const initial = createInitialState(7);
+    const stocked = { ...initial, stations: [{ ...initial.stations[0]!, inventory: { Metal: 20, Ice: 20 } }] };
+    const state = configureHaul(stocked, [0], { from: "home", to: "site:0", material: "Metal" });
     const later = run(state, 10);
     expect(later.ships[0]!.cargo + later.stations[0]!.constructionSite.inventory.Metal).toBeGreaterThan(0);
   });
@@ -271,7 +273,7 @@ describe("Haul to construction sites (delivery loop)", () => {
 
   it("never waits for room, since the site has no cap", () => {
     const base = createInitialState(7);
-    const stacked = { ...base, stations: [{ ...base.stations[0]!,
+    const stacked = { ...base, stations: [{ ...base.stations[0]!, inventory: { Metal: 20, Ice: 20 },
       constructionSite: { ...base.stations[0]!.constructionSite, inventory: { Metal: 100000, Ice: 0 } } }] };
     let state = configureHaul(stacked, [0], { from: "home", to: "site:0", material: "Metal" });
     const unloading = until(state, (next) => next.ships[0]!.state === "haulUnloading");
@@ -292,7 +294,9 @@ describe("Haul to construction sites (delivery loop)", () => {
   });
 
   it("a right-click order interrupts a site run and Resume sends the ship back to it", () => {
-    let state = configureHaul(createInitialState(7), [0], { from: "home", to: "site:0", material: "Metal" });
+    const initial = createInitialState(7);
+    const stocked = { ...initial, stations: [{ ...initial.stations[0]!, inventory: { Metal: 20, Ice: 20 } }] };
+    let state = configureHaul(stocked, [0], { from: "home", to: "site:0", material: "Metal" });
     state = until(state, (next) => next.ships[0]!.state === "haulUnloading");
     const cargo = state.ships[0]!.cargo;
     const ordered = giveOrder(state, [0], { kind: "move", point: { x: 30, y: 20 }, sectorId: 0 });

@@ -101,7 +101,7 @@ describe("station module hover", () => {
 
     expect(infoBox(initial, { kind: "storage" })).toEqual({
       title: "Storage",
-      line: "Stored 40 / 100\nMetal: 20\nIce: 20\nIncome: Metal +0/min, Ice +0/min",
+      line: "Stored 0 / 1000\nIncome: Metal +0/min, Ice +0/min",
     });
   });
 
@@ -111,7 +111,7 @@ describe("station module hover", () => {
       ...initial,
       stations: [{
         ...initial.stations[0]!,
-        inventory: { Metal: 80, Ice: 20 },
+        inventory: { Metal: 800, Ice: 200 },
       }],
       ships: [
         {
@@ -147,7 +147,7 @@ describe("station module hover", () => {
       ...initial,
       stations: [{
         ...initial.stations[0]!,
-        inventory: { Metal: 80, Ice: 20 },
+        inventory: { Metal: 800, Ice: 200 },
       }],
       ships: [
         {
