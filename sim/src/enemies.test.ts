@@ -389,6 +389,53 @@ describe("gun ships", () => {
 });
 
 describe("station Turrets", () => {
+  it.each([0, 1])("does not mutate frozen station %s during a shot or destruction", (stationId) => {
+    function clone<T>(value: T): T {
+      if (Array.isArray(value)) return value.map(child => clone(child)) as T;
+      if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, clone(child)])) as T;
+      return value;
+    }
+    function freeze(value: unknown): void {
+      if (value && typeof value === "object") {
+        Object.freeze(value);
+        for (const child of Object.values(value)) freeze(child);
+      }
+    }
+    const state = createInitialState(7);
+    state.ships = [];
+    state.moduleDestructions = [];
+    const station = clone(state.stations[0]!);
+    station.id = stationId;
+    station.inventory = { Metal: 10, Ice: 0 };
+    station.construction = null;
+    station.buildQueue = [];
+    station.modules.push({ type: "Turret", position: { x: 0, y: -40 }, size: { width: 30, height: 40 } });
+    if (stationId === 0) state.stations = [station];
+    else state.stations.push(station);
+    const enemy = { ...state.hives![0]!, sectorId: 0, position: { x: 0, y: -70 }, spawnTimer: 10000 };
+    state.hives = [enemy];
+    const before = clone(state);
+    freeze(state);
+    const first = tick(state, 1 / 60);
+    const second = tick(state, 1 / 60);
+    expect(first).toEqual(second);
+    expect(first.stations.find(s => s.id === stationId)!.inventory.Metal).toBe(9);
+    expect(state).toEqual(before);
+
+    const attacked = clone(first);
+    // Keep the other station out of the bite's sector.
+    for (const s of attacked.stations) if (s.id !== stationId) s.sectorId = 2;
+    const storage = attacked.stations.find(s => s.id === stationId)!.modules[1]!;
+    storage.hp = 1;
+    attacked.bugs = Array.from({ length: 5 }, (_, id) => plantedBug(id, enemy, storage.position.x + 1, storage.position.y, 0));
+    const intact = clone(attacked);
+    freeze(attacked);
+    const destroyed = tick(attacked, 1 / 60);
+    expect(destroyed.moduleDestructions).toHaveLength(1);
+    expect(attacked).toEqual(intact);
+    expect(tick(attacked, 1 / 60)).toEqual(destroyed);
+  });
+
   function turretStart(): { state: SimState; modulePosition: { x: number; y: number }; hive: Hive } {
     const state = createInitialState(7);
     const hive = state.hives![0]!;
@@ -433,6 +480,19 @@ describe("station Turrets", () => {
       bugs: [plantedBug(0, hive, modulePosition.x + TURRET_RANGE / 2, modulePosition.y)] }, 1);
     expect(state.stations[0]!.modules[0]!.turretShot ?? null).toBeNull();
     expect(state.stations[0]!.modules[0]!.turretNoMetal).toBe(true);
+  });
+
+  it.each(["no target", "reload", "in flight"])("reports insufficient Metal with %s", (setup) => {
+    const { state: start } = turretStart();
+    start.stations[0]!.inventory.Metal = TURRET_METAL_PER_SHOT / 2;
+    if (setup === "no target") start.hives = [];
+    if (setup === "reload") start.stations[0]!.modules[0]!.turretTimer = 1;
+    if (setup === "in flight") start.stations[0]!.modules[0]!.turretShot = {
+      from: { x: 0, y: 0 }, to: { x: 1, y: 0 }, target: { kind: "hive", id: 0 }, timer: TURRET_SHOT_SECONDS,
+    };
+    const state = tick(start, 1 / 60);
+    expect(state.stations[0]!.modules[0]!.turretNoMetal).toBe(true);
+    expect(state.stations[0]!.inventory.Metal).toBe(TURRET_METAL_PER_SHOT / 2);
   });
 
   it("takes damage as a normal station module", () => {

@@ -142,6 +142,17 @@ describe("hover box", () => {
     });
   });
 
+  it("derives the no-Metal hover from stock before a tick and after resupply", () => {
+    const initial = createInitialState(7);
+    const station = initial.stations[0]!;
+    station.modules.push({ type: "Turret", position: { x: 0, y: -40 }, size: { width: 30, height: 40 }, turretNoMetal: false });
+    station.inventory.Metal = 0.5;
+    expect(infoBox(initial, { kind: "module", index: 2, stationId: 0 })?.line).toBe("Turret: no Metal\nHP 40/40");
+    station.inventory.Metal = 1;
+    station.modules[2]!.turretNoMetal = true;
+    expect(infoBox(initial, { kind: "module", index: 2, stationId: 0 })?.line).toBe("HP 40/40");
+  });
+
   it("shows an asteroid's material and ore left, titled Asteroid", () => {
     expect(infoBox(state, { kind: "asteroid", id: asteroid.id })).toEqual({
       title: "Asteroid",

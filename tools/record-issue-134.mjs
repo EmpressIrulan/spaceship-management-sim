@@ -116,12 +116,17 @@ try {
       await until(() => window.__repro.state.stations[0].modules.find(m => m.type === "Turret").turretNoMetal);
       await hover({ x: 0, y: -55 });
       await page.waitForFunction(() => document.querySelector("#info-line").textContent.includes("Turret: no Metal"));
+      await mark("no-metal-during-last-shot");
+      await until(() => window.__repro.state.stations[0].modules.find(m => m.type === "Turret").turretShot === null);
       await mark("no-metal-stopped");
       const hp = await page.evaluate(() => window.__repro.state.hives[0].hp);
       await page.evaluate(() => { window.issue134End = window.__repro.state.time + 8; });
       await until(() => window.__repro.state.time >= window.issue134End);
       assert.equal(await page.evaluate(() => window.__repro.state.hives[0].hp), hp);
       await mark("still-not-firing-eight-seconds-later");
+      await page.evaluate(() => { window.issue134Demo.moveHive({ x: 500, y: -80 }); window.issue134Demo.step(1 / 60); });
+      await page.waitForFunction(() => document.querySelector("#info-line").textContent.includes("Turret: no Metal"));
+      await mark("no-metal-with-no-target-in-range");
     } else {
       const target = { x: scene === 4 || scene === 5 ? 40 : 80, y: 0 };
       await hover({ ...target, y: -15 });

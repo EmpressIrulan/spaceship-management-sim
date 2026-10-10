@@ -289,11 +289,31 @@ export function damageStationModule(station: Station, position: Vec, damage: num
     .map((job) => ({ ...job, builder: job.builder - [...destroyedIndices].filter((index) => index < job.builder).length }));
   const storageCount = destroyed.filter((module) => module.type === "Storage").length;
   const destructions = destroyed.map((module) => ({ time, stationId: station.id, position: { ...module.position } }));
+  let next = { ...station, modules };
+  const pending = [...station.buildQueue, ...ghosts];
+  if (next.construction && !constructionAttached(next)) {
+    const { timer: _timer, ...interrupted } = next.construction;
+    pending.push(interrupted);
+    next = refundStationModule(next);
+  }
+  // Keep independent orders ahead of replacements, but move cut-off orders
+  // behind their supports. An emptied station must rebuild its Dock first.
+  const anchors = [...modules, ...(next.construction ? [next.construction] : [])].map(module => module.position);
+  const buildQueue: QueuedModuleBuild[] = [];
+  while (pending.length > 0) {
+    const index = pending.findIndex(module => anchors.length === 0
+      ? module.type === "Dock"
+      : anchors.some(anchor => touching(anchor, module.position)));
+    if (index < 0) throw new Error("Destroyed station has an unattached build order");
+    const module = pending.splice(index, 1)[0]!;
+    buildQueue.push(module);
+    anchors.push(module.position);
+  }
   return {
     station: {
-      ...station,
+      ...next,
       modules,
-      buildQueue: [...station.buildQueue, ...ghosts],
+      buildQueue,
       shipBuilds,
       inventory: storageCount > 0 ? { Metal: 0, Ice: 0 } : station.inventory,
       storage: { ...station.storage, capacity: Math.max(0, station.storage.capacity - storageCount * STORAGE_CAPACITY) },

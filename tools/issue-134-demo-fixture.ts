@@ -64,6 +64,7 @@ export function installIssue134Demo(ui: UiState, getState: () => SimState, setSt
     setup, release,
     step: (seconds: number) => setState(tick(getState(), seconds)),
     removeBugs: () => setState({ ...getState(), bugs: [] }),
+    moveHive: (position: Vec) => setState({ ...getState(), hives: getState().hives!.map(hive => ({ ...hive, position })) }),
     supply: (amount: number) => {
       const state = structuredClone(getState());
       state.stations[0]!.constructionSite.inventory = { Metal: amount, Ice: amount };

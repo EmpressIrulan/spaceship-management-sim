@@ -214,7 +214,7 @@ export function hoveredBody(
   }
   for (const station of state.stations) {
     if (station.sectorId !== currentSector) continue;
-    for (let index = 2; index < station.modules.length; index += 1) {
+    for (let index = 0; index < station.modules.length; index += 1) {
       const module = station.modules[index]!;
       if (insideRect(world, module.position, module.size)) return { kind: "module", index, stationId: station.id };
     }

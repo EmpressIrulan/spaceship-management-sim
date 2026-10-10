@@ -1,4 +1,4 @@
-import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipHp, shipShield, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
+import { GATE_COST, MATERIALS, TURRET_METAL_PER_SHOT, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipHp, shipShield, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 
@@ -142,7 +142,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
       const box = storageBox(state, hovered.stationId);
       return { ...box, line: `${box.line}\n${moduleHealth(module)}` };
     }
-    if (module.type === "Turret" && module.turretNoMetal) return { title: "Turret", line: `Turret: no Metal\n${moduleHealth(module)}` };
+    if (module.type === "Turret" && station!.inventory.Metal < TURRET_METAL_PER_SHOT) return { title: "Turret", line: `Turret: no Metal\n${moduleHealth(module)}` };
     return { title: module.type, line: moduleHealth(module) };
   }
   if (hovered.kind === "ship") {

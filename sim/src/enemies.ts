@@ -183,6 +183,8 @@ function biteModule(draft: Draft, stationId: number, module: StationModule): voi
   draft.moduleDestructions.push(...result.destructions);
   if (stationId === draft.activeStationId) {
     draft.modules = result.station.modules;
+    draft.construction = result.station.construction;
+    draft.constructionSite = result.station.constructionSite;
     draft.buildQueue = result.station.buildQueue;
     draft.shipBuilds = result.station.shipBuilds;
     draft.inventory = result.station.inventory;
@@ -398,7 +400,7 @@ function fireTurret(module: StationModule, target: { target: GunShot["target"]; 
   };
 }
 
-function settleTurretSet(draft: Draft, stationId: number, modules: StationModule[], sectorId: number, inventory: Record<"Metal" | "Ice", number>): StationModule[] {
+function settleTurretSet(draft: Draft, modules: StationModule[], sectorId: number, inventory: Record<"Metal" | "Ice", number>): StationModule[] {
   const next = modules.map((module) => {
     if (module.type !== "Turret") return module;
     let current = module;
@@ -411,17 +413,19 @@ function settleTurretSet(draft: Draft, stationId: number, modules: StationModule
     inventory.Metal -= TURRET_METAL_PER_SHOT;
     return fireTurret(current, target);
   });
-  if (stationId === draft.activeStationId) draft.inventory = inventory;
-  else draft.others = draft.others.map((station) => station.id === stationId ? { ...station, inventory } : station);
-  return next;
+  return next.map(module => module.type === "Turret"
+    ? { ...module, turretNoMetal: inventory.Metal < TURRET_METAL_PER_SHOT }
+    : module);
 }
 
 function settleTurrets(draft: Draft): void {
-  draft.modules = settleTurretSet(draft, draft.activeStationId, draft.modules, draft.stationSector, draft.inventory);
-  draft.others = draft.others.map((station) => ({
-    ...station,
-    modules: settleTurretSet(draft, station.id, station.modules, station.sectorId, station.inventory),
-  }));
+  draft.inventory = { ...draft.inventory };
+  draft.modules = settleTurretSet(draft, draft.modules, draft.stationSector, draft.inventory);
+  draft.others = draft.others.map((station) => {
+    const inventory = { ...station.inventory };
+    const modules = settleTurretSet(draft, station.modules, station.sectorId, inventory);
+    return { ...station, modules, inventory };
+  });
 }
 
 // The shots every renderer can draw while they fly: from each gun ship to

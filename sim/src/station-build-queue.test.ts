@@ -44,6 +44,49 @@ function withBuilder(state: SimState, position: Vec): SimState {
 }
 
 describe("the station build queue", () => {
+  it.each(["construction", "queued", "only Dock"])("preserves %s builds when their attachment is destroyed", (setup) => {
+    let state = createInitialState(7);
+    state.ships = [];
+    state.asteroids = [];
+    state.hives = [];
+    const station = state.stations[0]!;
+    station.construction = null;
+    station.buildQueue = [];
+    station.constructionSite.inventory = { Metal: 150, Ice: 150 };
+    const builder = { type: "Builder" as const, position: east, size: { width: 30, height: 40 } };
+    if (setup === "queued") {
+      station.buildQueue = [builder];
+      station.construction = { type: "Storage", position: west, size: { width: 30, height: 40 }, timer: BUILD_SECONDS };
+    }
+    else station.construction = { ...builder, timer: BUILD_SECONDS };
+    const target = station.modules[setup === "only Dock" ? 0 : 1]!;
+    target.hp = 3;
+    state.bugs = Array.from({ length: 5 }, (_, id) => ({ id, hiveId: 0, sectorId: 0,
+      position: { x: target.position.x + 1, y: target.position.y }, hp: 6, maxHp: 6,
+      state: "hunting", targetShipId: null, leg: null, timer: 0 }));
+    state = tick(state, 1 / 60);
+    state = { ...state, bugs: [] };
+    const damaged = state.stations[0]!;
+    expect(damaged.construction).toMatchObject(setup === "queued"
+      ? { type: "Storage", position: west }
+      : { type: setup === "only Dock" ? "Dock" : "Storage", position: target.position });
+    expect((setup === "queued" ? damaged.buildQueue : [damaged.construction!, ...damaged.buildQueue]).map((module) => module.type)).toEqual(
+      setup === "only Dock" ? ["Dock", "Storage", "Builder"] : ["Storage", "Builder"],
+    );
+    expect(damaged.constructionSite.inventory).toEqual({ Metal: 150, Ice: 150 });
+    for (let frame = 0; frame < 60 * BUILD_SECONDS * 4; frame += 1) {
+      state = tick(state, 1 / 60);
+      const s = state.stations[0]!;
+      if (s.construction && s.modules.length > 0) {
+        expect(s.modules.some(module => Math.abs(Math.hypot(module.position.x - s.construction!.position.x, module.position.y - s.construction!.position.y) - 40) < 1e-6)).toBe(true);
+      }
+    }
+    expect(state.stations[0]!.modules.map(module => module.type)).toEqual(setup === "queued" ? ["Dock", "Storage", "Storage", "Builder"] : ["Dock", "Storage", "Builder"]);
+    expect(state.stations[0]!.dock.capacity).toBeGreaterThan(0);
+    expect(state.stations[0]!.buildQueue).toEqual([]);
+    expect(state.stations[0]!.construction).toBeNull();
+  });
+
   it("turns a destroyed module into a ghost and preserves Builder indices", () => {
     const base = createInitialState(7);
     const station = {

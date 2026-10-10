@@ -828,7 +828,7 @@ function simulate(state: SimState, dt: number): SimState {
     nextBugId: state.nextBugId ?? 0,
     drops: state.drops ?? [],
     nextDropId: state.nextDropId ?? 0,
-    moduleDestructions: state.moduleDestructions ?? [],
+    moduleDestructions: [...(state.moduleDestructions ?? [])],
     modules: home.modules,
     construction: home.construction,
     buildQueue: home.buildQueue,
