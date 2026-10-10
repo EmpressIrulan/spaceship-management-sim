@@ -152,8 +152,8 @@
       .ship-thumb { display: block; margin: 8px 0 0; image-rendering: pixelated; }
       #ship-panel dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; margin: 8px 0 0; }
       #ship-panel dt { color: #94a3b8; }
-      /* One line per row, so a longer state or cargo text cannot wrap and push the controls down. The full text is in the tooltip. */
-      #ship-panel dd { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      /* Keep material and waiting details readable without needing a tooltip. */
+      #ship-panel dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
       #ship-panel > select, #ship-panel > label, #ship-panel > button { display: block; width: 100%; box-sizing: border-box; margin-top: 7px; font: 12px monospace; }
       #ship-panel > label select { float: right; max-width: 120px; font: 12px monospace; }
       #ship-panel label.mine-material { display: block; margin-top: 6px; }
