@@ -1,7 +1,6 @@
 import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipHp, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
-import { formatDuration } from "./shipyard";
 
 export interface Gauge {
   // 0 to 1. Follows the timer so the bar moves smoothly between whole units.
@@ -130,10 +129,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const module = station?.modules[hovered.index];
     if (!module) return null;
     if (module.type === "Builder") {
-      const job = station?.shipBuilds.find((candidate) => candidate.builder === hovered.index);
-      if (!job) return { title: "Builder", line: "Idle" };
-      const size = `${job.design.width}x${job.design.height}`;
-      return { title: "Builder", line: `Building ${size}: ${formatDuration(Math.ceil(job.timer))}` };
+      return { title: "Builder", line: "Click to open Builder" };
     }
     if (module.type === "Dock") return dockBox(state, hovered.stationId);
     return storageBox(state, hovered.stationId);

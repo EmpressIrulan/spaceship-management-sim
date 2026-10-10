@@ -159,7 +159,7 @@ describe("station building controls", () => {
     });
   });
 
-  it("labels construction with its remaining time and a completed Builder as idle", () => {
+  it("labels construction with its remaining time and prompts opening a completed Builder", () => {
     const initial = createInitialState(7);
     const funded = {
       ...initial,
@@ -174,7 +174,7 @@ describe("station building controls", () => {
     const built = tick(building, BUILD_SECONDS - 3);
     expect(infoBox(built, { kind: "module", index: 2, stationId: 0 })).toEqual({
       title: "Builder",
-      line: "Idle",
+      line: "Click to open Builder",
     });
   });
 

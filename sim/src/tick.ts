@@ -9,6 +9,7 @@ import { afterOrder, nextMiningRock, resumeMining, startMining, travelOrder } fr
 import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { completeDocking, syncDockedShips } from "./hangars";
+import { startWaitingShipBuilds } from "./ship-build-queue";
 import {
   constructionAttached,
   completeBuild,
@@ -41,6 +42,7 @@ import {
   type Asteroid,
   type HaulStationId,
   type Ship,
+  type ShipBuild,
   type SimState,
   type Station,
   type Vec,
@@ -633,9 +635,9 @@ function nextEvent(draft: Draft): number {
   if (draft.construction) soonest = Math.min(soonest, draft.construction.timer);
   for (const station of draft.others) {
     if (station.construction) soonest = Math.min(soonest, station.construction.timer);
-    for (const job of station.shipBuilds) soonest = Math.min(soonest, job.timer);
+    for (const job of runningShipBuilds(station.shipBuilds)) soonest = Math.min(soonest, job.timer);
   }
-  for (const job of draft.shipBuilds) soonest = Math.min(soonest, job.timer);
+  for (const job of runningShipBuilds(draft.shipBuilds)) soonest = Math.min(soonest, job.timer);
   return soonest;
 }
 
@@ -646,12 +648,31 @@ function advance(draft: Draft, seconds: number): void {
   if (draft.construction) {
     draft.construction = { ...draft.construction, timer: draft.construction.timer - seconds };
   }
-  draft.shipBuilds = draft.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds }));
+  draft.shipBuilds = countDownShipBuilds(draft.shipBuilds, seconds);
   // A founding station's own first Dock and Storage build on its site stock.
   draft.others = draft.others.map((station) => (station.construction
-    ? { ...station, construction: { ...station.construction, timer: station.construction.timer - seconds }, shipBuilds: station.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds })) }
-    : { ...station, shipBuilds: station.shipBuilds.map((job) => ({ ...job, timer: job.timer - seconds })) }));
+    ? { ...station, construction: { ...station.construction, timer: station.construction.timer - seconds }, shipBuilds: countDownShipBuilds(station.shipBuilds, seconds) }
+    : { ...station, shipBuilds: countDownShipBuilds(station.shipBuilds, seconds) }));
   advanceEnemies(draft, seconds);
+}
+
+function runningShipBuilds(jobs: ShipBuild[]): ShipBuild[] {
+  return jobs.filter((job) => !job.waiting);
+}
+
+// A waiting ship's build has not started, so its timer stays put.
+function countDownShipBuilds(jobs: ShipBuild[], seconds: number): ShipBuild[] {
+  return jobs.map((job) => job.waiting ? job : { ...job, timer: job.timer - seconds });
+}
+
+function shipBuildDone(job: ShipBuild): boolean {
+  return !job.waiting && job.timer <= 0;
+}
+
+// Home's queues live in the flattened draft; every other station is kept whole.
+function startShipQueues(draft: Draft): void {
+  Object.assign(draft, startWaitingShipBuilds({ inventory: draft.inventory, shipBuilds: draft.shipBuilds }));
+  draft.others = draft.others.map((station) => startWaitingShipBuilds(station));
 }
 
 // Fires every timer that has reached zero. Respawns go first so a ship that
@@ -721,8 +742,8 @@ function settle(draft: Draft): void {
   // A finished ship appears at the Dock with nothing to do, and the loop
   // below sends it out in the same step.
   const completedShipBuilds = [
-    ...draft.shipBuilds.filter((job) => job.timer <= 0).map((job) => ({ ...job, stationId: job.stationId ?? 0 })),
-    ...draft.others.flatMap((station) => station.shipBuilds.filter((job) => job.timer <= 0).map((job) => ({ ...job, stationId: station.id }))),
+    ...draft.shipBuilds.filter(shipBuildDone).map((job) => ({ ...job, stationId: job.stationId ?? 0 })),
+    ...draft.others.flatMap((station) => station.shipBuilds.filter(shipBuildDone).map((job) => ({ ...job, stationId: station.id }))),
   ];
   for (const job of completedShipBuilds) {
     const station = job.stationId === 0 ? null : draft.others.find((candidate) => candidate.id === job.stationId);
@@ -749,8 +770,11 @@ function settle(draft: Draft): void {
     }];
     draft.nextShipId += 1;
   }
-  draft.shipBuilds = draft.shipBuilds.filter((job) => job.timer > 0);
-  draft.others = draft.others.map((station) => ({ ...station, shipBuilds: station.shipBuilds.filter((job) => job.timer > 0) }));
+  draft.shipBuilds = draft.shipBuilds.filter((job) => !shipBuildDone(job));
+  draft.others = draft.others.map((station) => ({ ...station, shipBuilds: station.shipBuilds.filter((job) => !shipBuildDone(job)) }));
+  // A Builder freed above, or one whose Storage has filled up since, starts
+  // the next ship in its queue before the ships below unload or wait.
+  startShipQueues(draft);
   // In place and in fleet order, so each ship sees the berths and rocks the
   // ships before it have just taken.
   draft.ships = [...draft.ships];
@@ -824,6 +848,7 @@ function simulate(state: SimState, dt: number): SimState {
   // dt on other events; otherwise a newly exposed primary queue can wait until
   // the end of the tick to begin construction.
   settleQueuedBuild(draft);
+  startShipQueues(draft);
 
   // A negative or NaN dt would wind timers backwards, so it counts as no time.
   let remaining = dt > 0 ? dt : 0;

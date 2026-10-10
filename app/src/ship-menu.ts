@@ -1,4 +1,4 @@
-import { SHIP_MODULES, startShipBuild, type SimState, type Vec } from "sim";
+import { SHIP_MODULES, queueShipBuild, cancelShipBuild, type SimState, type Vec } from "sim";
 import { panBy, wheelZoomFactor, type Viewport } from "./camera";
 import { menuButton as button, renderBlueprints } from "./menu-rendering";
 import { slotColor } from "./ships";
@@ -16,6 +16,8 @@ import {
   withTool,
   shouldDismissShipMenuOnMouseDown,
   type ShipDraft,
+  buildCountFor,
+  changeBuildCount,
 } from "./shipyard";
 import {
   deleteBlueprint,
@@ -101,7 +103,17 @@ export function installShipMenu(
     const blueprintList = document.createElement("div");
     blueprintList.className = "blueprints";
     const build = button("Build", { build: "" });
+    build.textContent = "Queue";
+    build.dataset.build = "";
     build.className = "build";
+    const count = document.createElement("div");
+    count.className = "row build-count";
+    count.append(button("−", { count: "-" }));
+    const countValue = document.createElement("span");
+    countValue.className = "count-value";
+    count.append(countValue, button("+", { count: "+" }));
+    const queue = document.createElement("div");
+    queue.className = "ship-build-queue";
     shipMenu.replaceChildren(
       title,
       modules,
@@ -112,7 +124,9 @@ export function installShipMenu(
       cost,
       save,
       blueprintList,
+      count,
       build,
+      queue,
     );
     renderBlueprints(shipMenu, ui.blueprints);
     syncShipMenuButtons();
@@ -149,6 +163,7 @@ export function installShipMenu(
   function openShipMenu(builder: number, stationId = 0): void {
     ui.shipMenuBuilder = builder;
     ui.shipMenuStation = stationId;
+    ui.shipMenuCounts.clear();
     ui.draft = emptyDraft();
     ui.paintView = emptyView();
     renderShipMenu();
@@ -181,6 +196,7 @@ export function installShipMenu(
       );
     else if (data.tool)
       ui.draft = withTool(ui.draft, data.tool as ShipDraft["tool"]);
+    else if (data.count) changeBuildCount(ui.shipMenuCounts, designOf(ui.draft), data.count === "+" ? 1 : -1);
     else if (data.blueprintSave !== undefined) {
       const input =
         shipMenu.querySelector<HTMLInputElement>(".blueprint-name")!;
@@ -203,13 +219,12 @@ export function installShipMenu(
       ui.blueprints = deleteBlueprint(blueprintStore, blueprint.name);
       renderBlueprints(shipMenu, ui.blueprints);
     } else if (data.build !== undefined) {
-      setState(
-        startShipBuild(getState(), ui.shipMenuBuilder, designOf(ui.draft), ui.shipMenuStation),
-      );
-      closeShipMenu();
-      return;
+      setState(queueShipBuild(getState(), ui.shipMenuBuilder, designOf(ui.draft), buildCountFor(ui.shipMenuCounts, designOf(ui.draft)), ui.shipMenuStation));
+    } else if (data.cancelBuild !== undefined) {
+      setState(cancelShipBuild(getState(), ui.shipMenuBuilder, Number(data.cancelBuild), ui.shipMenuStation));
     }
     syncShipMenuButtons();
+    shipMenu.querySelector<HTMLElement>(".count-value")!.textContent = String(buildCountFor(ui.shipMenuCounts, designOf(ui.draft)));
   });
 
   shipMenu.addEventListener("input", (event) => {

@@ -4,6 +4,9 @@ import {
   pixelCount,
   shipBuildCost,
   shipBuildSeconds,
+  shipBuildQueue,
+  shipBuildShortfall,
+  stationById,
   shipModuleCounts,
   shipStats,
   type ShipDesign,
@@ -245,6 +248,35 @@ export interface ShipMenuView {
   canBuild: boolean;
 }
 
+export function clampBuildCount(count: number): number {
+  return Number.isFinite(count) ? Math.max(1, Math.floor(count)) : 1;
+}
+
+export function buildCountFor(counts: Map<string, number>, design: ShipDesign): number {
+  return counts.get(JSON.stringify(design)) ?? 1;
+}
+
+export function changeBuildCount(counts: Map<string, number>, design: ShipDesign, delta: number): void {
+  counts.set(JSON.stringify(design), clampBuildCount(buildCountFor(counts, design) + delta));
+}
+
+export interface ShipQueueLineView { place: number; label: string; count: number; waiting: boolean; remaining: string | null; shortfall: string | null }
+
+export function shipQueueView(state: SimState, builder: number, stationId = 0): ShipQueueLineView[] {
+  const queue = shipBuildQueue(state, builder, stationId);
+  const lines: ShipQueueLineView[] = [];
+  for (let i = 0; i < queue.length;) {
+    const job = queue[i]!;
+    let end = i + 1;
+    if (job.waiting) while (end < queue.length && queue[end]!.waiting && queue[end]!.design.width === job.design.width && queue[end]!.design.height === job.design.height && queue[end]!.design.slots.every((slot, n) => slot === job.design.slots[n])) end += 1;
+    const label = job.design.slots.includes("Laser") ? "Miner" : `Ship ${job.design.width}x${job.design.height}`;
+    const shortfall = i === 0 && job.waiting ? shipBuildShortfall(state, builder, stationId) : null;
+    lines.push({ place: i, label, count: end - i, waiting: !!job.waiting, remaining: job.waiting ? null : formatDuration(Math.ceil(job.timer)), shortfall: shortfall ? `Waiting: ${Object.entries(shortfall).map(([material, amount]) => `${amount} more ${material}`).join(", ")}` : null });
+    i = end;
+  }
+  return lines;
+}
+
 export function shipMenuView(state: SimState, builder: number, draft: ShipDraft, stationId = 0): ShipMenuView {
   const design = designOf(draft);
   const cost = shipBuildCost(design);
@@ -258,9 +290,8 @@ export function shipMenuView(state: SimState, builder: number, draft: ShipDraft,
     materials: MATERIALS.map((material) => ({
       material,
       amount: cost[material],
-      short: homeStation(state).inventory[material] < cost[material],
+      short: (stationById(state, stationId)?.inventory[material] ?? 0) < cost[material],
     })),
     canBuild: availableShipBuild(state, builder, design, stationId),
   };
 }
-import { homeStation } from "sim";
