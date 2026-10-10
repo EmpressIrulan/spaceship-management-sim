@@ -1,0 +1,520 @@
+[
+  {
+    "name": "before-bites",
+    "seconds": 1.323,
+    "time": 0,
+    "info": "Builder\nClick to open Builder\nHP 5/40",
+    "inventory": {
+      "Metal": 200,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [
+      {
+        "type": "Storage",
+        "position": {
+          "x": 0,
+          "y": 40
+        }
+      }
+    ],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      },
+      {
+        "type": "Builder",
+        "hp": 5,
+        "position": {
+          "x": 80,
+          "y": 0
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 100,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 10000
+      }
+    ]
+  },
+  {
+    "name": "bugs-released",
+    "seconds": 5.338,
+    "time": 0,
+    "info": "Builder\nClick to open Builder\nHP 5/40",
+    "inventory": {
+      "Metal": 200,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [
+      {
+        "type": "Storage",
+        "position": {
+          "x": 0,
+          "y": 40
+        }
+      }
+    ],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      },
+      {
+        "type": "Builder",
+        "hp": 5,
+        "position": {
+          "x": 80,
+          "y": 0
+        }
+      }
+    ],
+    "bugs": [
+      {
+        "id": 0,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 80,
+          "y": 22
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 0
+      },
+      {
+        "id": 1,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 80,
+          "y": 24
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 0
+      },
+      {
+        "id": 2,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 80,
+          "y": 26
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 0
+      },
+      {
+        "id": 3,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 80,
+          "y": 28
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 0
+      },
+      {
+        "id": 4,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 80,
+          "y": 30
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 0
+      }
+    ],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 100,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 10000
+      }
+    ]
+  },
+  {
+    "name": "exploded-ghosts-at-queue-end",
+    "seconds": 15.763,
+    "time": 4.56666666666666,
+    "info": "Builder, queued\nNeeds 25 Metal and 25 Ice\nCancel",
+    "inventory": {
+      "Metal": 200,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [
+      {
+        "type": "Storage",
+        "position": {
+          "x": 0,
+          "y": 40
+        }
+      },
+      {
+        "type": "Builder",
+        "position": {
+          "x": 80,
+          "y": 0
+        }
+      }
+    ],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 100,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9995.433333333398
+      }
+    ]
+  },
+  {
+    "name": "normal-rebuild-price",
+    "seconds": 19.829,
+    "time": 4.56666666666666,
+    "info": "Builder, queued\nNeeds 25 Metal and 25 Ice\nCancel",
+    "inventory": {
+      "Metal": 200,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [
+      {
+        "type": "Storage",
+        "position": {
+          "x": 0,
+          "y": 40
+        }
+      },
+      {
+        "type": "Builder",
+        "position": {
+          "x": 80,
+          "y": 0
+        }
+      }
+    ],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 100,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9995.433333333398
+      }
+    ]
+  },
+  {
+    "name": "existing-queue-first-site-50-each",
+    "seconds": 24.004,
+    "time": 4.583333333333327,
+    "info": "Construction site\nMetal: 50\nIce: 50",
+    "inventory": {
+      "Metal": 200,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 50,
+      "Ice": 50
+    },
+    "queue": [
+      {
+        "type": "Builder",
+        "position": {
+          "x": 80,
+          "y": 0
+        }
+      }
+    ],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 100,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9995.416666666732
+      }
+    ]
+  },
+  {
+    "name": "rebuild-paid-25-each",
+    "seconds": 32.14,
+    "time": 19.649999999999963,
+    "info": "Building Builder\n15 s",
+    "inventory": {
+      "Metal": 200,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 25,
+      "Ice": 25
+    },
+    "queue": [],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 40
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 100,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9980.350000000079
+      }
+    ]
+  },
+  {
+    "name": "rebuilt-full-hp-normal-price",
+    "seconds": 40.193,
+    "time": 34.58333333333324,
+    "info": "Builder\nClick to open Builder\nHP 40/40",
+    "inventory": {
+      "Metal": 200,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 25,
+      "Ice": 25
+    },
+    "queue": [],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 40
+        }
+      },
+      {
+        "type": "Builder",
+        "hp": 40,
+        "position": {
+          "x": 80,
+          "y": 0
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 100,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9965.416666666759
+      }
+    ]
+  }
+]

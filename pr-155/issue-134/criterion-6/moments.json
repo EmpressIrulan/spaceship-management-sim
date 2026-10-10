@@ -1,0 +1,493 @@
+[
+  {
+    "name": "build-menu-offers-turret",
+    "seconds": 0.87,
+    "time": 0,
+    "info": "\n      Hive outpost\n      Dock 0/96\n0 ships inside\n      \n    ",
+    "inventory": {
+      "Metal": 6,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 25,
+      "Ice": 25
+    },
+    "queue": [],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 40,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 10000
+      }
+    ]
+  },
+  {
+    "name": "turret-building-metal-6",
+    "seconds": 5.138,
+    "time": 0,
+    "info": "Storage\nStored 106 / 1000\nMetal: 6\nIce: 100\nIncome: Metal +0/min, Ice +0/min",
+    "inventory": {
+      "Metal": 6,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      }
+    ],
+    "bugs": [
+      {
+        "id": 0,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": -35,
+          "y": -40
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      }
+    ],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 40,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 10000
+      }
+    ]
+  },
+  {
+    "name": "automatic-bug-shot-metal-5",
+    "seconds": 17.005,
+    "time": 15.316666666666652,
+    "info": "Storage\nStored 105 / 1000\nMetal: 5\nIce: 100\nIncome: Metal +0/min, Ice +0/min",
+    "inventory": {
+      "Metal": 5,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      },
+      {
+        "type": "Turret",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": -40
+        }
+      }
+    ],
+    "bugs": [
+      {
+        "id": 0,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": -35,
+          "y": -40
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 9984.683333333345
+      }
+    ],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 40,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9984.683333333345
+      }
+    ]
+  },
+  {
+    "name": "bug-hit-hp-3-metal-5",
+    "seconds": 21.539,
+    "time": 15.516666666666652,
+    "info": "Storage\nStored 105 / 1000\nMetal: 5\nIce: 100\nIncome: Metal +0/min, Ice +0/min",
+    "inventory": {
+      "Metal": 5,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      },
+      {
+        "type": "Turret",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": -40
+        }
+      }
+    ],
+    "bugs": [
+      {
+        "id": 0,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": -35,
+          "y": -40
+        },
+        "hp": 3,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 9984.483333333348
+      }
+    ],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 40,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9984.483333333348
+      }
+    ]
+  },
+  {
+    "name": "automatic-hive-shot",
+    "seconds": 29.395,
+    "time": 19.266666666666794,
+    "info": "Storage\nStored 103 / 1000\nMetal: 3\nIce: 100\nIncome: Metal +0/min, Ice +0/min",
+    "inventory": {
+      "Metal": 3,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      },
+      {
+        "type": "Turret",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": -40
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 40,
+          "y": -80
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9980.733333333399
+      }
+    ]
+  },
+  {
+    "name": "hive-hit-hp-197",
+    "seconds": 33.691,
+    "time": 19.53333333333347,
+    "info": "Storage\nStored 103 / 1000\nMetal: 3\nIce: 100\nIncome: Metal +0/min, Ice +0/min",
+    "inventory": {
+      "Metal": 3,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      },
+      {
+        "type": "Turret",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": -40
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 40,
+          "y": -80
+        },
+        "hp": 197,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9980.466666666736
+      }
+    ]
+  },
+  {
+    "name": "no-metal-stopped",
+    "seconds": 45.69,
+    "time": 27.00000000000049,
+    "info": "Turret\nTurret: no Metal\nHP 40/40",
+    "inventory": {
+      "Metal": 0,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      },
+      {
+        "type": "Turret",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": -40
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 40,
+          "y": -80
+        },
+        "hp": 188,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9973.000000000178
+      }
+    ]
+  },
+  {
+    "name": "still-not-firing-eight-seconds-later",
+    "seconds": 58.091,
+    "time": 35.00000000000057,
+    "info": "Turret\nTurret: no Metal\nHP 40/40",
+    "inventory": {
+      "Metal": 0,
+      "Ice": 100
+    },
+    "site": {
+      "Metal": 0,
+      "Ice": 0
+    },
+    "queue": [],
+    "modules": [
+      {
+        "type": "Dock",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "type": "Storage",
+        "hp": 40,
+        "position": {
+          "x": 40,
+          "y": 0
+        }
+      },
+      {
+        "type": "Turret",
+        "hp": 40,
+        "position": {
+          "x": 0,
+          "y": -40
+        }
+      }
+    ],
+    "bugs": [],
+    "ships": [],
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 40,
+          "y": -80
+        },
+        "hp": 188,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9965.000000000295
+      }
+    ]
+  }
+]

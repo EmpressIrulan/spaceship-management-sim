@@ -1,0 +1,156 @@
+
+> spaceship-management-sim@0.0.0 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> sim@0.0.0 typecheck
+> tsc -p tsconfig.json
+
+
+> app@0.0.0 typecheck
+> tsc -p tsconfig.json
+
+
+> spaceship-management-sim@0.0.0 build
+> node tools/build.mjs
+
+wrote dist/index.html
+
+> spaceship-management-sim@0.0.0 test
+> npm test --workspaces --if-present
+
+
+> sim@0.0.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-134/sim[39m
+
+ [32m✓[39m src/orders.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 402[2mms[22m[39m
+ [32m✓[39m src/sector-claim.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 442[2mms[22m[39m
+ [32m✓[39m src/materials.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 680[2mms[22m[39m
+   [32m✓[39m material deliveries [2m(3)[22m
+     [33m[2m✓[22m[39m replays replacement positions and types from the seed, while allowing either type[33m 631[2mms[22m[39m
+ [32m✓[39m src/construction-site.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 672[2mms[22m[39m
+   [32m✓[39m Supply construction site [2m(5)[22m
+     [33m[2m✓[22m[39m mines and unloads into the site, trip after trip, never into Storage[33m 443[2mms[22m[39m
+ [32m✓[39m src/station-build-queue.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 787[2mms[22m[39m
+   [32m✓[39m the station build queue [2m(19)[22m
+     [33m[2m✓[22m[39m leaves a supply ship at its Move destination while a build is queued[33m 703[2mms[22m[39m
+ [32m✓[39m src/fields.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 868[2mms[22m[39m
+   [32m✓[39m asteroid belts and clusters [2m(11)[22m
+     [33m[2m✓[22m[39m keeps every rock in its field through many respawns[33m 709[2mms[22m[39m
+ [32m✓[39m src/haul.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 905[2mms[22m[39m
+ [32m✓[39m src/fill-hold.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 96[2mms[22m[39m
+ [32m✓[39m src/laser.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 987[2mms[22m[39m
+   [32m✓[39m where the ship mines from [2m(4)[22m
+     [33m[2m✓[22m[39m never overlaps the asteroid it mines, flying out, mining or flying home[33m 788[2mms[22m[39m
+ [32m✓[39m src/station-sites.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 972[2mms[22m[39m
+   [32m✓[39m criterion 2: ships supply the site and a Dock builds [2m(12)[22m
+     [33m[2m✓[22m[39m founding runs from mining to a built-out station on its own stock[33m 313[2mms[22m[39m
+ [32m✓[39m src/sectors.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 333[2mms[22m[39m
+   [32m✓[39m two linked sectors [2m(5)[22m
+     [33m[2m✓[22m[39m jumps out, mines, returns through the gate, and unloads at home[33m 311[2mms[22m[39m
+ [32m✓[39m src/supply-materials.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 1027[2mms[22m[39m
+   [32m✓[39m which materials a supply ship mines [2m(6)[22m
+     [33m[2m✓[22m[39m supplies the site from both materials when nobody has touched the ticks[33m 337[2mms[22m[39m
+     [33m[2m✓[22m[39m mines only Metal with only Metal ticked, and the site gains Metal only[33m 402[2mms[22m[39m
+ [32m✓[39m src/income.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 152[2mms[22m[39m
+ [32m✓[39m src/enemies.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 115[2mms[22m[39m
+ [32m✓[39m src/mine-materials.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 431[2mms[22m[39m
+ [32m✓[39m src/ship-build-queue.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m src/station-building-story.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 53[2mms[22m[39m
+ [32m✓[39m src/ships.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 71[2mms[22m[39m
+ [32m✓[39m src/building.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/hangars.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m src/claim-module.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/character.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 148[2mms[22m[39m
+ [32m✓[39m src/berths.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/station-fractional-placement.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 83[2mms[22m[39m
+ [32m✓[39m src/dock-area.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/station.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/shields.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+[90mstdout[2m | dbg.test.ts[2m > [22m[2mdbg
+[22m[39mhalf cargo [33m15[39m station1 inv { Metal: [33m5[39m, Ice: [33m0[39m }
+done ship [33m0[39m haulReturning inv { Metal: [33m6[39m, Ice: [33m14[39m }
+
+ [32m✓[39m dbg.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/ship-home-mining.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/ship-home.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/storage.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/last-station.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/tick.test.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 2962[2mms[22m[39m
+   [32m✓[39m mining cycle [2m(10)[22m
+     [33m[2m✓[22m[39m gets through at least two full cycles within two minutes for any seed[33m 975[2mms[22m[39m
+   [32m✓[39m ore is conserved [2m(4)[22m
+     [33m[2m✓[22m[39m balances ore mined against cargo and station stock over a long run with many ships[33m 764[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m33 passed[39m[22m[90m (33)[39m
+[2m      Tests [22m [1m[32m380 passed[39m[22m[90m (380)[39m
+[2m   Start at [22m 19:24:31
+[2m   Duration [22m 3.32s[2m (tests 75%, transform 15%, import 8%, worker 1%)[22m
+
+
+> app@0.0.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-134/app[39m
+
+ [32m✓[39m src/mine-materials.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/selection.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/shipyard.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/construction-site.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/labels.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/building.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m src/ships.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m src/hangar-interactions.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/laser.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/world-rendering.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m src/materials.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/station.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/character.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/hangars.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/station-site.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/sectors.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/blueprints.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/speed.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/storage.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/dock-ship-rendering.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/cancel-hover-input.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/claim-naming.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/station-appearance.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/camera.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 362[2mms[22m[39m
+   [32m✓[39m starting view [2m(2)[22m
+     [33m[2m✓[22m[39m shows the station and every asteroid on screen for any seed, even on a short window[33m 353[2mms[22m[39m
+ [32m✓[39m src/speed-input.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/camera-input.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/panels.test.ts [2m([22m[2m35 tests[22m[2m)[22m[33m 432[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m27 passed[39m[22m[90m (27)[39m
+[2m      Tests [22m [1m[32m325 passed[39m[22m[90m (325)[39m
+[2m   Start at [22m 19:24:35
+[2m   Duration [22m 915ms[2m (transform 52%, tests 24%, import 23%, worker 2%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 2.66s[39m[2m · 52% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
+
+> tools@0.0.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-134/tools[39m
+
+[90mstdout[2m | build.test.mjs[2m > [22m[2mbuild inlining[2m > [22m[2mleaves replacement tokens in the bundle literal
+[22m[39mwrote dist/index.html
+
+ [32m✓[39m build.test.mjs [2m([22m[2m2 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m   Start at [22m 19:24:36
+[2m   Duration [22m 106ms[2m (import 33%, tests 32%, transform 31%, worker 5%)[22m
+
+EXIT=0
