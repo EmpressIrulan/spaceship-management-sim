@@ -80,23 +80,24 @@ describe("a supply ship's status names its site materials", () => {
   });
 });
 
-describe("the selection panel's tickboxes", () => {
-  it("lists one box per material, ticked where the ship has it", () => {
+describe("the selection panel's material dropdown", () => {
+  it("selects Ice when only Ice is enabled", () => {
     const panel = selectionPanel(withShips([{ mineMaterials: ["Ice"] }]), [0])!;
-    expect(panel.materials).toEqual([{ material: "Metal", ticked: "off" }, { material: "Ice", ticked: "on" }]);
+    expect(panel.materials).toBe("Ice");
   });
 
-  it("shows a box half-ticked when the selected ships disagree on it", () => {
+  it("shows Mixed when selected ships disagree on their material choice", () => {
     const panel = selectionPanel(withShips([{ mineMaterials: ["Ice"] }, { mineMaterials: ["Metal", "Ice"] }]), [0, 1])!;
-    expect(panel.materials).toEqual([{ material: "Metal", ticked: "mixed" }, { material: "Ice", ticked: "on" }]);
+    expect(panel.materials).toBe("mixed");
   });
 
-  it("shows the same boxes for a supply ship", () => {
+  it("selects Metal and Ice for a supply ship with both materials", () => {
     const panel = selectionPanel(withShips([{ defaultBehaviour: "supply", mineMaterials: ["Metal", "Ice"] }]), [0])!;
-    expect(panel.materials).toEqual([{ material: "Metal", ticked: "on" }, { material: "Ice", ticked: "on" }]);
+    expect(panel.materials).toBe("both");
   });
 
-  it("has no boxes unless every selected ship is on Mine or Supply", () => {
+  it("shows Mixed for a ship with no materials, and nothing unless every selected ship is Mine or Supply", () => {
+    expect(selectionPanel(withShips([{ mineMaterials: [] }]), [0])!.materials).toBe("mixed");
     expect(selectionPanel(withShips([{ defaultBehaviour: "none" }]), [0])!.materials).toBeNull();
     expect(selectionPanel(withShips([{}, { defaultBehaviour: "none" }]), [0, 1])!.materials).toBeNull();
   });

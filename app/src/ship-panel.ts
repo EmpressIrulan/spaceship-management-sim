@@ -1,4 +1,4 @@
-import { MATERIALS, type SimState, type ShipDesign, type DefaultBehaviour } from "sim";
+import { type SimState, type ShipDesign, type DefaultBehaviour } from "sim";
 import { selectionPanel, type SelectionPanel } from "./selection";
 import { shipPanel, shipSprite } from "./ships";
 import { hangarPanelRows, launchAllButton, launchAllDisabled } from "./hangar-panel";
@@ -79,12 +79,7 @@ function buildShipPanel(shipPanelBox: HTMLElement, first: Frame, shipId: number)
   const routeTo = document.createElement("select"); routeTo.name = "haul-to";
   const routeMaterial = document.createElement("select"); routeMaterial.name = "haul-material";
   const routeLabels = [labelled("From ", routeFrom), labelled("To ", routeTo), labelled("Material ", routeMaterial)];
-  const materialBoxes = MATERIALS.map((material) => {
-    const input = document.createElement("input");
-    input.type = "checkbox"; input.name = "mine-material"; input.value = material;
-    const label = document.createElement("label"); label.className = "mine-material"; label.append(input, ` ${material}`);
-    return { material, label, input };
-  });
+  const materialSelect = document.createElement("select"); materialSelect.name = "mine-material";
   const sectorsInput = document.createElement("input");
   sectorsInput.type = "checkbox"; sectorsInput.name = "mine-other-sectors";
   const sectorsLabel = document.createElement("label"); sectorsLabel.className = "mine-material";
@@ -93,7 +88,7 @@ function buildShipPanel(shipPanelBox: HTMLElement, first: Frame, shipId: number)
   const launch = single ? launchAllButton(first.state, shipId) : null;
   const thumbnail = single ? thumbnailElement(first.panel.design) : null;
   shipPanelBox.replaceChildren(title, rows, labelled("Home: ", homeSelect), defaultSelect, ...routeLabels,
-    ...materialBoxes.map(({ label }) => label), sectorsLabel, resume, ...(launch ? [launch] : []), ...(thumbnail ? [thumbnail] : []));
+    materialSelect, sectorsLabel, resume, ...(launch ? [launch] : []), ...(thumbnail ? [thumbnail] : []));
 
   return ({ state, panel, list, hangarRows }) => {
     setText(title, list.rows.length > 1 ? `${list.rows.length} ships selected` : `Ship ${panel.size}`);
@@ -119,11 +114,8 @@ function buildShipPanel(shipPanelBox: HTMLElement, first: Frame, shipId: number)
       syncSelect(routeMaterial, routeOptions([{ id: "Metal", name: "Metal" }, { id: "Ice", name: "Ice" }], route.material), route.material);
     }
 
-    for (const { material, label, input } of materialBoxes) {
-      const box = list.materials?.find((item) => item.material === material);
-      label.hidden = !box;
-      if (box) { input.checked = box.ticked === "on"; input.indeterminate = box.ticked === "mixed"; }
-    }
+    materialSelect.hidden = list.materials === null;
+    if (list.materials !== null) syncSelect(materialSelect, materialOptions(list), list.materials);
     sectorsLabel.hidden = list.mineOtherSectors === null;
     sectorsInput.checked = list.mineOtherSectors === "on";
     sectorsInput.indeterminate = list.mineOtherSectors === "mixed";
@@ -149,6 +141,15 @@ function defaultOptions(list: SelectionPanel): ControlOption[] {
     ? { value, label, disabled: true, title: list.haulDisabledReason ?? "" }
     : { value, label });
   return list.defaultBehaviour === "mixed" ? [{ value: "mixed", label: "Default: Mixed" }, ...options] : options;
+}
+
+function materialOptions(list: SelectionPanel): ControlOption[] {
+  const options: ControlOption[] = [
+    { value: "both", label: "Metal and Ice" },
+    { value: "Metal", label: "Metal" },
+    { value: "Ice", label: "Ice" },
+  ];
+  return list.materials === "mixed" ? [{ value: "mixed", label: "Material: Mixed" }, ...options] : options;
 }
 
 function homeOptions(state: SimState, home: SelectionPanel["homeStation"]): ControlOption[] {

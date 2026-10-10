@@ -188,7 +188,7 @@ function fakeDocument(): { createElement: (tag: string) => FakeElement; activeEl
 }
 
 describe("haul route panel", () => {
-  it("applies a material checkbox to every selected supply ship", () => {
+  it("applies a material dropdown choice to every selected supply ship", () => {
     const state = createInitialState(7);
     const first = state.ships[0]!;
     state.ships = [0, 1].map((id) => ({ ...first, id, defaultBehaviour: "supply", mineMaterials: ["Metal", "Ice"] }));
@@ -196,7 +196,7 @@ describe("haul route panel", () => {
     const ui = { ...createUiState([]), selectedShips: [0, 1] };
     let current = state;
     installPanels(ui, () => current, (next) => { current = next; }, new FakeElement() as unknown as HTMLElement, shipPanelBox as unknown as HTMLElement);
-    shipPanelBox.listeners.get("change")![1]!({ target: { name: "mine-material", value: "Ice", checked: false } } as unknown as Event);
+    shipPanelBox.listeners.get("change")![0]!({ target: { name: "mine-material", value: "Metal" } } as unknown as Event);
     expect(current.ships.map((ship) => ship.mineMaterials)).toEqual([["Metal"], ["Metal"]]);
   });
 
@@ -224,6 +224,24 @@ describe("haul route panel", () => {
       const selects = box.children.flatMap((child) => child.children).filter((child) => child.name === "haul-from" || child.name === "haul-to" || child.name === "haul-material");
       expect(selects.map((select) => select.name)).toEqual(["haul-from", "haul-to", "haul-material"]);
       expect(selects.map((select) => select.value)).toEqual(["home", "station:3", "Ice"]);
+    } finally {
+      globalThis.document = originalDocument;
+    }
+  });
+
+  it("renders one material dropdown with the three material choices", () => {
+    const originalDocument = globalThis.document;
+    globalThis.document = fakeDocument() as unknown as Document;
+    try {
+      const box = new FakeElement();
+      const state = haulStateForPanel();
+      state.ships = state.ships.map((ship) => ({ ...ship, defaultBehaviour: "mine", mineMaterials: ["Metal", "Ice"] }));
+      renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0, 1], selectedShip: null, renderedPanel: "" });
+      const select = box.children.find((child) => child.name === "mine-material")!;
+      expect(select.children.map((option) => [option.value, option.textContent])).toEqual([
+        ["both", "Metal and Ice"], ["Metal", "Metal"], ["Ice", "Ice"],
+      ]);
+      expect(select.value).toBe("both");
     } finally {
       globalThis.document = originalDocument;
     }
