@@ -17,6 +17,7 @@ const GAUGE = { width: 36, height: 12, gap: 4 };
 export interface ShipDrawing {
   drawShip: (ship: Ship) => void;
   drawSelectionRing: (center: Vec, size: Size) => void;
+  drawShieldRing: (center: Vec, size: Size, progress: number) => void;
   drawGauge: (position: Vec, gauge: Gauge, size: Size) => void;
   drawLaser: (beam: Beam, seconds: number, color?: string) => void;
 }
@@ -63,6 +64,19 @@ export function createShipDrawing(
       (Math.hypot(size.width, size.height) / 2) * ui.camera.zoom + 5;
     ctx.save();
     ctx.strokeStyle = "#4ade80";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(screen.x, screen.y, radius, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawShieldRing(center: Vec, size: Size, progress: number): void {
+    const screen = worldToScreen(ui.camera, ui.viewport, center);
+    const radius = (Math.hypot(size.width, size.height) / 2) * ui.camera.zoom + 5;
+    ctx.save();
+    ctx.globalAlpha = 1 - progress;
+    ctx.strokeStyle = "#38bdf8";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(screen.x, screen.y, radius, 0, 2 * Math.PI);
@@ -122,5 +136,5 @@ export function createShipDrawing(
     }
   }
 
-  return { drawShip, drawSelectionRing, drawGauge, drawLaser };
+  return { drawShip, drawSelectionRing, drawShieldRing, drawGauge, drawLaser };
 }

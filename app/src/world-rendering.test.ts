@@ -15,6 +15,7 @@ import {
 } from "sim";
 import { createWorldDrawing } from "./world-rendering";
 import { createUiState } from "./ui-state";
+import { damageShip } from "../../sim/src/shields";
 
 vi.mock("./ships", () => ({ shipSprite: () => ({}), slotColor: () => "#facc15" }));
 
@@ -248,5 +249,69 @@ describe("a hull that vanishes between frames explodes", () => {
     state = shotState({ ...ship, sectorId: 1 });
     drawing.draw(0.5);
     expect(ctx.arc).not.toHaveBeenCalled();
+  });
+});
+
+describe("a shield hit flashes around the ship", () => {
+  it.each([false, true])("does not flash an old hit on first draw (sector switch: %s)", (switchSector) => {
+    const uiState = ui(switchSector ? 0 : 1);
+    const ctx = mockCtx();
+    const base = createInitialState(7).ships[0]!;
+    const ship = damageShip({ ...base, sectorId: 1, design: { width: 1, height: 1, slots: ["Capacitor"] } }, 1, 1)!;
+    const state = { ...shotState(ship), time: 10 };
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    if (switchSector) drawing.draw(500);
+    uiState.currentSector = 1;
+    drawing.draw(501);
+    drawing.draw(501.1);
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+
+  it.each([1, 4] as const)("shows only the remaining first-draw flash at %sx speed", (speed) => {
+    const uiState = ui();
+    uiState.clock.speed = speed;
+    const ctx = mockCtx();
+    const base = createInitialState(7).ships[0]!;
+    const ship = damageShip({ ...base, design: { width: 1, height: 1, slots: ["Capacitor"] } }, 1, 10)!;
+    const state = { ...shotState(ship), time: 10 + 0.125 * speed };
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    drawing.draw(500);
+    expect(ctx.arc).toHaveBeenCalled();
+    (ctx.arc as unknown as { mockClear: () => void }).mockClear();
+    drawing.draw(500.25);
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+
+  it("does not flash a hull-only hit that restarts the shield delay", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const base = createInitialState(7).ships[0]!;
+    let state = { ...shotState({ ...base, shield: 0, design: { width: 1, height: 1, slots: ["Capacitor"] } }), time: 10 };
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    drawing.draw(500);
+    state = { ...shotState(damageShip(state.ships[0]!, 1, 11)!), time: 11 };
+    drawing.draw(501);
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+
+  it("draws a blue ring once when the shield hit timestamp changes", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const base = createInitialState(7).ships[0]!;
+    let state = shotState({ ...base, id: 9, shield: 20, maxShield: 20, shieldLastAbsorbedHit: undefined });
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+    drawing.draw(0);
+    state = shotState({ ...state.ships[0]!, shield: 12, shieldLastAbsorbedHit: 1 });
+    drawing.draw(1);
+    expect(ctx.arc).toHaveBeenCalled();
+    expect(ctx.strokeStyle).toBe("#38bdf8");
+    (ctx.arc as unknown as { mockClear: () => void }).mockClear();
+    drawing.draw(1.4);
+    expect(ctx.arc).not.toHaveBeenCalled();
+    drawing.draw(1.5);
+    expect(ctx.arc).not.toHaveBeenCalled();
+    state = shotState({ ...state.ships[0]!, shield: 11, shieldLastAbsorbedHit: 2 });
+    drawing.draw(2);
+    expect(ctx.arc).toHaveBeenCalled();
   });
 });

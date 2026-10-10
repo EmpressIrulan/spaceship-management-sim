@@ -6,7 +6,8 @@ import {
 } from "./build-constants";
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
-import { shipHp, shipModuleCounts } from "./ship";
+import { shipModuleCounts } from "./ship";
+import { damageShip, advanceShields, nextShieldEvent } from "./shields";
 import type { Beam, Bug, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Vec } from "./model";
 import type { Draft } from "./tick-mining";
 
@@ -132,10 +133,9 @@ function quarryFor(draft: Draft, bug: Bug): Ship | null {
 // together with its cargo: it explodes and nothing is left of either. Returns
 // whether it survived.
 function bite(draft: Draft, ship: Ship): boolean {
-  const { hp, maxHp } = shipHp(ship);
-  const next = hp - BUG_BITE_DAMAGE;
-  if (next > 0) {
-    draft.ships = draft.ships.map((other) => (other.id === ship.id ? { ...other, hp: next, maxHp } : other));
+  const next = damageShip(ship, BUG_BITE_DAMAGE, draft.time);
+  if (next) {
+    draft.ships = draft.ships.map((other) => (other.id === ship.id ? next : other));
     return true;
   }
   draft.ships = draft.ships.filter((other) => other.id !== ship.id);
@@ -146,7 +146,8 @@ export function advanceEnemies(draft: Draft, seconds: number): void {
   draft.hives = draft.hives.map((hive) => (hive.alive ? { ...hive, spawnTimer: hive.spawnTimer - seconds } : hive));
   draft.bugs = draft.bugs.map((bug) => progressBug(bug, seconds));
   // Gun ships reload towards their next shot, and shots in flight burn out.
-  draft.ships = draft.ships.map((ship) => {
+  const from = draft.time - seconds;
+  draft.ships = advanceShields(draft.ships, from, draft.time).map((ship) => {
     if (!ship.gunTimer && !ship.gunShot) return ship;
     const gunTimer = Math.max(0, (ship.gunTimer ?? 0) - seconds);
     const gunShot = ship.gunShot ? burnOut(ship.gunShot, seconds) : null;
@@ -316,6 +317,7 @@ export function nextEnemyEvent(draft: Draft): number {
     if (ship.gunTimer && ship.gunTimer > 0) soonest = Math.min(soonest, ship.gunTimer);
     if (ship.gunShot) soonest = Math.min(soonest, ship.gunShot.timer);
   }
+  soonest = Math.min(soonest, nextShieldEvent(draft.ships, draft.time));
   // Drops outlast the shoot-out that left them, so once only they are left
   // the loop would otherwise go silent: let the next step reach them.
   if (draft.drops.length > 0) soonest = Math.min(soonest, DROP_EVENT_SECONDS);

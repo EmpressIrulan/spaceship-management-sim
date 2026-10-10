@@ -1,4 +1,5 @@
 import { SHIP_CRUISE_SPEED } from "./motion";
+import { SHIELD_CAPACITY_PER_PIXEL, SHIELD_RECHARGE_PER_PIXEL } from "./build-constants";
 import { SHIP_MODULES } from "./model";
 import type { Material, Ship, ShipDesign, ShipModule, Size } from "./model";
 export { SHIP_MODULES };
@@ -48,6 +49,8 @@ export const SHIP_MODULE_COST: Record<ShipModule, Record<Material, number>> = {
   // Placeholder: a Gun is a weapon like the Laser, a little cheaper and with
   // the same Metal lean.
   Gun: { Metal: 15, Ice: 10 },
+  Capacitor: { Metal: 10, Ice: 15 },
+  Generator: { Metal: 15, Ice: 10 },
 };
 export const SHIP_BUILD_SECONDS_PER_RESOURCE = 0.1;
 // Engines per painted pixel that move a ship at SHIP_CRUISE_SPEED: one in four.
@@ -116,6 +119,20 @@ export const SHIP_HP = 40;
 
 export function shipHp(ship: Pick<Ship, "hp" | "maxHp">): { hp: number; maxHp: number } {
   return { hp: ship.hp ?? SHIP_HP, maxHp: ship.maxHp ?? SHIP_HP };
+}
+
+export function shipShield(ship: Pick<Ship, "design" | "shield" | "maxShield">): {
+  shield: number;
+  maxShield: number;
+  recharge: number;
+} {
+  const counts = shipModuleCounts(ship.design);
+  const maxShield = counts.Capacitor * SHIELD_CAPACITY_PER_PIXEL;
+  return {
+    shield: ship.shield ?? maxShield,
+    maxShield: ship.maxShield ?? maxShield,
+    recharge: counts.Generator * SHIELD_RECHARGE_PER_PIXEL,
+  };
 }
 
 export function shipBuildCost(design: ShipDesign): Record<Material, number> {

@@ -9,6 +9,7 @@ import {
   pixelCount,
   shipBuildCost,
   shipBuildSeconds,
+  shipShield,
   shipModuleCounts,
   shipSize,
   shipStats,
@@ -81,8 +82,8 @@ describe("the starting ship", () => {
 });
 
 describe("ship stats", () => {
-  it("offers Hull, Hangar and Gun next to the three working modules", () => {
-    expect(SHIP_MODULES).toEqual(["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun"]);
+  it("offers shield modules next to the other working modules", () => {
+    expect(SHIP_MODULES).toEqual(["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun", "Capacitor", "Generator"]);
   });
 
   it("takes speed from the share of painted pixels that are engines, hull included", () => {
@@ -117,6 +118,27 @@ describe("ship stats", () => {
   });
 });
 
+describe("ship shields", () => {
+  it("gets capacity from Capacitors and refill rate from Generators", () => {
+    const layout = design(4, 1, ["Capacitor", "Capacitor", "Generator", "Generator"]);
+    expect(shipShield({ design: layout })).toMatchObject({ maxShield: 40, shield: 40, recharge: 2 });
+  });
+
+  it("has no shield when a ship has Generators but no Capacitor", () => {
+    expect(shipShield({ design: design(2, 1, ["Generator", "Generator"]) })).toEqual({
+      shield: 0,
+      maxShield: 0,
+      recharge: 2,
+    });
+  });
+
+  it("starts a new ship with a full shield", () => {
+    const layout = design(1, 1, ["Capacitor"]);
+    expect(shipShield({ design: layout })).toMatchObject({ shield: 20, maxShield: 20 });
+    expect(shipShield({ design: layout, shield: 7, maxShield: 20 })).toMatchObject({ shield: 7, maxShield: 20 });
+  });
+});
+
 describe("design size", () => {
   it("has no cap: a Star Destroyer of 400 x 200 pixels is valid", () => {
     expect(validDesign(solid(400, 200))).toBe(true);
@@ -136,6 +158,8 @@ describe("building a ship", () => {
     expect(shipBuildCost(solid(1, 1, "Storage"))).toEqual({ Metal: 5, Ice: 10 });
     expect(shipBuildCost(solid(1, 1, "Laser"))).toEqual({ Metal: 20, Ice: 10 });
     expect(shipBuildCost(solid(1, 1, "Engine"))).toEqual({ Metal: 30, Ice: 10 });
+    expect(shipBuildCost(solid(1, 1, "Capacitor"))).toEqual({ Metal: 10, Ice: 15 });
+    expect(shipBuildCost(solid(1, 1, "Generator"))).toEqual({ Metal: 15, Ice: 10 });
   });
 
   it("prices the Gun a little under a Laser, leaning Metal like it", () => {
@@ -150,6 +174,8 @@ describe("building a ship", () => {
       Hangar: 0,
       Hull: 2,
       Gun: 0,
+      Capacitor: 0,
+      Generator: 0,
     });
   });
 

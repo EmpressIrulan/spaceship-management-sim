@@ -6,6 +6,7 @@ import {
   UNLOADING_SECONDS,
   WORKING_SECONDS,
   createInitialState,
+  tick,
   type Bug,
   type Drop,
   type Ship,
@@ -182,6 +183,36 @@ describe("hover box", () => {
     expect(infoBox(damaging, { kind: "ship", index: 0 })?.line).toContain("HP 24/40");
     expect(infoBox(damaging, { kind: "ship", index: 0 })?.line).toContain("Mining");
     expect(infoBox({ ...damaging, ships: [ship("working", 0)] }, { kind: "ship", index: 0 })?.line).not.toContain("HP");
+  });
+
+  it("shows a capacitor shield and full HP on a ship hover", () => {
+    const shielded = { ...ship("working", 0), design: {
+      ...ship("working", 0).design,
+      slots: ["Capacitor" as const, ...ship("working", 0).design.slots.slice(1)],
+    } };
+    const shield = { ...shielded, shield: 20, maxShield: 30, hp: 40, maxHp: 40 };
+    const box = infoBox({ ...state, ships: [shield] }, { kind: "ship", index: 0 });
+    expect(box).toEqual({ title: "Ship", line: "Mining Metal\nShield 20/30  HP 40/40" });
+  });
+
+  it("does not show a shield for a ship without Capacitors", () => {
+    const box = infoBox({ ...state, ships: [ship("working", 0)] }, { kind: "ship", index: 0 });
+    expect(box?.line).not.toContain("Shield");
+  });
+
+  it("keeps frame-sized shield refills readable without losing half-bite HP", () => {
+    let state = createInitialState(7);
+    state = { ...state, time: 5, hives: [], asteroids: [], ships: [{
+      ...state.ships[0]!, state: "holding", timer: 0, target: null, leg: null,
+      design: { width: 3, height: 1, slots: ["Capacitor", "Generator", "Hull"] },
+      shield: 10, shieldLastHit: 0, hp: 39.5,
+    }] };
+    state = tick(state, 1 / 60);
+    expect(infoBox(state, { kind: "ship", index: 0 })?.line).toBe("Holding\nShield 10/20  HP 39.5/40");
+    for (let frame = 0; frame < 40; frame++) state = tick(state, 1 / 60);
+    expect(infoBox(state, { kind: "ship", index: 0 })?.line).toBe("Holding\nShield 10.7/20  HP 39.5/40");
+    for (let frame = 0; frame < 120; frame++) state = tick(state, 1 / 60);
+    expect(infoBox(state, { kind: "ship", index: 0 })?.line).toBe("Holding\nShield 12.7/20  HP 39.5/40");
   });
 });
 

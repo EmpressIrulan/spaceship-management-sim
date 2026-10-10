@@ -15,7 +15,7 @@ export const MODULE_TYPES = ["Dock", "Storage", "Builder", "Claim"] as const;
 
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and draws, but does nothing.
 // Gun shoots bugs and the hive on the ship's own; see enemies.ts.
-export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun"] as const;
+export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun", "Capacitor", "Generator"] as const;
 export type ShipModule = (typeof SHIP_MODULES)[number];
 export interface ShipDesign { width: number; height: number; slots: (ShipModule | null)[] }
 
@@ -93,6 +93,13 @@ export interface Ship {
   // not been bitten: a fresh ship still has SHIP_HP of hull.
   hp?: number;
   maxHp?: number;
+  // Current and full shield. Missing on older fixtures means a new ship's full shield.
+  shield?: number;
+  maxShield?: number;
+  // Simulation time of any hit on a ship with shield capacity, for recharge.
+  shieldLastHit?: number;
+  // Simulation time of absorbed damage, for the shield ring only.
+  shieldLastAbsorbedHit?: number;
   // Set while this ship is hidden inside another ship.
   hangarId?: number | null;
   // A Gun ship's reload: seconds until the gun may fire again. Missing means

@@ -1,4 +1,4 @@
-import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipHp, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
+import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipHp, shipShield, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 
@@ -141,11 +141,12 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const incoming = hangarIncoming(state, ship.id);
     const hangarValue = `${hangarReserved(state, ship.id)}/${capacity}${incoming > 0 ? `, ${incoming} incoming` : ""}`;
     const hangar = capacity > 0 ? `\nHangar ${hangarValue}\nDocked ships: ${hangarContents(state, ship.id).length}` : "";
-    // A fresh hull has nothing worth reading: the HP line appears once a bite
-    // or a shot has taken it below full.
+    // Without a shield, HP appears only once the hull is damaged.
     const { hp, maxHp } = shipHp(ship);
-    const hull = hp < maxHp ? `\nHP ${hp}/${maxHp}` : "";
-    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}${hull}`,
+    const { shield, maxShield } = shipShield(ship);
+    const figure = (value: number) => Number(value.toFixed(1));
+    const health = maxShield > 0 ? `\nShield ${figure(shield)}/${figure(maxShield)}  HP ${figure(hp)}/${figure(maxHp)}` : hp < maxHp ? `\nHP ${figure(hp)}/${figure(maxHp)}` : "";
+    return { title: "Ship", line: `${shipStatus(state, ship)}${hangar}${health}`,
       ...(capacity > 0 ? { action: { label: "Launch all", carrierId: ship.id, disabled: hangarContents(state, ship.id).length === 0 } } : {}) };
   }
   if (hovered.kind === "gateProject") {

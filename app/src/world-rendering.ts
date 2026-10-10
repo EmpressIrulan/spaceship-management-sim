@@ -62,6 +62,7 @@ export function createWorldDrawing(
   const overlayDrawing = createOverlayDrawing(ui, ctx);
 
   const spottedHulls = new Map<number, Vec>();
+  const spottedShieldHits = new Map<number, { hit: number; startedAt: number }>();
   let spottedSector: number | null = null;
   const blasts: { position: Vec; startedAt: number }[] = [];
 
@@ -149,12 +150,25 @@ export function createWorldDrawing(
       if (!state.ships.some((ship) => ship.id === id)) {
         blasts.push({ position: spot, startedAt: seconds });
         spottedHulls.delete(id);
+        spottedShieldHits.delete(id);
       }
     }
     for (const ship of sectorShips) spottedHulls.set(ship.id, { ...ship.position });
     for (const ship of sectorShips) {
       shipDrawing.drawShip(ship);
       if (ui.selectedShips.includes(ship.id)) shipDrawing.drawSelectionRing(ship.position, shipSize(ship.design));
+      if (ship.shieldLastAbsorbedHit !== undefined) {
+        const previous = spottedShieldHits.get(ship.id);
+        if (previous?.hit !== ship.shieldLastAbsorbedHit) {
+          const age = Math.max(0, state.time - ship.shieldLastAbsorbedHit) / ui.clock.speed;
+          spottedShieldHits.set(ship.id, { hit: ship.shieldLastAbsorbedHit, startedAt: seconds - age });
+        }
+      }
+      const shieldHit = spottedShieldHits.get(ship.id);
+      if (shieldHit) {
+        const age = seconds - shieldHit.startedAt;
+        if (age < BITE_FLASH_SECONDS) shipDrawing.drawShieldRing(ship.position, shipSize(ship.design), age / BITE_FLASH_SECONDS);
+      }
       const gauge = cargoGauge(ship);
       if (gauge) shipDrawing.drawGauge(ship.position, gauge, shipSize(ship.design));
     }

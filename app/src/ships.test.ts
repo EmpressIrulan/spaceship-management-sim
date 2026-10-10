@@ -10,6 +10,14 @@ const camera: Camera = { center: { x: 0, y: 0 }, zoom: 1 };
 const noLaser: ShipDesign = { width: 2, height: 1, slots: ["Engine", "Storage"] };
 const big: ShipDesign = { width: 6, height: 6, slots: Array(36).fill("Hull") };
 
+describe("ship module palette", () => {
+  it("has distinct colours for the shield modules", () => {
+    expect(MODULE_COLORS.Capacitor).toBeDefined();
+    expect(MODULE_COLORS.Generator).toBeDefined();
+    expect(MODULE_COLORS.Capacitor).not.toBe(MODULE_COLORS.Generator);
+  });
+});
+
 function withShips(ships: Partial<Ship>[], station: Partial<Station> = {}): SimState {
   const state = createInitialState(7);
   const base = state.ships[0]!;
