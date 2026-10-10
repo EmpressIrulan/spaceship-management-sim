@@ -102,7 +102,7 @@ export {
 } from "./state";
 export { cancelQueuedModuleBuild, queueModuleBuild, queuedDependents, startNextQueuedModule } from "./station-build-queue";
 export { gunBeams } from "./enemies";
-export { supplyQueueStatus } from "./station-build-queue";
+export { supplyQueueLength, supplyQueueStatus } from "./station-build-queue";
 export { stationOwningSite } from "./station-building";
 export { moduleBuildSeconds, moduleCost } from "./station-module-geometry";
 export {

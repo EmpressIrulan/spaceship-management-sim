@@ -5,13 +5,16 @@ import {
   haulDestinations,
   nearestMineableRock,
   shipStats,
+  supplyQueueLength,
+  supplyQueueStatus,
+  waitingForOre,
   type Order,
   type ShipDesign,
   type ShipModule,
   type Ship,
   type SimState,
 } from "sim";
-import { supplyQueueStatus, stationById } from "sim";
+import { stationById } from "sim";
 import { LASER_COLOR } from "./laser";
 import { statsView } from "./shipyard";
 
@@ -91,6 +94,12 @@ function idleMiner(state: SimState, ship: Ship): string {
   return available ? "Idle" : `Waiting: no ${ship.mineMaterials.join(", ")}`;
 }
 
+function supplyStatus(state: SimState, ship: Ship): string | null {
+  if (supplyQueueStatus(ship, supplyQueueLength(state)) !== "supplying") return null;
+  const missing = waitingForOre(state, ship);
+  return missing.length > 0 ? `Waiting: no ${missing.join(", ")}` : `Supplying site: ${ship.mineMaterials.join(", ")}`;
+}
+
 // Unloading into the construction site reads as unloading even under an order,
 // so the transfer can be watched.
 export function intoSite(ship: Ship): boolean {
@@ -125,6 +134,8 @@ export function shipStatus(state: SimState, ship: Ship): string {
   if (ship.state === "waiting" || (ship.state === "berthing" && ship.berth === null)) return waitingStatus(state, ship);
   if (intoSite(ship)) return "Unloading into the construction site";
   if (ship.order) return orderLabel(ship.order);
+  const supplying = supplyStatus(state, ship);
+  if (supplying) return supplying;
   const route = ship.haulRoute;
   const names = new Map(haulDestinations(state).map((stop) => [stop.id, stop.name]));
   const source = route ? names.get(route.from) ?? null : null;

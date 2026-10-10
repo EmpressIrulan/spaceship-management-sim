@@ -15,6 +15,11 @@ function withoutIce(state: SimState): SimState {
 
 const status = (state: SimState) => shipStatus(state, state.ships[0]!);
 
+function withSupplyQueue(state: SimState): SimState {
+  const station = state.stations[0]!;
+  return { ...state, stations: [{ ...station, buildQueue: [station.modules[0]!] }, ...state.stations.slice(1)] };
+}
+
 describe("a miner's status names the materials ticked for it", () => {
   it("reads Idle when nothing is ticked", () => {
     expect(status(withShips([{ state: "idle", mineMaterials: [] }]))).toBe("Idle");
@@ -54,6 +59,20 @@ describe("a miner's status names the materials ticked for it", () => {
   it("keeps showing the order while a ship follows one", () => {
     const state = withShips([{ state: "working", mineMaterials: ["Ice"], order: { kind: "mine", asteroidId: 0, loaded: false } }]);
     expect(status(state)).toBe("Order: mine");
+  });
+});
+
+describe("a supply ship's status names its site materials", () => {
+  it("reads Supplying site with one or both materials", () => {
+    expect(status(withSupplyQueue(withShips([{ defaultBehaviour: "supply", state: "working", mineMaterials: ["Ice"] }])))).toBe("Supplying site: Ice");
+    expect(status(withSupplyQueue(withShips([{ defaultBehaviour: "supply", state: "working", mineMaterials: ["Metal", "Ice"] }])))).toBe("Supplying site: Metal, Ice");
+  });
+
+  it("reads Waiting: no Ice at the Dock and resumes the supplying text when Ice returns", () => {
+    const barren = withSupplyQueue(withoutIce(withShips([{ defaultBehaviour: "supply", state: "idle", mineMaterials: ["Ice"] }])));
+    expect(status(barren)).toBe("Waiting: no Ice");
+    const supplied = { ...barren, asteroids: createInitialState(7).asteroids };
+    expect(status(supplied)).toBe("Supplying site: Ice");
   });
 });
 
