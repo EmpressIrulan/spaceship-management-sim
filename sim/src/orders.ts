@@ -1,4 +1,4 @@
-import { supplyQueueStatus } from "./station-build-queue";
+import { supplyQueueLength, supplyQueueStatus } from "./station-build-queue";
 import { fitsDock } from "./dock-packing";
 
 export function shipHomeRefusal(state: SimState, ids: number[], stationId: number | null): string | null {
@@ -91,8 +91,7 @@ export function resumeDefaultShip(state: SimState, ship: Ship): Ship {
   const assignedHome = stationById(state, ship.homeStationId ?? 0) ?? home;
   // Supply ships deliver to the selected site; nothing selected means Home's
   // site, and it waits whenever that target has no build queued.
-  const target = state.supplyStation === 0 ? undefined : stationById(state, state.supplyStation);
-  if (supplyQueueStatus(ship, target?.buildQueue.length ?? home.buildQueue.length) === "waiting") {
+  if (supplyQueueStatus(ship, supplyQueueLength(state)) === "waiting") {
     const atHome = ship.sectorId === home.sectorId
       && (ship.berth !== null || (ship.position.x === home.dock.position.x && ship.position.y === home.dock.position.y));
     // Idle where it already stands, so the tick sends it out to a parking spot
@@ -244,7 +243,10 @@ export function setDefaultBehaviour(state: SimState, ids: number[], behaviour: D
     // station the hauler carries between Home Storage and its own site.
     const to = stations[1]?.id ?? haulSites(state)[0]?.id;
     const haulRoute = ship.haulRoute ?? (to ? { from: stations[0]!.id, to, material: "Metal" as const } : undefined);
-    const next = { ...ship, defaultBehaviour: behaviour, haulRoute };
+    // A supplier starts with both materials ticked, so a ship nobody has ticked
+    // anything on still supplies; ticks already set are kept.
+    const mineMaterials = behaviour === "supply" && ship.mineMaterials.length === 0 ? [...MATERIALS] : ship.mineMaterials;
+    const next = { ...ship, defaultBehaviour: behaviour, haulRoute, mineMaterials };
     const wasHauling = ship.state.startsWith("haul");
     if (!next.order && (behaviour === "haul" || wasHauling || next.state === "holding")) return resumeDefaultShip(state, next);
     return next;
@@ -262,15 +264,15 @@ export function configureHaul(state: SimState, ids: number[], route: HaulRoute):
 
 export { haulStations };
 
-// Ticks or unticks a material for each named ship. A ship on its own default
-// that is flying to or mining a rock it may no longer take drops it, and
-// picks another or heads home.
+// Ticks or unticks a material for each named ship. A miner or supplier on its
+// own default that is flying to or mining a rock it may no longer take drops
+// it, and picks another or heads home.
 export function setMineMaterial(state: SimState, ids: number[], material: Material, on: boolean): SimState {
   return { ...state, ships: state.ships.map((ship) => {
     if (!ids.includes(ship.id) || ship.mineMaterials.includes(material) === on) return ship;
     const mineMaterials = MATERIALS.filter((item) => item === material ? on : ship.mineMaterials.includes(item));
     const next = { ...ship, mineMaterials };
-    if (next.defaultBehaviour !== "mine" || next.order) return next;
+    if ((next.defaultBehaviour !== "mine" && next.defaultBehaviour !== "supply") || next.order) return next;
     const droppedRock = (next.state === "outbound" || next.state === "working") && next.cargoMaterial && !mineMaterials.includes(next.cargoMaterial);
     const stuck = next.state === "holding";
     return droppedRock || stuck

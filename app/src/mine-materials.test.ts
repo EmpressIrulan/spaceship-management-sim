@@ -15,6 +15,11 @@ function withoutIce(state: SimState): SimState {
 
 const status = (state: SimState) => shipStatus(state, state.ships[0]!);
 
+function withSupplyQueue(state: SimState): SimState {
+  const station = state.stations[0]!;
+  return { ...state, stations: [{ ...station, buildQueue: [station.modules[0]!] }, ...state.stations.slice(1)] };
+}
+
 describe("a miner's status names the materials ticked for it", () => {
   it("reads Idle when nothing is ticked", () => {
     expect(status(withShips([{ state: "idle", mineMaterials: [] }]))).toBe("Idle");
@@ -57,6 +62,24 @@ describe("a miner's status names the materials ticked for it", () => {
   });
 });
 
+describe("a supply ship's status names its site materials", () => {
+  it("reads Idle when no materials are ticked", () => {
+    expect(status(withSupplyQueue(withShips([{ defaultBehaviour: "supply", state: "idle", mineMaterials: [] }])))).toBe("Idle");
+  });
+
+  it("reads Supplying site with one or both materials", () => {
+    expect(status(withSupplyQueue(withShips([{ defaultBehaviour: "supply", state: "working", mineMaterials: ["Ice"] }])))).toBe("Supplying site: Ice");
+    expect(status(withSupplyQueue(withShips([{ defaultBehaviour: "supply", state: "working", mineMaterials: ["Metal", "Ice"] }])))).toBe("Supplying site: Metal, Ice");
+  });
+
+  it("reads Waiting: no Ice at the Dock and resumes the supplying text when Ice returns", () => {
+    const barren = withSupplyQueue(withoutIce(withShips([{ defaultBehaviour: "supply", state: "idle", mineMaterials: ["Ice"] }])));
+    expect(status(barren)).toBe("Waiting: no Ice");
+    const supplied = { ...barren, asteroids: createInitialState(7).asteroids };
+    expect(status(supplied)).toBe("Supplying site: Ice");
+  });
+});
+
 describe("the selection panel's tickboxes", () => {
   it("lists one box per material, ticked where the ship has it", () => {
     const panel = selectionPanel(withShips([{ mineMaterials: ["Ice"] }]), [0])!;
@@ -68,7 +91,12 @@ describe("the selection panel's tickboxes", () => {
     expect(panel.materials).toEqual([{ material: "Metal", ticked: "mixed" }, { material: "Ice", ticked: "on" }]);
   });
 
-  it("has no boxes unless every selected ship is on Mine for Station", () => {
+  it("shows the same boxes for a supply ship", () => {
+    const panel = selectionPanel(withShips([{ defaultBehaviour: "supply", mineMaterials: ["Metal", "Ice"] }]), [0])!;
+    expect(panel.materials).toEqual([{ material: "Metal", ticked: "on" }, { material: "Ice", ticked: "on" }]);
+  });
+
+  it("has no boxes unless every selected ship is on Mine or Supply", () => {
     expect(selectionPanel(withShips([{ defaultBehaviour: "none" }]), [0])!.materials).toBeNull();
     expect(selectionPanel(withShips([{}, { defaultBehaviour: "none" }]), [0, 1])!.materials).toBeNull();
   });

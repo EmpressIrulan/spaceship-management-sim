@@ -102,7 +102,7 @@ export {
 } from "./state";
 export { cancelQueuedModuleBuild, queueModuleBuild, queuedDependents, startNextQueuedModule } from "./station-build-queue";
 export { gunBeams } from "./enemies";
-export { supplyQueueStatus } from "./station-build-queue";
+export { supplyQueueLength, supplyQueueStatus } from "./station-build-queue";
 export { stationOwningSite } from "./station-building";
 export { moduleBuildSeconds, moduleCost } from "./station-module-geometry";
 export {
@@ -142,4 +142,5 @@ export { giveDockOrder, giveDockOrderWithFeedback, hangarCapacity, hangarContent
 export { haulStationDetails, haulDestinations, haulSites, type HaulStation, type HaulDestination } from "./haul";
 export { fitsDock, holdsBerth } from "./dock-packing";
 export { shipHomeRefusal } from "./orders";
+export { waitingForOre } from "./ore-wait";
 export { availableShipBuild, cancelShipBuild, queueShipBuild, shipBuildQueue, shipBuildShortfall, startShipBuild } from "./ship-build-queue";
