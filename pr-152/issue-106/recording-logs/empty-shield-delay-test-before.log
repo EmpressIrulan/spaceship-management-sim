@@ -1,0 +1,81 @@
+
+> sim@0.0.0 test
+> vitest run --run src/shields.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-106/sim[39m
+
+ [31m❯[39m src/shields.test.ts [2m([22m[2m6 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 15[2mms[22m[39m
+   [31m❯[39m ship shield damage [2m(3)[22m
+     [32m✓[39m soaks a hit before hull and carries leftover damage into hull[32m 4[2mms[22m[39m
+[31m     [31m×[31m records the last hit even when a Capacitor's shield is already empty[39m[32m 5[2mms[22m[39m
+     [32m✓[39m does not start a shield delay without a Capacitor[32m 1[2mms[22m[39m
+   [31m❯[39m ship shield recharge [2m(3)[22m
+     [32m✓[39m waits five seconds after a hit, then refills at the generator rate[32m 2[2mms[22m[39m
+     [32m✓[39m restarts the delay when a hit lands during recharge[32m 1[2mms[22m[39m
+[31m     [31m×[31m waits five seconds from the latest hit on an empty shield[39m[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/shields.test.ts[2m > [22mship shield damage[2m > [22mrecords the last hit even when a Capacitor's shield is already empty
+[31m[1mAssertionError[22m: expected { id: +0, …(22) } to match object { shield: +0, hp: 37, …(1) }
+(30 matching properties omitted from actual)[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[2m    "hp": 37,[22m
+[2m    "shield": 0,[22m
+[32m-   "shieldLastHit": 12,[39m
+[31m+   "shieldLastHit": undefined,[39m
+[2m  }[22m
+
+[36m [2m❯[22m src/shields.test.ts:[2m22:21[22m[39m
+    [90m 20|[39m   it("records the last hit even when a Capacitor's shield is already e…
+    [90m 21|[39m     const damaged = damageShip({ ...ship(), shield: 0, shieldLastHit: …
+    [90m 22|[39m     expect(damaged).toMatchObject({ shield: 0, hp: 37, shieldLastHit: …
+    [90m   |[39m                     [31m^[39m
+    [90m 23|[39m   });
+    [90m 24|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/shields.test.ts[2m > [22mship shield recharge[2m > [22mwaits five seconds from the latest hit on an empty shield
+[31m[1mAssertionError[22m: expected { id: +0, …(22) } to match object { Object (shield, hp, ...) }
+(30 matching properties omitted from actual)[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[2m    "hp": 39,[22m
+[32m-   "shield": 0,[39m
+[32m-   "shieldLastHit": 4,[39m
+[31m+   "shield": 3,[39m
+[31m+   "shieldLastHit": 0,[39m
+[2m  }[22m
+
+[36m [2m❯[22m src/shields.test.ts:[2m67:29[22m[39m
+    [90m 65|[39m     state = { ...state, ships: [damageShip(state.ships[0]!, 1, state.t…
+    [90m 66|[39m     state = tick(state, 4);
+    [90m 67|[39m     expect(state.ships[0]!).toMatchObject({ shield: 0, hp: 39, shieldL…
+    [90m   |[39m                             [31m^[39m
+    [90m 68|[39m     state = tick(state, 1);
+    [90m 69|[39m     expect(state.ships[0]!.shield).toBe(0);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m4 passed[39m[22m[90m (6)[39m
+[2m   Start at [22m 12:07:05
+[2m   Duration [22m 242ms[2m (transform 74%, import 15%, tests 9%, worker 1%)[22m
+
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /home/alice/repos/.worktrees/spaceship-106/sim
+npm error workspace sim@0.0.0
+npm error location /home/alice/repos/.worktrees/spaceship-106/sim
+npm error command failed
+npm error command sh -c vitest run --run src/shields.test.ts

@@ -1,62 +1,62 @@
 [
   {
     "name": "1-generators-before-hit",
-    "seconds": 1.128,
+    "seconds": 1.116,
     "text": "Ship\nHolding\nShield 20/20  HP 40/40"
   },
   {
     "name": "1-generators-last-hit",
-    "seconds": 2.772,
+    "seconds": 2.798,
     "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "1-generators-four-seconds",
-    "seconds": 7.429,
+    "seconds": 7.629,
     "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "1-generators-five-seconds",
-    "seconds": 9.068,
+    "seconds": 9.31,
     "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "1-generators-six-seconds",
-    "seconds": 10.713,
+    "seconds": 10.986,
     "text": "Ship\nHolding\nShield 16/20  HP 40/40"
   },
   {
     "name": "1-generators-seven-seconds",
-    "seconds": 12.355,
+    "seconds": 12.675,
     "text": "Ship\nHolding\nShield 17/20  HP 40/40"
   },
   {
     "name": "3-generators-before-hit",
-    "seconds": 15.88,
+    "seconds": 16.198,
     "text": "Ship\nHolding\nShield 20/20  HP 40/40"
   },
   {
     "name": "3-generators-last-hit",
-    "seconds": 17.518,
+    "seconds": 17.885,
     "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "3-generators-four-seconds",
-    "seconds": 22.177,
+    "seconds": 22.697,
     "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "3-generators-five-seconds",
-    "seconds": 23.813,
+    "seconds": 24.37,
     "text": "Ship\nHolding\nShield 15/20  HP 40/40"
   },
   {
     "name": "3-generators-six-seconds",
-    "seconds": 25.45,
+    "seconds": 26.046,
     "text": "Ship\nHolding\nShield 18/20  HP 40/40"
   },
   {
     "name": "3-generators-seven-seconds",
-    "seconds": 27.085,
+    "seconds": 27.717,
     "text": "Ship\nHolding\nShield 20/20  HP 40/40"
   }
 ]

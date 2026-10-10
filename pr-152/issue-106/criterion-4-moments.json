@@ -1,27 +1,27 @@
 [
   {
     "name": "before-bites",
-    "seconds": 1.116,
+    "seconds": 1.128,
     "text": "Ship\nHolding\nShield 2.5/20  HP 40/40"
   },
   {
     "name": "first-bite-blue-ring",
-    "seconds": 5.518,
+    "seconds": 5.523,
     "text": "Ship\nHolding\nShield 1.5/20  HP 40/40"
   },
   {
     "name": "second-bite-hp-intact",
-    "seconds": 9.915,
+    "seconds": 9.923,
     "text": "Ship\nHolding\nShield 0.5/20  HP 40/40"
   },
   {
     "name": "third-bite-half-carries-to-hp",
-    "seconds": 14.311,
+    "seconds": 14.323,
     "text": "Ship\nHolding\nShield 0/20  HP 39.5/40"
   },
   {
     "name": "empty-shield-hull-bite",
-    "seconds": 19.961,
+    "seconds": 19.973,
     "text": "Ship\nHolding\nShield 0/20  HP 38.5/40"
   }
 ]

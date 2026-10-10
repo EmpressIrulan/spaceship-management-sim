@@ -1,0 +1,71 @@
+
+> app@0.0.0 test
+> vitest run --run src/labels.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-106/app[39m
+
+ [31m❯[39m src/labels.test.ts [2m([22m[2m24 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 15[2mms[22m[39m
+   [32m✓[39m cargo gauge [2m(6)[22m
+     [32m✓[39m fills smoothly while mining, with the whole units mined written inside[32m 1[2mms[22m[39m
+     [32m✓[39m stays full on the way home[32m 1[2mms[22m[39m
+     [32m✓[39m shows a half-full bar on the way home with half a hold aboard[32m 0[2mms[22m[39m
+     [32m✓[39m starts unloading a partial load at the fraction aboard, not full[32m 0[2mms[22m[39m
+     [32m✓[39m drains smoothly while unloading[32m 0[2mms[22m[39m
+     [32m✓[39m shows nothing on an empty ship flying out or waiting at the station[32m 0[2mms[22m[39m
+   [31m❯[39m hover box [2m(14)[22m
+     [32m✓[39m shows Storage's combined and per-material totals[32m 0[2mms[22m[39m
+     [32m✓[39m shows the same per-material totals on every Storage module[32m 0[2mms[22m[39m
+     [32m✓[39m shows an asteroid's material and ore left, titled Asteroid[32m 0[2mms[22m[39m
+     [32m✓[39m closes when nothing is hovered or the hovered asteroid has gone[32m 0[2mms[22m[39m
+     [32m✓[39m shows delivered gate materials on either outlined end[32m 0[2mms[22m[39m
+     [32m✓[39m counts ships loading as well as unloading at the Dock[32m 0[2mms[22m[39m
+     [32m✓[39m shows the destination name instead of materials once a gate is complete[32m 0[2mms[22m[39m
+     [32m✓[39m shows the hive's hull as HP now / full[32m 0[2mms[22m[39m
+     [32m✓[39m shows a bug's hull as HP now / full, and closes once the bug has gone[32m 0[2mms[22m[39m
+     [32m✓[39m names a drop by what it holds[32m 0[2mms[22m[39m
+     [32m✓[39m adds the hull to a hurt ship's hover, and leaves an unhurt ship's line alone[32m 2[2mms[22m[39m
+     [32m✓[39m shows a capacitor shield and full HP on a ship hover[32m 0[2mms[22m[39m
+     [32m✓[39m does not show a shield for a ship without Capacitors[32m 0[2mms[22m[39m
+[31m     [31m×[31m keeps frame-sized shield refills readable without losing half-bite HP[39m[32m 5[2mms[22m[39m
+   [32m✓[39m storage income [2m(4)[22m
+     [32m✓[39m reads per material over the last game minute[32m 0[2mms[22m[39m
+     [32m✓[39m shows zero for a material that has not come in[32m 0[2mms[22m[39m
+     [32m✓[39m drops deliveries older than a minute[32m 0[2mms[22m[39m
+     [32m✓[39m shows on a built Storage module as well[32m 0[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/labels.test.ts[2m > [22mhover box[2m > [22mkeeps frame-sized shield refills readable without losing half-bite HP
+[31m[1mAssertionError[22m: expected 'Holding\nShield 10.016666666666666/20…' to be 'Holding\nShield 10/20  HP 39.5/40' // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  Holding[22m
+[32m- Shield 10/20  HP 39.5/40[39m
+[31m+ Shield 10[7m.016666666666666[27m/20  HP 39.5/40[39m
+
+[36m [2m❯[22m src/labels.test.ts:[2m211:62[22m[39m
+    [90m209|[39m     }] };
+    [90m210|[39m     state = tick(state, 1 / 60);
+    [90m211|[39m     expect(infoBox(state, { kind: "ship", index: 0 })?.line).toBe("Hol…
+    [90m   |[39m                                                              [31m^[39m
+    [90m212|[39m     for (let frame = 0; frame < 40; frame++) state = tick(state, 1 / 6…
+    [90m213|[39m     expect(infoBox(state, { kind: "ship", index: 0 })?.line).toBe("Hol…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m23 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m 12:06:15
+[2m   Duration [22m 275ms[2m (transform 76%, import 15%, tests 7%, worker 1%)[22m
+
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /home/alice/repos/.worktrees/spaceship-106/app
+npm error workspace app@0.0.0
+npm error location /home/alice/repos/.worktrees/spaceship-106/app
+npm error command failed
+npm error command sh -c vitest run --run src/labels.test.ts
