@@ -150,6 +150,7 @@ export function createWorldDrawing(
       if (!state.ships.some((ship) => ship.id === id)) {
         blasts.push({ position: spot, startedAt: seconds });
         spottedHulls.delete(id);
+        spottedShieldHits.delete(id);
       }
     }
     for (const ship of sectorShips) spottedHulls.set(ship.id, { ...ship.position });
@@ -164,7 +165,6 @@ export function createWorldDrawing(
       if (shieldHit) {
         const age = seconds - shieldHit.startedAt;
         if (age < BITE_FLASH_SECONDS) shipDrawing.drawShieldRing(ship.position, shipSize(ship.design), age / BITE_FLASH_SECONDS);
-        else spottedShieldHits.delete(ship.id);
       }
       const gauge = cargoGauge(ship);
       if (gauge) shipDrawing.drawGauge(ship.position, gauge, shipSize(ship.design));

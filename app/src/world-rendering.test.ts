@@ -266,5 +266,10 @@ describe("a shield hit flashes around the ship", () => {
     (ctx.arc as unknown as { mockClear: () => void }).mockClear();
     drawing.draw(1.4);
     expect(ctx.arc).not.toHaveBeenCalled();
+    drawing.draw(1.5);
+    expect(ctx.arc).not.toHaveBeenCalled();
+    state = shotState({ ...state.ships[0]!, shield: 11, shieldLastHit: 2 });
+    drawing.draw(2);
+    expect(ctx.arc).toHaveBeenCalled();
   });
 });
