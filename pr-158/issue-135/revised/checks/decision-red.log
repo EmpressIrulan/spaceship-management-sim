@@ -1,0 +1,166 @@
+
+> sim@0.0.0 test
+> vitest run --run src/enemies.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-135/sim[39m
+
+ [31m❯[39m src/enemies.test.ts [2m([22m[2m54 tests[22m[2m | [22m[31m6 failed[39m[2m)[22m[33m 954[2mms[22m[39m
+   [31m❯[39m hive [2m(24)[22m
+     [32m✓[39m starts in the sector next to home, with full HP[32m 3[2mms[22m[39m
+     [32m✓[39m releases a bug every BUG_SPAWN_SECONDS[32m 3[2mms[22m[39m
+     [32m✓[39m spawns each bug in the hive's sector, from the hive[32m 1[2mms[22m[39m
+     [32m✓[39m with fewer than 5 alive, bugs loiter by the hive and ignore ships[32m 1[2mms[22m[39m
+     [32m✓[39m replays exactly from the seed[32m 13[2mms[22m[39m
+     [32m✓[39m sends ten bugs through a seeded random connected gate as one group[32m 5[2mms[22m[39m
+     [32m✓[39m replays destinations and migration timings across step sizes for seed 2[32m 175[2mms[22m[39m
+     [32m✓[39m replays destinations and migration timings across step sizes for seed 3[32m 90[2mms[22m[39m
+     [32m✓[39m replays destinations and migration timings across step sizes for seed 4[32m 85[2mms[22m[39m
+     [32m✓[39m replays destinations and migration timings across step sizes for seed 7[32m 86[2mms[22m[39m
+     [32m✓[39m counts attack bugs per sector and keeps breeding after a group leaves[32m 3[2mms[22m[39m
+     [32m✓[39m crosses together, gathers visibly at the destination, then founds there[32m 2[2mms[22m[39m
+     [32m✓[39m turns ten arrivals in an empty sector into a full new hive[32m 1[2mms[22m[39m
+[31m     [31m×[31m joins ten arrivals to a hive already in the destination sector[39m[32m 6[2mms[22m[39m
+[31m     [31m×[31m keeps joined groups resident through 400 seconds at dt 0.016666666666666666[39m[32m 170[2mms[22m[39m
+[31m     [31m×[31m keeps joined groups resident through 400 seconds at dt 1[39m[32m 4[2mms[22m[39m
+[31m     [31m×[31m keeps ten arrivals with three residents until ten own offspring are alive[39m[32m 1[2mms[22m[39m
+     [32m✓[39m lets a hive founded by arrivals send ten of its own offspring[32m 2[2mms[22m[39m
+     [32m✓[39m joins ten arrivals to bugs already in the destination sector[32m 1[2mms[22m[39m
+     [32m✓[39m founded hives breed their first bug after ten seconds[32m 1[2mms[22m[39m
+[31m     [31m×[31m lets the first gathering group found while a second arrival joins it[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m keeps hive-less joiners with resident bugs instead of their old hive[39m[32m 2[2mms[22m[39m
+     [32m✓[39m a founded hive hunts in its sector and can send another invasion[32m 1[2mms[22m[39m
+     [32m✓[39m replays two foundings exactly from a fixed seed[32m 19[2mms[22m[39m
+   [32m✓[39m bugs hunt ships [2m(6)[22m
+     [32m✓[39m at 5 or more alive, bugs fly at the nearest ship in their sector[32m 2[2mms[22m[39m
+     [32m✓[39m ignores ships docked inside a hangar when choosing a quarry[32m 2[2mms[22m[39m
+     [32m✓[39m bites wear the ship's HP down from full[32m 1[2mms[22m[39m
+     [32m✓[39m at 0 HP the ship explodes and it and its cargo are gone[32m 111[2mms[22m[39m
+     [32m✓[39m with no ship in their sector, bugs at the threshold keep loitering[32m 1[2mms[22m[39m
+     [32m✓[39m hunting replays exactly from the seed[32m 131[2mms[22m[39m
+   [32m✓[39m bugs hunt station modules [2m(3)[22m
+     [32m✓[39m keeps biting after their hive dies[32m 0[2mms[22m[39m
+     [32m✓[39m damages the nearest standing module once five bugs are alive[32m 1[2mms[22m[39m
+     [32m✓[39m does not target a module at zero HP[32m 1[2mms[22m[39m
+   [32m✓[39m gun ships [2m(8)[22m
+     [32m✓[39m does not let a Gun docked inside a hangar fire[32m 0[2mms[22m[39m
+     [32m✓[39m shoot the nearest bug in range on their own, and no other[32m 1[2mms[22m[39m
+     [32m✓[39m kill a bug in a few hits: BUG_HP over GUN_DAMAGE, rounded up[32m 0[2mms[22m[39m
+     [32m✓[39m shoot the hive when no bug is in range[32m 0[2mms[22m[39m
+     [32m✓[39m leave everything out of range alone[32m 0[2mms[22m[39m
+     [32m✓[39m kill a dying hive dead, and it stops releasing bugs[32m 1[2mms[22m[39m
+     [32m✓[39m replay the whole fight exactly from the seed[32m 6[2mms[22m[39m
+     [32m✓[39m a ship with Guns can be sent to the hive's sector with a move order[32m 3[2mms[22m[39m
+   [32m✓[39m station Turrets [2m(9)[22m
+     [32m✓[39m does not mutate frozen station 0 during a shot or destruction[32m 4[2mms[22m[39m
+     [32m✓[39m does not mutate frozen station 1 during a shot or destruction[32m 4[2mms[22m[39m
+     [32m✓[39m fires at a bug in range, reports its beam, spends Metal, and damages the bug[32m 1[2mms[22m[39m
+     [32m✓[39m shoots the hive when no bug is in range[32m 0[2mms[22m[39m
+     [32m✓[39m stops firing and reports no Metal[32m 0[2mms[22m[39m
+     [32m✓[39m reports insufficient Metal with no target[32m 0[2mms[22m[39m
+     [32m✓[39m reports insufficient Metal with reload[32m 0[2mms[22m[39m
+     [32m✓[39m reports insufficient Metal with in flight[32m 0[2mms[22m[39m
+     [32m✓[39m takes damage as a normal station module[32m 0[2mms[22m[39m
+   [32m✓[39m drops [2m(4)[22m
+     [32m✓[39m a shot bug keeps floating until a hit kills it, and then leaves 1 bug juice where it died[32m 0[2mms[22m[39m
+     [32m✓[39m each dead bug leaves its own drop[32m 0[2mms[22m[39m
+     [32m✓[39m a killed hive leaves 1 queen larvae where it stood, and it stays[32m 1[2mms[22m[39m
+     [32m✓[39m drops replay exactly from the seed[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 6 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mhive[2m > [22mjoins ten arrivals to a hive already in the destination sector
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/enemies.test.ts:[2m220:122[22m[39m
+    [90m218|[39m     expect(state.hives!.filter((hive) => hive.sectorId === destination…
+    [90m219|[39m     expect(state.bugs!.filter((bug) => bug.sectorId === destination)).…
+    [90m220|[39m     expect(state.bugs!.filter((bug) => bug.sectorId === destination).e…
+    [90m   |[39m                                                                                                                          [31m^[39m
+    [90m221|[39m   });
+    [90m222|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mhive[2m > [22mkeeps joined groups resident through 400 seconds at dt 0.016666666666666666
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mhive[2m > [22mkeeps joined groups resident through 400 seconds at dt 1
+[31m[1mAssertionError[22m: expected 'invading' not to be 'invading' // Object.is equality[39m
+[36m [2m❯[22m src/enemies.test.ts:[2m234:55[22m[39m
+    [90m232|[39m         const before = previous.bugs!.find((candidate) => candidate.id…
+    [90m233|[39m         if (before?.state === "invading" && bug.state !== "invading" &…
+    [90m234|[39m         if (joined.has(bug.id)) expect(bug.state).not.toBe("invading");
+    [90m   |[39m                                                       [31m^[39m
+    [90m235|[39m       }
+    [90m236|[39m       const hp = homeStation(state).modules.reduce((total, module) => …
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mhive[2m > [22mkeeps ten arrivals with three residents until ten own offspring are alive
+[31m[1mAssertionError[22m: expected true to be false // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- false[39m
+[31m+ true[39m
+
+[36m [2m❯[22m src/enemies.test.ts:[2m257:65[22m[39m
+    [90m255|[39m       bugs: [...start.bugs!, ...residents], nextBugId: 103 });
+    [90m256|[39m     expect(state.bugs!.filter((bug) => bug.sectorId === destination)).…
+    [90m257|[39m     expect(state.bugs!.some((bug) => bug.state === "invading")).toBe(f…
+    [90m   |[39m                                                                 [31m^[39m
+    [90m258|[39m     state = tick(state, 30);
+    [90m259|[39m     const arrivals = state.bugs!.filter((bug) => bug.id < 10 && bug.se…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mhive[2m > [22mlets the first gathering group found while a second arrival joins it
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/enemies.test.ts:[2m312:76[22m[39m
+    [90m310|[39m     expect(state.bugs!.filter((bug) => bug.id < 100)).toHaveLength(0);
+    [90m311|[39m     expect(state.bugs!.filter((bug) => bug.id >= 100)).toHaveLength(10…
+    [90m312|[39m     expect(state.bugs!.every((bug) => bug.hiveId === start.hives![0]!.…
+    [90m   |[39m                                                                            [31m^[39m
+    [90m313|[39m   });
+    [90m314|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/enemies.test.ts[2m > [22mhive[2m > [22mkeeps hive-less joiners with resident bugs instead of their old hive
+[31m[1mAssertionError[22m: expected null not to be null[39m
+[36m [2m❯[22m src/enemies.test.ts:[2m325:27[22m[39m
+    [90m323|[39m     for (const bug of joined) {
+    [90m324|[39m       expect(Math.hypot(bug.position.x - resident.position.x, bug.posi…
+    [90m325|[39m       expect(bug.leg).not.toBeNull();
+    [90m   |[39m                           [31m^[39m
+    [90m326|[39m     }
+    [90m327|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m6 failed[39m[22m[2m | [22m[1m[32m48 passed[39m[22m[90m (54)[39m
+[2m   Start at [22m 17:06:04
+[2m   Duration [22m 1.19s[2m (tests 85%, transform 12%, import 2%)[22m
+
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /home/alice/repos/.worktrees/spaceship-135/sim
+npm error workspace sim@0.0.0
+npm error location /home/alice/repos/.worktrees/spaceship-135/sim
+npm error command failed
+npm error command sh -c vitest run --run src/enemies.test.ts

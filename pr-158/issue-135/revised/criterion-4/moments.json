@@ -1,0 +1,1685 @@
+[
+  {
+    "name": "destination-before-two-bugs",
+    "seconds": 0.476,
+    "time": 0,
+    "sector": 2,
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 150,
+          "y": 0
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 1
+      }
+    ],
+    "bugs": [
+      {
+        "id": 0,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 175,
+          "y": 0
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 1,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 169.15111107797446,
+          "y": 16.06969024216348
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 2,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 154.34120444167326,
+          "y": 24.6201938253052
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 3,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 137.5,
+          "y": 21.65063509461097
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 4,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 126.5076844803523,
+          "y": 8.550503583141722
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 5,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 126.50768448035228,
+          "y": -8.550503583141717
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 6,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 137.5,
+          "y": -21.65063509461096
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 7,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 154.34120444167326,
+          "y": -24.620193825305204
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 8,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 169.15111107797443,
+          "y": -16.06969024216349
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 9,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 40
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 10,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 65
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      }
+    ],
+    "info": "\n      \n      \n      \n    "
+  },
+  {
+    "name": "source-nine-bugs",
+    "seconds": 4.508,
+    "time": 0,
+    "sector": 1,
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 150,
+          "y": 0
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 1
+      }
+    ],
+    "bugs": [
+      {
+        "id": 0,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 175,
+          "y": 0
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 1,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 169.15111107797446,
+          "y": 16.06969024216348
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 2,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 154.34120444167326,
+          "y": 24.6201938253052
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 3,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 137.5,
+          "y": 21.65063509461097
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 4,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 126.5076844803523,
+          "y": 8.550503583141722
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 5,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 126.50768448035228,
+          "y": -8.550503583141717
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 6,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 137.5,
+          "y": -21.65063509461096
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 7,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 154.34120444167326,
+          "y": -24.620193825305204
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 8,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 169.15111107797443,
+          "y": -16.06969024216349
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 9,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 40
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      },
+      {
+        "id": 10,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 65
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 10000
+      }
+    ],
+    "info": "Hive\nHP 200/200"
+  },
+  {
+    "name": "ten-departing",
+    "seconds": 8.8,
+    "time": 1.0666666666666664,
+    "sector": 1,
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 150,
+          "y": 0
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 9.933333333333334
+      }
+    ],
+    "bugs": [
+      {
+        "id": 0,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 175,
+          "y": 0
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 175,
+            "y": 0
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 7.370833333333334,
+        "targetSectorId": 2
+      },
+      {
+        "id": 1,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 169.15111107797446,
+          "y": 16.06969024216348
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 169.15111107797446,
+            "y": 16.06969024216348
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 7.370833333333334,
+        "targetSectorId": 2
+      },
+      {
+        "id": 2,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 154.34120444167326,
+          "y": 24.6201938253052
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 154.34120444167326,
+            "y": 24.6201938253052
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 7.370833333333334,
+        "targetSectorId": 2
+      },
+      {
+        "id": 3,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 137.5,
+          "y": 21.65063509461097
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 137.5,
+            "y": 21.65063509461097
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 7.370833333333334,
+        "targetSectorId": 2
+      },
+      {
+        "id": 4,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 127.11780204130949,
+          "y": 8.479519122328163
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 126.5076844803523,
+            "y": 8.550503583141722
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 7.370833333333334,
+        "targetSectorId": 2
+      },
+      {
+        "id": 5,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 127.11780204130949,
+          "y": -8.479519122328156
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 126.50768448035228,
+            "y": -8.550503583141717
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 7.370833333333334,
+        "targetSectorId": 2
+      },
+      {
+        "id": 6,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 137.5,
+          "y": -21.65063509461096
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 137.5,
+            "y": -21.65063509461096
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 7.370833333333334,
+        "targetSectorId": 2
+      },
+      {
+        "id": 7,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 154.34120444167326,
+          "y": -24.620193825305204
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 154.34120444167326,
+            "y": -24.620193825305204
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 7.370833333333334,
+        "targetSectorId": 2
+      },
+      {
+        "id": 8,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 169.15111107797443,
+          "y": -16.06969024216349
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 169.15111107797443,
+            "y": -16.06969024216349
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 7.370833333333334,
+        "targetSectorId": 2
+      },
+      {
+        "id": 9,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 40
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 9998.933333333332
+      },
+      {
+        "id": 10,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 65
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 9998.933333333332
+      },
+      {
+        "id": 11,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 151.5483881897659,
+          "y": -0.7783931691856418
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 151.5483881897659,
+            "y": -0.7783931691856418
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 7.370833333333334,
+        "targetSectorId": 2
+      }
+    ],
+    "info": "\n      Hive\n      HP 200/200\n      \n    "
+  },
+  {
+    "name": "ten-at-source-gate",
+    "seconds": 20.201,
+    "time": 8.166666666666648,
+    "sector": 1,
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 150,
+          "y": 0
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 2.833333333333359
+      }
+    ],
+    "bugs": [
+      {
+        "id": 0,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 198.34149131999044,
+          "y": 0
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 175,
+            "y": 0
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 0.2708333333333497,
+        "targetSectorId": 2
+      },
+      {
+        "id": 1,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 198.2649943283085,
+          "y": 0.9037928005430711
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 169.15111107797446,
+            "y": 16.06969024216348
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 0.2708333333333497,
+        "targetSectorId": 2
+      },
+      {
+        "id": 2,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 197.92456974615104,
+          "y": 1.1191161417166526
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 154.34120444167326,
+            "y": 24.6201938253052
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 0.2708333333333497,
+        "targetSectorId": 2
+      },
+      {
+        "id": 3,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 197.550202788842,
+          "y": 0.8486346475932365
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 137.5,
+            "y": 21.65063509461097
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 0.2708333333333497,
+        "targetSectorId": 2
+      },
+      {
+        "id": 4,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 197.32202212135942,
+          "y": 0.31157079872886584
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 126.5076844803523,
+            "y": 8.550503583141722
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 0.2708333333333497,
+        "targetSectorId": 2
+      },
+      {
+        "id": 5,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 197.32202212135942,
+          "y": -0.31157079872886584
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 126.50768448035228,
+            "y": -8.550503583141717
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 0.2708333333333497,
+        "targetSectorId": 2
+      },
+      {
+        "id": 6,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 197.550202788842,
+          "y": -0.8486346475932365
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 137.5,
+            "y": -21.65063509461096
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 0.2708333333333497,
+        "targetSectorId": 2
+      },
+      {
+        "id": 7,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 197.92456974615104,
+          "y": -1.1191161417166526
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 154.34120444167326,
+            "y": -24.620193825305204
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 0.2708333333333497,
+        "targetSectorId": 2
+      },
+      {
+        "id": 8,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 198.2649943283085,
+          "y": -0.9037928005430711
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 169.15111107797443,
+            "y": -16.06969024216349
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 0.2708333333333497,
+        "targetSectorId": 2
+      },
+      {
+        "id": 9,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 40
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 9991.833333333436
+      },
+      {
+        "id": 10,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 65
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 9991.833333333436
+      },
+      {
+        "id": 11,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 197.7101027895357,
+          "y": -0.03678805059661949
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "invading",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 151.5483881897659,
+            "y": -0.7783931691856418
+          },
+          "to": {
+            "x": 200,
+            "y": 0
+          }
+        },
+        "timer": 0.2708333333333497,
+        "targetSectorId": 2
+      }
+    ],
+    "info": "\n      Hive\n      HP 200/200\n      \n    "
+  },
+  {
+    "name": "ten-arriving-at-destination-gate",
+    "seconds": 24.527,
+    "time": 8.466666666666647,
+    "sector": 2,
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 150,
+          "y": 0
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 2.53333333333336
+      }
+    ],
+    "bugs": [
+      {
+        "id": 0,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -200,
+          "y": 0
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -200,
+            "y": 0
+          },
+          "to": {
+            "x": -97.90632691876601,
+            "y": 16.588378420512072
+          }
+        },
+        "timer": 9.40833333333335,
+        "targetSectorId": null
+      },
+      {
+        "id": 1,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -200,
+          "y": 0
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -200,
+            "y": 0
+          },
+          "to": {
+            "x": -75.01385978632153,
+            "y": 20.751474566533137
+          }
+        },
+        "timer": 10.97083333333335,
+        "targetSectorId": null
+      },
+      {
+        "id": 2,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -200,
+          "y": 0
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -200,
+            "y": 0
+          },
+          "to": {
+            "x": -84.77284428873739,
+            "y": 57.25273489428739
+          }
+        },
+        "timer": 11.09583333333335,
+        "targetSectorId": null
+      },
+      {
+        "id": 3,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -199.81658512678118,
+          "y": 0.13068358376201053
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -200,
+            "y": 0
+          },
+          "to": {
+            "x": -126.79859407592674,
+            "y": 52.15619592181646
+          }
+        },
+        "timer": 8.47083333333335,
+        "targetSectorId": null
+      },
+      {
+        "id": 4,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -199.943205500954,
+          "y": 0.017642515575225184
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -200,
+            "y": 0
+          },
+          "to": {
+            "x": -85.74502012652567,
+            "y": 35.491910234693556
+          }
+        },
+        "timer": 10.47083333333335,
+        "targetSectorId": null
+      },
+      {
+        "id": 5,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -199.93632443160806,
+          "y": 0.037250046302762393
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -200,
+            "y": 0
+          },
+          "to": {
+            "x": -115.32298366545484,
+            "y": 49.5358401801095
+          }
+        },
+        "timer": 9.03333333333335,
+        "targetSectorId": null
+      },
+      {
+        "id": 6,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -199.7518198370656,
+          "y": 0.17695215208431436
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -200,
+            "y": 0
+          },
+          "to": {
+            "x": -117.57544376778652,
+            "y": 58.76860760116446
+          }
+        },
+        "timer": 9.22083333333335,
+        "targetSectorId": null
+      },
+      {
+        "id": 7,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -200,
+          "y": 0
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -200,
+            "y": 0
+          },
+          "to": {
+            "x": -98.62456015915461,
+            "y": 13.015291395415453
+          }
+        },
+        "timer": 9.34583333333335,
+        "targetSectorId": null
+      },
+      {
+        "id": 8,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -199.95768461355698,
+          "y": 0.024749329675885633
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -200,
+            "y": 0
+          },
+          "to": {
+            "x": -109.68436835081785,
+            "y": 52.82360697760518
+          }
+        },
+        "timer": 9.47083333333335,
+        "targetSectorId": null
+      },
+      {
+        "id": 9,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 40
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 9991.533333333438
+      },
+      {
+        "id": 10,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 65
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 9991.533333333438
+      },
+      {
+        "id": 11,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -199.75885838413708,
+          "y": 0.06645673816773746
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -200,
+            "y": 0
+          },
+          "to": {
+            "x": -94.35286239078587,
+            "y": 29.115522582622383
+          }
+        },
+        "timer": 9.78333333333335,
+        "targetSectorId": null
+      }
+    ],
+    "info": "\n      Hive\n      HP 200/200\n      \n    "
+  },
+  {
+    "name": "destination-after-twelve-bugs",
+    "seconds": 40.611,
+    "time": 20.066666666666798,
+    "sector": 2,
+    "hives": [
+      {
+        "id": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 150,
+          "y": 0
+        },
+        "hp": 200,
+        "maxHp": 200,
+        "alive": true,
+        "spawnTimer": 0.9333333333333582
+      }
+    ],
+    "bugs": [
+      {
+        "id": 0,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -104.34389761068329,
+          "y": 23.354955898398174
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -97.90632691876601,
+            "y": 16.588378420512072
+          },
+          "to": {
+            "x": -106.36466686900874,
+            "y": 25.47900119526112
+          }
+        },
+        "timer": 0.6833333333333727,
+        "targetSectorId": null
+      },
+      {
+        "id": 1,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -79.04170505205428,
+          "y": 17.33972309605661
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -75.01385978632153,
+            "y": 20.751474566533137
+          },
+          "to": {
+            "x": -114.79766589700988,
+            "y": -12.947054062173162
+          }
+        },
+        "timer": 5.370833333333381,
+        "targetSectorId": null
+      },
+      {
+        "id": 2,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -85.44143497163579,
+          "y": 53.37150800180914
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -84.77284428873739,
+            "y": 57.25273489428739
+          },
+          "to": {
+            "x": -94.00844480066891,
+            "y": 3.6392730379221625
+          }
+        },
+        "timer": 5.683333333333381,
+        "targetSectorId": null
+      },
+      {
+        "id": 3,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -110.36916569529832,
+          "y": 30.87580812504851
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -126.79859407592674,
+            "y": 52.15619592181646
+          },
+          "to": {
+            "x": -95.92184018120058,
+            "y": 12.162759658393332
+          }
+        },
+        "timer": 2.74583333333338,
+        "targetSectorId": null
+      },
+      {
+        "id": 4,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -92.14500940024888,
+          "y": 38.463608450959875
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -85.74502012652567,
+            "y": 35.491910234693556
+          },
+          "to": {
+            "x": -111.86768716493484,
+            "y": 47.621412288842905
+          }
+        },
+        "timer": 3.3083333333333806,
+        "targetSectorId": null
+      },
+      {
+        "id": 5,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -111.97439894680669,
+          "y": 25.443484955800802
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -115.32298366545484,
+            "y": 49.5358401801095
+          },
+          "to": {
+            "x": -106.10643274863908,
+            "y": -16.7752844554039
+          }
+        },
+        "timer": 4.4333333333333425,
+        "targetSectorId": null
+      },
+      {
+        "id": 6,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -115.58359751802438,
+          "y": 43.464757396180595
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -117.57544376778652,
+            "y": 58.76860760116446
+          },
+          "to": {
+            "x": -113.7611062078822,
+            "y": 29.462103319024145
+          }
+        },
+        "timer": 2.12083333333338,
+        "targetSectorId": null
+      },
+      {
+        "id": 7,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -94.9644642879222,
+          "y": 3.572721125696823
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -98.62456015915461,
+            "y": 13.015291395415453
+          },
+          "to": {
+            "x": -93.63502133887425,
+            "y": 0.14293160443484965
+          }
+        },
+        "timer": 0.8083333333333731,
+        "targetSectorId": null
+      },
+      {
+        "id": 8,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -94.89153379124132,
+          "y": 39.307951914944475
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -109.68436835081785,
+            "y": 52.82360697760518
+          },
+          "to": {
+            "x": -60.33803965330013,
+            "y": 7.737727418940203
+          }
+        },
+        "timer": 4.870833333333381,
+        "targetSectorId": null
+      },
+      {
+        "id": 9,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 40
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 9979.933333333594
+      },
+      {
+        "id": 10,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -100,
+          "y": 65
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": null,
+        "timer": 9979.933333333594
+      },
+      {
+        "id": 11,
+        "hiveId": 0,
+        "sectorId": 2,
+        "position": {
+          "x": -92.79262289046261,
+          "y": 14.293242047329796
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": -94.35286239078587,
+            "y": 29.115522582622383
+          },
+          "to": {
+            "x": -89.40270803157362,
+            "y": -17.910960588739258
+          }
+        },
+        "timer": 3.8708333333333806,
+        "targetSectorId": null
+      },
+      {
+        "id": 12,
+        "hiveId": 0,
+        "sectorId": 1,
+        "position": {
+          "x": 164.18572304187856,
+          "y": 21.116955184908292
+        },
+        "hp": 6,
+        "maxHp": 6,
+        "state": "hovering",
+        "targetShipId": null,
+        "targetModule": null,
+        "leg": {
+          "from": {
+            "x": 144.20579082418382,
+            "y": 9.984715539733134
+          },
+          "to": {
+            "x": 167.25406790245097,
+            "y": 22.82654808691437
+          }
+        },
+        "timer": 0.5583333333333478
+      }
+    ],
+    "info": "\n      Hive\n      HP 200/200\n      \n    "
+  }
+]

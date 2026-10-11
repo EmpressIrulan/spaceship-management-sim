@@ -1,0 +1,16 @@
+
+> sim@0.0.0 test
+> vitest run --run src/enemies.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/alice/repos/.worktrees/spaceship-135/sim[39m
+
+ [32m✓[39m src/enemies.test.ts [2m([22m[2m54 tests[22m[2m)[22m[33m 2067[2mms[22m[39m
+   [32m✓[39m hive [2m(24)[22m
+     [33m[2m✓[22m[39m keeps joined groups resident through 400 seconds at dt 0.016666666666666666[33m 1447[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m54 passed[39m[22m[90m (54)[39m
+[2m   Start at [22m 17:07:15
+[2m   Duration [22m 2.32s[2m (tests 92%, transform 7%, import 1%)[22m
+

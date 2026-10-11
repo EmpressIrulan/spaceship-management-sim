@@ -1,0 +1,12 @@
+
+> spaceship-management-sim@0.0.0 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> sim@0.0.0 typecheck
+> tsc -p tsconfig.json
+
+
+> app@0.0.0 typecheck
+> tsc -p tsconfig.json
+
