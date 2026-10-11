@@ -2,6 +2,7 @@ import { flyHaul, haulCargoDestination, haulStationDetails } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { asteroidGone, mine, miningSeconds, type Draft } from "./tick-mining";
 import { advanceEnemies, nextEnemyEvent, settleEnemies } from "./enemies";
+import { EXPLOSION_CUTOFF_SECONDS } from "./build-constants";
 import { beginHaulLoading, beginHaulUnloading, loadHauler, unloadHauler } from "./tick-hauling";
 import { addCargo, arrivesAtPark, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
 import { distanceAlong, travelSeconds } from "./motion";
@@ -800,6 +801,9 @@ function simulate(state: SimState, dt: number): SimState {
     tickCount: state.tickCount + 1,
     time: state.time + (dt > 0 ? dt : 0),
     ships: state.ships.map((ship) => ({ ...ship, state: "holding", timer: 0, order: null, target: null, leg: null, berth: null, transfer: null })),
+    // Keep the blast list short even with no station left to bite.
+    moduleDestructions: (state.moduleDestructions ?? [])
+      .filter((destruction) => destruction.time > state.time + (dt > 0 ? dt : 0) - EXPLOSION_CUTOFF_SECONDS),
   };
   const home = state.stations.find((station) => station.id === 0) ?? state.stations[0]!;
   const primaryStationId = home.id;
@@ -891,7 +895,10 @@ function simulate(state: SimState, dt: number): SimState {
     nextHiveId: draft.nextHiveId,
     drops: draft.drops,
     nextDropId: draft.nextDropId,
-    moduleDestructions: draft.moduleDestructions,
+    // Keep the blast list short: everything older than the renderer's
+    // explosion window is gone from the screen and only costs frame time.
+    moduleDestructions: draft.moduleDestructions
+      .filter((destruction) => destruction.time > draft.time - EXPLOSION_CUTOFF_SECONDS),
     gateProjects: draft.gateProjects,
   };
 }
