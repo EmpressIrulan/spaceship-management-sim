@@ -200,7 +200,7 @@ export interface Drop {
   position: Vec;
 }
 
-// Enemies. The hive breeds the bugs; dead-hive founding is a later slice.
+// Enemies. Hives breed bugs, and an invading group can found a new one.
 export interface Hive {
   id: number;
   sectorId: number;
@@ -273,6 +273,8 @@ export interface SimState {
   hives?: Hive[];
   bugs?: Bug[];
   nextBugId?: number;
+  // The next id for a hive founded by an invading group.
+  nextHiveId?: number;
   // Loot floating where a bug or the hive died. Missing on older fixtures
   // means no drops.
   drops?: Drop[];

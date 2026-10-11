@@ -138,7 +138,65 @@ describe("hive", () => {
     expect(state.bugs?.filter((bug) => bug.state === "invading")).toHaveLength(10);
     expect(state.bugs?.filter((bug) => bug.state !== "invading")).toHaveLength(1);
   });
+
+  it("turns ten arrivals in an empty sector into a full new hive", () => {
+    const start = invasionStart();
+    const destination = start.bugs![0]!.targetSectorId!;
+    const state = arrive(start);
+    const found = state.hives!.find((candidate) => candidate.sectorId === destination);
+
+    expect(found).toMatchObject({ id: 1, sectorId: destination, hp: HIVE_HP, maxHp: HIVE_HP, alive: true });
+    expect(state.bugs!.filter((bug) => bug.sectorId === destination)).toHaveLength(0);
+    expect(state.nextHiveId).toBe(2);
+  });
+
+  it("joins ten arrivals to a hive already in the destination sector", () => {
+    const start = invasionStart();
+    const destination = start.bugs![0]!.targetSectorId!;
+    const stateWithHive = {
+      ...start,
+      hives: [...start.hives!, {
+        ...start.hives![0]!, id: 12, sectorId: destination,
+        position: { ...start.sectors[destination]!.gate.position }, spawnTimer: 10000,
+      }],
+    };
+    const state = arrive(stateWithHive);
+
+    expect(state.hives!.filter((hive) => hive.sectorId === destination)).toHaveLength(1);
+    expect(state.bugs!.filter((bug) => bug.sectorId === destination)).toHaveLength(10);
+    expect(state.bugs!.filter((bug) => bug.sectorId === destination).every((bug) => bug.hiveId === 12)).toBe(true);
+  });
+
+  it("joins ten arrivals to bugs already in the destination sector", () => {
+    const start = invasionStart();
+    const destination = start.bugs![0]!.targetSectorId!;
+    const resident = { ...start.bugs![0]!, id: 99, sectorId: destination, state: "hovering" as const, timer: 10000 };
+    const state = arrive({ ...start, bugs: [...start.bugs!, resident] });
+
+    expect(state.bugs!.filter((bug) => bug.sectorId === destination)).toHaveLength(11);
+    expect(state.hives!.filter((hive) => hive.sectorId === destination)).toHaveLength(0);
+  });
 });
+
+const invasionGate: GateProject = {
+  id: 0,
+  ends: [
+    { sectorId: HIVE_SECTOR, position: { x: 10, y: 20 } },
+    { sectorId: 2, position: { x: 30, y: 40 } },
+  ],
+  delivered: { Metal: 0, Ice: 0 },
+  complete: true,
+};
+
+function invasionStart(): SimState {
+  let state = tick({ ...createInitialState(7), gateProjects: [invasionGate] }, 100);
+  state = tick({ ...state, hives: state.hives!.map((hive) => ({ ...hive, spawnTimer: 10000 })) }, 10);
+  return state;
+}
+
+function arrive(state: SimState): SimState {
+  return tick(state, 20);
+}
 
 // A ship parked in the hive's sector, holding still with nothing queued, so
 // every bug at the attack threshold has a target to fly at. It starts full of
@@ -216,8 +274,10 @@ describe("bugs hunt ships", () => {
     const control = tick(createInitialState(7), 450);
     expect(homeStation(state).inventory).toEqual(homeStation(control).inventory);
     expect(homeStation(state).deliveries).toEqual(homeStation(control).deliveries);
-    // With no ship left in the sector the bugs fall back to loitering.
-    for (const bug of state.bugs ?? []) expect(bug.state).toBe("hovering");
+    // Local bugs fall back to loitering; a new group may already be leaving.
+    for (const bug of state.bugs ?? []) {
+      if (bug.state !== "invading") expect(bug.state).toBe("hovering");
+    }
   });
 
   it("with no ship in their sector, bugs at the threshold keep loitering", () => {

@@ -119,6 +119,39 @@ function invasionRoutes(draft: Draft, fromSector: number): { sectorId: number; r
   });
 }
 
+function settleArrivals(draft: Draft): void {
+  const arrivals = new Map<number, Bug[]>();
+  for (const bug of draft.bugs) {
+    if (bug.state !== "invading" || bug.timer > 0 || bug.targetSectorId === null || bug.targetSectorId === undefined) continue;
+    const group = arrivals.get(bug.targetSectorId) ?? [];
+    group.push(bug);
+    arrivals.set(bug.targetSectorId, group);
+  }
+  for (const [sectorId, group] of arrivals) {
+    const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === sectorId);
+    const resident = draft.bugs.some((bug) => bug.sectorId === sectorId && !group.some((arrival) => arrival.id === bug.id));
+    const ids = new Set(group.map((bug) => bug.id));
+    if (!hive && !resident) {
+      // Founding is this slice's boundary; the next slice starts this hive's clock.
+      draft.hives = [...draft.hives, { ...makeHive(draft.nextHiveId, sectorId, group[0]!.position), spawnTimer: Infinity }];
+      draft.nextHiveId += 1;
+      draft.bugs = draft.bugs.filter((bug) => !ids.has(bug.id));
+      continue;
+    }
+    draft.bugs = draft.bugs.map((bug) => ids.has(bug.id) ? {
+      ...bug,
+      hiveId: hive?.id ?? bug.hiveId,
+      state: "hovering",
+      sectorId,
+      targetSectorId: null,
+      targetShipId: null,
+      targetModule: null,
+      leg: null,
+      timer: 0,
+    } : bug);
+  }
+}
+
 function settleInvasions(draft: Draft): void {
   const sources = [...new Set(draft.hives.filter((hive) => hive.alive).map((hive) => hive.sectorId))];
   for (const sectorId of sources) {
@@ -281,6 +314,7 @@ export function settleEnemies(draft: Draft): void {
     draft.nextBugId += 1;
     return { ...hive, spawnTimer: hive.spawnTimer + BUG_SPAWN_SECONDS };
   });
+  settleArrivals(draft);
   draft.bugs = draft.bugs.map((bug) => {
     if (bug.state !== "invading" || bug.timer > 0 || bug.targetSectorId === null || bug.targetSectorId === undefined) return bug;
     const route = gateRoute(draft, bug.sectorId, bug.targetSectorId);
