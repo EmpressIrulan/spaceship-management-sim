@@ -21,7 +21,7 @@ function grownStation(sectorId: number): { state: SimState; id: number } {
 
 describe("criterion 5: more than one Claim can go in a sector", () => {
   it("takes a second Claim at Home, and the sector stays claimed", () => {
-    const twice = buildClaim(buildClaim(createInitialState(7), 0), 0);
+    const twice = buildClaim(buildClaim({ ...createInitialState(7), hives: [], bugs: [] }, 0), 0);
 
     expect(stationById(twice, 0)!.modules.filter((module) => module.type === "Claim")).toHaveLength(2);
     expect(sectorClaimed(twice, homeSector)).toBe(true);

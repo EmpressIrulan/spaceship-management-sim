@@ -176,6 +176,54 @@ describe("hive", () => {
     expect(state.bugs!.filter((bug) => bug.sectorId === destination)).toHaveLength(11);
     expect(state.hives!.filter((hive) => hive.sectorId === destination)).toHaveLength(0);
   });
+
+  it("founded hives breed their first bug after ten seconds", () => {
+    const start = arrive(invasionStart());
+    const destination = start.hives!.find((candidate) => candidate.id === 1)!.sectorId;
+    const state = tick(start, BUG_SPAWN_SECONDS);
+
+    expect(state.bugs!.filter((bug) => bug.sectorId === destination)).toHaveLength(1);
+    expect(state.bugs!.find((bug) => bug.sectorId === destination)!.hiveId).toBe(1);
+  });
+
+  it("a founded hive hunts in its sector and can send another invasion", () => {
+    const start = arrive(invasionStart());
+    const found = start.hives!.find((candidate) => candidate.id === 1)!;
+    const bugs = Array.from({ length: BUG_ATTACK_THRESHOLD }, (_, id) => ({
+      ...start.bugs![0]!, id, hiveId: found.id, sectorId: found.sectorId,
+      position: { x: found.position.x + 25, y: found.position.y }, state: "hovering" as const, timer: 0,
+    }));
+    const ship = { ...start.ships[0]!, id: start.nextShipId, state: "holding" as const,
+      sectorId: found.sectorId, position: { x: found.position.x + 30, y: found.position.y },
+      defaultBehaviour: "none" as const, order: null, target: null, leg: null, berth: null, transfer: null };
+    const hunting = tick({ ...start, bugs, ships: [...start.ships, ship], nextBugId: 10 }, 0);
+
+    expect(hunting.bugs!.filter((bug) => bug.sectorId === found.sectorId).every((bug) => bug.state === "hunting")).toBe(true);
+    const invadingBugs = Array.from({ length: 10 }, (_, id) => ({ ...bugs[id % bugs.length]!, id, state: "hovering" as const, timer: 0 }));
+    const invading = tick({ ...hunting, bugs: invadingBugs, nextBugId: 10 }, 0);
+    expect(invading.bugs!.filter((bug) => bug.state === "invading")).toHaveLength(10);
+  });
+
+  it("replays two foundings exactly from a fixed seed", () => {
+    const gates: GateProject[] = [2, 3].map((sectorId, id) => ({
+      id,
+      ends: [
+        { sectorId: sectorId - 1, position: { x: id * 10 + 10, y: 20 } },
+        { sectorId, position: { x: id * 10 + 30, y: 40 } },
+      ],
+      delivered: { Metal: 0, Ice: 0 }, complete: true,
+    }));
+    const run = () => {
+      let state = { ...createInitialState(19), gateProjects: gates };
+      for (const dt of [100, 20, 100, 20, 100, 20]) state = tick(state, dt);
+      return state;
+    };
+    const first = run();
+    const second = run();
+
+    expect(first).toEqual(second);
+    expect(first.hives!.length).toBeGreaterThanOrEqual(3);
+  });
 });
 
 const invasionGate: GateProject = {

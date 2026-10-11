@@ -132,8 +132,7 @@ function settleArrivals(draft: Draft): void {
     const resident = draft.bugs.some((bug) => bug.sectorId === sectorId && !group.some((arrival) => arrival.id === bug.id));
     const ids = new Set(group.map((bug) => bug.id));
     if (!hive && !resident) {
-      // Founding is this slice's boundary; the next slice starts this hive's clock.
-      draft.hives = [...draft.hives, { ...makeHive(draft.nextHiveId, sectorId, group[0]!.position), spawnTimer: Infinity }];
+      draft.hives = [...draft.hives, makeHive(draft.nextHiveId, sectorId, group[0]!.position)];
       draft.nextHiveId += 1;
       draft.bugs = draft.bugs.filter((bug) => !ids.has(bug.id));
       continue;

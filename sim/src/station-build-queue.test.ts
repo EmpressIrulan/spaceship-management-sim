@@ -425,7 +425,7 @@ describe("the station build queue", () => {
   });
 
   it("leaves a supply ship at its Move destination while a build is queued", () => {
-    const base = createInitialState(7);
+    const base = { ...createInitialState(7), hives: [], bugs: [] };
     const supply = setDefaultBehaviour(base, [0], "supply");
     const queued = queueModuleBuild(supply, "Storage", east);
     const moved = giveOrder(queued, [0], { kind: "move", point: { x: 300, y: 300 }, sectorId: 0 });
