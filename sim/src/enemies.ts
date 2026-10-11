@@ -351,7 +351,7 @@ export function settleEnemies(draft: Draft): void {
   draft.bugs = draft.bugs.map((bug) => {
     if (bug.timer > 0) return bug;
     if (bug.state === "invading") return bug;
-    const hive = draft.hives.find((candidate) => candidate.sectorId === bug.sectorId);
+    const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === bug.sectorId);
     const hunting = draft.bugs.filter((candidate) => candidate.sectorId === bug.sectorId
       && candidate.state !== "invading" && candidate.state !== "gathering").length >= BUG_ATTACK_THRESHOLD;
     if (hunting) {

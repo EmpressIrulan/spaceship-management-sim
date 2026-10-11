@@ -303,6 +303,24 @@ describe("hive", () => {
     expect(state.bugs!.find((bug) => bug.sectorId === destination)!.hiveId).toBe(1);
   });
 
+  it("loiters around a newly founded live hive instead of a dead hive in its sector", () => {
+    const start = invasionStart();
+    const destination = start.bugs![0]!.targetSectorId!;
+    const dead = { ...start.hives![0]!, id: 12, sectorId: destination,
+      position: { x: 800, y: 900 }, hp: 0, alive: false };
+    const founded = arrive({ ...start, hives: [...start.hives!, dead] });
+    const live = founded.hives!.find((candidate) => candidate.alive && candidate.sectorId === destination)!;
+    expect(live.id).toBe(1);
+    const state = tick(founded, 2 * BUG_SPAWN_SECONDS);
+    const offspring = state.bugs!.filter((bug) => bug.sectorId === destination);
+    expect(offspring).toHaveLength(2);
+    for (const bug of offspring) {
+      expect(bug.hiveId).toBe(live.id);
+      expect(bug.leg).not.toBeNull();
+      expect(Math.hypot(bug.leg!.to.x - live.position.x, bug.leg!.to.y - live.position.y)).toBeLessThanOrEqual(BUG_HOVER_RADIUS);
+    }
+  });
+
   it("lets the first gathering group found while a second arrival joins it", () => {
     const start = invasionStart();
     const group = start.bugs!.filter((bug) => bug.state === "invading");
