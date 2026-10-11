@@ -466,7 +466,8 @@ describe("ship panel while the ship changes", () => {
     const originalDocument = globalThis.document;
     globalThis.document = fakeDocument() as unknown as Document;
     try {
-      let state = miningStart(7);
+      // Keep the mining cycle alive while testing panel updates, not combat.
+      let state: SimState = { ...miningStart(7), hives: [], bugs: [] };
       const box = new FakeElement();
       let context = renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0], selectedShip: null, renderedPanel: "" });
       const controls = [...box.children];
@@ -488,7 +489,7 @@ describe("ship panel while the ship changes", () => {
     const originalDocument = globalThis.document;
     globalThis.document = fakeDocument() as unknown as Document;
     try {
-      let state = miningStart(7);
+      let state: SimState = { ...miningStart(7), hives: [], bugs: [] };
       const box = new FakeElement();
       let context = renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0], selectedShip: null, renderedPanel: "" });
       for (let step = 0; step < CYCLE_TICKS; step++) {
@@ -506,7 +507,7 @@ describe("ship panel while the ship changes", () => {
     const doc = fakeDocument();
     globalThis.document = doc as unknown as Document;
     try {
-      let current = miningStart(7);
+      let current: SimState = { ...miningStart(7), hives: [], bugs: [] };
       const box = new FakeElement();
       let context = renderShipPanel(current, box as unknown as HTMLElement, { selectedShips: [0], selectedShip: null, renderedPanel: "" });
       const select = box.children.find((child) => child.name === "default")!;

@@ -63,7 +63,7 @@ export function spawnBug(draft: Draft, hive: Hive): Bug {
 // A new point to loiter at, inside the hover ring around the hive. The minimum
 // reach keeps the point off the bug's current spot, so the leg always takes
 // real time and the tick never spins on a zero-length hop.
-function loiterPoint(draft: Draft, hive: Hive, bug: Bug): { to: Vec; seconds: number } {
+function loiterPoint(draft: Draft, hive: Pick<Hive, "position">, bug: Bug): { to: Vec; seconds: number } {
   const angleRoll = nextRandom(draft.enemyRng);
   draft.enemyRng = angleRoll.state;
   const reachRoll = nextRandom(draft.enemyRng);
@@ -143,26 +143,25 @@ function settleArrivals(draft: Draft): void {
         const position = !hive && !resident ? {
           x: route.to.x + Math.cos(index * Math.PI * 2 / group.length) * 24,
           y: route.to.y + Math.sin(index * Math.PI * 2 / group.length) * 24,
-        } : { ...(hive ? route.to : resident!.position) };
-        return { ...bug, sectorId, position, hiveId: hive?.id ?? bug.hiveId,
+        } : { ...route.to };
+        const loiter = hive || resident ? loiterPoint(draft, hive ?? resident!, { ...bug, position }) : null;
+        return { ...bug, sectorId, position,
           state: !hive && !resident ? "gathering" : "hovering",
           targetSectorId: !hive && !resident ? sectorId : null,
-          leg: !hive && !resident ? { from: position, to: { ...route.to } } : null,
-          timer: !hive && !resident ? huntSeconds(24) : 0 };
+          leg: { from: position, to: loiter?.to ?? { ...route.to } },
+          timer: loiter?.seconds ?? huntSeconds(24) };
       });
       continue;
     }
     // Gathering reserves the founding: later arrivals join, not cancel it.
     if (!hive) {
       draft.hives = [...draft.hives, makeHive(draft.nextHiveId, sectorId, group[0]!.position)];
-      draft.bugs = draft.bugs.map((bug) => bug.sectorId === sectorId ? { ...bug, hiveId: draft.nextHiveId } : bug);
       draft.nextHiveId += 1;
       draft.bugs = draft.bugs.filter((bug) => !ids.has(bug.id));
       continue;
     }
     draft.bugs = draft.bugs.map((bug) => ids.has(bug.id) ? {
       ...bug,
-      hiveId: hive?.id ?? bug.hiveId,
       state: "hovering",
       sectorId,
       targetSectorId: null,
@@ -175,9 +174,11 @@ function settleArrivals(draft: Draft): void {
 }
 
 function settleInvasions(draft: Draft): void {
-  const sources = [...new Set(draft.hives.filter((hive) => hive.alive).map((hive) => hive.sectorId))];
-  for (const sectorId of sources) {
-    const group = draft.bugs.filter((bug) => bug.sectorId === sectorId && bug.state !== "invading" && bug.state !== "gathering").slice(0, 10);
+  for (const hive of draft.hives.filter((hive) => hive.alive)) {
+    const sectorId = hive.sectorId;
+    // Joined bugs attack here permanently; only this hive's offspring leave.
+    const group = draft.bugs.filter((bug) => bug.sectorId === sectorId && bug.hiveId === hive.id
+      && bug.state !== "invading" && bug.state !== "gathering").slice(0, 10);
     const routes = invasionRoutes(draft, sectorId);
     if (group.length < 10 || routes.length === 0) continue;
     const pick = nextRandom(draft.enemyRng);
@@ -350,7 +351,7 @@ export function settleEnemies(draft: Draft): void {
   draft.bugs = draft.bugs.map((bug) => {
     if (bug.timer > 0) return bug;
     if (bug.state === "invading") return bug;
-    const hive = draft.hives.find((candidate) => candidate.id === bug.hiveId && candidate.sectorId === bug.sectorId);
+    const hive = draft.hives.find((candidate) => candidate.sectorId === bug.sectorId);
     const hunting = draft.bugs.filter((candidate) => candidate.sectorId === bug.sectorId
       && candidate.state !== "invading" && candidate.state !== "gathering").length >= BUG_ATTACK_THRESHOLD;
     if (hunting) {
@@ -377,9 +378,10 @@ export function settleEnemies(draft: Draft): void {
     }
     // Nothing to hunt: loiter, whether the bug was hovering or had lost its
     // quarry to a bite from a sibling.
-    // The hive is gone from the state: hold where it is rather than spin.
-    if (!hive) return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: null, timer: 1 };
-    const loiter = loiterPoint(draft, hive, bug);
+    // Hive-less joiners spread around the resident population, not their natal hive.
+    const centre = hive ?? draft.bugs.find((candidate) => candidate.sectorId === bug.sectorId);
+    if (!centre) return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: null, timer: 1 };
+    const loiter = loiterPoint(draft, centre, bug);
     return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: { from: { ...bug.position }, to: loiter.to }, timer: loiter.seconds };
   });
   // After the bugs have taken their bites, every gun ship that is loaded

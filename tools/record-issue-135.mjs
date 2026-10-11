@@ -92,10 +92,12 @@ try {
       }
       await hover({ x: 150, y: 0 });
       await mark("source-nine-bugs");
+      await page.mouse.move(1200, 100);
       await until(() => window.__repro.state.bugs.filter(b => b.state === "invading").length === 10);
       await mark("ten-departing");
       await until(() => window.__repro.state.bugs.filter(b => b.state === "invading").every(b => b.timer < 0.3), "normal");
       await mark("ten-at-source-gate");
+      if (scene === 4) await sector(2);
       await until(() => window.__repro.state.bugs.every(b => b.sectorId !== 1), "normal");
       if (scene === 2) {
         await hover({ x: 150, y: 0 });
@@ -103,9 +105,15 @@ try {
         await until(() => window.__repro.state.bugs.some(b => b.sectorId === 1), "normal");
         await mark("old-hive-breeds-again");
       } else {
-        await sector(2);
+        if (scene !== 4) await sector(2);
         if (scene === 4) {
           assert.equal(await page.evaluate(() => window.__repro.state.bugs.filter(b => b.sectorId === 2).length), 12);
+          await mark("ten-arriving-at-destination-gate");
+          await page.evaluate(() => {
+            window.arrivalLegsEnd = window.__repro.state.time + Math.max(...window.__repro.state.bugs
+              .filter(b => b.sectorId === 2 && (b.id < 9 || b.id === 11)).map(b => b.timer));
+          });
+          await until(() => window.__repro.state.time > window.arrivalLegsEnd + 0.5, "normal");
           await mark("destination-after-twelve-bugs");
         } else {
           assert.equal(await page.evaluate(() => window.__repro.state.bugs.filter(b => b.sectorId === 2 && b.state === "gathering").length), 10);

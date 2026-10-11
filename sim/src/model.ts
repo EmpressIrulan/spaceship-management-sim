@@ -216,7 +216,7 @@ export interface Hive {
 export type BugState = "hovering" | "hunting" | "invading" | "gathering";
 export interface Bug {
   id: number;
-  // The hive this bug came from, so loitering has a centre.
+  // Birth hive. Arrivals keep this identity and never depart with a local brood.
   hiveId: number;
   sectorId: number;
   position: Vec;

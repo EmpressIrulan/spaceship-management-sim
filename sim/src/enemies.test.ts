@@ -217,7 +217,67 @@ describe("hive", () => {
 
     expect(state.hives!.filter((hive) => hive.sectorId === destination)).toHaveLength(1);
     expect(state.bugs!.filter((bug) => bug.sectorId === destination)).toHaveLength(10);
-    expect(state.bugs!.filter((bug) => bug.sectorId === destination).every((bug) => bug.hiveId === 12)).toBe(true);
+    expect(state.bugs!.filter((bug) => bug.sectorId === destination).every((bug) => bug.hiveId === start.hives![0]!.id)).toBe(true);
+  });
+
+  it.each([1 / 60, 1])("keeps joined groups resident through 400 seconds at dt %s", (dt) => {
+    let state = createInitialState(7);
+    const joined = new Set<number>();
+    let hpAt250 = 0;
+    let bittenAfter250 = false;
+    for (let step = 0; step < Math.round(400 / dt); step += 1) {
+      const previous = state;
+      state = tick(state, dt);
+      for (const bug of state.bugs!) {
+        const before = previous.bugs!.find((candidate) => candidate.id === bug.id);
+        if (before?.state === "invading" && bug.state !== "invading" && bug.state !== "gathering") joined.add(bug.id);
+        if (joined.has(bug.id)) expect(bug.state).not.toBe("invading");
+      }
+      const hp = homeStation(state).modules.reduce((total, module) => total + (module.hp ?? MODULE_HP), 0);
+      if (step < Math.round(250 / dt)) hpAt250 = hp;
+      else if (hp < hpAt250) bittenAfter250 = true;
+      for (const hive of state.hives!.filter((hive) => hive.alive)) {
+        expect(state.bugs!.filter((bug) => bug.sectorId === hive.sectorId && bug.hiveId === hive.id
+          && bug.state !== "invading" && bug.state !== "gathering").length).toBeLessThan(10);
+      }
+    }
+    expect(joined.size).toBeGreaterThan(0);
+    expect(bittenAfter250).toBe(true);
+  });
+
+  it("keeps ten arrivals with three residents until ten own offspring are alive", () => {
+    const start = invasionStart();
+    const destination = start.bugs![0]!.targetSectorId!;
+    const localHive = { ...start.hives![0]!, id: 12, sectorId: destination,
+      position: { x: 80, y: 90 }, spawnTimer: 10000 };
+    const residents = Array.from({ length: 3 }, (_, i) => plantedBug(100 + i, localHive, 80 + i * 10, 90));
+    let state = arrive({ ...start, ships: [], stations: start.stations.map((station) => ({ ...station, sectorId: 3 })),
+      hives: [...start.hives!, localHive],
+      bugs: [...start.bugs!, ...residents], nextBugId: 103 });
+    expect(state.bugs!.filter((bug) => bug.sectorId === destination)).toHaveLength(13);
+    expect(state.bugs!.some((bug) => bug.state === "invading")).toBe(false);
+    state = tick(state, 30);
+    const arrivals = state.bugs!.filter((bug) => bug.id < 10 && bug.sectorId === destination);
+    expect(arrivals).toHaveLength(10);
+    expect(new Set(arrivals.map((bug) => `${bug.position.x},${bug.position.y}`)).size).toBe(10);
+    expect(arrivals.every((bug) => bug.state === "hovering" && bug.leg !== null)).toBe(true);
+    state = { ...state, hives: state.hives!.map((hive) => hive.id === 12 ? { ...hive, spawnTimer: 10 } : hive) };
+    state = tick(state, 60);
+    expect(state.bugs!.filter((bug) => bug.sectorId === destination)).toHaveLength(19);
+    expect(state.bugs!.some((bug) => bug.state === "invading")).toBe(false);
+    state = tick(state, 10);
+    expect(state.bugs!.filter((bug) => bug.state === "invading")).toHaveLength(10);
+    expect(state.bugs!.filter((bug) => bug.state === "invading").every((bug) => bug.hiveId === 12)).toBe(true);
+    expect(state.bugs!.filter((bug) => bug.id < 10 && bug.sectorId === destination)).toHaveLength(10);
+  });
+
+  it("lets a hive founded by arrivals send ten of its own offspring", () => {
+    let state = arrive(invasionStart());
+    const founded = state.hives!.find((hive) => hive.id === 1)!;
+    state = tick(state, 100);
+    const departing = state.bugs!.filter((bug) => bug.sectorId === founded.sectorId && bug.state === "invading");
+    expect(departing).toHaveLength(10);
+    expect(departing.every((bug) => bug.hiveId === founded.id)).toBe(true);
   });
 
   it("joins ten arrivals to bugs already in the destination sector", () => {
@@ -250,7 +310,7 @@ describe("hive", () => {
     expect(founded).toMatchObject({ hp: HIVE_HP, alive: true });
     expect(state.bugs!.filter((bug) => bug.id < 100)).toHaveLength(0);
     expect(state.bugs!.filter((bug) => bug.id >= 100)).toHaveLength(10);
-    expect(state.bugs!.every((bug) => bug.hiveId === founded!.id)).toBe(true);
+    expect(state.bugs!.every((bug) => bug.hiveId === start.hives![0]!.id)).toBe(true);
   });
 
   it("keeps hive-less joiners with resident bugs instead of their old hive", () => {
@@ -262,8 +322,8 @@ describe("hive", () => {
     const joined = state.bugs!.filter((bug) => bug.id !== resident.id && bug.sectorId === destination);
     expect(joined).toHaveLength(10);
     for (const bug of joined) {
-      expect(bug.position).toEqual(resident.position);
-      expect(bug.leg).toBeNull();
+      expect(bug.leg).not.toBeNull();
+      expect(Math.hypot(bug.leg!.to.x - resident.position.x, bug.leg!.to.y - resident.position.y)).toBeLessThanOrEqual(BUG_HOVER_RADIUS);
     }
   });
 

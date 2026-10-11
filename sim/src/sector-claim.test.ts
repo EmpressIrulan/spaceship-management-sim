@@ -38,7 +38,7 @@ describe("criterion 5: more than one Claim can go in a sector", () => {
 
 describe("criterion 6: removing the last Claim unclaims the sector", () => {
   it("unclaims when the station holding the last Claim is removed, and the generated name comes back", () => {
-    const initial = createInitialState(7);
+    const initial = { ...createInitialState(7), hives: [], bugs: [] };
     const claimed = renameSector(buildClaim(initial, 0), homeSector, "Foundry");
     expect(claimed.sectors[0]!.name).toBe("Foundry");
 
@@ -69,7 +69,7 @@ describe("criterion 7: Home starts unclaimed", () => {
   });
 
   it("claims Home's sector once a Claim stands at Home, like any other sector", () => {
-    const claimed = buildClaim(createInitialState(7), 0);
+    const claimed = buildClaim({ ...createInitialState(7), hives: [], bugs: [] }, 0);
 
     expect(sectorClaimed(claimed, homeSector)).toBe(true);
     expect(renameSector(claimed, homeSector, "Foundry").sectors[0]!.name).toBe("Foundry");
@@ -102,7 +102,7 @@ describe("criterion 2: a finished Claim asks for a name", () => {
   });
 
   it("names Home's sector when a Claim at Home stands", () => {
-    expect(namingTicks(startFundedBuild(createInitialState(7), 0, "Claim"), 400)).toEqual([[homeSector]]);
+    expect(namingTicks(startFundedBuild({ ...createInitialState(7), hives: [], bugs: [] }, 0, "Claim"), 400)).toEqual([[homeSector]]);
   });
 
   it("names nothing when the module that stands is not a Claim", () => {

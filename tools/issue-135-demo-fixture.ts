@@ -21,7 +21,7 @@ export function installIssue135Demo(ui: UiState, getState: () => SimState, setSt
     state.nextBugId = 9;
     state.nextHiveId = 1;
     if (scene === 4) {
-      // Resident bugs without a hive cannot immediately launch another invasion.
+      // Two resident bugs provide an occupied, hive-less destination.
       state.bugs.push(...Array.from({ length: 2 }, (_, index) => ({ ...state.bugs![index]!, id: 9 + index, sectorId: 2, position: { x: -100, y: 40 + index * 25 } })));
       state.nextBugId = 11;
     }
