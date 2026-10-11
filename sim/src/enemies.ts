@@ -98,6 +98,52 @@ function huntSeconds(length: number): number {
   return Math.ceil(raw / LOITER_QUANTUM) * LOITER_QUANTUM;
 }
 
+function gateRoute(draft: Draft, fromSector: number, toSector: number): { from: Vec; to: Vec } | null {
+  const built = draft.gateProjects.find((project) => project.complete
+    && project.ends.some((end) => end.sectorId === fromSector)
+    && project.ends.some((end) => end.sectorId === toSector));
+  if (built) return {
+    from: { ...built.ends.find((end) => end.sectorId === fromSector)!.position },
+    to: { ...built.ends.find((end) => end.sectorId === toSector)!.position },
+  };
+  const from = draft.sectors[fromSector]; const to = draft.sectors[toSector];
+  return from?.gate.to === toSector && to?.gate.to === fromSector
+    ? { from: { ...from.gate.position }, to: { ...to.gate.position } } : null;
+}
+
+function invasionRoutes(draft: Draft, fromSector: number): { sectorId: number; route: { from: Vec; to: Vec } }[] {
+  return draft.sectors.flatMap((sector) => {
+    if (sector.id === fromSector) return [];
+    const route = gateRoute(draft, fromSector, sector.id);
+    return route ? [{ sectorId: sector.id, route }] : [];
+  });
+}
+
+function settleInvasions(draft: Draft): void {
+  const sources = [...new Set(draft.hives.filter((hive) => hive.alive).map((hive) => hive.sectorId))];
+  for (const sectorId of sources) {
+    const group = draft.bugs.filter((bug) => bug.sectorId === sectorId && bug.state !== "invading").slice(0, 10);
+    const routes = invasionRoutes(draft, sectorId);
+    if (group.length < 10 || routes.length === 0) continue;
+    const pick = nextRandom(draft.enemyRng);
+    draft.enemyRng = pick.state;
+    const destination = routes[Math.floor(pick.value * routes.length)]!;
+    const seconds = Math.max(...group.map((bug) => huntSeconds(Math.hypot(
+      destination.route.from.x - bug.position.x, destination.route.from.y - bug.position.y,
+    ))));
+    const ids = new Set(group.map((bug) => bug.id));
+    draft.bugs = draft.bugs.map((bug) => ids.has(bug.id) ? {
+      ...bug,
+      state: "invading",
+      targetShipId: null,
+      targetModule: null,
+      targetSectorId: destination.sectorId,
+      leg: { from: { ...bug.position }, to: { ...destination.route.from } },
+      timer: seconds,
+    } : bug);
+  }
+}
+
 // Moves a bug partway through its current leg, leaving `timer` seconds.
 function progressBug(bug: Bug, seconds: number): Bug {
   const timer = bug.timer - seconds;
@@ -235,13 +281,30 @@ export function settleEnemies(draft: Draft): void {
     draft.nextBugId += 1;
     return { ...hive, spawnTimer: hive.spawnTimer + BUG_SPAWN_SECONDS };
   });
+  draft.bugs = draft.bugs.map((bug) => {
+    if (bug.state !== "invading" || bug.timer > 0 || bug.targetSectorId === null || bug.targetSectorId === undefined) return bug;
+    const route = gateRoute(draft, bug.sectorId, bug.targetSectorId);
+    return route ? {
+      ...bug,
+      state: "hovering",
+      sectorId: bug.targetSectorId,
+      position: { ...route.to },
+      targetSectorId: null,
+      leg: null,
+      timer: 0,
+    } : bug;
+  });
+  settleInvasions(draft);
   // Fewer alive bugs than the threshold loiter by the hive and ignore ships
   // (criterion 3). At the threshold they fly at the nearest ship in their own
   // sector (criterion 4) and bite it alongside.
-  const hunting = draft.bugs.length >= BUG_ATTACK_THRESHOLD;
   draft.bugs = draft.bugs.map((bug) => {
     if (bug.timer > 0) return bug;
+    if (bug.state === "invading") return bug;
     const hive = draft.hives.find((candidate) => candidate.id === bug.hiveId);
+    const hasHive = draft.hives.length === 0 || draft.hives.some((candidate) => candidate.alive && candidate.sectorId === bug.sectorId);
+    const hunting = hasHive
+      && draft.bugs.filter((candidate) => candidate.sectorId === bug.sectorId && candidate.state !== "invading").length >= BUG_ATTACK_THRESHOLD;
     if (hunting) {
       const quarry = quarryFor(draft, bug);
       if (quarry) {
@@ -451,7 +514,7 @@ export function nextEnemyEvent(draft: Draft): number {
     if (hive.alive) soonest = Math.min(soonest, hive.spawnTimer);
   }
   for (const bug of draft.bugs) {
-    if (bug.state === "hunting") soonest = Math.min(soonest, bug.timer);
+    if (bug.state === "hunting" || bug.state === "invading") soonest = Math.min(soonest, bug.timer);
   }
   // A reloading gun holds the next event, and a burning-out shot holds one
   // last event to clear it. A loaded gun with nothing in range holds nothing:

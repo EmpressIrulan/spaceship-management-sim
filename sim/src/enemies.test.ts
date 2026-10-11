@@ -24,7 +24,7 @@ import {
 import { giveOrder } from "./orders";
 import { gunBeams } from "./enemies";
 import { shipHp } from "./ship";
-import type { Bug, Hive, Ship, ShipDesign, SimState } from "./state";
+import type { Bug, GateProject, Hive, Ship, ShipDesign, SimState } from "./state";
 
 function hive(state: SimState) {
   const found = state.hives?.[0];
@@ -86,6 +86,57 @@ describe("hive", () => {
       return JSON.stringify(state);
     };
     expect(run()).toBe(run());
+  });
+
+  it("sends ten bugs through a seeded random connected gate as one group", () => {
+    const gateProjects: GateProject[] = [{
+      id: 0,
+      ends: [
+        { sectorId: HIVE_SECTOR, position: { x: 10, y: 20 } },
+        { sectorId: 2, position: { x: 30, y: 40 } },
+      ],
+      delivered: { Metal: 0, Ice: 0 },
+      complete: true,
+    }];
+    const run = () => {
+      let state = { ...createInitialState(7), gateProjects: [...gateProjects] };
+      for (let i = 0; i < 10; i += 1) state = tick(state, BUG_SPAWN_SECONDS);
+      return state;
+    };
+    const first = run();
+    const second = run();
+    expect(first).toEqual(second);
+    expect(first.bugs).toHaveLength(10);
+    expect(first.bugs?.every((bug) => bug.state === "invading")).toBe(true);
+    expect(new Set(first.bugs?.map((bug) => bug.targetSectorId)).size).toBe(1);
+    expect(first.bugs?.every((bug) => bug.sectorId === HIVE_SECTOR)).toBe(true);
+  });
+
+  it("counts attack bugs per sector and keeps breeding after a group leaves", () => {
+    const start = parkedStart(7).state;
+    let state = tick(start, 40);
+    const source = state.bugs!.map((bug) => ({ ...bug, timer: 0 }));
+    const foreign = source.slice(0, BUG_ATTACK_THRESHOLD).map((bug, index) => ({
+      ...bug, id: state.nextBugId! + index, sectorId: 0, timer: 0,
+    }));
+    state = tick({ ...state, bugs: [...source, ...foreign], nextBugId: state.nextBugId! + foreign.length }, 0);
+    expect(state.bugs?.filter((bug) => bug.sectorId === HIVE_SECTOR && bug.state !== "invading")).toHaveLength(4);
+    expect(state.bugs?.filter((bug) => bug.sectorId === HIVE_SECTOR).every((bug) => bug.state === "hovering")).toBe(true);
+
+    const gateProjects: GateProject[] = [{
+      id: 0,
+      ends: [
+        { sectorId: HIVE_SECTOR, position: { x: 10, y: 20 } },
+        { sectorId: 2, position: { x: 30, y: 40 } },
+      ],
+      delivered: { Metal: 0, Ice: 0 },
+      complete: true,
+    }];
+    state = tick({ ...createInitialState(7), gateProjects: [...gateProjects] }, 100);
+    expect(state.bugs).toHaveLength(10);
+    state = tick(state, BUG_SPAWN_SECONDS);
+    expect(state.bugs?.filter((bug) => bug.state === "invading")).toHaveLength(10);
+    expect(state.bugs?.filter((bug) => bug.state !== "invading")).toHaveLength(1);
   });
 });
 

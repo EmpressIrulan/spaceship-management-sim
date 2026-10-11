@@ -213,7 +213,7 @@ export interface Hive {
   alive: boolean;
 }
 // Hovering bugs hang about the hive; hunting ones fly at a ship and bite it.
-export type BugState = "hovering" | "hunting";
+export type BugState = "hovering" | "hunting" | "invading";
 export interface Bug {
   id: number;
   // The hive this bug came from, so loitering has a centre.
@@ -225,6 +225,8 @@ export interface Bug {
   state: BugState;
   // The ship this bug flies at and bites, when it hunts. Null while hovering.
   targetShipId: number | null;
+  // The sector a migrating group is crossing into. Missing for older bugs.
+  targetSectorId?: number | null;
   targetModule?: { stationId: number; position: Vec } | null;
   leg: Leg | null;
   // Seconds left in the current leg. Unused while holding still.
