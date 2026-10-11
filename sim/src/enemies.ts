@@ -131,7 +131,7 @@ function settleArrivals(draft: Draft): void {
   for (const group of arrivals.values()) {
     const sectorId = group[0]!.targetSectorId!;
     const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === sectorId);
-    const resident = draft.bugs.some((bug) => bug.sectorId === sectorId && !group.some((arrival) => arrival.id === bug.id));
+    const resident = draft.bugs.find((bug) => bug.sectorId === sectorId && !group.some((arrival) => arrival.id === bug.id));
     const ids = new Set(group.map((bug) => bug.id));
     if (group[0]!.state === "invading") {
       const route = gateRoute(draft, group[0]!.sectorId, sectorId);
@@ -143,7 +143,7 @@ function settleArrivals(draft: Draft): void {
         const position = !hive && !resident ? {
           x: route.to.x + Math.cos(index * Math.PI * 2 / group.length) * 24,
           y: route.to.y + Math.sin(index * Math.PI * 2 / group.length) * 24,
-        } : { ...route.to };
+        } : { ...(hive ? route.to : resident!.position) };
         return { ...bug, sectorId, position, hiveId: hive?.id ?? bug.hiveId,
           state: !hive && !resident ? "gathering" : "hovering",
           targetSectorId: !hive && !resident ? sectorId : null,
@@ -152,8 +152,10 @@ function settleArrivals(draft: Draft): void {
       });
       continue;
     }
-    if (!hive && !resident) {
+    // Gathering reserves the founding: later arrivals join, not cancel it.
+    if (!hive) {
       draft.hives = [...draft.hives, makeHive(draft.nextHiveId, sectorId, group[0]!.position)];
+      draft.bugs = draft.bugs.map((bug) => bug.sectorId === sectorId ? { ...bug, hiveId: draft.nextHiveId } : bug);
       draft.nextHiveId += 1;
       draft.bugs = draft.bugs.filter((bug) => !ids.has(bug.id));
       continue;
@@ -199,7 +201,9 @@ function settleInvasions(draft: Draft): void {
 
 // Moves a bug partway through its current leg, leaving `timer` seconds.
 function progressBug(bug: Bug, seconds: number): Bug {
-  const timer = bug.timer - seconds;
+  const left = bug.timer - seconds;
+  // Keep simultaneous enemy events together after fractional outer ticks.
+  const timer = Math.abs(left) < 1e-9 ? 0 : left;
   if (!bug.leg) return { ...bug, timer: Math.max(0, timer) };
   const length = Math.hypot(bug.leg.to.x - bug.leg.from.x, bug.leg.to.y - bug.leg.from.y);
   const total = travelSeconds(length, BUG_SPEED_FACTOR);
@@ -305,7 +309,11 @@ function activeStation(draft: Draft): Station {
 }
 
 export function advanceEnemies(draft: Draft, seconds: number): void {
-  draft.hives = draft.hives.map((hive) => (hive.alive ? { ...hive, spawnTimer: hive.spawnTimer - seconds } : hive));
+  draft.hives = draft.hives.map((hive) => {
+    if (!hive.alive) return hive;
+    const left = hive.spawnTimer - seconds;
+    return { ...hive, spawnTimer: Math.abs(left) < 1e-9 ? 0 : left };
+  });
   draft.bugs = draft.bugs.map((bug) => progressBug(bug, seconds));
   // Gun ships reload towards their next shot, and shots in flight burn out.
   const from = draft.time - seconds;
@@ -335,19 +343,6 @@ export function settleEnemies(draft: Draft): void {
     return { ...hive, spawnTimer: hive.spawnTimer + BUG_SPAWN_SECONDS };
   });
   settleArrivals(draft);
-  draft.bugs = draft.bugs.map((bug) => {
-    if (bug.state !== "invading" || bug.timer > 0 || bug.targetSectorId === null || bug.targetSectorId === undefined) return bug;
-    const route = gateRoute(draft, bug.sectorId, bug.targetSectorId);
-    return route ? {
-      ...bug,
-      state: "hovering",
-      sectorId: bug.targetSectorId,
-      position: { ...route.to },
-      targetSectorId: null,
-      leg: null,
-      timer: 0,
-    } : bug;
-  });
   settleInvasions(draft);
   // Fewer alive bugs than the threshold loiter by the hive and ignore ships
   // (criterion 3). At the threshold they fly at the nearest ship in their own
@@ -355,10 +350,9 @@ export function settleEnemies(draft: Draft): void {
   draft.bugs = draft.bugs.map((bug) => {
     if (bug.timer > 0) return bug;
     if (bug.state === "invading") return bug;
-    const hive = draft.hives.find((candidate) => candidate.id === bug.hiveId);
-    const hasHive = draft.hives.length === 0 || draft.hives.some((candidate) => candidate.alive && candidate.sectorId === bug.sectorId);
-    const hunting = hasHive
-      && draft.bugs.filter((candidate) => candidate.sectorId === bug.sectorId && candidate.state !== "invading").length >= BUG_ATTACK_THRESHOLD;
+    const hive = draft.hives.find((candidate) => candidate.id === bug.hiveId && candidate.sectorId === bug.sectorId);
+    const hunting = draft.bugs.filter((candidate) => candidate.sectorId === bug.sectorId
+      && candidate.state !== "invading" && candidate.state !== "gathering").length >= BUG_ATTACK_THRESHOLD;
     if (hunting) {
       const quarry = quarryFor(draft, bug);
       if (quarry) {
@@ -568,7 +562,8 @@ export function nextEnemyEvent(draft: Draft): number {
     if (hive.alive) soonest = Math.min(soonest, hive.spawnTimer);
   }
   for (const bug of draft.bugs) {
-    if (bug.state === "hunting" || bug.state === "invading" || bug.state === "gathering") soonest = Math.min(soonest, bug.timer);
+    // Loiter completions also draw RNG and set the next departure's position.
+    soonest = Math.min(soonest, bug.timer);
   }
   // A reloading gun holds the next event, and a burning-out shot holds one
   // last event to clear it. A loaded gun with nothing in range holds nothing:
