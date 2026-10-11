@@ -2,6 +2,7 @@ import { flyHaul, haulCargoDestination, haulStationDetails } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { asteroidGone, mine, miningSeconds, type Draft } from "./tick-mining";
 import { advanceEnemies, nextEnemyEvent, settleEnemies } from "./enemies";
+import { EXPLOSION_CUTOFF_SECONDS } from "./build-constants";
 import { beginHaulLoading, beginHaulUnloading, loadHauler, unloadHauler } from "./tick-hauling";
 import { addCargo, arrivesAtPark, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
 import { distanceAlong, travelSeconds } from "./motion";
@@ -889,7 +890,10 @@ function simulate(state: SimState, dt: number): SimState {
     nextBugId: draft.nextBugId,
     drops: draft.drops,
     nextDropId: draft.nextDropId,
-    moduleDestructions: draft.moduleDestructions,
+    // Keep the blast list short: everything older than the renderer's
+    // explosion window is gone from the screen and only costs frame time.
+    moduleDestructions: draft.moduleDestructions
+      .filter((destruction) => destruction.time > draft.time - EXPLOSION_CUTOFF_SECONDS),
     gateProjects: draft.gateProjects,
   };
 }

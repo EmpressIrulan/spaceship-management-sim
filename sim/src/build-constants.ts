@@ -32,6 +32,11 @@ export const HIVE_GATE_FRACTION = 0.75;
 export const BUG_SPAWN_SECONDS = 10;
 export const BUG_HP = 6;
 export const BUG_SIZE: Size = { width: 10, height: 8 };
+// The sim's clock runs at up to 4x speed while the app's explosion burst
+// lasts EXPLOSION_SECONDS = 0.9 real seconds (app/src/world-rendering.ts), so
+// a blast can fill 0.9 * 4 = 3.6 game seconds of sim time. Entries older than
+// that cannot still be on screen, so the tick drops them.
+export const EXPLOSION_CUTOFF_SECONDS = 3.6;
 // Alive bugs below this count loiter by the hive; at it or above they hunt
 // ships in their sector.
 export const BUG_ATTACK_THRESHOLD = 5;
