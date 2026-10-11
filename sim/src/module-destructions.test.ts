@@ -47,4 +47,12 @@ describe("module destructions", () => {
     // recent entries stay.
     expect(returned.moduleDestructions).toHaveLength(0);
   });
+
+  it("still trims when every station is gone", () => {
+    const state = createInitialState(7);
+    state.stations = [];
+    state.moduleDestructions = [destructionAt(0)];
+    const returned = tick(state, 5);
+    expect(returned.moduleDestructions).toHaveLength(0);
+  });
 });

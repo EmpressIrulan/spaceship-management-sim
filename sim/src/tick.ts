@@ -801,6 +801,9 @@ function simulate(state: SimState, dt: number): SimState {
     tickCount: state.tickCount + 1,
     time: state.time + (dt > 0 ? dt : 0),
     ships: state.ships.map((ship) => ({ ...ship, state: "holding", timer: 0, order: null, target: null, leg: null, berth: null, transfer: null })),
+    // Keep the blast list short even with no station left to bite.
+    moduleDestructions: (state.moduleDestructions ?? [])
+      .filter((destruction) => destruction.time > state.time + (dt > 0 ? dt : 0) - EXPLOSION_CUTOFF_SECONDS),
   };
   const home = state.stations.find((station) => station.id === 0) ?? state.stations[0]!;
   const primaryStationId = home.id;
