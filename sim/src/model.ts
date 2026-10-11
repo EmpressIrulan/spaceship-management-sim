@@ -213,7 +213,7 @@ export interface Hive {
   alive: boolean;
 }
 // Hovering bugs hang about the hive; hunting ones fly at a ship and bite it.
-export type BugState = "hovering" | "hunting" | "invading";
+export type BugState = "hovering" | "hunting" | "invading" | "gathering";
 export interface Bug {
   id: number;
   // The hive this bug came from, so loitering has a centre.

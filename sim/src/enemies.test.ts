@@ -139,6 +139,22 @@ describe("hive", () => {
     expect(state.bugs?.filter((bug) => bug.state !== "invading")).toHaveLength(1);
   });
 
+  it("crosses together, gathers visibly at the destination, then founds there", () => {
+    const start = invasionStart();
+    const destination = start.bugs![0]!.targetSectorId!;
+    const group = start.bugs!.filter((bug) => bug.state === "invading");
+    const crossed = tick(start, Math.max(...group.map((bug) => bug.timer)) + 0.01);
+    const gathering = crossed.bugs!.filter((bug) => bug.sectorId === destination);
+    expect(gathering).toHaveLength(10);
+    expect(gathering.every((bug) => bug.state === "gathering")).toBe(true);
+    expect(crossed.hives!.some((hive) => hive.sectorId === destination)).toBe(false);
+    const gate = invasionGate.ends.find((end) => end.sectorId === destination)!.position;
+    expect(gathering.every((bug) => bug.leg?.to.x === gate.x && bug.leg.to.y === gate.y)).toBe(true);
+    const founded = tick(crossed, 4);
+    expect(founded.hives!.find((hive) => hive.sectorId === destination)).toMatchObject({ position: gate, hp: HIVE_HP, maxHp: HIVE_HP });
+    expect(founded.bugs!.filter((bug) => bug.sectorId === destination)).toHaveLength(0);
+  });
+
   it("turns ten arrivals in an empty sector into a full new hive", () => {
     const start = invasionStart();
     const destination = start.bugs![0]!.targetSectorId!;
@@ -243,7 +259,11 @@ function invasionStart(): SimState {
 }
 
 function arrive(state: SimState): SimState {
-  return tick(state, 20);
+  const group = state.bugs!.filter((bug) => bug.state === "invading");
+  const destination = group[0]!.targetSectorId!;
+  const occupied = state.hives!.some((hive) => hive.alive && hive.sectorId === destination)
+    || state.bugs!.some((bug) => bug.sectorId === destination);
+  return tick(state, Math.max(...group.map((bug) => bug.timer)) + (occupied ? 0 : 4));
 }
 
 // A ship parked in the hive's sector, holding still with nothing queued, so

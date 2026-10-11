@@ -120,17 +120,38 @@ function invasionRoutes(draft: Draft, fromSector: number): { sectorId: number; r
 }
 
 function settleArrivals(draft: Draft): void {
-  const arrivals = new Map<number, Bug[]>();
+  const arrivals = new Map<string, Bug[]>();
   for (const bug of draft.bugs) {
-    if (bug.state !== "invading" || bug.timer > 0 || bug.targetSectorId === null || bug.targetSectorId === undefined) continue;
-    const group = arrivals.get(bug.targetSectorId) ?? [];
+    if ((bug.state !== "invading" && bug.state !== "gathering") || bug.timer > 0 || bug.targetSectorId === null || bug.targetSectorId === undefined) continue;
+    const key = `${bug.state}:${bug.sectorId}:${bug.targetSectorId}`;
+    const group = arrivals.get(key) ?? [];
     group.push(bug);
-    arrivals.set(bug.targetSectorId, group);
+    arrivals.set(key, group);
   }
-  for (const [sectorId, group] of arrivals) {
+  for (const group of arrivals.values()) {
+    const sectorId = group[0]!.targetSectorId!;
     const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === sectorId);
     const resident = draft.bugs.some((bug) => bug.sectorId === sectorId && !group.some((arrival) => arrival.id === bug.id));
     const ids = new Set(group.map((bug) => bug.id));
+    if (group[0]!.state === "invading") {
+      const route = gateRoute(draft, group[0]!.sectorId, sectorId);
+      if (!route) continue;
+      // Keep an empty-sector arrival visible as the ten converge at its gate.
+      draft.bugs = draft.bugs.map((bug) => {
+        const index = group.findIndex((arrival) => arrival.id === bug.id);
+        if (index < 0) return bug;
+        const position = !hive && !resident ? {
+          x: route.to.x + Math.cos(index * Math.PI * 2 / group.length) * 24,
+          y: route.to.y + Math.sin(index * Math.PI * 2 / group.length) * 24,
+        } : { ...route.to };
+        return { ...bug, sectorId, position, hiveId: hive?.id ?? bug.hiveId,
+          state: !hive && !resident ? "gathering" : "hovering",
+          targetSectorId: !hive && !resident ? sectorId : null,
+          leg: !hive && !resident ? { from: position, to: { ...route.to } } : null,
+          timer: !hive && !resident ? huntSeconds(24) : 0 };
+      });
+      continue;
+    }
     if (!hive && !resident) {
       draft.hives = [...draft.hives, makeHive(draft.nextHiveId, sectorId, group[0]!.position)];
       draft.nextHiveId += 1;
@@ -154,13 +175,13 @@ function settleArrivals(draft: Draft): void {
 function settleInvasions(draft: Draft): void {
   const sources = [...new Set(draft.hives.filter((hive) => hive.alive).map((hive) => hive.sectorId))];
   for (const sectorId of sources) {
-    const group = draft.bugs.filter((bug) => bug.sectorId === sectorId && bug.state !== "invading").slice(0, 10);
+    const group = draft.bugs.filter((bug) => bug.sectorId === sectorId && bug.state !== "invading" && bug.state !== "gathering").slice(0, 10);
     const routes = invasionRoutes(draft, sectorId);
     if (group.length < 10 || routes.length === 0) continue;
     const pick = nextRandom(draft.enemyRng);
     draft.enemyRng = pick.state;
     const destination = routes[Math.floor(pick.value * routes.length)]!;
-    const seconds = Math.max(...group.map((bug) => huntSeconds(Math.hypot(
+    const seconds = Math.max(LOITER_QUANTUM, ...group.map((bug) => huntSeconds(Math.hypot(
       destination.route.from.x - bug.position.x, destination.route.from.y - bug.position.y,
     ))));
     const ids = new Set(group.map((bug) => bug.id));
@@ -547,7 +568,7 @@ export function nextEnemyEvent(draft: Draft): number {
     if (hive.alive) soonest = Math.min(soonest, hive.spawnTimer);
   }
   for (const bug of draft.bugs) {
-    if (bug.state === "hunting" || bug.state === "invading") soonest = Math.min(soonest, bug.timer);
+    if (bug.state === "hunting" || bug.state === "invading" || bug.state === "gathering") soonest = Math.min(soonest, bug.timer);
   }
   // A reloading gun holds the next event, and a burning-out shot holds one
   // last event to clear it. A loaded gun with nothing in range holds nothing:
