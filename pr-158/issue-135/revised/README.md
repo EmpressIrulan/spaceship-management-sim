@@ -2,7 +2,7 @@
 
 Alice's rule: a hive sends ten only when ten of its own offspring are alive; arrivals stay permanently, count toward the five needed to attack, and do not count toward departure.
 
-Code fix: eee429d. Verified head after merging origin/main: cadcaee.
+Code fix: eee429d. origin/main merged in cadcaee. Final verified head: 4b2e433.
 
 - Scene 1 (run1): the hive hover appears only before departure. Ten migrate at 4.4 seconds, reach the unobscured source gate at 15.9 seconds, and appear in the connected sector at 20.3 seconds. Stills at 6 and 17 seconds were extracted and inspected.
 - Scene 4 (run3): two residents at 0.5 seconds, ten arrivals at the destination gate at 24.5 seconds, twelve spread among the residents at 40.6 seconds. Each marked result is held for four seconds. Before/arrival/after stills are extracted from the WebM; the before and after stills were inspected.
@@ -14,3 +14,5 @@ All three attempts ended with EXIT=0. Playwright core is exactly 1.63.0, using C
 The red regression log precedes the implementation. Both 400-second seed-7 runs (1/60 and 1-second ticks), the three-plus-ten occupied-hive case, and a newly founded hive's own ten-offspring departure pass. Arrivals retain their birth hive identity and loiter around the destination population.
 
 Seven claim/panel tests passed on origin/main but failed with persistent attackers destroying their Builder or ship. Only those unrelated fixtures were isolated from combat; their assertions remain unchanged. Final checks: 417 sim tests, 330 app tests, 2 tools tests, typecheck, build, and pre-PR script pass.
+
+CI's first run timed out in the 24,000-tick test. 4b2e433 aggregates violations from every tick before asserting once, preserving all coverage and the default timeout; the case now runs in about 0.33 seconds locally. The final logs are refreshed for that head.
