@@ -1,6 +1,6 @@
-import { MODULE_SPACING } from "./build-constants";
+import { MODULE_HP, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
-import type { Material, ModuleConstruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
+import type { Material, ModuleConstruction, ModuleDestruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
 import { DOCK_CAPACITY, STORAGE_CAPACITY, homeStation, replaceStation, stationById } from "./state";
 import { availableModuleBuildSites, nearbyClearPosition, stationOwningSite } from "./station-building";
 import { moduleBuildSeconds, moduleCost, moduleSize, samePosition } from "./station-module-geometry";
@@ -99,15 +99,16 @@ export function startNextQueuedModule<T extends QueueState>(station: T): T {
 export function completeBuild(draft: Draft): void {
   if (!draft.construction) return;
   const { timer: _timer, ...module } = draft.construction;
-  draft.modules = [...draft.modules, module];
+  const standing = { ...module, hp: MODULE_HP, maxHp: MODULE_HP };
+  draft.modules = [...draft.modules, standing];
   const nearby = [...draft.modules, ...draft.buildQueue, ...(draft.construction ? [draft.construction] : []),
     ...draft.others.filter((station) => station.sectorId === draft.stationSector)
       .flatMap((station) => [...station.modules, ...station.buildQueue, ...(station.construction ? [station.construction] : []), station.constructionSite])];
   draft.constructionSite = { ...draft.constructionSite, position: nearbyClearPosition(
     draft.constructionSite.position, nearby, draft.asteroids, draft.stationSector,
   ) };
-  if (module.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
-  if (module.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
+  if (standing.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
+  if (standing.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
   draft.construction = null;
 }
 
@@ -144,7 +145,8 @@ export function settleStationBuild(station: Station, context: SettleContext = em
 export function completeStationModule(station: Station, context: SettleContext = emptySettleContext): Station {
   if (!station.construction) return station;
   const { timer: _timer, ...module } = station.construction;
-  const modules = [...station.modules, module];
+  const standing = { ...module, hp: MODULE_HP, maxHp: MODULE_HP };
+  const modules = [...station.modules, standing];
   const obstacles = [...modules, ...station.buildQueue, ...(station.construction ? [station.construction] : []),
     ...context.stations.filter((other) => other.id !== station.id && other.sectorId === station.sectorId)
       .flatMap((other) => [...other.modules, ...other.buildQueue, ...(other.construction ? [other.construction] : []), other.constructionSite])];
@@ -154,8 +156,8 @@ export function completeStationModule(station: Station, context: SettleContext =
     constructionSite: { ...station.constructionSite, position: nearbyClearPosition(
       station.constructionSite.position, obstacles, context.asteroids, station.sectorId,
     ) },
-    dock: module.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + DOCK_CAPACITY } : station.dock,
-    storage: module.type === "Storage" ? { ...station.storage, capacity: station.storage.capacity + STORAGE_CAPACITY } : station.storage,
+    dock: standing.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + DOCK_CAPACITY } : station.dock,
+    storage: standing.type === "Storage" ? { ...station.storage, capacity: station.storage.capacity + STORAGE_CAPACITY } : station.storage,
     construction: null,
   };
 }
@@ -237,6 +239,96 @@ export function queuedDependents(station: StationGraph, index: number): QueuedMo
 export function constructionAttached(station: StationGraph): boolean {
   if (!station.construction) return false;
   return attachedInOrder(standingPositions(station), [station.construction.position]).length > 0;
+}
+
+function moduleHp(module: Station["modules"][number]): number {
+  return module.hp ?? module.maxHp ?? MODULE_HP;
+}
+
+function connectedToDock(modules: Station["modules"]): Set<number> {
+  const connected = new Set<number>(modules.flatMap((module, index) => module.type === "Dock" ? [index] : []));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let index = 0; index < modules.length; index += 1) {
+      if (connected.has(index)) continue;
+      if (modules.some((module, other) => connected.has(other) && touching(module.position, modules[index]!.position))) {
+        connected.add(index);
+        changed = true;
+      }
+    }
+  }
+  return connected;
+}
+
+export function damageStationModule(station: Station, position: Vec, damage: number, time: number): {
+  station: Station;
+  destructions: ModuleDestruction[];
+} {
+  const targetIndex = station.modules.findIndex((module) => samePosition(module.position, position));
+  if (targetIndex < 0) return { station, destructions: [] };
+  const target = station.modules[targetIndex]!;
+  const hp = Math.max(0, moduleHp(target) - damage);
+  if (hp > 0) {
+    return {
+      station: { ...station, modules: station.modules.map((module, index) => index === targetIndex ? { ...module, hp, maxHp: module.maxHp ?? MODULE_HP } : module) },
+      destructions: [],
+    };
+  }
+
+  const standing = station.modules.filter((_, index) => index !== targetIndex);
+  const connected = connectedToDock(standing);
+  const removed = standing.filter((_, index) => !connected.has(index));
+  const destroyed = [target, ...removed];
+  const destroyedPositions = new Set(destroyed.map((module) => `${module.position.x},${module.position.y}`));
+  const modules = station.modules.filter((module) => !destroyedPositions.has(`${module.position.x},${module.position.y}`));
+  const ghosts = destroyed.map(({ hp: _hp, maxHp: _maxHp, ...module }) => module);
+  const destroyedIndices = new Set(station.modules.flatMap((module, index) => destroyedPositions.has(`${module.position.x},${module.position.y}`) ? [index] : []));
+  const shipBuilds = station.shipBuilds
+    .filter((job) => !destroyedIndices.has(job.builder))
+    .map((job) => ({ ...job, builder: job.builder - [...destroyedIndices].filter((index) => index < job.builder).length }));
+  const storageCount = destroyed.filter((module) => module.type === "Storage").length;
+  const storageCapacity = Math.max(0, station.storage.capacity - storageCount * STORAGE_CAPACITY);
+  let inventory = station.inventory;
+  if (storageCount > 0) {
+    const standingStorages = station.modules.filter(module => module.type === "Storage").length;
+    const stock = MATERIALS.reduce((total, material) => total + station.inventory[material], 0);
+    const retainedShare = Math.min((standingStorages - storageCount) / standingStorages, stock > 0 ? storageCapacity / stock : 1);
+    inventory = { Metal: station.inventory.Metal * retainedShare, Ice: station.inventory.Ice * retainedShare };
+  }
+  const destructions = destroyed.map((module) => ({ time, stationId: station.id, position: { ...module.position } }));
+  let next = { ...station, modules };
+  const pending = [...station.buildQueue, ...ghosts];
+  if (next.construction && !constructionAttached(next)) {
+    const { timer: _timer, ...interrupted } = next.construction;
+    pending.push(interrupted);
+    next = refundStationModule(next);
+  }
+  // Keep independent orders ahead of replacements, but move cut-off orders
+  // behind their supports. An emptied station must rebuild its Dock first.
+  const anchors = [...modules, ...(next.construction ? [next.construction] : [])].map(module => module.position);
+  const buildQueue: QueuedModuleBuild[] = [];
+  while (pending.length > 0) {
+    const index = pending.findIndex(module => anchors.length === 0
+      ? module.type === "Dock"
+      : anchors.some(anchor => touching(anchor, module.position)));
+    if (index < 0) throw new Error("Destroyed station has an unattached build order");
+    const module = pending.splice(index, 1)[0]!;
+    buildQueue.push(module);
+    anchors.push(module.position);
+  }
+  return {
+    station: {
+      ...next,
+      modules,
+      buildQueue,
+      shipBuilds,
+      inventory,
+      storage: { ...station.storage, capacity: storageCapacity },
+      dock: { ...station.dock, capacity: Math.max(0, station.dock.capacity - destroyed.filter((module) => module.type === "Dock").length * DOCK_CAPACITY) },
+    },
+    destructions,
+  };
 }
 
 export function cancelQueuedModuleBuild(state: SimState, target: Vec | number, stationId = 0): SimState {

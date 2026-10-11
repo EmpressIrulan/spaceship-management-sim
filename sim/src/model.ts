@@ -11,7 +11,7 @@ export type AsteroidField =
   | (FieldBase & { kind: "belt"; from: number; sweep: number; width: number });
 
 export type ModuleType = (typeof MODULE_TYPES)[number];
-export const MODULE_TYPES = ["Dock", "Storage", "Builder", "Claim"] as const;
+export const MODULE_TYPES = ["Dock", "Storage", "Builder", "Turret", "Claim"] as const;
 
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and draws, but does nothing.
 // Gun shoots bugs and the hive on the ship's own; see enemies.ts.
@@ -158,6 +158,19 @@ export interface StationModule {
   type: ModuleType;
   position: Vec;
   size: Size;
+  // Missing on older fixtures means a fresh module at full placeholder HP.
+  hp?: number;
+  maxHp?: number;
+  // Turret timers and its shot in flight. These are absent on other module types.
+  turretTimer?: number;
+  turretShot?: GunShot | null;
+  turretNoMetal?: boolean;
+}
+
+export interface ModuleDestruction {
+  time: number;
+  stationId: number;
+  position: Vec;
 }
 
 export interface ModuleConstruction extends StationModule {
@@ -212,6 +225,7 @@ export interface Bug {
   state: BugState;
   // The ship this bug flies at and bites, when it hunts. Null while hovering.
   targetShipId: number | null;
+  targetModule?: { stationId: number; position: Vec } | null;
   leg: Leg | null;
   // Seconds left in the current leg. Unused while holding still.
   timer: number;
@@ -261,6 +275,8 @@ export interface SimState {
   // means no drops.
   drops?: Drop[];
   nextDropId?: number;
+  // Modules destroyed during the run, for the renderer's explosion effect.
+  moduleDestructions?: ModuleDestruction[];
   // The sector of each Claim module that stood during the last tick, one entry
   // per Claim. The app asks for a name for the first.
   finishedClaims: number[];

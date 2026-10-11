@@ -1,4 +1,4 @@
-import { GATE_COST, MATERIALS, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipHp, shipShield, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
+import { GATE_COST, MATERIALS, TURRET_METAL_PER_SHOT, hangarCapacity, hangarContents, hangarIncoming, hangarReserved, holdsBerth, moduleCost, shipHp, shipShield, shipStats, stationById, stationIncome, type Ship, type SimState } from "sim";
 import type { Hovered } from "./camera";
 import { shipStatus } from "./ships";
 
@@ -89,6 +89,11 @@ function dockBox(state: SimState, stationId = 0): InfoBox {
   return { title: station.name, line: `Dock ${area}/${station.dock.capacity}\n${inside.length} ships inside` };
 }
 
+function moduleHealth(module: { hp?: number; maxHp?: number }): string {
+  const figure = (value: number) => Number(value.toFixed(1));
+  return `HP ${figure(module.hp ?? 40)}/${figure(module.maxHp ?? 40)}`;
+}
+
 // Null closes the box, including when the hovered asteroid has just gone.
 export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | null {
   if (!hovered) return null;
@@ -128,11 +133,17 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const station = state.stations.find((candidate) => candidate.id === hovered.stationId);
     const module = station?.modules[hovered.index];
     if (!module) return null;
-    if (module.type === "Builder") {
-      return { title: "Builder", line: "Click to open Builder" };
+    if (module.type === "Builder") return { title: "Builder", line: `Click to open Builder\n${moduleHealth(module)}` };
+    if (module.type === "Dock") {
+      const box = dockBox(state, hovered.stationId);
+      return { ...box, line: `${box.line}\n${moduleHealth(module)}` };
     }
-    if (module.type === "Dock") return dockBox(state, hovered.stationId);
-    return storageBox(state, hovered.stationId);
+    if (module.type === "Storage") {
+      const box = storageBox(state, hovered.stationId);
+      return { ...box, line: `${box.line}\n${moduleHealth(module)}` };
+    }
+    if (module.type === "Turret" && station!.inventory.Metal < TURRET_METAL_PER_SHOT) return { title: "Turret", line: `Turret: no Metal\n${moduleHealth(module)}` };
+    return { title: module.type, line: moduleHealth(module) };
   }
   if (hovered.kind === "ship") {
     const ship = state.ships[hovered.index];

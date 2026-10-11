@@ -12,7 +12,8 @@ function grownStation(sectorId: number): { state: SimState; id: number } {
   const placed = placeStation(createInitialState(7), sectorId, { x: 300, y: 300 });
   const id = placed.nextStationId - 1;
   const station = stationById(placed, id)!;
-  const state = { ...placed, stations: placed.stations.map((candidate) => (candidate.id === id
+  // These tests exercise claiming, not attacks interrupting its 300-second build.
+  const state = { ...placed, hives: [], stations: placed.stations.map((candidate) => (candidate.id === id
     ? { ...station, founding: false, buildQueue: [], modules: [{ type: "Dock" as const, position: station.dock.position, size: station.dock.size }] }
     : candidate)) };
   return { state, id };

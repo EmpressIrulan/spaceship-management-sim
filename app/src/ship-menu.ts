@@ -1,4 +1,4 @@
-import { SHIP_MODULES, queueShipBuild, cancelShipBuild, type SimState, type Vec } from "sim";
+import { SHIP_MODULES, queueShipBuild, cancelShipBuild, stationById, type SimState, type Vec } from "sim";
 import { panBy, wheelZoomFactor, type Viewport } from "./camera";
 import { menuButton as button, renderBlueprints } from "./menu-rendering";
 import { slotColor } from "./ships";
@@ -18,6 +18,7 @@ import {
   type ShipDraft,
   buildCountFor,
   changeBuildCount,
+  builderIndexAt,
 } from "./shipyard";
 import {
   deleteBlueprint,
@@ -161,7 +162,10 @@ export function installShipMenu(
   }
 
   function openShipMenu(builder: number, stationId = 0): void {
+    const module = stationById(getState(), stationId)?.modules[builder];
+    if (module?.type !== "Builder") return;
     ui.shipMenuBuilder = builder;
+    ui.shipMenuPosition = { ...module.position };
     ui.shipMenuStation = stationId;
     ui.shipMenuCounts.clear();
     ui.draft = emptyDraft();
@@ -172,6 +176,7 @@ export function installShipMenu(
 
   function closeShipMenu(): void {
     ui.shipMenuBuilder = null;
+    ui.shipMenuPosition = null;
     shipMenu.hidden = true;
     ui.stroking = null;
     ui.paintPan = null;
@@ -183,6 +188,11 @@ export function installShipMenu(
       "button",
     );
     if (!target || target.disabled || ui.shipMenuBuilder === null) return;
+    ui.shipMenuBuilder = builderIndexAt(getState(), ui.shipMenuStation, ui.shipMenuPosition);
+    if (ui.shipMenuBuilder === null) {
+      closeShipMenu();
+      return;
+    }
     const data = target.dataset;
     if (data.module)
       ui.draft = withModule(

@@ -97,7 +97,7 @@ describe("the + menu", () => {
 
     expect(items.map(({ disabled, title }) => ({ disabled, title })))
       .toEqual([
-        ...Array(3).fill({ disabled: false, title: "Needs 15 more Ice" }),
+        ...Array(4).fill({ disabled: false, title: "Needs 15 more Ice" }),
         { disabled: false, title: "Needs 970 more Metal and 990 more Ice" },
       ]);
   });
@@ -111,6 +111,7 @@ describe("the + menu", () => {
       { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
+      { type: "Turret", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Claim", cost: "1000 Metal, 1000 Ice", disabled: false, title: "Needs 975 more Metal and 975 more Ice" },
     ]);
   });
@@ -133,6 +134,7 @@ describe("the + menu", () => {
       { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
+      { type: "Turret", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Claim", cost: "1000 Metal, 1000 Ice", disabled: false, title: "Needs 975 more Metal and 975 more Ice" },
     ]);
     expect(buildMenuItems(placed, station.id)[0]?.title).toBe("Needs 25 more Metal and 25 more Ice");

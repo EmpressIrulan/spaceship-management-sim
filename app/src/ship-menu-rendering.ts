@@ -1,9 +1,18 @@
 import { validDesign, type SimState } from "sim";
-import { buildCountFor, designOf, shipMenuView, shipQueueView } from "./shipyard";
+import { builderIndexAt, buildCountFor, designOf, shipMenuView, shipQueueView } from "./shipyard";
 import type { UiState } from "./ui-state";
 
 export function syncShipMenuStats(ui: UiState, getState: () => SimState, shipMenu: HTMLElement): void {
   if (ui.shipMenuBuilder === null) return;
+  ui.shipMenuBuilder = builderIndexAt(getState(), ui.shipMenuStation, ui.shipMenuPosition);
+  if (ui.shipMenuBuilder === null) {
+    shipMenu.hidden = true;
+    ui.shipMenuPosition = null;
+    ui.stroking = null;
+    ui.paintPan = null;
+    ui.partHover = null;
+    return;
+  }
   const view = shipMenuView(getState(), ui.shipMenuBuilder, ui.draft, ui.shipMenuStation);
   const stats = shipMenu.querySelector<HTMLElement>(".stats")!;
   const text = `Pixels ${view.pixels}\nSpeed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;

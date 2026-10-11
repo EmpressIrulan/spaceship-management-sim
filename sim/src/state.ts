@@ -1,6 +1,6 @@
 import {
   ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR,
-  MODULE_COST, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
+  MODULE_COST, MODULE_HP, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
 } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import { freeBerth, berthPoint, DOCK_AREA } from "./dock-packing";
@@ -20,10 +20,12 @@ export {
   BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP,
   BUG_SPAWN_SECONDS, BUG_SIZE, BUG_SPEED_FACTOR, DROP_SIZE, GUN_DAMAGE, GUN_RANGE,
   GUN_SECONDS, GUN_SHOT_SECONDS, HIVE_GATE_FRACTION, HIVE_HP,
-  HIVE_SECTOR, HIVE_SIZE,
+  HIVE_SECTOR, HIVE_SIZE, TURRET_DAMAGE, TURRET_METAL_PER_SHOT, TURRET_RANGE, TURRET_SECONDS,
+  TURRET_SHOT_SECONDS, TURRET_SIZE,
 } from "./build-constants";
 export { MATERIALS, MODULE_TYPES } from "./model";
 export { MODULE_SPACING } from "./build-constants";
+export { MODULE_HP } from "./build-constants";
 export function homeStation(state: Pick<SimState, "stations">): Station {
   const station = state.stations[0];
   if (!station) throw new Error("Simulation state has no Home station");
@@ -404,8 +406,8 @@ export function createInitialState(seed: number): SimState {
       storageLimits: { Metal: null, Ice: null },
       deliveries: [],
       modules: [
-        { type: "Dock", position: dockPosition, size: DOCK_SIZE },
-        { type: "Storage", position: storagePosition, size: STORAGE_SIZE },
+        { type: "Dock", position: dockPosition, size: DOCK_SIZE, hp: MODULE_HP, maxHp: MODULE_HP },
+        { type: "Storage", position: storagePosition, size: STORAGE_SIZE, hp: MODULE_HP, maxHp: MODULE_HP },
       ],
       construction: null,
       buildQueue: [],
@@ -419,6 +421,7 @@ export function createInitialState(seed: number): SimState {
     nextBugId: 0,
     drops: [],
     nextDropId: 0,
+    moduleDestructions: [],
     finishedClaims: [],
   };
 }

@@ -828,6 +828,7 @@ function simulate(state: SimState, dt: number): SimState {
     nextBugId: state.nextBugId ?? 0,
     drops: state.drops ?? [],
     nextDropId: state.nextDropId ?? 0,
+    moduleDestructions: [...(state.moduleDestructions ?? [])],
     modules: home.modules,
     construction: home.construction,
     buildQueue: home.buildQueue,
@@ -888,6 +889,7 @@ function simulate(state: SimState, dt: number): SimState {
     nextBugId: draft.nextBugId,
     drops: draft.drops,
     nextDropId: draft.nextDropId,
+    moduleDestructions: draft.moduleDestructions,
     gateProjects: draft.gateProjects,
   };
 }
