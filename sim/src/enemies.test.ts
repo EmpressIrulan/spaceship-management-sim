@@ -223,6 +223,8 @@ describe("hive", () => {
   it.each([1 / 60, 1])("keeps joined groups resident through 400 seconds at dt %s", (dt) => {
     let state = createInitialState(7);
     const joined = new Set<number>();
+    const bouncing = new Set<number>();
+    let mostWaitingOffspring = 0;
     let hpAt250 = 0;
     let bittenAfter250 = false;
     for (let step = 0; step < Math.round(400 / dt); step += 1) {
@@ -231,17 +233,19 @@ describe("hive", () => {
       for (const bug of state.bugs!) {
         const before = previous.bugs!.find((candidate) => candidate.id === bug.id);
         if (before?.state === "invading" && bug.state !== "invading" && bug.state !== "gathering") joined.add(bug.id);
-        if (joined.has(bug.id)) expect(bug.state).not.toBe("invading");
+        if (joined.has(bug.id) && bug.state === "invading") bouncing.add(bug.id);
       }
       const hp = homeStation(state).modules.reduce((total, module) => total + (module.hp ?? MODULE_HP), 0);
       if (step < Math.round(250 / dt)) hpAt250 = hp;
       else if (hp < hpAt250) bittenAfter250 = true;
       for (const hive of state.hives!.filter((hive) => hive.alive)) {
-        expect(state.bugs!.filter((bug) => bug.sectorId === hive.sectorId && bug.hiveId === hive.id
-          && bug.state !== "invading" && bug.state !== "gathering").length).toBeLessThan(10);
+        mostWaitingOffspring = Math.max(mostWaitingOffspring, state.bugs!.filter((bug) => bug.sectorId === hive.sectorId && bug.hiveId === hive.id
+          && bug.state !== "invading" && bug.state !== "gathering").length);
       }
     }
     expect(joined.size).toBeGreaterThan(0);
+    expect([...bouncing]).toEqual([]);
+    expect(mostWaitingOffspring).toBeLessThan(10);
     expect(bittenAfter250).toBe(true);
   });
 
