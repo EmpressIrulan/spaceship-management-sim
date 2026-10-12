@@ -18,9 +18,10 @@ import { cargoGauge } from "./labels";
 import { slotColor } from "./ships";
 import { cancelDependentsAt } from "./building";
 import { stationConnectors } from "./station-appearance";
-import { createStationDrawing, STATION_DETAIL_MIN_PX } from "./station-rendering";
+import { createStationDrawing } from "./station-rendering";
 import { createShipDrawing } from "./ship-rendering";
 import { createOverlayDrawing } from "./overlay-rendering";
+import { stationMarkerVisible } from "./station-marker";
 import type { UiState } from "./ui-state";
 
 const slotKey = ({ x, y }: Vec): string => `${x},${y}`;
@@ -114,9 +115,7 @@ export function createWorldDrawing(
     // ghosts, its build and its site marker exactly the way Home does.
     for (const station of state.stations) {
       if (station.sectorId !== ui.currentSector) continue;
-      const stationIsTooSmall = station.modules.length > 0 && station.modules.every((module) =>
-        Math.min(module.size.width, module.size.height) * ui.camera.zoom < STATION_DETAIL_MIN_PX,
-      );
+      const stationIsTooSmall = stationMarkerVisible(station, ui.camera.zoom);
       if (stationIsTooSmall) {
         stationDrawing.drawStationMarker(station);
         continue;

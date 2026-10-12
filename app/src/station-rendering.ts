@@ -9,6 +9,7 @@ import {
 import { worldToScreen } from "./camera";
 import { moduleAppearance } from "./station-appearance";
 import type { UiState } from "./ui-state";
+import { STATION_MARKER_DETAIL_MIN_PX } from "./station-marker";
 
 export interface StationDrawing {
   drawStationConnector: (from: Vec, to: Vec) => void;
@@ -20,7 +21,7 @@ export interface StationDrawing {
 
 // Keep a station's component silhouette until its smallest module dimension
 // falls below a readable screen-space width.
-export const STATION_DETAIL_MIN_PX = 8;
+export const STATION_DETAIL_MIN_PX = STATION_MARKER_DETAIL_MIN_PX;
 export function createStationDrawing(
   ui: UiState,
   getState: () => SimState,
