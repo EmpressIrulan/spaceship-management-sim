@@ -398,6 +398,7 @@ export function createInitialState(seed: number): SimState {
       id: 0,
       name: "Home",
       founding: false,
+      builtAt: 0,
       sectorId: HOME_SECTOR,
       dock: { position: dockPosition, size: DOCK_SIZE, capacity: DOCK_CAPACITY },
       storage: { position: storagePosition, size: STORAGE_SIZE, capacity: STORAGE_CAPACITY },
@@ -561,8 +562,13 @@ export const INCOME_WINDOW_SECONDS = 60 * 60;
 // ore on builds or gates does not lower it.
 export function stationIncome(state: SimState, stationId = 0): Record<Material, number> {
   const income = Object.fromEntries(MATERIALS.map((material) => [material, 0])) as Record<Material, number>;
-  for (const delivery of stationById(state, stationId)?.deliveries ?? []) {
+  const station = stationById(state, stationId);
+  const elapsedSeconds = Math.min(INCOME_WINDOW_SECONDS, Math.max(0, state.time - (station?.builtAt ?? 0)));
+  if (elapsedSeconds === 0) return income;
+  for (const delivery of station?.deliveries ?? []) {
     if (delivery.at > state.time - INCOME_WINDOW_SECONDS) income[delivery.material] += delivery.amount / 60;
   }
+  const minutes = elapsedSeconds / 60;
+  for (const material of MATERIALS) income[material] *= 60 / minutes;
   return income;
 }

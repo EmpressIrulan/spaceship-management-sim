@@ -118,6 +118,8 @@ export interface Station {
   // True while the station is still building itself up the way the game
   // starts: a Dock, then a Storage, from whatever ships bring to its site.
   founding: boolean;
+  // Game time when this station was founded. Missing on older states means 0.
+  builtAt?: number;
   sectorId: number;
   // The Dock is the station's home point: the position ships route to and
   // from, and the one the asteroid band is measured out from.

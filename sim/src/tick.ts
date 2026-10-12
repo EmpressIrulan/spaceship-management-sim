@@ -65,7 +65,7 @@ function routeOf(ship: Ship, dock: Vec): Route | null {
   return { dock, site, length, factor, legSeconds: travelSeconds(length, factor) };
 }
 
-const stationKeys = ["deliveries", "dock", "stationSector", "storageCapacity", "storageLimits", "inventory", "constructionSite", "modules", "construction", "buildQueue", "shipBuilds", "dockCapacity"] as const;
+const stationKeys = ["deliveries", "stationBuiltAt", "dock", "stationSector", "storageCapacity", "storageLimits", "inventory", "constructionSite", "modules", "construction", "buildQueue", "shipBuilds", "dockCapacity"] as const;
 type StationKey = typeof stationKeys[number];
 type StationContext = Pick<Draft, StationKey>;
 
@@ -88,7 +88,7 @@ function saveStationContext(draft: Draft, stationId: number): void {
     return;
   }
   draft.others = draft.others.map((station) => station.id === stationId ? {
-    ...station, deliveries: context.deliveries,
+    ...station, deliveries: context.deliveries, builtAt: context.stationBuiltAt,
     dock: { ...station.dock, capacity: context.dockCapacity }, sectorId: context.stationSector,
     storage: { ...station.storage, capacity: context.storageCapacity }, storageLimits: context.storageLimits,
     inventory: context.inventory, constructionSite: context.constructionSite, modules: context.modules,
@@ -101,7 +101,7 @@ function stationContext(draft: Draft, stationId: number): StationContext | null 
   const station = draft.others.find((candidate) => candidate.id === stationId);
   if (!station) return null;
   return {
-    deliveries: station!.deliveries, dock: station!.dock.position, stationSector: station!.sectorId,
+    deliveries: station!.deliveries, stationBuiltAt: station!.builtAt ?? 0, dock: station!.dock.position, stationSector: station!.sectorId,
     storageCapacity: station!.storage.capacity, storageLimits: station!.storageLimits,
     inventory: station!.inventory, constructionSite: station!.constructionSite, modules: station!.modules,
     construction: station!.construction, buildQueue: station!.buildQueue, shipBuilds: station!.shipBuilds,
@@ -819,6 +819,7 @@ function simulate(state: SimState, dt: number): SimState {
     activeStationId: primaryStationId,
     primaryStationId,
     founding: home.founding,
+    stationBuiltAt: home.builtAt ?? 0,
     deliveries: home.deliveries,
     deliveriesCopied: false,
     rng: state.rng,
@@ -884,6 +885,7 @@ function simulate(state: SimState, dt: number): SimState {
     stations: state.stations.map((station) => station.id === primaryStationId ? {
       ...home,
       founding: draft.founding,
+      builtAt: draft.stationBuiltAt,
       dock: { ...home.dock, capacity: draft.dockCapacity },
       storage: { ...home.storage, capacity: draft.storageCapacity },
       inventory: draft.inventory,

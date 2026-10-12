@@ -300,7 +300,7 @@ function biteModule(draft: Draft, stationId: number, module: StationModule): voi
 function activeStation(draft: Draft): Station {
   const size = { width: 0, height: 0 };
   return {
-    id: draft.activeStationId, name: "", founding: draft.founding, sectorId: draft.stationSector,
+    id: draft.activeStationId, name: "", founding: draft.founding, builtAt: draft.stationBuiltAt, sectorId: draft.stationSector,
     dock: { position: draft.dock, size, capacity: draft.dockCapacity },
     storage: { position: draft.dock, size, capacity: draft.storageCapacity },
     inventory: draft.inventory, constructionSite: draft.constructionSite, storageLimits: draft.storageLimits,
