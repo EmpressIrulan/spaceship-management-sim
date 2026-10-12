@@ -61,8 +61,9 @@ export const GUN_RANGE = 80;
 export const GUN_DAMAGE = 3;
 export const GUN_SECONDS = 2;
 // A dying hive leaves one drop of queen larvae, a shot bug one of bug juice,
-// floating where the thing died. Nothing collects them yet.
-export const DROP_SIZE: Size = { width: 4, height: 4 };
+// floating where the thing died, at a third of its former size so it stays
+// smaller than the ship that would collect it. Nothing collects them yet.
+export const DROP_SIZE: Size = { width: 4 * SIZE_MULTIPLIER, height: 4 * SIZE_MULTIPLIER };
 // How long a fired shot stays on screen, in game seconds, for the renderer to
 // draw. A dyadic fraction, so it burns out exactly on a tick boundary.
 export const GUN_SHOT_SECONDS = 1 / 2;
