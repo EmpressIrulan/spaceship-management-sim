@@ -229,7 +229,8 @@ try {
     const factor = 38 / duration;
     await rename(join(out, "issue-124.webm"), join(out, "raw.webm"));
     await run("/usr/bin/ffmpeg", ["-loglevel", "error", "-y", "-i", join(out, "raw.webm"),
-      "-vf", `setpts=${factor}*PTS`, "-an", "-c:v", "libvpx-vp9", "-deadline", "realtime", join(out, "issue-124.webm")]);
+      "-vf", `setpts=${factor}*PTS`, "-an", "-c:v", "libvpx", "-deadline", "realtime",
+      "-cpu-used", "8", "-threads", "2", join(out, "issue-124.webm")]);
     for (const moment of moments) { moment.rawSeconds = moment.seconds; moment.seconds *= factor; }
     console.log(`Condensed ${duration.toFixed(1)} s capture to 38 s; no scenes removed`);
   }
