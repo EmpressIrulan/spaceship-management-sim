@@ -20,3 +20,16 @@ describe("packed ships", () => {
     expect(ctx.strokeRect).not.toHaveBeenCalled();
   });
 });
+
+describe("ship block outlines", () => {
+  // Occupied-cell geometry and zoom coverage live in block-outline.test.ts.
+  it("does not outline blocks unless requested", () => {
+    const ui = createUiState([]);
+    ui.camera = { center: { x: 0, y: 0 }, zoom: 1 };
+    ui.viewport = { width: 800, height: 600 };
+    const ctx = { drawImage: vi.fn(), strokeRect: vi.fn(), save: vi.fn(), restore: vi.fn() };
+    const drawing = createShipDrawing(ui, ctx as unknown as CanvasRenderingContext2D);
+    drawing.drawShip(createInitialState(7).ships[0]!);
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+});

@@ -2,6 +2,7 @@ import type { SimState, Vec } from "sim";
 import { screenToWorld, worldToScreen, type Viewport } from "./camera";
 import { cellAt, designPartAt, draftPartAt, placedDesign } from "./shipyard";
 import { shipSprite } from "./ships";
+import { drawBlockOutline } from "./ship-rendering";
 import type { UiState } from "./ui-state";
 
 export interface PaintRenderingElements {
@@ -39,6 +40,7 @@ export function createPaintRendering(
     if (design.width > 0) {
       const at = worldToScreen(ui.paintView, vp, origin);
       g.drawImage(shipSprite(design), at.x, at.y, design.width * ui.paintView.zoom, design.height * ui.paintView.zoom);
+      drawBlockOutline(g, design, at.x, at.y, design.width * ui.paintView.zoom, design.height * ui.paintView.zoom);
     }
     if (ui.paintView.zoom >= GRID_ZOOM) {
       // Screen pixels per canvas pixel above which the pixel grid is drawn.
