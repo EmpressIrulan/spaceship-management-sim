@@ -15,7 +15,7 @@ import type { UiState } from "./ui-state";
 
 const GAUGE = { width: 36, height: 12, gap: 4 };
 export interface ShipDrawing {
-  drawShip: (ship: Ship) => void;
+  drawShip: (ship: Ship, outlineBlocks?: boolean) => void;
   drawSelectionRing: (center: Vec, size: Size) => void;
   drawShieldRing: (center: Vec, size: Size, progress: number) => void;
   drawGauge: (position: Vec, gauge: Gauge, size: Size) => void;
@@ -26,7 +26,7 @@ export function createShipDrawing(
   ctx: CanvasRenderingContext2D,
 ): ShipDrawing {
   // Edges are rounded so the image lands on whole screen pixels at any zoom.
-  function drawShip(ship: Ship): void {
+  function drawShip(ship: Ship, outlineBlocks = false): void {
     const size = shipSize(ship.design);
     const a = worldToScreen(ui.camera, ui.viewport, {
       x: ship.position.x - size.width / 2,
@@ -47,6 +47,7 @@ export function createShipDrawing(
       width,
       height,
     );
+    if (outlineBlocks) drawBlockOutline(ctx, ship.design, x, y, width, height);
     // Packed ships can touch edge to edge. An inset outline separates their
     // hulls without adding gaps, fixed pads, or an occupancy bar.
     if (holdsBerth(ship) && ship.berth !== null && ship.state !== "berthing") {
@@ -137,4 +138,31 @@ export function createShipDrawing(
   }
 
   return { drawShip, drawSelectionRing, drawShieldRing, drawGauge, drawLaser };
+}
+
+// Draw cell boundaries in screen space, keeping the one-pixel lines legible
+// across zoom levels and leaving empty design slots transparent.
+export function drawBlockOutline(
+  ctx: CanvasRenderingContext2D,
+  design: Ship["design"],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  ctx.save();
+  ctx.strokeStyle = "#0f172a";
+  ctx.globalAlpha = 0.45;
+  ctx.lineWidth = 1;
+  design.slots.forEach((slot, index) => {
+    if (slot === null) return;
+    const column = index % design.width;
+    const row = Math.floor(index / design.width);
+    const left = Math.round(x + (column * width) / design.width);
+    const top = Math.round(y + (row * height) / design.height);
+    const right = Math.round(x + ((column + 1) * width) / design.width);
+    const bottom = Math.round(y + ((row + 1) * height) / design.height);
+    ctx.strokeRect(left + 0.5, top + 0.5, Math.max(0, right - left - 1), Math.max(0, bottom - top - 1));
+  });
+  ctx.restore();
 }

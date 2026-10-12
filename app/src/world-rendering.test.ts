@@ -145,6 +145,25 @@ function shotState(ship: Ship, bugs: Bug[] = []): SimState {
 
 const SHOT = { from: { x: 0, y: 0 }, to: { x: 30, y: 30 }, target: { kind: "bug" as const, id: 1 }, timer: 0.2 };
 
+describe("the world outlines only a single selected ship", () => {
+  it("draws occupied block outlines for one selected ship, but not for multiple selections", () => {
+    const uiState = ui();
+    const ctx = mockCtx();
+    const base = createInitialState(7).ships[0]!;
+    const ship = { ...base, id: 9, position: { x: 0, y: 0 }, design: { width: 2, height: 1, slots: ["Engine", null] } } as Ship;
+    uiState.selectedShips = [ship.id];
+    const drawing = createWorldDrawing(uiState, () => shotState(ship), ctx, vi.fn(), vi.fn());
+
+    drawing.draw(0);
+
+    expect(ctx.strokeRect).toHaveBeenCalledTimes(1);
+    uiState.selectedShips = [ship.id, 10];
+    (ctx.strokeRect as unknown as { mockClear: () => void }).mockClear();
+    drawing.draw(1);
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+});
+
 describe("the world draws gun shots", () => {
   it("draws a projectile between its ship and aim, without a line", () => {
     const uiState = ui();
