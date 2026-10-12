@@ -1,9 +1,9 @@
-import { BUG_SIZE, DROP_SIZE, HIVE_SIZE, shipSize, type SimState, type Size, type Vec } from "sim";
+import { BUG_SIZE, DROP_SIZE, GATE_DISTANCE, HIVE_SIZE, SIZE_MULTIPLIER, shipSize, type SimState, type Size, type Vec } from "sim";
 
-// Placeholder limits. Revisit when sectors get bigger than one station and
-// a handful of asteroids and the client wants to see more of them at once.
-export const MIN_ZOOM = 0.2;
-export const MAX_ZOOM = 8;
+// Preserve the former full-zoom body size and a 480px system diameter when
+// either shared tuning number changes. The starting view matches scale 1.
+export const MIN_ZOOM = 240 / GATE_DISTANCE;
+export const MAX_ZOOM = 8 / SIZE_MULTIPLIER;
 const WHEEL_ZOOM_STEP = 1.1;
 // Screen pixels kept clear around the sector in the starting view.
 const FIT_MARGIN_PX = 40;
@@ -84,6 +84,18 @@ export function fitCamera(
   };
 }
 
+// Invert the body scale so Home preserves its former on-screen footprint.
+export function homeCamera(bodies: { position: Vec; size: Size }[]): Camera {
+  const left = Math.min(...bodies.map((body) => body.position.x - body.size.width / 2));
+  const right = Math.max(...bodies.map((body) => body.position.x + body.size.width / 2));
+  const top = Math.min(...bodies.map((body) => body.position.y - body.size.height / 2));
+  const bottom = Math.max(...bodies.map((body) => body.position.y + body.size.height / 2));
+  return {
+    center: { x: (left + right) / 2, y: (top + bottom) / 2 },
+    zoom: 1 / SIZE_MULTIPLIER,
+  };
+}
+
 export function panBy(camera: Camera, dxScreen: number, dyScreen: number): Camera {
   return {
     ...camera,
@@ -133,7 +145,8 @@ export function hoveredBody(
 ): Hovered | null {
   if (pointer === null) return null;
   const world = screenToWorld(camera, viewport, pointer);
-  const floor = MIN_HOVER_PX / camera.zoom;
+  // Keep the world-space pick radius from ballooning as far zoom-out grows.
+  const floor = MIN_HOVER_PX / Math.max(camera.zoom, MIN_ZOOM);
   const shipFloor = MIN_SHIP_HOVER_PX / camera.zoom;
   const overShip = (index: number): boolean => {
     const ship = state.ships[index]!;
@@ -175,9 +188,7 @@ export function hoveredBody(
   // A ship physically at a station or gate remains individually selectable,
   // including during its transition into or out of the structure.
   if (includeShips) {
-    const atStation = closest(ships.filter(({ index }) => atStationOrGate(index) && overShip(index)));
-    if (atStation) return atStation;
-    const atRest = closest(ships.filter(({ index }) => parked(index) && overShip(index)));
+    const atRest = closest(ships.filter(({ index }) => (atStationOrGate(index) || parked(index)) && overShip(index)));
     if (atRest) return atRest;
   }
   for (const project of state.gateProjects) {

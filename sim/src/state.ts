@@ -1,6 +1,6 @@
 import {
   ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR,
-  MODULE_COST, MODULE_HP, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
+  MODULE_COST, MODULE_HP, MODULE_SPACING, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
 } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import { freeBerth, berthPoint, DOCK_AREA } from "./dock-packing";
@@ -14,7 +14,8 @@ import type {
 } from "./model";
 export type * from "./model";
 export { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MODULE_COST, BUILDER_SIZE, STORAGE_SIZE,
-  SHIELD_CAPACITY_PER_PIXEL, SHIELD_RECHARGE_PER_PIXEL, SHIELD_RECHARGE_DELAY } from "./build-constants";
+  SHIELD_CAPACITY_PER_PIXEL, SHIELD_RECHARGE_PER_PIXEL, SHIELD_RECHARGE_DELAY,
+  SIZE_MULTIPLIER, DISTANCE_MULTIPLIER } from "./build-constants";
 export {
   BUG_ATTACK_THRESHOLD, BUG_BITE_DAMAGE, BUG_BITE_RANGE, BUG_BITE_SECONDS,
   BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP,
@@ -44,6 +45,7 @@ export function replaceHomeStation<T extends Pick<SimState, "stations">>(state: 
   return { ...state, stations: [station, ...state.stations.slice(1)] };
 }
 import { distance, makeFields, placeInField, rocksInField } from "./fields";
+import { DISTANCE_MULTIPLIER, SIZE_MULTIPLIER } from "./size-constants";
 export { availableModuleBuildSites, availableModuleBuilds, startModuleBuild, type ModuleBuildOption } from "./station-building";
 export {
   FIELD_LAYOUT, BELT_ROCKS, CLUSTER_ROCKS, SPARSE_BELT_ROCKS,
@@ -74,8 +76,8 @@ export const DOCK_CAPACITY = DOCK_AREA;
 export const STORAGE_CAPACITY = 1000;
 // The construction site sits off the Dock's north-east corner. Placed between
 // two module slots, so it takes none of the ones Home offers at the start.
-export const CONSTRUCTION_SITE_POSITION: Vec = { x: 75, y: -60 };
-export const CONSTRUCTION_SITE_SIZE = { width: 28, height: 28 };
+export const CONSTRUCTION_SITE_POSITION: Vec = { x: 75 * SIZE_MULTIPLIER, y: -60 * SIZE_MULTIPLIER };
+export const CONSTRUCTION_SITE_SIZE = { width: 28 * SIZE_MULTIPLIER, height: 28 * SIZE_MULTIPLIER };
 // Placeholder: the site starts empty, so the first module needs a ship supplying
 // it. Raise this if the first minute of play feels stuck before anything is built.
 export const CONSTRUCTION_SITE_START: Record<Material, number> = { Metal: 0, Ice: 0 };
@@ -88,7 +90,7 @@ export const RICH_ASTEROID_SIZE = { width: 21, height: 16 };
 export const ABUNDANT_SHARE = 0.75;
 export const JUMP_SECONDS = 2;
 export const GATE_SIZE = { width: 24, height: 24 };
-export const GATE_DISTANCE = 480;
+export const GATE_DISTANCE = 480 * DISTANCE_MULTIPLIER;
 export const SECTOR_COUNT = 4;
 export const GATE_COST: Record<Material, number> = { Metal: 200, Ice: 200 };
 export const SECTOR_MAP_POINTS = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 1 }] as const;
@@ -285,7 +287,7 @@ export function newAsteroid(id: number, sectorId: number, fieldId: number, posit
 
 export function createInitialState(seed: number): SimState {
   const dockPosition = { x: 0, y: 0 };
-  const storagePosition = { x: 40, y: 0 };
+  const storagePosition = { x: MODULE_SPACING, y: 0 };
   let rng = seed >>> 0;
 
   const nameChoices = ["Kael", "Vela", "Oris", "Thara", "Mira", "Zorin", "Selen", "Draco", "Hyron", "Corin", "Neris", "Ulmar"];
@@ -434,8 +436,8 @@ function storedTotal(inventory: Record<Material, number>): number {
 
 // Parking spots fan out west of the Dock, six to an arc, one arc further out
 // for each six ships parked.
-const PARKING_RADIUS = 70;
-const PARKING_ARC_STEP = 22;
+const PARKING_RADIUS = 70 * SIZE_MULTIPLIER;
+const PARKING_ARC_STEP = 22 * SIZE_MULTIPLIER;
 const PARKING_ARC_SLOTS = 6;
 
 export function berthLayout(station: Station): BerthLayout {

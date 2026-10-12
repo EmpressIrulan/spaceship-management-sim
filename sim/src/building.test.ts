@@ -4,6 +4,7 @@ import {
   BUILD_SECONDS,
   DOCK_SIZE,
   MODULE_COST,
+  MODULE_SPACING,
   availableModuleBuildSites,
   availableModuleBuilds,
   startModuleBuild,
@@ -21,7 +22,7 @@ describe("building station modules", () => {
     };
   }
 
-  const east = { x: 80, y: 0 };
+  const east = { x: 2 * MODULE_SPACING, y: 0 };
 
   it("lists each module at its own cost and disables unaffordable choices", () => {
     const state = miningStart(7);
@@ -44,23 +45,23 @@ describe("building station modules", () => {
     expect(state.stations[0]!.construction).toMatchObject({
       type: "Storage",
       timer: BUILD_SECONDS,
-      position: { x: 80, y: 0 },
+      position: east,
     });
     expect(availableModuleBuilds(state, 0).every((option) => !option.enabled)).toBe(true);
   });
 
   it("offers every empty adjacent slot so the station can grow in any direction", () => {
     expect(availableModuleBuildSites(funded(), 0)).toEqual([
-      { x: -40, y: 0 },
-      { x: 0, y: -40 },
-      { x: 0, y: 40 },
-      { x: 40, y: -40 },
-      { x: 40, y: 40 },
-      { x: 80, y: 0 },
+      { x: -MODULE_SPACING, y: 0 },
+      { x: 0, y: -MODULE_SPACING },
+      { x: 0, y: MODULE_SPACING },
+      { x: MODULE_SPACING, y: -MODULE_SPACING },
+      { x: MODULE_SPACING, y: MODULE_SPACING },
+      east,
     ]);
 
-    expect(startModuleBuild(funded(), 0, "Builder", { x: -40, y: 0 }).stations[0]!.construction)
-      .toMatchObject({ type: "Builder", position: { x: -40, y: 0 } });
+    expect(startModuleBuild(funded(), 0, "Builder", { x: -MODULE_SPACING, y: 0 }).stations[0]!.construction)
+      .toMatchObject({ type: "Builder", position: { x: -MODULE_SPACING, y: 0 } });
     const state = funded();
     expect(startModuleBuild(state, 0, "Builder", { x: 400, y: 400 })).toBe(state);
   });
@@ -92,7 +93,7 @@ describe("building station modules", () => {
   it("finishes modules after 15 seconds and increases the matching capacity", () => {
     const storage = tick(startModuleBuild(funded(), 0, "Storage", east), BUILD_SECONDS);
     expect(storage.stations[0]!.construction).toBeNull();
-    expect(storage.stations[0]!.modules.at(-1)).toMatchObject({ type: "Storage", position: { x: 80, y: 0 } });
+    expect(storage.stations[0]!.modules.at(-1)).toMatchObject({ type: "Storage", position: east });
     expect(storage.stations[0]!.storage.capacity).toBe(2000);
 
     const dock = tick(startModuleBuild(funded(), 0, "Dock", east), BUILD_SECONDS);

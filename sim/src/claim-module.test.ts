@@ -4,6 +4,7 @@ import {
   availableModuleBuilds,
   createInitialState,
   homeStation,
+  MODULE_SPACING,
   queueModuleBuild,
   startModuleBuild,
   stationById,
@@ -13,7 +14,7 @@ import {
 import { miningStart } from "./test-ships";
 import { placeStation } from "./station-placement";
 
-const east = { x: 80, y: 0 };
+const east = { x: 2 * MODULE_SPACING, y: 0 };
 const claimCost = { Metal: 1000, Ice: 1000 };
 const claimSeconds = 300;
 

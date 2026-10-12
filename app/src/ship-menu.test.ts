@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createInitialState, damageStationModule } from "sim";
+import { BUILDER_SIZE, MODULE_SPACING, createInitialState, damageStationModule } from "sim";
 import { installShipMenu } from "./ship-menu";
 import { syncShipMenuStats } from "./ship-menu-rendering";
 import { createUiState } from "./ui-state";
@@ -36,7 +36,7 @@ function opened() {
   vi.stubGlobal("document", { createElement: () => new Element(), createTextNode: () => new Element() });
   let state = createInitialState(7);
   state.ships = [];
-  state.stations[0]!.modules.push(...[-40, 40].map(y => ({ type: "Builder" as const, position: { x: 0, y }, size: { width: 30, height: 40 }, hp: y === -40 ? 21 : 32 })));
+  state.stations[0]!.modules.push(...[-MODULE_SPACING, MODULE_SPACING].map(y => ({ type: "Builder" as const, position: { x: 0, y }, size: BUILDER_SIZE, hp: y < 0 ? 21 : 32 })));
   const ui = createUiState([]);
   ui.camera = { center: { x: 0, y: 0 }, zoom: 2 };
   ui.viewport = { width: 800, height: 600 };
@@ -57,7 +57,7 @@ function opened() {
 describe("Builder identity after module destruction", () => {
   it("remaps before a Build click, even before the next render", () => {
     const demo = opened();
-    demo.destroy({ x: 40, y: 0 });
+    demo.destroy({ x: MODULE_SPACING, y: 0 });
     demo.click({ build: "" });
     expect(demo.ui.shipMenuBuilder).toBe(1);
     expect(demo.getState().stations[0]!.shipBuilds.map(job => job.builder)).toEqual([1]);
@@ -65,9 +65,9 @@ describe("Builder identity after module destruction", () => {
 
   it("remaps the open menu on render and keeps a still pointer on the same Builder", () => {
     const demo = opened();
-    const pointer = worldToScreen(demo.ui.camera, demo.ui.viewport, { x: 0, y: -40 });
+    const pointer = worldToScreen(demo.ui.camera, demo.ui.viewport, { x: 0, y: -MODULE_SPACING });
     expect(hoveredBody(demo.getState(), demo.ui.camera, demo.ui.viewport, pointer)).toMatchObject({ kind: "module", index: 2 });
-    demo.destroy({ x: 40, y: 0 });
+    demo.destroy({ x: MODULE_SPACING, y: 0 });
     syncShipMenuStats(demo.ui, demo.getState, demo.menu as unknown as HTMLElement);
     const hovered = hoveredBody(demo.getState(), demo.ui.camera, demo.ui.viewport, pointer);
     expect(hovered).toMatchObject({ kind: "module", index: 1 });
@@ -77,7 +77,7 @@ describe("Builder identity after module destruction", () => {
 
   it("closes a destroyed Builder instead of sending Build to the other Builder", () => {
     const demo = opened();
-    demo.destroy({ x: 0, y: -40 });
+    demo.destroy({ x: 0, y: -MODULE_SPACING });
     demo.click({ build: "" });
     expect(demo.ui.shipMenuBuilder).toBeNull();
     expect(demo.menu.hidden).toBe(true);

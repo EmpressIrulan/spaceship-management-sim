@@ -1,5 +1,6 @@
 import { nextRandom } from "./prng";
 import type { AsteroidField, Density, Vec } from "./model";
+import { DISTANCE_MULTIPLIER } from "./size-constants";
 
 // Keeps asteroids from landing on top of each other, or a respawn from landing
 // where the last one ran out. About three asteroid widths.
@@ -20,10 +21,10 @@ export const BELT_WIDTH = 24;
 export const CLUSTER_RADIUS = 55;
 // How far from the sector's origin a field's point can be. Not tied to the
 // station, which only happens to sit at the origin of the home sector.
-export const FIELD_MIN_REACH = 180;
-export const FIELD_MAX_REACH = 340;
-export const FIELD_SEPARATION = 240;
-export const FIELD_GATE_CLEARANCE = 150;
+export const FIELD_MIN_REACH = 180 * DISTANCE_MULTIPLIER;
+export const FIELD_MAX_REACH = 340 * DISTANCE_MULTIPLIER;
+export const FIELD_SEPARATION = 240 * DISTANCE_MULTIPLIER;
+export const FIELD_GATE_CLEARANCE = 150 * DISTANCE_MULTIPLIER;
 
 export function distance(a: Vec, b: Vec): number {
   return Math.hypot(a.x - b.x, a.y - b.y);

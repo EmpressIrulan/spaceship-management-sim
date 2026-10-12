@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { configureHaul, giveOrder, haulStations, resumeDefault, setDefaultBehaviour, setShipHome } from "./orders";
 import { haulDestinations } from "./haul";
 import { createInitialState, dockBerths, homeStation, type SimState } from "./state";
-import { foundedStation } from "./test-ships";
+import { foundedStation, tripTimeBudget } from "./test-ships";
 import { cargoTransferSeconds } from "./ship";
 import { placeStation } from "./station-placement";
 import { tick } from "./tick";
@@ -34,7 +34,8 @@ function run(state: SimState, seconds: number): SimState {
 
 function until(state: SimState, done: (state: SimState) => boolean): SimState {
   let next = state;
-  for (let elapsed = 0; elapsed < 240; elapsed += 1 / 30) {
+  const deadline = tripTimeBudget(state);
+  for (let elapsed = 0; elapsed < deadline; elapsed += 1 / 30) {
     if (done(next)) return next;
     next = tick(next, 1 / 30);
   }

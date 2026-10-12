@@ -49,6 +49,27 @@ function overlaps(a: Vec, aSize: Size, b: Vec, bSize: Size): boolean {
   );
 }
 
+// Check the entire straight flight segment against the rock's rectangle
+// expanded by the ship's half-size, not just sampled endpoints.
+function overlapsAlong(from: Vec, to: Vec, rock: Asteroid): boolean {
+  let enter = 0;
+  let leave = 1;
+  for (const [axis, extent] of [["x", (rock.size.width + ONE_STORAGE_SIZE.width) / 2],
+    ["y", (rock.size.height + ONE_STORAGE_SIZE.height) / 2]] as const) {
+    const offset = from[axis] - rock.position[axis];
+    const delta = to[axis] - from[axis];
+    if (delta === 0) {
+      if (Math.abs(offset) >= extent) return false;
+    } else {
+      const a = (-extent - offset) / delta;
+      const b = (extent - offset) / delta;
+      enter = Math.max(enter, Math.min(a, b));
+      leave = Math.min(leave, Math.max(a, b));
+    }
+  }
+  return enter < leave;
+}
+
 // 1 on the rectangle's outline, below 1 inside it.
 function edgeness(point: Vec, center: Vec, size: Size): number {
   return Math.max(
@@ -104,10 +125,17 @@ describe("where the ship mines from", () => {
       let state = oneStorageStart(seed);
       const asteroid = targetOf(state);
       const end = cycleSeconds(state);
-      for (let t = 0; t < end; t += 1 / 30) {
-        state = tick(state, 1 / 30);
+      const leg = legSeconds(state);
+      const boundaries = [leg, leg + WORKING_SECONDS, 2 * leg + WORKING_SECONDS, end];
+      for (let t = 0; t < end - 1e-9;) {
+        const nextBoundary = boundaries.find((boundary) => boundary > t + 1e-9)!;
+        const step = Math.min(1, nextBoundary - t);
+        const from = ship(state).position;
+        state = tick(state, step);
+        t += step;
         const s = ship(state);
         expect(overlaps(s.position, ONE_STORAGE_SIZE, asteroid.position, asteroid.size)).toBe(false);
+        expect(overlapsAlong(from, s.position, asteroid)).toBe(false);
       }
     }
   });

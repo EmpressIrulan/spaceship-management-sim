@@ -1,4 +1,4 @@
-import { fitCamera, panBy, wheelZoomFactor, zoomAt } from "./camera";
+import { homeCamera, panBy, wheelZoomFactor, zoomAt } from "./camera";
 import type { SimState, Vec } from "sim";
 import type { UiState } from "./ui-state";
 
@@ -17,7 +17,7 @@ export function installCameraInput(ui: UiState, getState: () => SimState, canvas
   }
   window.addEventListener("resize", resize);
   resize();
-  ui.camera = fitCamera(ui.viewport, [homeStation(getState()).dock, homeStation(getState()).storage, ...getState().asteroids.filter((rock) => rock.sectorId === 0), getState().sectors[0]!.gate]);
+  ui.camera = homeCamera([homeStation(getState()).dock, homeStation(getState()).storage, ...homeStation(getState()).modules]);
 
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
