@@ -2,8 +2,8 @@ import { BUG_SIZE, DROP_SIZE, HIVE_SIZE, SIZE_MULTIPLIER, shipSize, type SimStat
 
 // Placeholder limits. Revisit when sectors get bigger than one station and
 // a handful of asteroids and the client wants to see more of them at once.
-export const MIN_ZOOM = 0.2;
-export const MAX_ZOOM = 8;
+export const MIN_ZOOM = 0.1;
+export const MAX_ZOOM = 24;
 const WHEEL_ZOOM_STEP = 1.1;
 // Screen pixels kept clear around the sector in the starting view.
 const FIT_MARGIN_PX = 40;
@@ -84,6 +84,19 @@ export function fitCamera(
   };
 }
 
+// Home starts at three times the current world scale: station bodies are
+// one third their former size, so this preserves their screen size.
+export function homeCamera(bodies: { position: Vec; size: Size }[]): Camera {
+  const left = Math.min(...bodies.map((body) => body.position.x - body.size.width / 2));
+  const right = Math.max(...bodies.map((body) => body.position.x + body.size.width / 2));
+  const top = Math.min(...bodies.map((body) => body.position.y - body.size.height / 2));
+  const bottom = Math.max(...bodies.map((body) => body.position.y + body.size.height / 2));
+  return {
+    center: { x: (left + right) / 2, y: (top + bottom) / 2 },
+    zoom: 3,
+  };
+}
+
 export function panBy(camera: Camera, dxScreen: number, dyScreen: number): Camera {
   return {
     ...camera,
@@ -133,7 +146,8 @@ export function hoveredBody(
 ): Hovered | null {
   if (pointer === null) return null;
   const world = screenToWorld(camera, viewport, pointer);
-  const floor = MIN_HOVER_PX / camera.zoom;
+  // Keep the world-space pick radius from ballooning as far zoom-out grows.
+  const floor = MIN_HOVER_PX / Math.max(camera.zoom, 0.2);
   const shipFloor = MIN_SHIP_HOVER_PX / camera.zoom;
   const overShip = (index: number): boolean => {
     const ship = state.ships[index]!;
