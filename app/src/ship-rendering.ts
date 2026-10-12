@@ -15,7 +15,7 @@ import type { UiState } from "./ui-state";
 
 const GAUGE = { width: 36, height: 12, gap: 4 };
 export interface ShipDrawing {
-  drawShip: (ship: Ship) => void;
+  drawShip: (ship: Ship, outlineBlocks?: boolean) => void;
   drawSelectionRing: (center: Vec, size: Size) => void;
   drawShieldRing: (center: Vec, size: Size, progress: number) => void;
   drawGauge: (position: Vec, gauge: Gauge, size: Size) => void;
@@ -26,7 +26,7 @@ export function createShipDrawing(
   ctx: CanvasRenderingContext2D,
 ): ShipDrawing {
   // Edges are rounded so the image lands on whole screen pixels at any zoom.
-  function drawShip(ship: Ship): void {
+  function drawShip(ship: Ship, outlineBlocks = false): void {
     const size = shipSize(ship.design);
     const a = worldToScreen(ui.camera, ui.viewport, {
       x: ship.position.x - size.width / 2,
@@ -47,6 +47,7 @@ export function createShipDrawing(
       width,
       height,
     );
+    if (outlineBlocks) drawBlockOutline(ctx, ship.design, x, y, width, height);
     // Packed ships can touch edge to edge. An inset outline separates their
     // hulls without adding gaps, fixed pads, or an occupancy bar.
     if (holdsBerth(ship) && ship.berth !== null && ship.state !== "berthing") {
@@ -137,4 +138,41 @@ export function createShipDrawing(
   }
 
   return { drawShip, drawSelectionRing, drawShieldRing, drawGauge, drawLaser };
+}
+
+// Draw cell boundaries in screen space, keeping the one-pixel lines legible
+// across zoom levels and leaving empty design slots transparent.
+export function drawBlockOutline(
+  ctx: CanvasRenderingContext2D,
+  design: Ship["design"],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  // Screen-space threshold survives changes to world-unit ship size and zoom.
+  if (width / design.width < 4 || height / design.height < 4) return;
+  ctx.save();
+  ctx.fillStyle = "#0f172a";
+  ctx.globalAlpha = 0.45;
+  // Fill one union of pixel-aligned edges. Shared boundaries appear only once;
+  // intersections receive the same faint opacity as the rest of each line.
+  ctx.beginPath();
+  const occupied = (column: number, row: number) => column >= 0 && column < design.width
+    && row >= 0 && row < design.height && design.slots[row * design.width + column] != null;
+  design.slots.forEach((slot, index) => {
+    if (slot === null) return;
+    const column = index % design.width;
+    const row = Math.floor(index / design.width);
+    const left = Math.round(x + (column * width) / design.width);
+    const top = Math.round(y + (row * height) / design.height);
+    const right = Math.round(x + ((column + 1) * width) / design.width);
+    const bottom = Math.round(y + ((row + 1) * height) / design.height);
+    ctx.rect(left, top, right - left, 1);
+    ctx.rect(left, top, 1, bottom - top);
+    if (!occupied(column + 1, row)) ctx.rect(right - 1, top, 1, bottom - top);
+    if (!occupied(column, row + 1)) ctx.rect(left, bottom - 1, right - left, 1);
+  });
+  ctx.fill();
+  ctx.restore();
 }

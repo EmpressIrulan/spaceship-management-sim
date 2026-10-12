@@ -178,7 +178,7 @@ export function createWorldDrawing(
     }
     for (const ship of sectorShips) spottedHulls.set(ship.id, { ...ship.position });
     for (const ship of sectorShips) {
-      shipDrawing.drawShip(ship);
+      shipDrawing.drawShip(ship, ui.selectedShips.length === 1 && ui.selectedShips[0] === ship.id);
       if (ui.selectedShips.includes(ship.id)) shipDrawing.drawSelectionRing(ship.position, shipSize(ship.design));
       if (ship.shieldLastAbsorbedHit !== undefined) {
         const previous = spottedShieldHits.get(ship.id);
