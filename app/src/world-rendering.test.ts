@@ -311,7 +311,7 @@ describe("a station module destruction explodes", () => {
     state = { ...state, moduleDestructions: [{ time: 0, stationId: station.id, position: { ...module.position } }] };
     drawing.draw(0.25);
 
-    expect(ctx.fillRect).toHaveBeenCalledWith(438, 298, 4, 4);
+    expect(ctx.fillRect).toHaveBeenCalledWith(Math.round(400 + module.position.x) - 2, 298, 4, 4);
   });
 
   it("does not replay an old destruction on first draw", () => {

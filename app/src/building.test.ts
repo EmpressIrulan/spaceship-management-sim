@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILD_SECONDS,
+  BUILDER_SIZE,
   MODULE_SPACING,
   availableModuleBuildSites,
   cancelQueuedModuleBuild,
@@ -25,10 +26,10 @@ import {
 import { infoBox } from "./labels";
 import { bodyOf, hoveredBody, worldToScreen, type Camera } from "./camera";
 
-const east = { x: 80, y: 0 };
-const farEast = { x: 120, y: 0 };
-const west = { x: -40, y: 0 };
-const farWest = { x: -80, y: 0 };
+const east = { x: 2 * MODULE_SPACING, y: 0 };
+const farEast = { x: 3 * MODULE_SPACING, y: 0 };
+const west = { x: -MODULE_SPACING, y: 0 };
+const farWest = { x: -2 * MODULE_SPACING, y: 0 };
 
 // A row of ghosts hung off the Dock: farEast reaches the station only through
 // east and farWest only through west, while both near ends touch a built module.
@@ -46,7 +47,7 @@ function withStandingBuilder(state: SimState, position: Vec): SimState {
     ...state,
     stations: [{
       ...state.stations[0]!,
-      modules: [...state.stations[0]!.modules, { type: "Builder" as const, position, size: { width: 30, height: 40 } }],
+      modules: [...state.stations[0]!.modules, { type: "Builder" as const, position, size: BUILDER_SIZE }],
     }],
   };
 }
@@ -88,13 +89,13 @@ describe("station building controls", () => {
   it("shows front needs, full later cost, and Cancel on ghost modules", () => {
     const initial = createInitialState(7);
     let state = queueModuleBuild({ ...initial, stations: [{ ...initial.stations[0]!,
-      constructionSite: { ...initial.stations[0]!.constructionSite, inventory: { Metal: 15, Ice: 0 } } }] }, "Storage", { x: 80, y: 0 });
-    state = queueModuleBuild(state, "Builder", { x: 120, y: 0 });
+      constructionSite: { ...initial.stations[0]!.constructionSite, inventory: { Metal: 15, Ice: 0 } } }] }, "Storage", east);
+    state = queueModuleBuild(state, "Builder", farEast);
     const camera: Camera = { center: { x: 0, y: 0 }, zoom: 2 };
     const viewport = { width: 800, height: 600 };
 
-    const front = hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, { x: 80, y: 0 }));
-    const later = hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, { x: 120, y: 0 }));
+    const front = hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, east));
+    const later = hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, farEast));
     expect(front).toEqual({ kind: "queuedBuild", index: 0 });
     expect(infoBox(state, front)).toEqual({
       title: "Storage, queued",
@@ -112,8 +113,8 @@ describe("station building controls", () => {
     let state = createInitialState(7);
     state = { ...state, stations: [{ ...state.stations[0]!,
       constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 50, Ice: 50 } } }] };
-    state = queueModuleBuild(state, "Dock", { x: 80, y: 0 });
-    state = queueModuleBuild(state, "Storage", { x: -40, y: 0 });
+    state = queueModuleBuild(state, "Dock", east);
+    state = queueModuleBuild(state, "Storage", west);
 
     expect(infoBox(state, { kind: "queuedBuild", index: 0 })).toEqual({
       title: "Storage, queued",
@@ -124,15 +125,15 @@ describe("station building controls", () => {
 
   it("finds the same ghost by position after an earlier queue item is promoted", () => {
     const initial = createInitialState(7);
-    const secondPosition = { x: -40, y: 0 };
-    let state = queueModuleBuild(initial, "Dock", { x: 80, y: 0 });
+    const secondPosition = west;
+    let state = queueModuleBuild(initial, "Dock", east);
     state = queueModuleBuild(state, "Storage", secondPosition);
     state = { ...state, stations: [{ ...state.stations[0]!,
       constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 25, Ice: 25 } } }] };
     state = tick(state, 0);
 
     expect(queuedBuildIndexAt(state, secondPosition)).toBe(0);
-    expect(queuedBuildIndexAt(state, { x: 80, y: 0 })).toBe(-1);
+    expect(queuedBuildIndexAt(state, east)).toBe(-1);
   });
 
   it("keeps every module choice enabled even when the site cannot pay", () => {
@@ -166,7 +167,7 @@ describe("station building controls", () => {
       ...initial,
       stations: [{ ...initial.stations[0]!, constructionSite: { ...initial.stations[0]!.constructionSite, inventory: { Metal: 50, Ice: 50 } } }],
     };
-    const building = tick(startModuleBuild(funded, 0, "Builder", { x: -40, y: 0 }), 3);
+    const building = tick(startModuleBuild(funded, 0, "Builder", west), 3);
     expect(infoBox(building, { kind: "construction" })).toEqual({
       title: "Building Builder",
       line: "12 s",
@@ -211,8 +212,8 @@ describe("station building controls", () => {
   });
 
   it("sizes each + to its slot so neighbours never overlap at any zoom", () => {
-    expect(buildControlSize(1)).toEqual({ cell: 40, glyph: 26 });
-    expect(buildControlSize(8)).toEqual({ cell: 320, glyph: 26 });
+    expect(buildControlSize(1)).toEqual({ cell: MODULE_SPACING, glyph: 9 });
+    expect(buildControlSize(8)).toEqual({ cell: MODULE_SPACING * 8, glyph: 26 });
     for (const zoom of [0.2, 0.35, 0.5, 0.75]) {
       const { cell, glyph } = buildControlSize(zoom);
       expect(cell).toBeCloseTo(MODULE_SPACING * zoom);
@@ -221,9 +222,9 @@ describe("station building controls", () => {
   });
 
   it("keeps the pointer in the build area from a ghost to its + controls", () => {
-    const state = queueModuleBuild(createInitialState(7), "Storage", { x: 80, y: 0 });
-    expect(buildAreaStation(state, { x: 100, y: 0 })).toBe(0);
-    expect(availableModuleBuildSites(state, 0)).toContainEqual({ x: 120, y: 0 });
+    const state = queueModuleBuild(createInitialState(7), "Storage", east);
+    expect(buildAreaStation(state, { x: 2.5 * MODULE_SPACING, y: 0 })).toBe(0);
+    expect(availableModuleBuildSites(state, 0)).toContainEqual(farEast);
   });
 });
 
@@ -245,9 +246,9 @@ describe("the ghost cancel hover highlight", () => {
   it("leaves a ghost that still reaches the station through a built module unlit", () => {
     // Seed 17 because seed 7 has an asteroid in the gap. The Builder standing
     // two slots past the far end keeps that ghost attached once the near one goes.
-    let state = queueModuleBuild(withStandingBuilder(createInitialState(17), { x: -160, y: 0 }), "Builder", west);
+    let state = queueModuleBuild(withStandingBuilder(createInitialState(17), { x: -4 * MODULE_SPACING, y: 0 }), "Builder", west);
     state = queueModuleBuild(state, "Builder", farWest);
-    state = queueModuleBuild(state, "Builder", { x: -120, y: 0 });
+    state = queueModuleBuild(state, "Builder", { x: -3 * MODULE_SPACING, y: 0 });
 
     expect(cancelDependentsAt(state, west).map((queued) => queued.position)).toEqual([farWest]);
     expect(cancelDependentsAt(state, farWest)).toEqual([]);

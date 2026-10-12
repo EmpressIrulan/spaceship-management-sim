@@ -1,4 +1,5 @@
 import {
+  SIZE_MULTIPLIER,
   type SimState,
   type Station,
   type StationModule,
@@ -25,16 +26,17 @@ export function createStationDrawing(
   function drawStationConnector(from: Vec, to: Vec): void {
     const start = worldToScreen(ui.camera, ui.viewport, from);
     const end = worldToScreen(ui.camera, ui.viewport, to);
+    const detailZoom = ui.camera.zoom * SIZE_MULTIPLIER;
     ctx.save();
     ctx.lineCap = "round";
     ctx.strokeStyle = "#1e293b";
-    ctx.lineWidth = Math.max(4, 7 * ui.camera.zoom);
+    ctx.lineWidth = Math.max(4, 7 * detailZoom);
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
     ctx.strokeStyle = "#64748b";
-    ctx.lineWidth = Math.max(1, 2 * ui.camera.zoom);
+    ctx.lineWidth = Math.max(1, 2 * detailZoom);
     ctx.stroke();
     ctx.restore();
   }
@@ -44,7 +46,8 @@ export function createStationDrawing(
     const width = module.size.width * ui.camera.zoom;
     const height = module.size.height * ui.camera.zoom;
     const appearance = moduleAppearance(module.type);
-    const detailWidth = Math.max(1.5, 2 * ui.camera.zoom);
+    const detailZoom = ui.camera.zoom * SIZE_MULTIPLIER;
+    const detailWidth = Math.max(1.5, 2 * detailZoom);
 
     // The complete rectangular outline is the usable packing bay. No pads and
     // no always-on fullness gauge; occupancy is available on hover only.
@@ -58,7 +61,7 @@ export function createStationDrawing(
     ctx.translate(center.x, center.y);
     ctx.fillStyle = "#1e293b";
     ctx.strokeStyle = appearance.accent;
-    ctx.lineWidth = Math.max(1.5, 2 * ui.camera.zoom);
+    ctx.lineWidth = detailWidth;
     ctx.beginPath();
     ctx.ellipse(0, 0, width * 0.47, height * 0.46, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -82,7 +85,7 @@ export function createStationDrawing(
       for (const x of [-0.22, 0, 0.22]) {
         ctx.fillStyle = x === 0 ? appearance.accent : "#475569";
         ctx.strokeStyle = appearance.accent;
-        ctx.lineWidth = Math.max(1, ui.camera.zoom);
+        ctx.lineWidth = Math.max(1, detailZoom);
         ctx.beginPath();
         ctx.ellipse(
           width * x,

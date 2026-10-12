@@ -3,6 +3,8 @@ import { foundedStation, oneStorageStart, suppliersComingHome, tripTimeBudget } 
 import {
   DOCK_SIZE,
   MATERIALS,
+  MODULE_SPACING,
+  BUILDER_SIZE,
   availableModuleBuildSites,
   availableModuleBuilds,
   availableShipBuild,
@@ -62,7 +64,7 @@ function minerOn(behaviour: Ship["defaultBehaviour"], seed = 7): SimState {
   const dock = base.stations[0]!.dock.position;
   const ship = { ...base.ships[0]!, defaultBehaviour: behaviour };
   const state = { ...base, ships: [depart(ship, dock, base.asteroids)] };
-  return behaviour === "supply" ? queueModuleBuild(state, "Storage", { x: 80, y: 0 }) : state;
+  return behaviour === "supply" ? queueModuleBuild(state, "Storage", { x: 2 * MODULE_SPACING, y: 0 }) : state;
 }
 
 describe("the construction site", () => {
@@ -83,7 +85,7 @@ describe("the construction site", () => {
       const overlaps = Math.abs(slot.x - position.x) < (40 + size.width) / 2 && Math.abs(slot.y - position.y) < (70 + size.height) / 2;
       expect(overlaps, JSON.stringify(slot)).toBe(false);
     }
-    expect(availableModuleBuildSites(state, 0)).toEqual([{ x: -40, y: 0 }, { x: 0, y: -40 }, { x: 0, y: 40 }, { x: 40, y: -40 }, { x: 40, y: 40 }, { x: 80, y: 0 }]);
+    expect(availableModuleBuildSites(state, 0)).toEqual([{ x: -MODULE_SPACING, y: 0 }, { x: 0, y: -MODULE_SPACING }, { x: 0, y: MODULE_SPACING }, { x: MODULE_SPACING, y: -MODULE_SPACING }, { x: MODULE_SPACING, y: MODULE_SPACING }, { x: 2 * MODULE_SPACING, y: 0 }]);
     expect(state.asteroids.every((rock) => Math.hypot(rock.position.x - position.x, rock.position.y - position.y) > 40)).toBe(true);
   });
 });
@@ -98,7 +100,7 @@ describe("seeds whose belt runs across Home", () => {
 });
 
 describe("building from the construction site", () => {
-  const east = { x: 80, y: 0 };
+  const east = { x: 2 * MODULE_SPACING, y: 0 };
   const withSite = (state: SimState, inventory: Station["inventory"]): SimState =>
     ({ ...state, stations: [{ ...state.stations[0]!, constructionSite: { ...site(state), inventory } }] });
   const withStorage = (state: SimState, inventory: Station["inventory"]): SimState =>
@@ -140,7 +142,7 @@ describe("building from the construction site", () => {
 
   it("still pays for ships at a Builder from Storage", () => {
     const base = createInitialState(7);
-    const builder: StationModule = { type: "Builder", position: { x: 0, y: -40 }, size: { width: 30, height: 40 } };
+    const builder: StationModule = { type: "Builder", position: { x: 0, y: -MODULE_SPACING }, size: BUILDER_SIZE };
     const state = withStorage({ ...base, stations: [{ ...base.stations[0]!, modules: [...base.stations[0]!.modules, builder] }] }, { Metal: 1000, Ice: 1000 });
     const design = base.ships[0]!.design;
 
@@ -206,7 +208,7 @@ describe("Supply construction site", () => {
     const hauling = until(minerOn("mine"), (state) => state.ships[0]!.state === "homebound" && state.ships[0]!.cargo > 0);
     const storage = hauling.stations[0]!.inventory;
 
-    const switched = setDefaultBehaviour(queueModuleBuild(hauling, "Storage", { x: 80, y: 0 }), [0], "supply");
+    const switched = setDefaultBehaviour(queueModuleBuild(hauling, "Storage", { x: 2 * MODULE_SPACING, y: 0 }), [0], "supply");
     expect(longestJump(switched, unloadingNow)).toBeLessThan(6);
     const arrived = until(switched, unloadingNow);
 
@@ -281,7 +283,7 @@ describe("unloading a ship into the site at the end of a trip", () => {
       cargoByMaterial: { Metal: 6, Ice: 14 }, transfer: { startingCargo: 20, amount: 20, destination: "constructionSite" },
       timer: cargoTransferSeconds(20), target: null, leg: null, berth: null, ...patch };
     const state = { ...base, ships: [ship] };
-    return ship.defaultBehaviour === "supply" ? queueModuleBuild(state, "Storage", { x: 80, y: 0 }) : state;
+    return ship.defaultBehaviour === "supply" ? queueModuleBuild(state, "Storage", { x: 2 * MODULE_SPACING, y: 0 }) : state;
   }
 
   it("credits each material in a mixed hold, not everything to the active one", () => {

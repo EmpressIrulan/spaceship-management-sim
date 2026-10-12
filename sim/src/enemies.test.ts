@@ -17,12 +17,14 @@ import {
   HIVE_HP,
   HIVE_SECTOR,
   MODULE_HP,
+  MODULE_SPACING,
   SIZE_MULTIPLIER,
   TURRET_DAMAGE,
   TURRET_METAL_PER_SHOT,
   TURRET_RANGE,
   TURRET_SHOT_SECONDS,
   TURRET_SECONDS,
+  TURRET_SIZE,
 } from "./build-constants";
 import { giveOrder } from "./orders";
 import { gunBeams } from "./enemies";
@@ -804,7 +806,7 @@ describe("station Turrets", () => {
     station.inventory = { Metal: 10, Ice: 0 };
     station.construction = null;
     station.buildQueue = [];
-    station.modules.push({ type: "Turret", position: { x: 0, y: -40 }, size: { width: 30, height: 40 } });
+    station.modules.push({ type: "Turret", position: { x: 0, y: -MODULE_SPACING }, size: TURRET_SIZE });
     if (stationId === 0) state.stations = [station];
     else state.stations.push(station);
     const enemy = { ...state.hives![0]!, sectorId: 0, position: { x: 0, y: -70 }, spawnTimer: 10000 };

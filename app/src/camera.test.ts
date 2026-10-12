@@ -65,6 +65,17 @@ describe("camera", () => {
 });
 
 describe("starting view", () => {
+  it("preserves Home's whole 64 by 40 pixel footprint, including the gap between modules", () => {
+    const station = createInitialState(7).stations[0]!;
+    const bodies = station.modules;
+    const camera = homeCamera(bodies);
+    const left = Math.min(...bodies.map(body => body.position.x - body.size.width / 2));
+    const right = Math.max(...bodies.map(body => body.position.x + body.size.width / 2));
+    const top = Math.min(...bodies.map(body => body.position.y - body.size.height / 2));
+    const bottom = Math.max(...bodies.map(body => body.position.y + body.size.height / 2));
+    expect((right - left) * camera.zoom).toBeCloseTo(64);
+    expect((bottom - top) * camera.zoom).toBeCloseTo(40);
+  });
   it("keeps Home's starting module at today's 30 by 40 screen pixels", () => {
     const station = createInitialState(7).stations[0]!;
     const camera = homeCamera([station.dock, station.storage, ...station.modules]);

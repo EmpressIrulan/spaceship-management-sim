@@ -1,6 +1,6 @@
 import {
   ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR,
-  MODULE_COST, MODULE_HP, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
+  MODULE_COST, MODULE_HP, MODULE_SPACING, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
 } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import { freeBerth, berthPoint, DOCK_AREA } from "./dock-packing";
@@ -287,7 +287,7 @@ export function newAsteroid(id: number, sectorId: number, fieldId: number, posit
 
 export function createInitialState(seed: number): SimState {
   const dockPosition = { x: 0, y: 0 };
-  const storagePosition = { x: 40, y: 0 };
+  const storagePosition = { x: MODULE_SPACING, y: 0 };
   let rng = seed >>> 0;
 
   const nameChoices = ["Kael", "Vela", "Oris", "Thara", "Mira", "Zorin", "Selen", "Draco", "Hyron", "Corin", "Neris", "Ulmar"];
