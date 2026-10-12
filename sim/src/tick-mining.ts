@@ -38,6 +38,7 @@ export interface Draft {
   hives: NonNullable<SimState["hives"]>;
   bugs: NonNullable<SimState["bugs"]>;
   nextBugId: number;
+  nextHiveId: number;
   // Loot floating where something died, with the next drop id to hand out.
   drops: NonNullable<SimState["drops"]>;
   nextDropId: number;

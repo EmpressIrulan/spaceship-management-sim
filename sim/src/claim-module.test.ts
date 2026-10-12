@@ -55,7 +55,8 @@ describe("ordering a Claim module", () => {
   });
 
   it("takes 1000 Metal and 1000 Ice at once and builds for 300 seconds", () => {
-    const started = startModuleBuild(withSite(miningStart(7), 0, 1000, 1000), 0, "Claim", east);
+    // Measure construction time without an invasion destroying its Builder.
+    const started = startModuleBuild(withSite({ ...miningStart(7), hives: [], bugs: [] }, 0, 1000, 1000), 0, "Claim", east);
 
     expect(started.stations[0]!.constructionSite.inventory).toEqual({ Metal: 0, Ice: 0 });
     expect(started.stations[0]!.construction).toMatchObject({ type: "Claim", timer: claimSeconds, position: east });

@@ -108,6 +108,23 @@ describe("the world draws the hive and its bugs", () => {
     expect(fillWorldRect).toHaveBeenCalledWith(AT, BUG_SIZE, "#c084fc");
   });
 
+  it("draws a founded hive and its gathering bugs when viewing another sector", () => {
+    const uiState = ui(2);
+    const ctx = mockCtx();
+    const fillWorldRect = vi.fn();
+    const founded = { x: 80, y: 50 };
+    const gathering = { x: 90, y: 50 };
+    const drawing = createWorldDrawing(uiState, () => withBodies(createInitialState(7), {
+      hives: [hive(2, founded)],
+      bugs: [bug(2, gathering)],
+    }), ctx, fillWorldRect, vi.fn());
+
+    drawing.draw(0);
+
+    expect(fillWorldRect).toHaveBeenCalledWith(founded, HIVE_SIZE, "#7c3aed");
+    expect(fillWorldRect).toHaveBeenCalledWith(gathering, BUG_SIZE, "#c084fc");
+  });
+
   it("draws a bug juice drop and a queen larvae drop, each its own colour", () => {
     const uiState = ui();
     const ctx = mockCtx();

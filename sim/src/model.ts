@@ -200,7 +200,7 @@ export interface Drop {
   position: Vec;
 }
 
-// Enemies. The hive breeds the bugs; dead-hive founding is a later slice.
+// Enemies. Hives breed bugs, and an invading group can found a new one.
 export interface Hive {
   id: number;
   sectorId: number;
@@ -213,10 +213,10 @@ export interface Hive {
   alive: boolean;
 }
 // Hovering bugs hang about the hive; hunting ones fly at a ship and bite it.
-export type BugState = "hovering" | "hunting";
+export type BugState = "hovering" | "hunting" | "invading" | "gathering";
 export interface Bug {
   id: number;
-  // The hive this bug came from, so loitering has a centre.
+  // Birth hive. Arrivals keep this identity and never depart with a local brood.
   hiveId: number;
   sectorId: number;
   position: Vec;
@@ -225,6 +225,8 @@ export interface Bug {
   state: BugState;
   // The ship this bug flies at and bites, when it hunts. Null while hovering.
   targetShipId: number | null;
+  // The sector a migrating group is crossing into. Missing for older bugs.
+  targetSectorId?: number | null;
   targetModule?: { stationId: number; position: Vec } | null;
   leg: Leg | null;
   // Seconds left in the current leg. Unused while holding still.
@@ -271,6 +273,8 @@ export interface SimState {
   hives?: Hive[];
   bugs?: Bug[];
   nextBugId?: number;
+  // The next id for a hive founded by an invading group.
+  nextHiveId?: number;
   // Loot floating where a bug or the hive died. Missing on older fixtures
   // means no drops.
   drops?: Drop[];

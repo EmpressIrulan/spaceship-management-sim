@@ -115,7 +115,8 @@ describe("carrier hangars", () => {
   });
 
   it("refuses ordinary orders for ships that are inside a hangar", () => {
-    let state = tick(giveDockOrder(fleet(1), [2], 1), 100);
+    const peaceful = { ...fleet(1), hives: [], bugs: [] };
+    let state = tick(giveDockOrder(peaceful, [2], 1), 100);
     const before = state.ships.find((ship) => ship.id === 2)!;
 
     state = giveOrder(state, [2], { kind: "move", point: { x: 500, y: 500 } });

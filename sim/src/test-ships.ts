@@ -28,7 +28,7 @@ export function miningStart(seed: number): SimState {
 
 export function oneStorageStart(seed: number): SimState {
   const state = miningStart(seed);
-  return { ...state, ships: state.ships.map((ship) => ({ ...ship, design: ONE_STORAGE })) };
+  return { ...state, hives: [], bugs: [], ships: state.ships.map((ship) => ({ ...ship, design: ONE_STORAGE })) };
 }
 
 // `count` supply ships on their way home, each with `cargo` units of Metal in

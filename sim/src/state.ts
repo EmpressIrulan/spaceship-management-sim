@@ -419,6 +419,7 @@ export function createInitialState(seed: number): SimState {
     hives: [hive],
     bugs: [],
     nextBugId: 0,
+    nextHiveId: 1,
     drops: [],
     nextDropId: 0,
     moduleDestructions: [],

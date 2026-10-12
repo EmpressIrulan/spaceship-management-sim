@@ -830,6 +830,7 @@ function simulate(state: SimState, dt: number): SimState {
     hives: state.hives ?? [],
     bugs: state.bugs ?? [],
     nextBugId: state.nextBugId ?? 0,
+    nextHiveId: state.nextHiveId ?? Math.max(-1, ...(state.hives ?? []).map((hive) => hive.id)) + 1,
     drops: state.drops ?? [],
     nextDropId: state.nextDropId ?? 0,
     moduleDestructions: [...(state.moduleDestructions ?? [])],
@@ -891,6 +892,7 @@ function simulate(state: SimState, dt: number): SimState {
     hives: draft.hives,
     bugs: draft.bugs,
     nextBugId: draft.nextBugId,
+    nextHiveId: draft.nextHiveId,
     drops: draft.drops,
     nextDropId: draft.nextDropId,
     // Keep the blast list short: everything older than the renderer's
