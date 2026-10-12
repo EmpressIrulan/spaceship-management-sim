@@ -75,6 +75,7 @@ function currentStationContext(draft: Draft): StationContext {
 
 function setStationContext(draft: Draft, context: StationContext): void {
   Object.assign(draft, context);
+  draft.deliveriesCopied = false;
 }
 
 function saveStationContext(draft: Draft, stationId: number): void {
@@ -150,7 +151,13 @@ function unloadMaterial(draft: Draft, material: "Metal" | "Ice", units: number):
   const limit = draft.storageLimits[material];
   const materialRoom = limit === null ? Infinity : Math.max(0, limit - draft.inventory[material]);
   const accepted = Math.min(units, storageRemaining(draft), materialRoom);
-  if (accepted > 0) draft.deliveries = [...draft.deliveries, { at: draft.time, material, amount: accepted }];
+  if (accepted > 0) {
+    if (!draft.deliveriesCopied) {
+      draft.deliveries = [...draft.deliveries];
+      draft.deliveriesCopied = true;
+    }
+    draft.deliveries.push({ at: draft.time, material, amount: accepted });
+  }
   draft.inventory = {
     ...draft.inventory,
     [material]: draft.inventory[material] + accepted,
@@ -813,6 +820,7 @@ function simulate(state: SimState, dt: number): SimState {
     primaryStationId,
     founding: home.founding,
     deliveries: home.deliveries,
+    deliveriesCopied: false,
     rng: state.rng,
     enemyRng: state.enemyRng ?? ((state.rng ^ 0x1bd0e5f3) >>> 0),
     nextAsteroidId: state.nextAsteroidId,
@@ -880,7 +888,9 @@ function simulate(state: SimState, dt: number): SimState {
       storage: { ...home.storage, capacity: draft.storageCapacity },
       inventory: draft.inventory,
       constructionSite: draft.constructionSite,
-      deliveries: draft.deliveries.filter((delivery) => delivery.at > draft.time - INCOME_WINDOW_SECONDS),
+      deliveries: draft.deliveries[0] && draft.deliveries[0].at > draft.time - INCOME_WINDOW_SECONDS
+        ? draft.deliveries
+        : draft.deliveries.filter((delivery) => delivery.at > draft.time - INCOME_WINDOW_SECONDS),
       modules: draft.modules,
       construction: draft.construction,
       buildQueue: draft.buildQueue,

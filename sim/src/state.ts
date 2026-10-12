@@ -554,15 +554,15 @@ export function laserBeam(state: SimState, ship: Ship): Beam | null {
   return { from: { ...ship.position }, to: edgeToward(asteroid, ship.position) };
 }
 
-export const INCOME_WINDOW_SECONDS = 60;
+export const INCOME_WINDOW_SECONDS = 60 * 60;
 
-// Ore unloaded into storage over the last game minute, per material. Only
+// Ore unloaded into storage over the last game hour, averaged per minute. Only
 // what storage accepted counts, so a full station reads zero, and spending
 // ore on builds or gates does not lower it.
 export function stationIncome(state: SimState, stationId = 0): Record<Material, number> {
   const income = Object.fromEntries(MATERIALS.map((material) => [material, 0])) as Record<Material, number>;
   for (const delivery of stationById(state, stationId)?.deliveries ?? []) {
-    if (delivery.at > state.time - INCOME_WINDOW_SECONDS) income[delivery.material] += delivery.amount;
+    if (delivery.at > state.time - INCOME_WINDOW_SECONDS) income[delivery.material] += delivery.amount / 60;
   }
   return income;
 }

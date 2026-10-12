@@ -18,6 +18,7 @@ export interface Draft {
   primaryStationId: number;
   founding: boolean;
   deliveries: Station["deliveries"];
+  deliveriesCopied: boolean;
   rng: number;
   // The enemies' own stream, per SimState.rng.
   enemyRng: number;

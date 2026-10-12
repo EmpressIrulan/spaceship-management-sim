@@ -266,10 +266,10 @@ describe("storage income", () => {
     return { ...state, time, stations: [{ ...state.stations[0]!, deliveries }] };
   };
 
-  it("reads per material over the last game minute", () => {
+  it("reads per material averaged over the last game hour", () => {
     const state = delivered([{ at: 50, material: "Metal", amount: 42 }, { at: 70, material: "Ice", amount: 18 }], 100);
     const box = infoBox(state, { kind: "storage" });
-    expect(box?.line).toContain("Income: Metal +42/min, Ice +18/min");
+    expect(box?.line).toContain("Income: Metal +0.7/min, Ice +0.3/min");
   });
 
   it("shows zero for a material that has not come in", () => {
@@ -277,7 +277,15 @@ describe("storage income", () => {
     expect(box?.line).toContain("Income: Metal +0/min, Ice +0/min");
   });
 
-  it("drops deliveries older than a minute", () => {
+  it("holds the delivery rate steady between deliveries", () => {
+    const deliveries = [{ at: 90, material: "Metal" as const, amount: 60 }];
+    expect(infoBox(delivered(deliveries, 100), { kind: "storage" })?.line)
+      .toContain("Income: Metal +1/min");
+    expect(infoBox(delivered(deliveries, 1000), { kind: "storage" })?.line)
+      .toContain("Income: Metal +1/min");
+  });
+
+  it("drops deliveries older than an hour", () => {
     const state = delivered([{ at: 10, material: "Metal", amount: 9 }], 10 + INCOME_WINDOW_SECONDS + 1);
     expect(infoBox(state, { kind: "storage" })?.line).toContain("Metal +0/min");
   });
@@ -285,6 +293,6 @@ describe("storage income", () => {
   it("shows on a built Storage module as well", () => {
     const state = delivered([{ at: 90, material: "Ice", amount: 5 }], 100);
     const index = state.stations[0]!.modules.findIndex((module) => module.type === "Storage");
-    expect(infoBox(state, { kind: "module", index, stationId: 0 })?.line).toContain("Ice +5/min");
+    expect(infoBox(state, { kind: "module", index, stationId: 0 })?.line).toContain(`Ice +${5 / 60}/min`);
   });
 });

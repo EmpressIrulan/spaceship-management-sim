@@ -128,7 +128,7 @@ export interface Station {
   // fill it. It has no cap, so it has no capacity field.
   constructionSite: { position: Vec; size: Size; inventory: Record<Material, number> };
   storageLimits: Record<Material, number | null>;
-  // Ore that ships unloaded into storage within the last INCOME_WINDOW_SECONDS.
+  // Ore that ships unloaded into storage within the last game-hour window.
   deliveries: Delivery[];
   modules: StationModule[];
   construction: ModuleConstruction | null;

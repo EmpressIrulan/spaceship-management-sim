@@ -27,7 +27,7 @@ describe("station income", () => {
     const material = start.asteroids.find((a) => a.id === start.ships[0]!.target!.asteroidId)!.material;
     const other = material === "Metal" ? "Ice" : "Metal";
     const done = run(start, 60);
-    expect(stationIncome(done)[material]).toBe(CARGO_PER_TRIP);
+    expect(stationIncome(done)[material]).toBe(CARGO_PER_TRIP / 60);
     expect(stationIncome(done)[other]).toBe(0);
   });
 
@@ -35,29 +35,46 @@ describe("station income", () => {
     const start = onePassStart();
     let state = start;
     let last = 0;
-    while (total(stationIncome(state)) < CARGO_PER_TRIP && state.tickCount < 2000) {
+    while (total(stationIncome(state)) < CARGO_PER_TRIP / 60 && state.tickCount < 2000) {
       state = tick(state, 0.1);
       const now = total(stationIncome(state));
       expect(now).toBeGreaterThanOrEqual(last);
       last = now;
     }
-    expect(total(stationIncome(state))).toBe(CARGO_PER_TRIP);
+    expect(total(stationIncome(state))).toBe(CARGO_PER_TRIP / 60);
   });
 
-  it("forgets deliveries older than the last game minute", () => {
+  it("forgets deliveries older than the last game hour", () => {
     const delivered = run(onePassStart(), 60);
-    expect(total(stationIncome(delivered))).toBe(CARGO_PER_TRIP);
+    expect(total(stationIncome(delivered))).toBe(CARGO_PER_TRIP / 60);
     const later = run(delivered, INCOME_WINDOW_SECONDS + 1);
     expect(stationIncome(later)).toEqual({ Metal: 0, Ice: 0 });
   });
 
   it("gives the same figure however the time is sliced", () => {
     const start = oneStorageStart(7);
-    expect(stationIncome(tick(start, 100))).toEqual(stationIncome(run(start, 100)));
+    expect(stationIncome(tick(start, 100)).Metal).toBeCloseTo(stationIncome(run(start, 100)).Metal);
+    expect(stationIncome(tick(start, 100)).Ice).toBeCloseTo(stationIncome(run(start, 100)).Ice);
   });
 
   it("does not count ore that was already in storage or that is spent", () => {
     const spent = { ...onePassStart(), stations: [{ ...onePassStart().stations[0]!, inventory: { Metal: 0, Ice: 0 } }] };
     expect(stationIncome(spent)).toEqual({ Metal: 0, Ice: 0 });
+  });
+
+  it("keeps delivered income unchanged when stored ore is spent", () => {
+    const state = onePassStart();
+    const material = state.asteroids.find((a) => a.id === state.ships[0]!.target!.asteroidId)!.material;
+    const delivered = { ...state, time: 100, stations: [{ ...state.stations[0]!, deliveries: [{ at: 90, material, amount: 60 }] }] };
+    const before = stationIncome(delivered);
+    const after = { ...delivered, stations: [{ ...delivered.stations[0]!, inventory: { Metal: 0, Ice: 0 } }] };
+    expect(stationIncome(after)).toEqual(before);
+  });
+
+  it("keeps the income figure steady while game time is paused", () => {
+    const state = { ...onePassStart(), time: 100, stations: [{ ...onePassStart().stations[0]!, deliveries: [{ at: 90, material: "Metal" as const, amount: 60 }] }] };
+    const paused = tick(state, 0);
+    expect(paused.time).toBe(state.time);
+    expect(stationIncome(paused)).toEqual(stationIncome(state));
   });
 });
