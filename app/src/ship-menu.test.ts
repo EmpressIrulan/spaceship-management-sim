@@ -89,4 +89,16 @@ describe("Builder identity after module destruction", () => {
     syncShipMenuStats(demo.ui, demo.getState, demo.menu as unknown as HTMLElement);
     expect(demo.menu.querySelector(".modules").textContent).toBe("Modules\nEngine x1");
   });
+
+  it("keeps module counts on separate lines", () => {
+    const demo = opened();
+    syncShipMenuStats(demo.ui, demo.getState, demo.menu as unknown as HTMLElement);
+    expect(demo.menu.querySelector(".modules").style).toMatchObject({ whiteSpace: "pre-line" });
+  });
+
+  it("omits the overall pixel count", () => {
+    const demo = opened();
+    syncShipMenuStats(demo.ui, demo.getState, demo.menu as unknown as HTMLElement);
+    expect(demo.menu.querySelector(".stats").textContent).not.toContain("Pixels");
+  });
 });

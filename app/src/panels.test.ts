@@ -487,6 +487,7 @@ describe("ship panel while the ship changes", () => {
     let context = renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0], selectedShip: null, renderedPanel: "" });
     const section = moduleSection()!;
     expect(section.children.map((child) => child.textContent)).toEqual(["Modules", "Engine x4", "Laser x4", "Storage x8"]);
+    expect(box.children[0]!.textContent).toBe("Ship");
     context.selectedShips = [0, 1];
     renderShipPanel(state, box as unknown as HTMLElement, context);
     expect(moduleSection()).toBeUndefined();

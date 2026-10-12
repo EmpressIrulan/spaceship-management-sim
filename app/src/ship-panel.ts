@@ -82,7 +82,7 @@ function buildShipPanel(shipPanelBox: HTMLElement, first: Frame, shipId: number)
     ...(modules ? [modules] : []));
 
   return ({ state, panel, list, hangarRows }) => {
-    setText(title, list.rows.length > 1 ? `${list.rows.length} ships selected` : `Ship ${panel.size}`);
+    setText(title, list.rows.length > 1 ? `${list.rows.length} ships selected` : "Ship");
     list.rows.forEach((row, index) => setText(statusCells[index]!, row.status));
     const values = [...panel.rows, ...hangarRows];
     figureCells.forEach((cell, index) => {

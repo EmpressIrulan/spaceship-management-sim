@@ -15,9 +15,10 @@ export function syncShipMenuStats(ui: UiState, getState: () => SimState, shipMen
   }
   const view = shipMenuView(getState(), ui.shipMenuBuilder, ui.draft, ui.shipMenuStation);
   const stats = shipMenu.querySelector<HTMLElement>(".stats")!;
-  const text = `Pixels ${view.pixels}\nSpeed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;
+  const text = `Speed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;
   if (stats.textContent !== text) stats.textContent = text;
   const modules = shipMenu.querySelector<HTMLElement>(".modules")!;
+  modules.style.whiteSpace = "pre-line";
   const moduleText = ["Modules", ...view.modules].join("\n");
   if (modules.textContent !== moduleText) modules.textContent = moduleText;
   const cost = shipMenu.querySelector<HTMLElement>(".cost")!;
