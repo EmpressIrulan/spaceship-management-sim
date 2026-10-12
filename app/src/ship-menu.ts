@@ -90,6 +90,8 @@ export function installShipMenu(
       "Drag to paint. Right-drag or middle-drag to pan, scroll to zoom.";
     const stats = document.createElement("div");
     stats.className = "stats";
+    const moduleList = document.createElement("div");
+    moduleList.className = "modules";
     const cost = document.createElement("div");
     cost.className = "cost";
     const save = document.createElement("div");
@@ -122,6 +124,7 @@ export function installShipMenu(
       ui.paintCanvas,
       hint,
       stats,
+      moduleList,
       cost,
       save,
       blueprintList,

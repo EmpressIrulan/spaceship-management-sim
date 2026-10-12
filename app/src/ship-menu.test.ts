@@ -83,4 +83,10 @@ describe("Builder identity after module destruction", () => {
     expect(demo.menu.hidden).toBe(true);
     expect(demo.getState().stations[0]!.shipBuilds).toEqual([]);
   });
+
+  it("shows the current design's module list in the Build ship menu", () => {
+    const demo = opened();
+    syncShipMenuStats(demo.ui, demo.getState, demo.menu as unknown as HTMLElement);
+    expect(demo.menu.querySelector(".modules").textContent).toBe("Modules\nEngine x1");
+  });
 });

@@ -17,6 +17,9 @@ export function syncShipMenuStats(ui: UiState, getState: () => SimState, shipMen
   const stats = shipMenu.querySelector<HTMLElement>(".stats")!;
   const text = `Pixels ${view.pixels}\nSpeed ${view.stats.speed}\nHold ${view.stats.hold}\nMining time ${view.stats.miningTime}`;
   if (stats.textContent !== text) stats.textContent = text;
+  const modules = shipMenu.querySelector<HTMLElement>(".modules")!;
+  const moduleText = ["Modules", ...view.modules].join("\n");
+  if (modules.textContent !== moduleText) modules.textContent = moduleText;
   const cost = shipMenu.querySelector<HTMLElement>(".cost")!;
   const costKey = JSON.stringify([view.parts, view.buildTime, view.materials]);
   if (cost.dataset.key !== costKey) {
