@@ -41,6 +41,7 @@ import {
   toParking,
   type BerthLayout,
   type Asteroid,
+  type Delivery,
   type HaulStationId,
   type Ship,
   type ShipBuild,
@@ -797,6 +798,27 @@ function settle(draft: Draft): void {
 // Steps from one timer running out to the next, so a large dt (a tab coming
 // back from the background) plays out every trip and respawn it covers, in
 // the order they would have happened.
+// Entries are chronological, so if the first one is inside the income window
+// the whole list is and the array can be reused without a copy.
+// Every station's delivery list drops entries older than the income window at
+// the end of a tick, not only the primary's, so a busy station's list does not
+// grow for the whole game and get re-filtered on every read.
+// Every station's delivery list drops entries older than the income window at
+// the end of a tick, not only the primary's, so a busy station's list does not
+// grow for the whole game and get re-filtered on every read. An untrimmed
+// station is returned as it stands, so nothing else about it is copied.
+function trimmedOtherStation(draft: Draft, station: SimState["stations"][number]): SimState["stations"][number] {
+  const other = draft.others.find((candidate) => candidate.id === station.id) ?? station;
+  if (other.deliveries.length === 0 || (other.deliveries[0]!.at > draft.time - INCOME_WINDOW_SECONDS)) return other;
+  return { ...other, deliveries: trimmedDeliveries(other.deliveries, draft.time) };
+}
+
+function trimmedDeliveries(deliveries: Delivery[], time: number): Delivery[] {
+  return deliveries[0] && deliveries[0].at > time - INCOME_WINDOW_SECONDS
+    ? deliveries
+    : deliveries.filter((delivery) => delivery.at > time - INCOME_WINDOW_SECONDS);
+}
+
 export function tick(state: SimState, dt: number): SimState {
   const next = simulate(state, dt);
   return { ...next, finishedClaims: finishedClaimSectors(state, next) };
@@ -890,14 +912,12 @@ function simulate(state: SimState, dt: number): SimState {
       storage: { ...home.storage, capacity: draft.storageCapacity },
       inventory: draft.inventory,
       constructionSite: draft.constructionSite,
-      deliveries: draft.deliveries[0] && draft.deliveries[0].at > draft.time - INCOME_WINDOW_SECONDS
-        ? draft.deliveries
-        : draft.deliveries.filter((delivery) => delivery.at > draft.time - INCOME_WINDOW_SECONDS),
+      deliveries: trimmedDeliveries(draft.deliveries, draft.time),
       modules: draft.modules,
       construction: draft.construction,
       buildQueue: draft.buildQueue,
       shipBuilds: draft.shipBuilds,
-    } : draft.others.find((other) => other.id === station.id) ?? station),
+    } : trimmedOtherStation(draft, station)),
     asteroids: draft.asteroids,
     respawns: draft.respawns,
     ships: syncDockedShips(draft.ships),
