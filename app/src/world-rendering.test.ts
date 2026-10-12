@@ -156,6 +156,25 @@ describe("zoomed-out small bodies", () => {
     expect(fillWorldRect).toHaveBeenCalledWith(AT, { width: 200, height: 200 }, asteroidColor(asteroid.material, asteroid.rich));
     expect(fillWorldRect).toHaveBeenCalledWith(AT, { width: 200, height: 200 }, "#c084fc");
   });
+
+  it("shows named station markers when modules are too small to read, and restores modules when zoomed in", () => {
+    const uiState = ui();
+    const state = createInitialState(7);
+    const station = state.stations[0]!;
+    const ctx = mockCtx();
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+
+    uiState.camera = { ...uiState.camera, zoom: 0.01 };
+    drawing.draw(0);
+    expect(ctx.fillText).toHaveBeenCalledWith(station.name, expect.any(Number), expect.any(Number));
+    expect(ctx.ellipse).not.toHaveBeenCalled();
+
+    (ctx.fillText as unknown as { mockClear: () => void }).mockClear();
+    uiState.camera = { ...uiState.camera, zoom: 1 };
+    drawing.draw(1);
+    expect(ctx.fillText).not.toHaveBeenCalled();
+    expect(ctx.ellipse).toHaveBeenCalled();
+  });
 });
 
 function shotState(ship: Ship, bugs: Bug[] = []): SimState {

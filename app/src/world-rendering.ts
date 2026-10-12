@@ -18,7 +18,7 @@ import { cargoGauge } from "./labels";
 import { slotColor } from "./ships";
 import { cancelDependentsAt } from "./building";
 import { stationConnectors } from "./station-appearance";
-import { createStationDrawing } from "./station-rendering";
+import { createStationDrawing, STATION_DETAIL_MIN_PX } from "./station-rendering";
 import { createShipDrawing } from "./ship-rendering";
 import { createOverlayDrawing } from "./overlay-rendering";
 import type { UiState } from "./ui-state";
@@ -114,6 +114,13 @@ export function createWorldDrawing(
     // ghosts, its build and its site marker exactly the way Home does.
     for (const station of state.stations) {
       if (station.sectorId !== ui.currentSector) continue;
+      const stationIsTooSmall = station.modules.length > 0 && station.modules.every((module) =>
+        Math.min(module.size.width, module.size.height) * ui.camera.zoom < STATION_DETAIL_MIN_PX,
+      );
+      if (stationIsTooSmall) {
+        stationDrawing.drawStationMarker(station);
+        continue;
+      }
       for (const connector of stationConnectors(station.modules)) stationDrawing.drawStationConnector(connector.from, connector.to);
       for (const module of station.modules) stationDrawing.drawStationModule(module);
       // The Cancel under the pointer names the ghosts it would take with it, so
