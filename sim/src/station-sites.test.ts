@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DOCK_CAPACITY,
   MODULE_COST,
+  SIZE_MULTIPLIER,
   createInitialState,
   homeStation,
   stationById,
@@ -44,8 +45,8 @@ describe("station management", () => {
     ] };
     const removed = removeStation(state, station.id);
     expect(removed.stations.some((s) => s.id === station.id)).toBe(false);
-    expect(removed.ships[0]).toMatchObject({ sectorId: station.sectorId, state: "holding", position: { x: station.dock.position.x + station.dock.size.width / 2 + 12, y: station.dock.position.y }, order: null, leg: null, berth: null });
-    expect(removed.ships[1]).toMatchObject({ sectorId: station.sectorId, state: "holding", position: { x: station.dock.position.x + station.dock.size.width / 2 + 12, y: station.dock.position.y }, order: null });
+    expect(removed.ships[0]).toMatchObject({ sectorId: station.sectorId, state: "holding", position: { x: station.dock.position.x + station.dock.size.width / 2 + 12 * SIZE_MULTIPLIER, y: station.dock.position.y }, order: null, leg: null, berth: null });
+    expect(removed.ships[1]).toMatchObject({ sectorId: station.sectorId, state: "holding", position: { x: station.dock.position.x + station.dock.size.width / 2 + 12 * SIZE_MULTIPLIER, y: station.dock.position.y }, order: null });
     expect(removeStation(state, -1)).toBe(state);
   });
 

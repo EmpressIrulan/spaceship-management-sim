@@ -72,7 +72,7 @@ export function nearbyClearPosition(position: Vec, obstacles: Array<{ position: 
     for (let y = -radius; y <= radius; y += 1) {
       for (let x = -radius; x <= radius; x += 1) {
         if (Math.max(Math.abs(x), Math.abs(y)) !== radius) continue;
-        const candidate = { x: position.x + x * 20, y: position.y + y * 20 };
+        const candidate = { x: position.x + x * MODULE_SPACING / 2, y: position.y + y * MODULE_SPACING / 2 };
         if (!blocked(candidate)) return candidate;
       }
     }

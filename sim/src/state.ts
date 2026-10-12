@@ -45,7 +45,7 @@ export function replaceHomeStation<T extends Pick<SimState, "stations">>(state: 
   return { ...state, stations: [station, ...state.stations.slice(1)] };
 }
 import { distance, makeFields, placeInField, rocksInField } from "./fields";
-import { DISTANCE_MULTIPLIER } from "./size-constants";
+import { DISTANCE_MULTIPLIER, SIZE_MULTIPLIER } from "./size-constants";
 export { availableModuleBuildSites, availableModuleBuilds, startModuleBuild, type ModuleBuildOption } from "./station-building";
 export {
   FIELD_LAYOUT, BELT_ROCKS, CLUSTER_ROCKS, SPARSE_BELT_ROCKS,
@@ -76,8 +76,8 @@ export const DOCK_CAPACITY = DOCK_AREA;
 export const STORAGE_CAPACITY = 1000;
 // The construction site sits off the Dock's north-east corner. Placed between
 // two module slots, so it takes none of the ones Home offers at the start.
-export const CONSTRUCTION_SITE_POSITION: Vec = { x: 75, y: -60 };
-export const CONSTRUCTION_SITE_SIZE = { width: 28, height: 28 };
+export const CONSTRUCTION_SITE_POSITION: Vec = { x: 75 * SIZE_MULTIPLIER, y: -60 * SIZE_MULTIPLIER };
+export const CONSTRUCTION_SITE_SIZE = { width: 28 * SIZE_MULTIPLIER, height: 28 * SIZE_MULTIPLIER };
 // Placeholder: the site starts empty, so the first module needs a ship supplying
 // it. Raise this if the first minute of play feels stuck before anything is built.
 export const CONSTRUCTION_SITE_START: Record<Material, number> = { Metal: 0, Ice: 0 };
@@ -436,8 +436,8 @@ function storedTotal(inventory: Record<Material, number>): number {
 
 // Parking spots fan out west of the Dock, six to an arc, one arc further out
 // for each six ships parked.
-const PARKING_RADIUS = 70;
-const PARKING_ARC_STEP = 22;
+const PARKING_RADIUS = 70 * SIZE_MULTIPLIER;
+const PARKING_ARC_STEP = 22 * SIZE_MULTIPLIER;
 const PARKING_ARC_SLOTS = 6;
 
 export function berthLayout(station: Station): BerthLayout {

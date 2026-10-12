@@ -4,6 +4,7 @@ import {
   DOCK_SIZE,
   MATERIALS,
   MODULE_SPACING,
+  STORAGE_SIZE,
   BUILDER_SIZE,
   availableModuleBuildSites,
   availableModuleBuilds,
@@ -82,7 +83,7 @@ describe("the construction site", () => {
     const state = createInitialState(7);
     const { position, size } = site(state);
     for (const slot of availableModuleBuildSites(state, 0)) {
-      const overlaps = Math.abs(slot.x - position.x) < (40 + size.width) / 2 && Math.abs(slot.y - position.y) < (70 + size.height) / 2;
+      const overlaps = Math.abs(slot.x - position.x) < (STORAGE_SIZE.width + size.width) / 2 && Math.abs(slot.y - position.y) < (STORAGE_SIZE.height + size.height) / 2;
       expect(overlaps, JSON.stringify(slot)).toBe(false);
     }
     expect(availableModuleBuildSites(state, 0)).toEqual([{ x: -MODULE_SPACING, y: 0 }, { x: 0, y: -MODULE_SPACING }, { x: 0, y: MODULE_SPACING }, { x: MODULE_SPACING, y: -MODULE_SPACING }, { x: MODULE_SPACING, y: MODULE_SPACING }, { x: 2 * MODULE_SPACING, y: 0 }]);

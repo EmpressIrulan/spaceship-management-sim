@@ -216,6 +216,20 @@ try {
     if (scene <= 6) await still(scene);
     await mark(scene, details);
     await page.waitForTimeout(scene === 9 ? 3500 : 2500);
+    if (scene === 4) {
+      for (const target of [baseline, current]) {
+        await target.evaluate(() => {
+          const api = window.issue124Demo;
+          api.stationLayout();
+          api.camera(0, 0, api.limits.max / 8);
+        });
+        const pad = await target.evaluate(() => window.issue124Demo.state.stations[0].constructionSite.position);
+        await annotate(target, [{ text: "Build pad", ...pad }]);
+      }
+      await still(scene);
+      await mark(scene, "Opening scale: build pad, seven parked ships (two arcs), seven-ship formation");
+      await page.waitForTimeout(3200);
+    }
   }
   assert.deepEqual(errors, []);
 } finally {

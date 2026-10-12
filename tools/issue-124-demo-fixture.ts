@@ -1,6 +1,6 @@
 // Recording-only seeded states. Neither this file nor its UI hooks ship in the game.
-import { STARTING_SHIP, berthPoint, createInitialState, giveOrder, shipSize, shipStats, stationIncome, tick, type ShipDesign, type SimState } from "sim";
-import { berthLayout, GATE_DISTANCE } from "../sim/src/state";
+import { STARTING_SHIP, berthPoint, createInitialState, formation, giveOrder, shipSize, shipStats, stationIncome, tick, type ShipDesign, type SimState } from "sim";
+import { berthLayout, GATE_DISTANCE, toParking } from "../sim/src/state";
 import type { UiState } from "../app/src/ui-state";
 
 // Same 25-unit cruise speed as the starter; a small hold and eleven lasers
@@ -69,6 +69,19 @@ export function installIssue124Demo(ui: UiState, getState: () => SimState, setSt
     },
     step(seconds: number) { setState(tick(getState(), seconds)); },
     sizes() { return { dock: getState().stations[0]?.dock.size, ship: shipSize(getState().ships[0]!.design) }; },
+    stationLayout() {
+      const state = getState(), station = state.stations[0]!, base = state.ships[0]!;
+      const fleet = [base];
+      for (let id = 1; id <= 7; id++) {
+        const parked = toParking(berthLayout(station), fleet, { ...base, id });
+        fleet.push({ ...parked, state: "waiting", position: parked.leg!.to, leg: null });
+      }
+      const origin = { x: station.dock.size.width * 6, y: station.dock.size.height * 2 };
+      for (const position of formation(origin, 7)) {
+        fleet.push({ ...base, id: fleet.length, state: "holding", position, berth: null });
+      }
+      setState({ ...state, ships: fleet, nextShipId: fleet.length });
+    },
   };
   Object.assign(window, { issue124Demo: api });
 }

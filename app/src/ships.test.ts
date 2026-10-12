@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, tick, type GateProject, type Ship, type ShipDesign, type SimState, type Station } from "sim";
+import { createInitialState, SIZE_MULTIPLIER, tick, type GateProject, type Ship, type ShipDesign, type SimState, type Station } from "sim";
 import { hoveredBody, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
 import { MODULE_COLORS, spritePixels, shipPanel } from "./ships";
@@ -169,7 +169,8 @@ describe("ships drawn from their pixels", () => {
       { state: "outbound", position: { x: 100, y: 100 } },
       { state: "outbound", design: big, position: { x: -100, y: 100 } },
     ]);
-    const edge = (x: number) => hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, { x, y: 100 }));
+    const opening = { ...camera, zoom: 1 / SIZE_MULTIPLIER };
+    const edge = (x: number) => hoveredBody(state, opening, viewport, worldToScreen(opening, viewport, { x, y: 100 }));
     // 1.75 units off centre is outside the 3-wide starting ship and inside the 4.5-wide 6x6.
     expect(edge(100 + 1.75)).toBeNull();
     expect(edge(-100 + 1.75)).toEqual({ kind: "ship", index: 1 });

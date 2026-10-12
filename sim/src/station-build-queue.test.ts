@@ -379,7 +379,7 @@ describe("the station build queue", () => {
 
     const station = state.stations.find((candidate) => candidate.id === id)!;
     expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 900 - MODULE_SPACING / 2, y: 900 } });
-    expect(station.constructionSite.position).toEqual({ x: 920, y: 880 });
+    expect(station.constructionSite.position).toEqual({ x: 900 + MODULE_SPACING / 2, y: 900 - MODULE_SPACING });
   });
 
   it("moves a built station's pad off another station's module when a module completes", () => {
@@ -402,7 +402,7 @@ describe("the station build queue", () => {
 
     const station = state.stations.find((candidate) => candidate.id === id)!;
     expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 900 - MODULE_SPACING / 2, y: 900 } });
-    expect(station.constructionSite.position).toEqual({ x: 900, y: 880 });
+    expect(station.constructionSite.position).toEqual({ x: 900 - MODULE_SPACING / 2, y: 900 - MODULE_SPACING });
   });
 
   it("moves a built station's pad off a home module when a module completes", () => {
@@ -423,7 +423,7 @@ describe("the station build queue", () => {
 
     const station = state.stations.find((candidate) => candidate.id === id)!;
     expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 900 - MODULE_SPACING / 2, y: 900 } });
-    expect(station.constructionSite.position).toEqual({ x: 900, y: 880 });
+    expect(station.constructionSite.position).toEqual({ x: 900 - MODULE_SPACING / 2, y: 900 - MODULE_SPACING });
   });
 
   it("leaves a supply ship at its Move destination while a build is queued", () => {

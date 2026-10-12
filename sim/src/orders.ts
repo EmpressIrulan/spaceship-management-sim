@@ -9,14 +9,14 @@ export function shipHomeRefusal(state: SimState, ids: number[], stationId: numbe
 import { haulSites, haulStations, resumeHaulShip, validHaulRoute } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { travelSeconds } from "./motion";
-import { canMine, cargoTransferSeconds, shipSize, shipStats, speedFactor } from "./ship";
+import { STARTING_SHIP, canMine, cargoTransferSeconds, shipSize, shipStats, speedFactor } from "./ship";
 import {
   berthLayout, MATERIALS, gateRoute, HOME_SECTOR, homeStation, miningSite, nearestMineableRock, replaceHomeStation, stationById, toBerth, toParking,
   type Asteroid, type DefaultBehaviour, type HaulRoute, type Material, type Order, type Station,
   type Sector, type Ship, type SimState, type Vec,
 } from "./state";
 
-const SPACING = 2 * 3 * 4.5;
+const SPACING = 3 * shipSize(STARTING_SHIP).width;
 
 export function formation(point: Vec, count: number): Vec[] {
   const result: Vec[] = [];

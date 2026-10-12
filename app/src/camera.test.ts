@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, DOCK_SIZE, shipSize, type Bug, type Drop, type Hive } from "sim";
+import { createInitialState, DOCK_SIZE, GATE_DISTANCE, SIZE_MULTIPLIER, shipSize, type Bug, type Drop, type Hive } from "sim";
 import { miningStart } from "./test-mining";
 import {
   MAX_ZOOM,
@@ -80,7 +80,7 @@ describe("starting view", () => {
     const station = createInitialState(7).stations[0]!;
     const camera = homeCamera([station.dock, station.storage, ...station.modules]);
     const module = station.modules.find((body) => body.type !== "Dock")!;
-    expect(camera.zoom).toBe(3);
+    expect(camera.zoom * SIZE_MULTIPLIER).toBeCloseTo(1);
     expect(module.size.width * camera.zoom).toBeCloseTo(30);
     expect(module.size.height * camera.zoom).toBeCloseTo(40);
   });
@@ -89,7 +89,7 @@ describe("starting view", () => {
     const ship = createInitialState(7).ships[0]!;
     const size = shipSize(ship.design);
     const module = createInitialState(7).stations[0]!.modules.find((body) => body.type !== "Dock")!;
-    expect(MAX_ZOOM).toBe(24);
+    expect(MAX_ZOOM * SIZE_MULTIPLIER).toBeCloseTo(8);
     expect(module.size.width * MAX_ZOOM).toBeCloseTo(240);
     expect(module.size.height * MAX_ZOOM).toBeCloseTo(320);
     expect(size.width * MAX_ZOOM).toBeCloseTo(72);
@@ -97,7 +97,7 @@ describe("starting view", () => {
   });
 
   it("shows the system at about half-screen scale at full zoom out", () => {
-    expect(MIN_ZOOM).toBe(0.1);
+    expect(MIN_ZOOM * GATE_DISTANCE).toBeCloseTo(240);
     const gate = createInitialState(7).sectors[0]!.gate.position;
     const diameter = 2 * Math.hypot(gate.x, gate.y) * MIN_ZOOM;
     expect(diameter).toBeCloseTo(480);
@@ -156,8 +156,8 @@ describe("hovering", () => {
 
   it("points at the Dock wherever the camera has moved it", () => {
     const cameras: Camera[] = [
-      home,
-      { center: { x: 200, y: -150 }, zoom: 0.5 },
+      { ...home, zoom: 1 / SIZE_MULTIPLIER },
+      { center: { x: 200, y: -150 }, zoom: 1 / SIZE_MULTIPLIER },
       { center: { x: -40, y: 30 }, zoom: 3 },
     ];
     for (const camera of cameras) {
@@ -190,6 +190,7 @@ describe("hovering", () => {
     const target = state.asteroids.find((candidate) => candidate.id === ship.target!.asteroidId)!;
     const mining = {
       ...state,
+      asteroids: [target],
       ships: [{ ...ship, state: "working" as const, position: { ...ship.target!.site } }],
     };
     const zoomedOut: Camera = { center: { x: 0, y: 0 }, zoom: MIN_ZOOM };
