@@ -73,7 +73,7 @@ const SECOND_BUILDER = 3;
 describe("the starting ship", () => {
   it("uses one retunable size multiplier for ships, stations, docks, hives and bugs", () => {
     expect(SIZE_MULTIPLIER).toBe(1 / 3);
-    expect(DISTANCE_MULTIPLIER).toBe(1);
+    expect(DISTANCE_MULTIPLIER).toBe(5);
     expect(PIXEL_SIZE).toBe(2.25 * SIZE_MULTIPLIER);
     expect(BUILDER_SIZE.width).toBeCloseTo(10);
     expect(BUILDER_SIZE.height).toBeCloseTo(40 / 3);

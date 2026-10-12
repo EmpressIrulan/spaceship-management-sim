@@ -45,6 +45,7 @@ export function replaceHomeStation<T extends Pick<SimState, "stations">>(state: 
   return { ...state, stations: [station, ...state.stations.slice(1)] };
 }
 import { distance, makeFields, placeInField, rocksInField } from "./fields";
+import { DISTANCE_MULTIPLIER } from "./size-constants";
 export { availableModuleBuildSites, availableModuleBuilds, startModuleBuild, type ModuleBuildOption } from "./station-building";
 export {
   FIELD_LAYOUT, BELT_ROCKS, CLUSTER_ROCKS, SPARSE_BELT_ROCKS,
@@ -89,7 +90,7 @@ export const RICH_ASTEROID_SIZE = { width: 21, height: 16 };
 export const ABUNDANT_SHARE = 0.75;
 export const JUMP_SECONDS = 2;
 export const GATE_SIZE = { width: 24, height: 24 };
-export const GATE_DISTANCE = 480;
+export const GATE_DISTANCE = 480 * DISTANCE_MULTIPLIER;
 export const SECTOR_COUNT = 4;
 export const GATE_COST: Record<Material, number> = { Metal: 200, Ice: 200 };
 export const SECTOR_MAP_POINTS = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 1 }] as const;
