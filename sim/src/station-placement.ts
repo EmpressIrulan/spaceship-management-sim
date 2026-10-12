@@ -19,6 +19,7 @@ export function placeStation(state: SimState, sectorId: number, position: Vec): 
     id: state.nextStationId,
     name: `${STATION_NAME_WORDS[Math.floor(nameRoll.value * STATION_NAME_WORDS.length)]} Station`,
     founding: true,
+    builtAt: state.time,
     sectorId,
     dock: { position: dockPosition, size: DOCK_SIZE, capacity: 0 },
     storage: { position: storagePosition, size: STORAGE_SIZE, capacity: 0 },

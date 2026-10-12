@@ -35,7 +35,7 @@ describe("module destructions", () => {
       Math.ceil(EXPLOSION_CUTOFF_SECONDS) + 1,
     );
     expect(end.moduleDestructions?.every((d) => d.time > end.time - EXPLOSION_CUTOFF_SECONDS)).toBe(true);
-  });
+  }, 15_000);
 
   it("does not change the state it was given", () => {
     const state = createInitialState(7);

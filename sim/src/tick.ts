@@ -65,7 +65,7 @@ function routeOf(ship: Ship, dock: Vec): Route | null {
   return { dock, site, length, factor, legSeconds: travelSeconds(length, factor) };
 }
 
-const stationKeys = ["deliveries", "dock", "stationSector", "storageCapacity", "storageLimits", "inventory", "constructionSite", "modules", "construction", "buildQueue", "shipBuilds", "dockCapacity"] as const;
+const stationKeys = ["deliveries", "stationBuiltAt", "dock", "stationSector", "storageCapacity", "storageLimits", "inventory", "constructionSite", "modules", "construction", "buildQueue", "shipBuilds", "dockCapacity"] as const;
 type StationKey = typeof stationKeys[number];
 type StationContext = Pick<Draft, StationKey>;
 
@@ -75,6 +75,7 @@ function currentStationContext(draft: Draft): StationContext {
 
 function setStationContext(draft: Draft, context: StationContext): void {
   Object.assign(draft, context);
+  draft.deliveriesCopied = false;
 }
 
 function saveStationContext(draft: Draft, stationId: number): void {
@@ -87,7 +88,7 @@ function saveStationContext(draft: Draft, stationId: number): void {
     return;
   }
   draft.others = draft.others.map((station) => station.id === stationId ? {
-    ...station, deliveries: context.deliveries,
+    ...station, deliveries: context.deliveries, builtAt: context.stationBuiltAt,
     dock: { ...station.dock, capacity: context.dockCapacity }, sectorId: context.stationSector,
     storage: { ...station.storage, capacity: context.storageCapacity }, storageLimits: context.storageLimits,
     inventory: context.inventory, constructionSite: context.constructionSite, modules: context.modules,
@@ -100,7 +101,7 @@ function stationContext(draft: Draft, stationId: number): StationContext | null 
   const station = draft.others.find((candidate) => candidate.id === stationId);
   if (!station) return null;
   return {
-    deliveries: station!.deliveries, dock: station!.dock.position, stationSector: station!.sectorId,
+    deliveries: station!.deliveries, stationBuiltAt: station!.builtAt ?? 0, dock: station!.dock.position, stationSector: station!.sectorId,
     storageCapacity: station!.storage.capacity, storageLimits: station!.storageLimits,
     inventory: station!.inventory, constructionSite: station!.constructionSite, modules: station!.modules,
     construction: station!.construction, buildQueue: station!.buildQueue, shipBuilds: station!.shipBuilds,
@@ -150,7 +151,13 @@ function unloadMaterial(draft: Draft, material: "Metal" | "Ice", units: number):
   const limit = draft.storageLimits[material];
   const materialRoom = limit === null ? Infinity : Math.max(0, limit - draft.inventory[material]);
   const accepted = Math.min(units, storageRemaining(draft), materialRoom);
-  if (accepted > 0) draft.deliveries = [...draft.deliveries, { at: draft.time, material, amount: accepted }];
+  if (accepted > 0) {
+    if (!draft.deliveriesCopied) {
+      draft.deliveries = [...draft.deliveries];
+      draft.deliveriesCopied = true;
+    }
+    draft.deliveries.push({ at: draft.time, material, amount: accepted });
+  }
   draft.inventory = {
     ...draft.inventory,
     [material]: draft.inventory[material] + accepted,
@@ -812,7 +819,9 @@ function simulate(state: SimState, dt: number): SimState {
     activeStationId: primaryStationId,
     primaryStationId,
     founding: home.founding,
+    stationBuiltAt: home.builtAt ?? 0,
     deliveries: home.deliveries,
+    deliveriesCopied: false,
     rng: state.rng,
     enemyRng: state.enemyRng ?? ((state.rng ^ 0x1bd0e5f3) >>> 0),
     nextAsteroidId: state.nextAsteroidId,
@@ -876,11 +885,14 @@ function simulate(state: SimState, dt: number): SimState {
     stations: state.stations.map((station) => station.id === primaryStationId ? {
       ...home,
       founding: draft.founding,
+      builtAt: draft.stationBuiltAt,
       dock: { ...home.dock, capacity: draft.dockCapacity },
       storage: { ...home.storage, capacity: draft.storageCapacity },
       inventory: draft.inventory,
       constructionSite: draft.constructionSite,
-      deliveries: draft.deliveries.filter((delivery) => delivery.at > draft.time - INCOME_WINDOW_SECONDS),
+      deliveries: draft.deliveries[0] && draft.deliveries[0].at > draft.time - INCOME_WINDOW_SECONDS
+        ? draft.deliveries
+        : draft.deliveries.filter((delivery) => delivery.at > draft.time - INCOME_WINDOW_SECONDS),
       modules: draft.modules,
       construction: draft.construction,
       buildQueue: draft.buildQueue,

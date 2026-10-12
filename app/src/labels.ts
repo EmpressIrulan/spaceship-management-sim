@@ -72,7 +72,7 @@ function storageBox(state: SimState, stationId = 0): InfoBox {
   const lines = MATERIALS.filter((material) => station.inventory[material] > 0)
     .map((material) => `${material}: ${station.inventory[material]}`);
   const income = stationIncome(state, stationId);
-  const rates = MATERIALS.map((material) => `${material} +${income[material]}/min`).join(", ");
+  const rates = MATERIALS.map((material) => `${material} +${income[material].toFixed(1)}/min`).join(", ");
   return {
     title: "Storage",
     line: [`Stored ${stored} / ${station.storage.capacity}`, ...lines, `Income: ${rates}`].join("\n"),

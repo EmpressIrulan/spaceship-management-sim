@@ -118,6 +118,8 @@ export interface Station {
   // True while the station is still building itself up the way the game
   // starts: a Dock, then a Storage, from whatever ships bring to its site.
   founding: boolean;
+  // Game time when this station was founded. Missing on older states means 0.
+  builtAt?: number;
   sectorId: number;
   // The Dock is the station's home point: the position ships route to and
   // from, and the one the asteroid band is measured out from.
@@ -128,7 +130,7 @@ export interface Station {
   // fill it. It has no cap, so it has no capacity field.
   constructionSite: { position: Vec; size: Size; inventory: Record<Material, number> };
   storageLimits: Record<Material, number | null>;
-  // Ore that ships unloaded into storage within the last INCOME_WINDOW_SECONDS.
+  // Ore that ships unloaded into storage within the last game-hour window.
   deliveries: Delivery[];
   modules: StationModule[];
   construction: ModuleConstruction | null;
