@@ -10,7 +10,7 @@ import {
 import { worldToScreen } from "./camera";
 import { type Gauge } from "./labels";
 import { LASER_COLOR, flickerPixels, laserPulse } from "./laser";
-import { shipSprite } from "./ships";
+import { shipSprite, slotColor } from "./ships";
 import type { UiState } from "./ui-state";
 
 const GAUGE = { width: 36, height: 12, gap: 4 };
@@ -28,6 +28,13 @@ export function createShipDrawing(
   // Edges are rounded so the image lands on whole screen pixels at any zoom.
   function drawShip(ship: Ship, outlineBlocks = false): void {
     const size = shipSize(ship.design);
+    if (size.width * ui.camera.zoom < 2 || size.height * ui.camera.zoom < 2) {
+      const screen = worldToScreen(ui.camera, ui.viewport, ship.position);
+      const color = ship.design.slots.find((slot) => slot !== null);
+      ctx.fillStyle = color ? slotColor(color) : "#475569";
+      ctx.fillRect(Math.round(screen.x) - 1, Math.round(screen.y) - 1, 2, 2);
+      return;
+    }
     const a = worldToScreen(ui.camera, ui.viewport, {
       x: ship.position.x - size.width / 2,
       y: ship.position.y - size.height / 2,
