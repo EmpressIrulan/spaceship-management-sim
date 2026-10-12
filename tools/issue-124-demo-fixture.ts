@@ -1,5 +1,5 @@
 // Recording-only seeded states. Neither this file nor its UI hooks ship in the game.
-import { STARTING_SHIP, berthPoint, createInitialState, formation, giveOrder, shipSize, shipStats, stationIncome, tick, type ShipDesign, type SimState } from "sim";
+import { STARTING_SHIP, availableModuleBuildSites, berthPoint, createInitialState, formation, giveOrder, queueModuleBuild, shipSize, shipStats, stationIncome, tick, type ShipDesign, type SimState } from "sim";
 import { berthLayout, GATE_DISTANCE, toParking } from "../sim/src/state";
 import type { UiState } from "../app/src/ui-state";
 
@@ -36,7 +36,8 @@ export function createIssue124DemoState(scene: number, design = STARTING_SHIP): 
     state.asteroids = [rock]; state.fields = []; ship.mineMaterials = ["Metal"]; ship.design = design;
     return giveOrder(state, [ship.id], { kind: "mine", asteroidId: rock.id });
   } else state.asteroids = [];
-  return state;
+  // The game draws a Home build pad only while a module is queued.
+  return scene === 2 ? queueModuleBuild(state, "Storage", availableModuleBuildSites(state, 0)[0]!) : state;
 }
 
 export function measureIssue124Trip(design = STARTING_SHIP) {
@@ -69,6 +70,13 @@ export function installIssue124Demo(ui: UiState, getState: () => SimState, setSt
     },
     step(seconds: number) { setState(tick(getState(), seconds)); },
     sizes() { return { dock: getState().stations[0]?.dock.size, ship: shipSize(getState().ships[0]!.design) }; },
+    pickups() {
+      const state = getState();
+      setState({ ...state, drops: [
+        { id: 0, sectorId: 0, kind: "bugJuice", position: { x: 100, y: 0 } },
+        { id: 1, sectorId: 0, kind: "queenLarvae", position: { x: 120, y: 0 } },
+      ], nextDropId: 2 });
+    },
     stationLayout() {
       const state = getState(), station = state.stations[0]!, base = state.ships[0]!;
       const fleet = [base];
@@ -80,7 +88,8 @@ export function installIssue124Demo(ui: UiState, getState: () => SimState, setSt
       for (const position of formation(origin, 7)) {
         fleet.push({ ...base, id: fleet.length, state: "holding", position, berth: null });
       }
-      setState({ ...state, ships: fleet, nextShipId: fleet.length });
+      const layout = { ...state, ships: fleet, nextShipId: fleet.length };
+      setState(queueModuleBuild(layout, "Storage", availableModuleBuildSites(layout, 0)[0]!));
     },
   };
   Object.assign(window, { issue124Demo: api });

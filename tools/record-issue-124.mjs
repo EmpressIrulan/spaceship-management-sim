@@ -142,7 +142,7 @@ try {
       });
     } else if (scene === 2) {
       for (const target of [baseline, current]) {
-        await camera(target, 65, 15, 4);
+        await camera(target, 65, 0, 4);
         const storageX = await target.evaluate(() => window.issue124Demo.state.stations[0].storage.position.x);
         await annotate(target, [{ text: "Dock", x: -8, y: 0 }, { text: "Storage", x: storageX - 10, y: -40 },
           { text: "Ship", x: 75, y: 0 }, { text: "Asteroid", x: 128, y: 0 },
@@ -216,6 +216,17 @@ try {
     if (scene <= 6) await still(scene);
     await mark(scene, details);
     await page.waitForTimeout(scene === 9 ? 3500 : 2500);
+    if (scene === 2) {
+      for (const target of [baseline, current]) {
+        await target.evaluate(() => window.issue124Demo.pickups());
+        await camera(target, 100, 0, 8);
+        await annotate(target, [{ text: "Starter ship", x: 72, y: 0 },
+          { text: "Bug juice", x: 94, y: 0 }, { text: "Queen larvae", x: 116, y: 0 }]);
+      }
+      await still(scene);
+      await mark(scene, "Pickup close-up | Same zoom 8 | Both dropped pickups now shrink with ships to one third");
+      await page.waitForTimeout(3000);
+    }
     if (scene === 4) {
       for (const target of [baseline, current]) {
         await target.evaluate(() => {
@@ -244,7 +255,7 @@ try {
     await rename(join(out, "issue-124.webm"), join(out, "raw.webm"));
     await run("/usr/bin/ffmpeg", ["-loglevel", "error", "-y", "-i", join(out, "raw.webm"),
       "-vf", `setpts=${factor}*PTS`, "-an", "-c:v", "libvpx", "-deadline", "realtime",
-      "-cpu-used", "8", "-threads", "2", join(out, "issue-124.webm")]);
+      "-cpu-used", "8", "-b:v", "4M", "-threads", "2", join(out, "issue-124.webm")]);
     for (const moment of moments) { moment.rawSeconds = moment.seconds; moment.seconds *= factor; }
     console.log(`Condensed ${duration.toFixed(1)} s capture to 38 s; no scenes removed`);
   }
