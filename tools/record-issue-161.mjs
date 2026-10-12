@@ -113,7 +113,8 @@ try {
       await page.clock.resume();
       await writeFile(join(out, "flight.json"), JSON.stringify(flight));
     } else {
-      await camera(-1500, 0, 0.1);
+      // Anchor the wheel in empty space, not on the station's build buttons.
+      await camera(-1420, 0, 0.1);
       await note("Start at zoom 0.1: Home marker and tiny orange ship, purple bug, brown asteroid");
       await mark(scene, "before"); await page.waitForTimeout(1000);
       await page.mouse.move(500, 440);
