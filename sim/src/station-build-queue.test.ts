@@ -172,9 +172,10 @@ describe("the station build queue", () => {
     const state = queueModuleBuild(createInitialState(7), "Storage", east);
 
     expect(state.stations[0]!.construction).toBeNull();
-    expect(state.stations[0]!.buildQueue).toEqual([
-      { type: "Storage", position: east, size: { width: 30, height: 40 } },
+    expect(state.stations[0]!.buildQueue).toMatchObject([
+      { type: "Storage", position: east, size: { width: 10 } },
     ]);
+    expect(state.stations[0]!.buildQueue[0]!.size.height).toBeCloseTo(40 / 3);
   });
 
   it("starts the front module immediately when an empty queue can pay", () => {
@@ -377,7 +378,7 @@ describe("the station build queue", () => {
 
     const station = state.stations.find((candidate) => candidate.id === id)!;
     expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 880, y: 900 } });
-    expect(station.constructionSite.position).toEqual({ x: 900, y: 860 });
+    expect(station.constructionSite.position).toEqual({ x: 900, y: 900 });
   });
 
   it("moves a built station's pad off another station's module when a module completes", () => {
@@ -400,7 +401,7 @@ describe("the station build queue", () => {
 
     const station = state.stations.find((candidate) => candidate.id === id)!;
     expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 880, y: 900 } });
-    expect(station.constructionSite.position).toEqual({ x: 900, y: 860 });
+    expect(station.constructionSite.position).toEqual({ x: 900, y: 900 });
   });
 
   it("moves a built station's pad off a home module when a module completes", () => {
@@ -421,7 +422,7 @@ describe("the station build queue", () => {
 
     const station = state.stations.find((candidate) => candidate.id === id)!;
     expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 880, y: 900 } });
-    expect(station.constructionSite.position).toEqual({ x: 900, y: 860 });
+    expect(station.constructionSite.position).toEqual({ x: 900, y: 900 });
   });
 
   it("leaves a supply ship at its Move destination while a build is queued", () => {

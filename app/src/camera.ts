@@ -1,4 +1,4 @@
-import { BUG_SIZE, DROP_SIZE, HIVE_SIZE, shipSize, type SimState, type Size, type Vec } from "sim";
+import { BUG_SIZE, DROP_SIZE, HIVE_SIZE, SIZE_MULTIPLIER, shipSize, type SimState, type Size, type Vec } from "sim";
 
 // Placeholder limits. Revisit when sectors get bigger than one station and
 // a handful of asteroids and the client wants to see more of them at once.
@@ -97,7 +97,7 @@ export function panBy(camera: Camera, dxScreen: number, dyScreen: number): Camer
 // Asteroids are only a few pixels across when zoomed out, so their hover
 // area never shrinks below this many screen pixels.
 const MIN_HOVER_PX = 16;
-const MIN_SHIP_HOVER_PX = 8;
+const MIN_SHIP_HOVER_PX = 8 * SIZE_MULTIPLIER;
 
 export type Hovered =
   | { kind: "dock"; stationId: number }

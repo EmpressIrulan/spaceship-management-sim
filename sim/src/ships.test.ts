@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { foundedStation, miningStart } from "./test-ships";
 import {
   PIXEL_SIZE,
+  SIZE_MULTIPLIER,
+  DISTANCE_MULTIPLIER,
+  DOCK_SIZE,
+  BUILDER_SIZE,
+  HIVE_SIZE,
+  BUG_SIZE,
   SHIP_MODULES,
   STARTING_SHIP,
   canMine,
@@ -65,6 +71,18 @@ const FIRST_BUILDER = 2;
 const SECOND_BUILDER = 3;
 
 describe("the starting ship", () => {
+  it("uses one retunable size multiplier for ships, stations, docks, hives and bugs", () => {
+    expect(SIZE_MULTIPLIER).toBe(1 / 3);
+    expect(DISTANCE_MULTIPLIER).toBe(1);
+    expect(PIXEL_SIZE).toBe(2.25 * SIZE_MULTIPLIER);
+    expect(BUILDER_SIZE.width).toBeCloseTo(10);
+    expect(BUILDER_SIZE.height).toBeCloseTo(40 / 3);
+    expect(DOCK_SIZE).toEqual({ width: 6, height: 9 });
+    expect(HIVE_SIZE).toEqual({ width: 10, height: 10 });
+    expect(BUG_SIZE.width).toBeCloseTo(10 / 3);
+    expect(BUG_SIZE.height).toBeCloseTo(8 / 3);
+  });
+
   it("is a 4x4 pixel ship holding an engine, a laser and two storage blocks", () => {
     const state = miningStart(7);
     expect(state.ships).toHaveLength(1);
@@ -76,8 +94,8 @@ describe("the starting ship", () => {
     expect(shipStats(miner)).toMatchObject({ speed: 25, hold: 20, miningSeconds: 24 });
   });
 
-  it("is about as big as it was before pixels: 9 units across", () => {
-    expect(shipSize(miner)).toEqual({ width: 9, height: 9 });
+  it("is a third of its former 9-unit size", () => {
+    expect(shipSize(miner)).toEqual({ width: 3, height: 3 });
   });
 });
 
@@ -112,7 +130,7 @@ describe("ship stats", () => {
   });
 
   it("draws a pixel as a quarter of the old module square", () => {
-    expect(PIXEL_SIZE * PIXEL_SIZE * 4).toBeCloseTo(4.5 * 4.5);
+    expect(PIXEL_SIZE * PIXEL_SIZE * 4).toBeCloseTo(4.5 * 4.5 * SIZE_MULTIPLIER ** 2);
     const big = shipSize(solid(40, 20));
     expect(big).toEqual({ width: 40 * PIXEL_SIZE, height: 20 * PIXEL_SIZE });
   });

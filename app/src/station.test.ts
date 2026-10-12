@@ -65,7 +65,7 @@ describe("station module hover", () => {
       }],
     };
     const dockEdge = {
-      x: unloading.stations[0]!.dock.position.x + 7,
+      x: unloading.stations[0]!.dock.position.x + unloading.stations[0]!.dock.size.width * 0.4,
       y: unloading.stations[0]!.dock.position.y,
     };
 

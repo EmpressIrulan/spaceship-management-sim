@@ -170,9 +170,9 @@ describe("ships drawn from their pixels", () => {
       { state: "outbound", design: big, position: { x: -100, y: 100 } },
     ]);
     const edge = (x: number) => hoveredBody(state, camera, viewport, worldToScreen(camera, viewport, { x, y: 100 }));
-    // 5.5 units off centre is outside the 9-wide starting ship and inside a 13.5-wide 6x6.
-    expect(edge(100 + 5.5)).toBeNull();
-    expect(edge(-100 + 5.5)).toEqual({ kind: "ship", index: 1 });
+    // 1.75 units off centre is outside the 3-wide starting ship and inside the 4.5-wide 6x6.
+    expect(edge(100 + 1.75)).toBeNull();
+    expect(edge(-100 + 1.75)).toEqual({ kind: "ship", index: 1 });
   });
 });
 

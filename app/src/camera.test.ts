@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, type Bug, type Drop, type Hive } from "sim";
+import { createInitialState, DOCK_SIZE, type Bug, type Drop, type Hive } from "sim";
 import { miningStart } from "./test-mining";
 import {
   MAX_ZOOM,
@@ -121,7 +121,7 @@ describe("hovering", () => {
       { center: { x: -40, y: 30 }, zoom: 3 },
     ];
     for (const camera of cameras) {
-      const dockSurface = { x: state.stations[0]!.dock.position.x + 7, y: state.stations[0]!.dock.position.y + 12 };
+      const dockSurface = { x: state.stations[0]!.dock.position.x + DOCK_SIZE.width * 0.48, y: state.stations[0]!.dock.position.y };
       const onScreen = worldToScreen(camera, viewport, dockSurface);
       expect(hoveredBody(state, camera, viewport, onScreen)).toEqual({ kind: "dock", stationId: 0 });
     }
