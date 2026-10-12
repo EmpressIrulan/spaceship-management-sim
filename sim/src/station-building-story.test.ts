@@ -17,8 +17,9 @@ function layout(modules: StationModule[], state = createInitialState(31)): SimSt
 }
 
 const dock = (x: number, y: number): StationModule => ({ type: "Dock", position: { x, y }, size: DOCK_SIZE });
+const samePoint = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y) < 1e-8;
 const has = (state: SimState, x: number, y: number) => availableModuleBuildSites(state, 0)
-  .some((site) => site.x === x && site.y === y);
+  .some((site) => samePoint(site, { x, y }));
 
 describe("station growth story acceptance criteria", () => {
   it("offers all four cardinal sides of a free Dock, never diagonals", () => {
@@ -31,14 +32,14 @@ describe("station growth story acceptance criteria", () => {
   });
 
   it("keeps each of the four build destinations available when the other sides are occupied", () => {
-    for (const [x, y] of [[-40, 0], [40, 0], [0, -40], [0, 40]] as const) {
+    for (const [x, y] of [[-MODULE_SPACING, 0], [MODULE_SPACING, 0], [0, -MODULE_SPACING], [0, MODULE_SPACING]] as const) {
       const state = layout([dock(0, 0), dock(x, y)]);
       expect(has(state, x * 2, y * 2)).toBe(true);
     }
   });
 
   it("starts construction at the selected site in every cardinal direction", () => {
-    for (const [x, y] of [[-40, 0], [40, 0], [0, -40], [0, 40]] as const) {
+    for (const [x, y] of [[-MODULE_SPACING, 0], [MODULE_SPACING, 0], [0, -MODULE_SPACING], [0, MODULE_SPACING]] as const) {
       const started = startModuleBuild(layout([dock(0, 0)]), 0, "Storage", { x, y });
       expect(homeStation(started).construction?.position).toEqual({ x, y });
       const finished = tick(started, 30);
@@ -47,8 +48,8 @@ describe("station growth story acceptance criteria", () => {
   });
 
   it("moves the hidden construction pad when a module is built on it, then offers another build site", () => {
-    const base = layout([dock(0, 0), dock(40, 0)]);
-    const spot = { x: 80, y: 0 };
+    const base = layout([dock(0, 0), dock(MODULE_SPACING, 0)]);
+    const spot = { x: 2 * MODULE_SPACING, y: 0 };
     const initial = {
       ...base,
       stations: base.stations.map((station) => station.id === 0
@@ -80,43 +81,43 @@ describe("station growth story acceptance criteria", () => {
     for (const module of modules) {
       for (const [dx, dy] of SIDES) {
         const site = { x: module.position.x + dx, y: module.position.y + dy };
-        const taken = modules.some((other) => other.position.x === site.x && other.position.y === site.y);
+        const taken = modules.some((other) => samePoint(other.position, site));
         if (taken) {
-          expect(sites).not.toContainEqual(site);
+          expect(sites.some(candidate => samePoint(candidate, site))).toBe(false);
         } else {
-          expect(sites).toContainEqual(site);
+          expect(sites.some(candidate => samePoint(candidate, site))).toBe(true);
         }
       }
     }
   }
 
   it("continues offering sites after a station has grown to twelve modules", () => {
-    const modules = [-80, -40, 0, 40, 80].map((y) => dock(0, y))
-      .concat([-120, -80, -40, 40, 80, 120, 160].map((x) => dock(x, 0)));
+    const modules = [-2, -1, 0, 1, 2].map((slot) => dock(0, slot * MODULE_SPACING))
+      .concat([-3, -2, -1, 1, 2, 3, 4].map((slot) => dock(slot * MODULE_SPACING, 0)));
     expectsEverySide(layout(modules), modules);
   });
 
   it("offers each free side and hides each taken side on an L-shaped station of twelve modules", () => {
-    const modules = [-80, -40, 0, 40, 80].map((y) => dock(0, y))
-      .concat([40, 80, 120, 160, 200, 240, 280].map((x) => dock(x, 80)));
+    const modules = [-2, -1, 0, 1, 2].map((slot) => dock(0, slot * MODULE_SPACING))
+      .concat([1, 2, 3, 4, 5, 6, 7].map((slot) => dock(slot * MODULE_SPACING, 2 * MODULE_SPACING)));
     expectsEverySide(layout(modules), modules);
   });
 
   it("hides a site overlapping a module, a large asteroid, or another station", () => {
-    const modules = [dock(0, 0), dock(40, 0)];
+    const modules = [dock(0, 0), dock(MODULE_SPACING, 0)];
     let state = layout(modules);
-    expect(has(state, 40, 0)).toBe(false);
+    expect(has(state, MODULE_SPACING, 0)).toBe(false);
 
     // The rock centre is farther than the old 40-unit cutoff from the site,
     // while its footprint still overlaps the proposed Dock.
     state = { ...state, asteroids: [{ id: 100, sectorId: 0, rich: false, fieldId: 0,
       position: { x: 40, y: 40 }, size: { width: 80, height: 80 }, ore: 1, material: "Metal" }] };
-    expect(has(state, 0, 40)).toBe(false);
+    expect(has(state, 0, MODULE_SPACING)).toBe(false);
 
     const home = homeStation(state);
-    const other = { ...home, id: 99, name: "Other", modules: [dock(0, 40)], construction: null, buildQueue: [] };
+    const other = { ...home, id: 99, name: "Other", modules: [dock(0, MODULE_SPACING)], construction: null, buildQueue: [] };
     state = { ...state, asteroids: [], stations: [...state.stations, other] };
-    expect(has(state, 0, 40)).toBe(false);
+    expect(has(state, 0, MODULE_SPACING)).toBe(false);
   });
 
   it("preserves the traditional left and right build sites", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, placeStation, queueModuleBuild, tick, type Ship, type SimState, type Station } from "sim";
+import { MODULE_SPACING, createInitialState, placeStation, queueModuleBuild, tick, type Ship, type SimState, type Station } from "sim";
 import { buildMenuItems } from "./building";
 import { hoveredBody, bodyOf, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
@@ -45,13 +45,13 @@ describe("the construction site on screen", () => {
     const pointer = worldToScreen(camera, viewport, hidden.stations[0]!.constructionSite.position);
     expect(hoveredBody(hidden, camera, viewport, pointer)).not.toEqual({ kind: "constructionSite", id: 0 });
 
-    const queued = queueModuleBuild(hidden, "Storage", { x: 80, y: 0 });
+    const queued = queueModuleBuild(hidden, "Storage", { x: 2 * MODULE_SPACING, y: 0 });
     expect(hoveredBody(queued, camera, viewport, pointer)).toEqual({ kind: "constructionSite", id: 0 });
     expect(queued.stations[0]!.constructionSite.inventory).toEqual({ Metal: 12, Ice: 0 });
   });
 
   it("is hoverable while something is queued, and shows its uncapped inventory", () => {
-    const state = queueModuleBuild(withSite({ Metal: 12, Ice: 0 }), "Storage", { x: 80, y: 0 });
+    const state = queueModuleBuild(withSite({ Metal: 12, Ice: 0 }), "Storage", { x: 2 * MODULE_SPACING, y: 0 });
     const { position } = state.stations[0]!.constructionSite;
     const pointer = worldToScreen(camera, viewport, position);
 

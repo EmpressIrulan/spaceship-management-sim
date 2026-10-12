@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { UNLOADING_SECONDS, createInitialState, tick, type SimState } from "sim";
+import { SIZE_MULTIPLIER, UNLOADING_SECONDS, createInitialState, tick, type SimState } from "sim";
 import { MIN_ZOOM, hoveredBody, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
 
@@ -65,11 +65,12 @@ describe("station module hover", () => {
       }],
     };
     const dockEdge = {
-      x: unloading.stations[0]!.dock.position.x + 7,
+      x: unloading.stations[0]!.dock.position.x + unloading.stations[0]!.dock.size.width * 0.4,
       y: unloading.stations[0]!.dock.position.y,
     };
 
-    expect(hoveredBody(unloading, camera, viewport, worldToScreen(camera, viewport, dockEdge))).toEqual({ kind: "dock", stationId: 0 });
+    const opening = { ...camera, zoom: 1 / SIZE_MULTIPLIER };
+    expect(hoveredBody(unloading, opening, viewport, worldToScreen(opening, viewport, dockEdge))).toEqual({ kind: "dock", stationId: 0 });
   });
 
   it("shows Dock pixel area increasing from zero to sixteen", () => {

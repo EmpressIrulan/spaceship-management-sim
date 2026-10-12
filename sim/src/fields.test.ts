@@ -3,6 +3,13 @@ import { oneStorageStart } from "./test-ships";
 import { tick } from "./tick";
 import {
   ASTEROID_MIN_SPACING,
+  DISTANCE_MULTIPLIER,
+  FIELD_MIN_REACH,
+  FIELD_MAX_REACH,
+  FIELD_SEPARATION,
+  FIELD_GATE_CLEARANCE,
+  GATE_DISTANCE,
+  GATE_SIZE,
   RESPAWN_SECONDS,
   createInitialState,
   nearestWithOre,
@@ -39,6 +46,16 @@ function homeRocks(state: SimState): Asteroid[] {
 }
 
 describe("asteroid belts and clusters", () => {
+  it("uses the shared distance multiplier for field layout, not rock spacing", () => {
+    expect(DISTANCE_MULTIPLIER).toBe(5);
+    expect(FIELD_MIN_REACH).toBe(180 * DISTANCE_MULTIPLIER);
+    expect(FIELD_MAX_REACH).toBe(340 * DISTANCE_MULTIPLIER);
+    expect(FIELD_SEPARATION).toBe(240 * DISTANCE_MULTIPLIER);
+    expect(FIELD_GATE_CLEARANCE).toBe(150 * DISTANCE_MULTIPLIER);
+    expect(GATE_DISTANCE).toBe(480 * DISTANCE_MULTIPLIER);
+    expect(GATE_SIZE).toEqual({ width: 24, height: 24 });
+    expect(ASTEROID_MIN_SPACING).toBe(40);
+  });
   it("gives every sector at least one belt and one cluster, each holding rocks", () => {
     for (let seed = 0; seed < 25; seed += 1) {
       const state = createInitialState(seed);
@@ -70,9 +87,9 @@ describe("asteroid belts and clusters", () => {
       for (const sector of state.sectors) {
         const fields = state.fields.filter((field) => field.sectorId === sector.id);
         fields.forEach((field, index) => {
-          expect(distance(field.centre, sector.gate.position)).toBeGreaterThanOrEqual(100);
+          expect(distance(field.centre, sector.gate.position)).toBeGreaterThanOrEqual(FIELD_GATE_CLEARANCE);
           for (const other of fields.slice(index + 1)) {
-            expect(distance(field.centre, other.centre)).toBeGreaterThanOrEqual(150);
+            expect(distance(field.centre, other.centre)).toBeGreaterThanOrEqual(FIELD_SEPARATION);
           }
         });
       }

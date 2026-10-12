@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, HOME_SECTOR, MATERIALS, newAsteroid, type Material, type SimState } from "./state";
+import { createInitialState, HOME_SECTOR, MATERIALS, MODULE_SPACING, newAsteroid, type Material, type SimState } from "./state";
 import { tick } from "./tick";
 import { giveOrder, setDefaultBehaviour, setMineMaterial } from "./orders";
 import { queueModuleBuild } from "./station-build-queue";
@@ -27,7 +27,7 @@ function run(state: SimState, seconds: number): SimState {
 // The game's own ship, switched to Supply with a Storage queued so it has a
 // site to supply.
 function supplier(): SimState {
-  return queueModuleBuild(setDefaultBehaviour(createInitialState(7), [0], "supply"), "Storage", { x: 80, y: 0 });
+  return queueModuleBuild(setDefaultBehaviour(createInitialState(7), [0], "supply"), "Storage", { x: 2 * MODULE_SPACING, y: 0 });
 }
 
 function withOnly(state: SimState, material: Material): SimState {

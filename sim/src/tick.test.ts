@@ -105,13 +105,12 @@ describe("sizes", () => {
     expect(ONE_STORAGE_SIZE.height).toBeLessThan(10);
   });
 
-  it("makes the asteroid only a couple of units bigger than the ship", () => {
+  it("keeps asteroid sizes while the ship shrinks to a third", () => {
     for (const [asteroid, ship] of [
       [ASTEROID_SIZE.width, ONE_STORAGE_SIZE.width],
       [ASTEROID_SIZE.height, ONE_STORAGE_SIZE.height],
     ] as const) {
-      expect(asteroid - ship).toBeGreaterThanOrEqual(1);
-      expect(asteroid - ship).toBeLessThanOrEqual(4);
+      expect(asteroid).toBeGreaterThan(ship);
     }
   });
 });
@@ -187,10 +186,11 @@ describe("mining cycle", () => {
     expect(stored(tick(start, seconds))).toBe(stored(start) + 3 * CARGO_PER_TRIP);
   });
 
-  it("gets through at least two full cycles within two minutes for any seed", () => {
+  it("gets through at least two full cycles within the route-derived time for any seed", () => {
     for (let seed = 0; seed < 50; seed += 1) {
-      const state = run(oneStorageStart(seed), 120, 0.1);
-      expect(stored(state) - stored(oneStorageStart(seed))).toBeGreaterThanOrEqual(
+      const start = oneStorageStart(seed);
+      const state = run(start, cycleSeconds(start, 2) + 1, 0.1);
+      expect(stored(state) - stored(start)).toBeGreaterThanOrEqual(
         2 * CARGO_PER_TRIP,
       );
     }

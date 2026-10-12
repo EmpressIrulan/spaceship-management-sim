@@ -1,4 +1,4 @@
-import { ASTEROID_MIN_SPACING, DOCK_SIZE, MODULE_COST, MODULE_SPACING, STORAGE_SIZE } from "./build-constants";
+import { ASTEROID_MIN_SPACING, DOCK_SIZE, MODULE_COST, MODULE_SPACING, SIZE_MULTIPLIER, STORAGE_SIZE } from "./build-constants";
 import type { SimState, Size, Station, Vec } from "./model";
 import { nextRandom } from "./prng";
 import { CONSTRUCTION_SITE_SIZE, replaceStation } from "./state";
@@ -91,7 +91,7 @@ export function removeStation(state: SimState, stationId: number): SimState {
       && Math.abs(ship.position.y - station.dock.position.y) <= station.dock.size.height / 2;
     if (!losingHome && !buildingThere && !dockedHere) return ship;
     if (losingHome && !buildingThere && !dockedHere) return { ...ship, homeStationId: null, defaultBehaviour: "none" as const, state: "holding" as const, order: null, target: null, leg: null, berth: null, transfer: null, timer: 0 };
-    const nearby = { x: station.dock.position.x + station.dock.size.width / 2 + 12, y: station.dock.position.y };
+    const nearby = { x: station.dock.position.x + station.dock.size.width / 2 + 12 * SIZE_MULTIPLIER, y: station.dock.position.y };
     return { ...ship, homeStationId: losingHome ? null : ship.homeStationId, defaultBehaviour: losingHome ? "none" as const : ship.defaultBehaviour, sectorId: station.sectorId, position: nearby, state: "holding" as const, order: null, target: null, leg: null, berth: null, transfer: null, timer: 0 };
   });
   for (let index = 0; index < ships.length; index += 1) {

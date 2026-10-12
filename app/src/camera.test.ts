@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, type Bug, type Drop, type Hive } from "sim";
+import { createInitialState, DOCK_SIZE, GATE_DISTANCE, SIZE_MULTIPLIER, shipSize, type Bug, type Drop, type Hive } from "sim";
 import { miningStart } from "./test-mining";
 import {
   MAX_ZOOM,
   MIN_ZOOM,
   fitCamera,
+  homeCamera,
   hoveredBody,
   panBy,
   screenToWorld,
@@ -64,6 +65,45 @@ describe("camera", () => {
 });
 
 describe("starting view", () => {
+  it("preserves Home's whole 64 by 40 pixel footprint, including the gap between modules", () => {
+    const station = createInitialState(7).stations[0]!;
+    const bodies = station.modules;
+    const camera = homeCamera(bodies);
+    const left = Math.min(...bodies.map(body => body.position.x - body.size.width / 2));
+    const right = Math.max(...bodies.map(body => body.position.x + body.size.width / 2));
+    const top = Math.min(...bodies.map(body => body.position.y - body.size.height / 2));
+    const bottom = Math.max(...bodies.map(body => body.position.y + body.size.height / 2));
+    expect((right - left) * camera.zoom).toBeCloseTo(64);
+    expect((bottom - top) * camera.zoom).toBeCloseTo(40);
+  });
+  it("keeps Home's starting module at today's 30 by 40 screen pixels", () => {
+    const station = createInitialState(7).stations[0]!;
+    const camera = homeCamera([station.dock, station.storage, ...station.modules]);
+    const module = station.modules.find((body) => body.type !== "Dock")!;
+    expect(camera.zoom * SIZE_MULTIPLIER).toBeCloseTo(1);
+    expect(module.size.width * camera.zoom).toBeCloseTo(30);
+    expect(module.size.height * camera.zoom).toBeCloseTo(40);
+  });
+
+  it("makes a module and ship the same screen size at full zoom as before the scale change", () => {
+    const ship = createInitialState(7).ships[0]!;
+    const size = shipSize(ship.design);
+    const module = createInitialState(7).stations[0]!.modules.find((body) => body.type !== "Dock")!;
+    expect(MAX_ZOOM * SIZE_MULTIPLIER).toBeCloseTo(8);
+    expect(module.size.width * MAX_ZOOM).toBeCloseTo(240);
+    expect(module.size.height * MAX_ZOOM).toBeCloseTo(320);
+    expect(size.width * MAX_ZOOM).toBeCloseTo(72);
+    expect(size.height * MAX_ZOOM).toBeCloseTo(72);
+  });
+
+  it("shows the system at about half-screen scale at full zoom out", () => {
+    expect(MIN_ZOOM * GATE_DISTANCE).toBeCloseTo(240);
+    const gate = createInitialState(7).sectors[0]!.gate.position;
+    const diameter = 2 * Math.hypot(gate.x, gate.y) * MIN_ZOOM;
+    expect(diameter).toBeCloseTo(480);
+    expect(diameter).toBeLessThanOrEqual(viewport.width * 0.6);
+  });
+
   it("shows the station and every asteroid on screen for any seed, even on a short window", () => {
     const short = { width: 900, height: 500 };
     for (let seed = 0; seed < 200; seed += 1) {
@@ -87,15 +127,15 @@ describe("starting view", () => {
     }
   });
 
-  it("does not zoom in past 1:1 when everything already fits", () => {
+  it("does not zoom in past 1:1 when the expanded system fits", () => {
     const state = createInitialState(7);
-    expect(
-      fitCamera({ width: 4000, height: 3000 }, [
-        state.stations[0]!.dock,
-        state.stations[0]!.storage,
-        ...state.asteroids,
-      ]).zoom,
-    ).toBe(1);
+    const zoom = fitCamera({ width: 4000, height: 3000 }, [
+      state.stations[0]!.dock,
+      state.stations[0]!.storage,
+      ...state.asteroids,
+    ]).zoom;
+    expect(zoom).toBeLessThanOrEqual(1);
+    expect(zoom).toBeGreaterThan(MIN_ZOOM);
   });
 });
 
@@ -116,12 +156,12 @@ describe("hovering", () => {
 
   it("points at the Dock wherever the camera has moved it", () => {
     const cameras: Camera[] = [
-      home,
-      { center: { x: 200, y: -150 }, zoom: 0.5 },
+      { ...home, zoom: 1 / SIZE_MULTIPLIER },
+      { center: { x: 200, y: -150 }, zoom: 1 / SIZE_MULTIPLIER },
       { center: { x: -40, y: 30 }, zoom: 3 },
     ];
     for (const camera of cameras) {
-      const dockSurface = { x: state.stations[0]!.dock.position.x + 7, y: state.stations[0]!.dock.position.y + 12 };
+      const dockSurface = { x: state.stations[0]!.dock.position.x + DOCK_SIZE.width * 0.48, y: state.stations[0]!.dock.position.y };
       const onScreen = worldToScreen(camera, viewport, dockSurface);
       expect(hoveredBody(state, camera, viewport, onScreen)).toEqual({ kind: "dock", stationId: 0 });
     }
@@ -150,6 +190,7 @@ describe("hovering", () => {
     const target = state.asteroids.find((candidate) => candidate.id === ship.target!.asteroidId)!;
     const mining = {
       ...state,
+      asteroids: [target],
       ships: [{ ...ship, state: "working" as const, position: { ...ship.target!.site } }],
     };
     const zoomedOut: Camera = { center: { x: 0, y: 0 }, zoom: MIN_ZOOM };

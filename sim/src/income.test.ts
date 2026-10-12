@@ -26,7 +26,7 @@ describe("station income", () => {
     const start = onePassStart();
     const material = start.asteroids.find((a) => a.id === start.ships[0]!.target!.asteroidId)!.material;
     const other = material === "Metal" ? "Ice" : "Metal";
-    const done = run(start, 60);
+    const done = run(start, 300);
     expect(stationIncome(done)[material]).toBeCloseTo(CARGO_PER_TRIP / (done.time / 60));
     expect(stationIncome(done)[other]).toBe(0);
   });
@@ -63,7 +63,7 @@ describe("station income", () => {
   });
 
   it("forgets deliveries older than the last game hour", () => {
-    const delivered = run(onePassStart(), 60);
+    const delivered = run(onePassStart(), 300);
     expect(total(stationIncome(delivered))).toBeCloseTo(CARGO_PER_TRIP / (delivered.time / 60));
     const later = run(delivered, INCOME_WINDOW_SECONDS + 1);
     expect(stationIncome(later)).toEqual({ Metal: 0, Ice: 0 });

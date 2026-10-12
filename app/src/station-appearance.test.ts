@@ -1,26 +1,26 @@
 import { describe, expect, it } from "vitest";
-import type { StationModule } from "sim";
+import { MODULE_SPACING, STORAGE_SIZE, type StationModule } from "sim";
 import { moduleAppearance, stationConnectors } from "./station-appearance";
 
 const module = (type: StationModule["type"], x: number, y: number): StationModule => ({
   type,
   position: { x, y },
-  size: { width: 30, height: 40 },
+  size: STORAGE_SIZE,
 });
 
 describe("station appearance", () => {
   it("joins neighbouring modules vertically and sideways without duplicating links", () => {
     const modules = [
       module("Dock", 0, 0),
-      module("Storage", 0, 40),
-      module("Builder", 40, 40),
-      module("Storage", 80, 40),
+      module("Storage", 0, MODULE_SPACING),
+      module("Builder", MODULE_SPACING, MODULE_SPACING),
+      module("Storage", 2 * MODULE_SPACING, MODULE_SPACING),
     ];
 
     expect(stationConnectors(modules)).toEqual([
-      { from: { x: 0, y: 0 }, to: { x: 0, y: 40 } },
-      { from: { x: 0, y: 40 }, to: { x: 40, y: 40 } },
-      { from: { x: 40, y: 40 }, to: { x: 80, y: 40 } },
+      { from: { x: 0, y: 0 }, to: { x: 0, y: MODULE_SPACING } },
+      { from: { x: 0, y: MODULE_SPACING }, to: { x: MODULE_SPACING, y: MODULE_SPACING } },
+      { from: { x: MODULE_SPACING, y: MODULE_SPACING }, to: { x: 2 * MODULE_SPACING, y: MODULE_SPACING } },
     ]);
   });
 

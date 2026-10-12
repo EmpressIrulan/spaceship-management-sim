@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createInitialState } from "sim";
+import { createInitialState, PIXEL_SIZE } from "sim";
 import { createShipDrawing } from "./ship-rendering";
 import { createUiState } from "./ui-state";
 
@@ -14,7 +14,8 @@ describe("packed ships", () => {
     const drawing = createShipDrawing(ui, ctx as unknown as CanvasRenderingContext2D);
     const ship = { ...createInitialState(7).ships[0]!, position: { x: 0, y: 0 }, state: "unloading" as const, berth: 0 };
     drawing.drawShip(ship);
-    expect(ctx.strokeRect).toHaveBeenCalledWith(400 - 27 + 0.5, 300 - 27 + 0.5, 53, 53);
+    const shipScreenSize = 4 * PIXEL_SIZE * ui.camera.zoom;
+    expect(ctx.strokeRect).toHaveBeenCalledWith(400 - shipScreenSize / 2 + 0.5, 300 - shipScreenSize / 2 + 0.5, shipScreenSize - 1, shipScreenSize - 1);
     ctx.strokeRect.mockClear();
     drawing.drawShip({ ...ship, state: "waiting", berth: null });
     expect(ctx.strokeRect).not.toHaveBeenCalled();

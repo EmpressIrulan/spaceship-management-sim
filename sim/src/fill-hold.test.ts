@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { giveOrder, setMineMaterial, setMineOtherSectors } from "./orders";
 import { createInitialState, HOME_SECTOR, MATERIALS, newAsteroid, startGateBuild, type Material, type SimState } from "./state";
 import { tick } from "./tick";
+import { DISTANCE_MULTIPLIER } from "./size-constants";
 
 function runUntil(state: SimState, done: (state: SimState) => boolean, limit = 600): SimState {
   let next = state;
@@ -60,7 +61,7 @@ describe("miners fill the hold before going home", () => {
 
   it("keeps other sectors off by default, then takes the nearest reachable ticked rock through a gate when enabled", () => {
     const base = mining(withRocks([
-      { id: 100, x: 2_000, ore: 30, material: "Metal" },
+      { id: 100, x: 2_000 * DISTANCE_MULTIPLIER, ore: 30, material: "Metal" },
       { id: 101, sectorId: 1, x: 0, ore: 30, material: "Metal" },
     ]), ["Metal"]);
     expect(base.ships[0]!.mineOtherSectors).toBe(false);

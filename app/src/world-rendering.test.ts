@@ -4,6 +4,7 @@ import {
   BUG_BITE_SECONDS,
   DROP_SIZE,
   HIVE_SIZE,
+  SIZE_MULTIPLIER,
   createInitialState,
   type Bug,
   type Drop,
@@ -149,7 +150,8 @@ const SHOT = { from: { x: 0, y: 0 }, to: { x: 30, y: 30 }, target: { kind: "bug"
 describe("the world outlines only a single selected ship", () => {
   it("draws occupied block outlines for one selected ship, but not for multiple selections", () => {
     const uiState = ui();
-    uiState.camera = { ...uiState.camera, zoom: 2 };
+    // Preserve the former 4.5-screen-pixel cells, above the outline's cutoff.
+    uiState.camera = { ...uiState.camera, zoom: 2 / SIZE_MULTIPLIER };
     const ctx = mockCtx();
     const base = createInitialState(7).ships[0]!;
     const ship = { ...base, id: 9, position: { x: 0, y: 0 }, design: { width: 2, height: 1, slots: ["Engine", null] } } as Ship;
@@ -332,7 +334,7 @@ describe("a station module destruction explodes", () => {
     state = { ...state, moduleDestructions: [{ time: 0, stationId: station.id, position: { ...module.position } }] };
     drawing.draw(0.25);
 
-    expect(ctx.fillRect).toHaveBeenCalledWith(438, 298, 4, 4);
+    expect(ctx.fillRect).toHaveBeenCalledWith(Math.round(400 + module.position.x) - 2, 298, 4, 4);
   });
 
   it("does not replay an old destruction on first draw", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, DOCK_SIZE, DOCK_CAPACITY, tick, setShipHome, shipHomeRefusal, type ShipDesign } from "./index";
+import { createInitialState, DOCK_SIZE, DOCK_CAPACITY, PIXEL_SIZE, tick, setShipHome, shipHomeRefusal, type ShipDesign } from "./index";
 import { berthLayout, toBerth, arrived } from "./state";
 
 const design = (width: number, height: number): ShipDesign => ({ width, height, slots: Array(width * height).fill("Engine") });
@@ -24,17 +24,17 @@ describe("Dock pixel area", () => {
     expect(shipHomeRefusal(state, [2], 0)).toBe("Ship 3 is too big for this Dock");
   });
   it("is eight by twelve ship pixels, with 96 of room", () => {
-    expect(DOCK_SIZE).toEqual({ width: 18, height: 27 });
+    expect(DOCK_SIZE).toEqual({ width: 6, height: 9 });
     expect(DOCK_CAPACITY).toBe(96);
   });
   it.each([[4, 4, 6], [2, 4, 12], [8, 12, 1]])("packs %i by %i ships to capacity %i without overlap", (width, height, count) => {
     const { ships, station } = pack(width, height, count + 1);
     expect(ships).toHaveLength(count);
     for (const ship of ships) {
-      expect(Math.abs(ship.position.x - station.dock.position.x) + width * 2.25 / 2).toBeLessThanOrEqual(9);
-      expect(Math.abs(ship.position.y - station.dock.position.y) + height * 2.25 / 2).toBeLessThanOrEqual(13.5);
+      expect(Math.abs(ship.position.x - station.dock.position.x) + width * PIXEL_SIZE / 2).toBeLessThanOrEqual(DOCK_SIZE.width / 2);
+      expect(Math.abs(ship.position.y - station.dock.position.y) + height * PIXEL_SIZE / 2).toBeLessThanOrEqual(DOCK_SIZE.height / 2);
       for (const other of ships.filter((other) => other.id !== ship.id)) {
-        expect(Math.abs(ship.position.x - other.position.x) >= width * 2.25 || Math.abs(ship.position.y - other.position.y) >= height * 2.25).toBe(true);
+        expect(Math.abs(ship.position.x - other.position.x) >= width * PIXEL_SIZE || Math.abs(ship.position.y - other.position.y) >= height * PIXEL_SIZE).toBe(true);
       }
     }
   });

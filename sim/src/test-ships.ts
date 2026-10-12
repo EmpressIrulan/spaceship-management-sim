@@ -3,6 +3,22 @@ import { createInitialState, depart, dockBerths, homeStation, MATERIALS, CONSTRU
 import { DOCK_SIZE, MODULE_SPACING, STORAGE_SIZE } from "./build-constants";
 import type { Material, Station } from "./model";
 import type { ShipDesign } from "./ship";
+import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
+import { JUMP_SECONDS } from "./state";
+
+// Conservative deadline for one round trip, including two gated sectors.
+// Use the fixture's actual spatial extent and ship rather than old seconds.
+export function tripTimeBudget(state: SimState): number {
+  const ship = state.ships[0]!;
+  const points = [ship.position, ...state.sectors.map((sector) => sector.gate.position),
+    ...state.asteroids.map((rock) => rock.position),
+    ...state.stations.flatMap((station) => [station.dock.position, station.constructionSite.position])];
+  let diameter = 0;
+  for (const a of points) for (const b of points) diameter = Math.max(diameter, Math.hypot(a.x - b.x, a.y - b.y));
+  const stats = shipStats(ship.design);
+  return 4 * travelSeconds(diameter, speedFactor(ship.design)) + 2 * JUMP_SECONDS
+    + (stats.miningSeconds ?? 0) + 2 * cargoTransferSeconds(stats.hold) + 10;
+}
 
 // The starting ship's size and speed with half the Storage swapped for Hull,
 // so a trip carries 10 and mines for 12 s. Tests of the mining cycle use it to

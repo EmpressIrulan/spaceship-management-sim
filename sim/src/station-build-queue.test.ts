@@ -15,11 +15,12 @@ import {
 import { suppliersComingHome } from "./test-ships";
 import { placeStation } from "./station-placement";
 import { damageStationModule } from "./station-build-queue";
+import { BUG_BITE_RANGE, BUILDER_SIZE, MODULE_SPACING, STORAGE_SIZE } from "./build-constants";
 
-const east = { x: 80, y: 0 };
-const farEast = { x: 120, y: 0 };
-const west = { x: -40, y: 0 };
-const farWest = { x: -80, y: 0 };
+const east = { x: 2 * MODULE_SPACING, y: 0 };
+const farEast = { x: 3 * MODULE_SPACING, y: 0 };
+const west = { x: -MODULE_SPACING, y: 0 };
+const farWest = { x: -2 * MODULE_SPACING, y: 0 };
 
 function withSite(state: SimState, Metal: number, Ice: number): SimState {
   return {
@@ -38,23 +39,23 @@ function withBuilder(state: SimState, position: Vec): SimState {
     ...state,
     stations: [{
       ...state.stations[0]!,
-      modules: [...state.stations[0]!.modules, { type: "Builder" as const, position, size: { width: 30, height: 40 } }],
+      modules: [...state.stations[0]!.modules, { type: "Builder" as const, position, size: BUILDER_SIZE }],
     }],
   };
 }
 
 describe("the station build queue", () => {
   it.each([
-    { name: "one of two", positions: [40, -40], inventory: { Metal: 200, Ice: 100 }, capacity: 2000, expected: { Metal: 100, Ice: 50 } },
-    { name: "two of three in a cascade", positions: [40, 80, -40], inventory: { Metal: 300, Ice: 150 }, capacity: 3000, expected: { Metal: 100, Ice: 50 } },
-    { name: "the last Storage", positions: [40], inventory: { Metal: 200, Ice: 100 }, capacity: 1000, expected: { Metal: 0, Ice: 0 } },
-    { name: "stock above remaining capacity", positions: [40, -40], inventory: { Metal: 2400, Ice: 1600 }, capacity: 2000, expected: { Metal: 600, Ice: 400 } },
-    { name: "empty stock", positions: [40, -40], inventory: { Metal: 0, Ice: 0 }, capacity: 2000, expected: { Metal: 0, Ice: 0 } },
+    { name: "one of two", positions: [1, -1], inventory: { Metal: 200, Ice: 100 }, capacity: 2000, expected: { Metal: 100, Ice: 50 } },
+    { name: "two of three in a cascade", positions: [1, 2, -1], inventory: { Metal: 300, Ice: 150 }, capacity: 3000, expected: { Metal: 100, Ice: 50 } },
+    { name: "the last Storage", positions: [1], inventory: { Metal: 200, Ice: 100 }, capacity: 1000, expected: { Metal: 0, Ice: 0 } },
+    { name: "stock above remaining capacity", positions: [1, -1], inventory: { Metal: 2400, Ice: 1600 }, capacity: 2000, expected: { Metal: 600, Ice: 400 } },
+    { name: "empty stock", positions: [1, -1], inventory: { Metal: 0, Ice: 0 }, capacity: 2000, expected: { Metal: 0, Ice: 0 } },
   ])("loses only the destroyed Storage shares: $name", ({ positions, inventory, capacity, expected }) => {
     const base = createInitialState(7).stations[0]!;
     const station = { ...base, inventory: Object.freeze({ ...inventory }), storage: { ...base.storage, capacity },
-      modules: [base.modules[0]!, ...positions.map(x => ({ type: "Storage" as const, position: { x, y: 0 }, size: { width: 30, height: 40 } }))] };
-    const result = damageStationModule(station, { x: 40, y: 0 }, 40, 1).station;
+      modules: [base.modules[0]!, ...positions.map(slot => ({ type: "Storage" as const, position: { x: slot * MODULE_SPACING, y: 0 }, size: STORAGE_SIZE }))] };
+    const result = damageStationModule(station, { x: MODULE_SPACING, y: 0 }, 40, 1).station;
     expect(result.inventory).toEqual(expected);
     expect(result.inventory.Metal + result.inventory.Ice).toBeLessThanOrEqual(result.storage.capacity);
     expect(station.inventory).toEqual(inventory);
@@ -75,9 +76,9 @@ describe("the station build queue", () => {
     station.inventory = { Metal: 200, Ice: 100 };
     station.storage = { ...station.storage, capacity: 2000 };
     station.modules[1] = { ...station.modules[1]!, hp: 1 };
-    station.modules.push({ type: "Storage", position: west, size: { width: 30, height: 40 } });
+    station.modules.push({ type: "Storage", position: west, size: STORAGE_SIZE });
     state.bugs = Array.from({ length: 5 }, (_, id) => ({ id, hiveId: 0, sectorId: 0,
-      position: { x: 41, y: 0 }, hp: 6, maxHp: 6, state: "hunting", targetShipId: null, leg: null, timer: 0 }));
+      position: { x: station.modules[1]!.position.x + BUG_BITE_RANGE / 2, y: 0 }, hp: 6, maxHp: 6, state: "hunting", targetShipId: null, leg: null, timer: 0 }));
     const before = JSON.stringify(state);
     freeze(state);
     const result = tick(state, 1 / 60);
@@ -97,16 +98,16 @@ describe("the station build queue", () => {
     station.construction = null;
     station.buildQueue = [];
     station.constructionSite.inventory = { Metal: 150, Ice: 150 };
-    const builder = { type: "Builder" as const, position: east, size: { width: 30, height: 40 } };
+    const builder = { type: "Builder" as const, position: east, size: BUILDER_SIZE };
     if (setup === "queued") {
       station.buildQueue = [builder];
-      station.construction = { type: "Storage", position: west, size: { width: 30, height: 40 }, timer: BUILD_SECONDS };
+      station.construction = { type: "Storage", position: west, size: STORAGE_SIZE, timer: BUILD_SECONDS };
     }
     else station.construction = { ...builder, timer: BUILD_SECONDS };
     const target = station.modules[setup === "only Dock" ? 0 : 1]!;
     target.hp = 3;
     state.bugs = Array.from({ length: 5 }, (_, id) => ({ id, hiveId: 0, sectorId: 0,
-      position: { x: target.position.x + 1, y: target.position.y }, hp: 6, maxHp: 6,
+      position: { x: target.position.x + BUG_BITE_RANGE / 2, y: target.position.y }, hp: 6, maxHp: 6,
       state: "hunting", targetShipId: null, leg: null, timer: 0 }));
     state = tick(state, 1 / 60);
     state = { ...state, bugs: [] };
@@ -122,7 +123,7 @@ describe("the station build queue", () => {
       state = tick(state, 1 / 60);
       const s = state.stations[0]!;
       if (s.construction && s.modules.length > 0) {
-        expect(s.modules.some(module => Math.abs(Math.hypot(module.position.x - s.construction!.position.x, module.position.y - s.construction!.position.y) - 40) < 1e-6)).toBe(true);
+        expect(s.modules.some(module => Math.abs(Math.hypot(module.position.x - s.construction!.position.x, module.position.y - s.construction!.position.y) - MODULE_SPACING) < 1e-6)).toBe(true);
       }
     }
     expect(state.stations[0]!.modules.map(module => module.type)).toEqual(setup === "queued" ? ["Dock", "Storage", "Storage", "Builder"] : ["Dock", "Storage", "Builder"]);
@@ -136,17 +137,17 @@ describe("the station build queue", () => {
     const station = {
       ...base.stations[0]!,
       modules: [...base.stations[0]!.modules,
-        { type: "Builder" as const, position: { x: -40, y: 0 }, size: { width: 30, height: 40 } },
-        { type: "Storage" as const, position: { x: -80, y: 0 }, size: { width: 30, height: 40 } }],
+        { type: "Builder" as const, position: west, size: BUILDER_SIZE },
+        { type: "Storage" as const, position: farWest, size: STORAGE_SIZE }],
       shipBuilds: [{ builder: 2, design: base.ships[0]!.design, timer: 10 }],
     };
-    const result = damageStationModule(station, { x: 40, y: 0 }, 40, 12);
+    const result = damageStationModule(station, { x: MODULE_SPACING, y: 0 }, 40, 12);
 
     expect(result.station.modules.map((module) => module.type)).toEqual(["Dock", "Builder", "Storage"]);
     expect(result.station.buildQueue.map((module) => module.type)).toEqual(["Storage"]);
     expect(result.station.shipBuilds[0]!.builder).toBe(1);
     expect(result.destructions).toEqual([
-      { time: 12, stationId: 0, position: { x: 40, y: 0 } },
+      { time: 12, stationId: 0, position: { x: MODULE_SPACING, y: 0 } },
     ]);
   });
 
@@ -156,10 +157,10 @@ describe("the station build queue", () => {
       ...base.stations[0]!,
       inventory: { Metal: 9, Ice: 4 },
       modules: [...base.stations[0]!.modules,
-        { type: "Builder" as const, position: { x: 80, y: 0 }, size: { width: 30, height: 40 } },
-        { type: "Storage" as const, position: { x: 120, y: 0 }, size: { width: 30, height: 40 } }],
+        { type: "Builder" as const, position: east, size: BUILDER_SIZE },
+        { type: "Storage" as const, position: farEast, size: STORAGE_SIZE }],
     };
-    const result = damageStationModule(station, { x: 40, y: 0 }, 40, 12);
+    const result = damageStationModule(station, { x: MODULE_SPACING, y: 0 }, 40, 12);
 
     expect(result.station.modules.map((module) => module.type)).toEqual(["Dock"]);
     expect(result.station.buildQueue.map((module) => module.type)).toEqual(["Storage", "Builder", "Storage"]);
@@ -172,9 +173,10 @@ describe("the station build queue", () => {
     const state = queueModuleBuild(createInitialState(7), "Storage", east);
 
     expect(state.stations[0]!.construction).toBeNull();
-    expect(state.stations[0]!.buildQueue).toEqual([
-      { type: "Storage", position: east, size: { width: 30, height: 40 } },
+    expect(state.stations[0]!.buildQueue).toMatchObject([
+      { type: "Storage", position: east, size: { width: 10 } },
     ]);
+    expect(state.stations[0]!.buildQueue[0]!.size.height).toBeCloseTo(40 / 3);
   });
 
   it("starts the front module immediately when an empty queue can pay", () => {
@@ -203,12 +205,12 @@ describe("the station build queue", () => {
   it("offers module sites around ghosts so a row can be queued at once", () => {
     const state = queueModuleBuild(createInitialState(7), "Storage", east);
 
-    expect(availableModuleBuildSites(state, 0)).toContainEqual({ x: 120, y: 0 });
+    expect(availableModuleBuildSites(state, 0)).toContainEqual(farEast);
   });
 
   it("cancels a ghost and anything connected only through it, preserving the rest", () => {
     let state = queueModuleBuild(createInitialState(7), "Storage", east);
-    state = queueModuleBuild(state, "Builder", { x: 120, y: 0 });
+    state = queueModuleBuild(state, "Builder", farEast);
     state = queueModuleBuild(state, "Dock", west);
 
     state = cancelQueuedModuleBuild(state, east);
@@ -265,21 +267,21 @@ describe("the station build queue", () => {
     // A ghost in the gap reaches the station through the ghost behind it, which
     // is built after it, so leaving it queued would finish a module unattached.
     // Seed 17 because seed 7 has an asteroid in the gap.
-    let state = queueModuleBuild(withSite(withBuilder(createInitialState(17), { x: -160, y: 0 }), 0, 0), "Builder", west);
-    state = queueModuleBuild(state, "Builder", { x: -80, y: 0 });
-    state = queueModuleBuild(state, "Builder", { x: -120, y: 0 });
+    let state = queueModuleBuild(withSite(withBuilder(createInitialState(17), { x: -4 * MODULE_SPACING, y: 0 }), 0, 0), "Builder", west);
+    state = queueModuleBuild(state, "Builder", farWest);
+    state = queueModuleBuild(state, "Builder", { x: -3 * MODULE_SPACING, y: 0 });
 
     const cancelled = cancelQueuedModuleBuild(state, west);
 
-    expect(cancelled.stations[0]!.buildQueue.map((queued) => queued.position)).toEqual([{ x: -120, y: 0 }]);
+    expect(cancelled.stations[0]!.buildQueue.map((queued) => queued.position)).toEqual([{ x: -3 * MODULE_SPACING, y: 0 }]);
 
     let built = tick(withSite(cancelled, 200, 200), BUILD_SECONDS);
     built = tick(built, BUILD_SECONDS);
     expect(built.stations[0]!.modules.map((module) => module.position)).toEqual([
       { x: 0, y: 0 },
-      { x: 40, y: 0 },
-      { x: -160, y: 0 },
-      { x: -120, y: 0 },
+      { x: MODULE_SPACING, y: 0 },
+      { x: -4 * MODULE_SPACING, y: 0 },
+      { x: -3 * MODULE_SPACING, y: 0 },
     ]);
   });
 
@@ -361,11 +363,11 @@ describe("the station build queue", () => {
   }
 
   it("moves a built station's pad off an asteroid when a module completes", () => {
-    // The pad's nearest free spot, one ring out at (860, 860), sits under this
+    // The pad's nearest free spot, one ring out at (880, 880), sits under this
     // rock: the home path avoids asteroids here, so the built-station path
     // must not land the pad on it either.
     const rock: SimState["asteroids"][number] = {
-      id: 999, sectorId: 0, rich: false, fieldId: 0, position: { x: 860, y: 860 }, size: { width: 40, height: 40 }, ore: 0, material: "Metal",
+      id: 999, sectorId: 0, rich: false, fieldId: 0, position: { x: 880, y: 880 }, size: { width: 40, height: 40 }, ore: 0, material: "Metal",
     };
     let state = placeStation(createInitialState(7), 0, { x: 900, y: 900 });
     const id = state.nextStationId - 1;
@@ -376,21 +378,21 @@ describe("the station build queue", () => {
     state = tick(state, BUILD_SECONDS);
 
     const station = state.stations.find((candidate) => candidate.id === id)!;
-    expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 880, y: 900 } });
-    expect(station.constructionSite.position).toEqual({ x: 900, y: 860 });
+    expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 900 - MODULE_SPACING / 2, y: 900 } });
+    expect(station.constructionSite.position).toEqual({ x: 900 + MODULE_SPACING / 2, y: 900 - MODULE_SPACING });
   });
 
   it("moves a built station's pad off another station's module when a module completes", () => {
     let state = placeStation(createInitialState(7), 0, { x: 900, y: 900 });
     const id = state.nextStationId - 1;
-    // A neighbour grown onto the spot one ring out at (860, 860), where the
+    // A neighbour grown onto the spot one ring out at (880, 880), where the
     // pad would land if the search only checked this station's own footprint.
     const neighbour = placeStation(state, 0, { x: 300, y: 300 });
     const neighbourId = neighbour.nextStationId - 1;
     state = {
       ...state,
       stations: neighbour.stations.map((candidate) => candidate.id === neighbourId
-        ? { ...candidate, founding: false, buildQueue: [], modules: [{ type: "Storage" as const, position: { x: 860, y: 860 }, size: { width: 30, height: 40 } }] }
+        ? { ...candidate, founding: false, buildQueue: [], modules: [{ type: "Storage" as const, position: { x: 880, y: 880 }, size: STORAGE_SIZE }] }
         : candidate),
     };
     state = fundFoundingSite(state, id);
@@ -399,19 +401,19 @@ describe("the station build queue", () => {
     state = tick(state, BUILD_SECONDS);
 
     const station = state.stations.find((candidate) => candidate.id === id)!;
-    expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 880, y: 900 } });
-    expect(station.constructionSite.position).toEqual({ x: 900, y: 860 });
+    expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 900 - MODULE_SPACING / 2, y: 900 } });
+    expect(station.constructionSite.position).toEqual({ x: 900 - MODULE_SPACING / 2, y: 900 - MODULE_SPACING });
   });
 
   it("moves a built station's pad off a home module when a module completes", () => {
-    // Home grown onto the spot one ring out at (860, 860), where the pad
+    // Home grown onto the spot one ring out at (880, 880), where the pad
     // would land if the search only saw the stations kept whole in others.
     let state = placeStation(createInitialState(7), 0, { x: 900, y: 900 });
     const id = state.nextStationId - 1;
     state = {
       ...state,
       stations: state.stations.map((candidate) => candidate.id === 0
-        ? { ...candidate, modules: [...candidate.modules, { type: "Storage" as const, position: { x: 860, y: 860 }, size: { width: 30, height: 40 } }] }
+        ? { ...candidate, modules: [...candidate.modules, { type: "Storage" as const, position: { x: 880, y: 880 }, size: STORAGE_SIZE }] }
         : candidate),
     };
     state = fundFoundingSite(state, id);
@@ -420,8 +422,8 @@ describe("the station build queue", () => {
     state = tick(state, BUILD_SECONDS);
 
     const station = state.stations.find((candidate) => candidate.id === id)!;
-    expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 880, y: 900 } });
-    expect(station.constructionSite.position).toEqual({ x: 900, y: 860 });
+    expect(station.modules[0]).toMatchObject({ type: "Dock", position: { x: 900 - MODULE_SPACING / 2, y: 900 } });
+    expect(station.constructionSite.position).toEqual({ x: 900 - MODULE_SPACING / 2, y: 900 - MODULE_SPACING });
   });
 
   it("leaves a supply ship at its Move destination while a build is queued", () => {
