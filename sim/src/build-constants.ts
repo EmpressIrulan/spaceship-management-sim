@@ -50,7 +50,7 @@ export const BUG_SPEED_FACTOR = 0.6;
 // How far from its quarry a bug stands alongside and bites, how much hull
 // each bite takes, and how long between bites. Placeholders, like the hive
 // numbers, until there is something to play with.
-export const BUG_BITE_RANGE = 2;
+export const BUG_BITE_RANGE = 2 * SIZE_MULTIPLIER;
 export const BUG_BITE_DAMAGE = 1;
 export const BUG_BITE_SECONDS = 6;
 // A gun ship shoots the nearest bug in range, or the hive when no bug is

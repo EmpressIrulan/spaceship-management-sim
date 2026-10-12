@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { foundedStation, oneStorageStart, suppliersComingHome } from "./test-ships";
+import { foundedStation, oneStorageStart, suppliersComingHome, tripTimeBudget } from "./test-ships";
 import {
   DOCK_SIZE,
   MATERIALS,
@@ -157,10 +157,13 @@ describe("Supply construction site", () => {
     let state = minerOn("supply");
     const storage = state.stations[0]!.inventory;
     let unloadings = 0;
-    for (let i = 0; i < 4000; i += 1) {
+    // Allow enough full holds of both materials to fund the queued module.
+    const deadline = 10 * tripTimeBudget(state);
+    for (let elapsed = 0; elapsed < deadline; elapsed += 0.1) {
       const before = state.ships[0]!.state;
       state = tick(state, 0.1);
       if (before !== "unloading" && state.ships[0]!.state === "unloading") unloadings += 1;
+      if (unloadings >= 3 && siteTotal(state) > 0 && (state.stations[0]!.construction || state.stations[0]!.modules[2])) break;
     }
 
     expect(unloadings).toBeGreaterThanOrEqual(3);
@@ -251,10 +254,16 @@ describe("right-clicking a ship onto the site", () => {
   it("goes back to Storage on the next trip, because the order was only once", () => {
     const hauling = loaded();
     const ordered = giveOrder(hauling, [0], { kind: "supplyBuild", stationId: 0 });
-    const later = tick(ordered, 300);
+    const initialStorage = hauling.stations[0]!.inventory.Metal + hauling.stations[0]!.inventory.Ice;
+    const atSite = until(ordered, unloadingNow);
+    const departed = tick(atSite, cargoTransferSeconds(atSite.ships[0]!.cargo) + 0.01);
+    const atStorage = until(departed, unloadingNow);
+    const nextCargo = atStorage.ships[0]!.cargo;
+    const later = tick(atStorage, cargoTransferSeconds(nextCargo) + 0.01);
 
     expect(siteTotal(later)).toBe(hauling.ships[0]!.cargo);
-    expect(later.stations[0]!.inventory.Metal + later.stations[0]!.inventory.Ice).toBeGreaterThan(40);
+    expect(nextCargo).toBeGreaterThan(0);
+    expect(later.stations[0]!.inventory.Metal + later.stations[0]!.inventory.Ice).toBe(initialStorage + nextCargo);
   });
 
   it("does nothing for a ship with no cargo", () => {

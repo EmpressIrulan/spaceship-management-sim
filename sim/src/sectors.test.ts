@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { miningStart } from "./test-ships";
+import { miningStart, tripTimeBudget } from "./test-ships";
 import { HOME_SECTOR, JUMP_SECONDS, sectorInGateRange, startGateBuild } from "./state";
 import { tick } from "./tick";
 import { giveOrder } from "./orders";
@@ -54,8 +54,9 @@ describe("two linked sectors", () => {
   it("jumps out, mines, returns through the gate, and unloads at home", () => {
     let state = miningStart(19);
     const rock = state.asteroids.find((item) => item.sectorId === 1)!;
+    const initialStock = state.stations[0]!.inventory[rock.material];
     state = giveOrder(state, [state.ships[0]!.id], { kind: "mine", asteroidId: rock.id });
-    const until = (done: (s: typeof state) => boolean, limit = 1000) => {
+    const until = (done: (s: typeof state) => boolean, limit = tripTimeBudget(state)) => {
       for (let time = 0; time < limit; time += 1 / 30) {
         if (done(state)) return;
         state = tick(state, 1 / 30);
@@ -68,9 +69,11 @@ describe("two linked sectors", () => {
     expect(state.ships[0]!.sectorId).toBe(1);
     until((s) => s.ships[0]!.state === "working");
     until((s) => s.ships[0]!.state === "jumpingHome");
+    const cargo = state.ships[0]!.cargo;
     state = tick(state, JUMP_SECONDS);
     expect(state.ships[0]!.sectorId).toBe(0);
-    until((s) => s.stations[0]!.inventory[rock.material] > 20);
+    until((s) => s.stations[0]!.inventory[rock.material] === initialStock + cargo);
+    expect(state.ships[0]!.cargo).toBe(0);
     until((s) => s.ships[0]!.state === "outbound");
     expect(state.ships[0]!.target?.sectorId).toBe(0);
   });

@@ -15,6 +15,7 @@ import {
 import { suppliersComingHome } from "./test-ships";
 import { placeStation } from "./station-placement";
 import { damageStationModule } from "./station-build-queue";
+import { BUG_BITE_RANGE } from "./build-constants";
 
 const east = { x: 80, y: 0 };
 const farEast = { x: 120, y: 0 };
@@ -77,7 +78,7 @@ describe("the station build queue", () => {
     station.modules[1] = { ...station.modules[1]!, hp: 1 };
     station.modules.push({ type: "Storage", position: west, size: { width: 30, height: 40 } });
     state.bugs = Array.from({ length: 5 }, (_, id) => ({ id, hiveId: 0, sectorId: 0,
-      position: { x: 41, y: 0 }, hp: 6, maxHp: 6, state: "hunting", targetShipId: null, leg: null, timer: 0 }));
+      position: { x: station.modules[1]!.position.x + BUG_BITE_RANGE / 2, y: 0 }, hp: 6, maxHp: 6, state: "hunting", targetShipId: null, leg: null, timer: 0 }));
     const before = JSON.stringify(state);
     freeze(state);
     const result = tick(state, 1 / 60);
@@ -106,7 +107,7 @@ describe("the station build queue", () => {
     const target = station.modules[setup === "only Dock" ? 0 : 1]!;
     target.hp = 3;
     state.bugs = Array.from({ length: 5 }, (_, id) => ({ id, hiveId: 0, sectorId: 0,
-      position: { x: target.position.x + 1, y: target.position.y }, hp: 6, maxHp: 6,
+      position: { x: target.position.x + BUG_BITE_RANGE / 2, y: target.position.y }, hp: 6, maxHp: 6,
       state: "hunting", targetShipId: null, leg: null, timer: 0 }));
     state = tick(state, 1 / 60);
     state = { ...state, bugs: [] };

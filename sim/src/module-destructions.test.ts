@@ -3,15 +3,15 @@ import { tick } from "./tick";
 import { createInitialState, type SimState } from "./state";
 import { EXPLOSION_CUTOFF_SECONDS } from "./build-constants";
 
-const DT = 1 / 60;
+const DT = 1;
 
 // A destruction at the given game second, standing in for a bug bite.
 function destructionAt(time: number) {
   return { time, stationId: 0, position: { x: 10, y: 20 } };
 }
 
-// Steps a long run at roughly 60fps, landing one destroyed module every whole
-// game second the way bug bites do, and returns how it ends.
+// Batch each second's simulation work, still injecting all 600 destructions.
+// Retention uses game time, not renderer frames.
 function runWithDestructions(state: SimState, seconds: number): SimState {
   let next = state;
   const target = next.time + seconds;

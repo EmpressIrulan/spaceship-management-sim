@@ -186,10 +186,11 @@ describe("mining cycle", () => {
     expect(stored(tick(start, seconds))).toBe(stored(start) + 3 * CARGO_PER_TRIP);
   });
 
-  it("gets through at least two full cycles within two minutes for any seed", () => {
+  it("gets through at least two full cycles within the route-derived time for any seed", () => {
     for (let seed = 0; seed < 50; seed += 1) {
-      const state = run(oneStorageStart(seed), 120, 0.1);
-      expect(stored(state) - stored(oneStorageStart(seed))).toBeGreaterThanOrEqual(
+      const start = oneStorageStart(seed);
+      const state = run(start, cycleSeconds(start, 2) + 1, 0.1);
+      expect(stored(state) - stored(start)).toBeGreaterThanOrEqual(
         2 * CARGO_PER_TRIP,
       );
     }

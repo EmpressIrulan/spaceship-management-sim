@@ -5,9 +5,11 @@ import { miningStart } from "./test-ships";
 import {
   BUG_ATTACK_THRESHOLD,
   BUG_BITE_DAMAGE,
+  BUG_BITE_RANGE,
   BUG_HOVER_RADIUS,
   BUG_HP,
   BUG_SPAWN_SECONDS,
+  BUG_SPEED_FACTOR,
   GUN_DAMAGE,
   GUN_RANGE,
   GUN_SECONDS,
@@ -15,6 +17,7 @@ import {
   HIVE_HP,
   HIVE_SECTOR,
   MODULE_HP,
+  SIZE_MULTIPLIER,
   TURRET_DAMAGE,
   TURRET_METAL_PER_SHOT,
   TURRET_RANGE,
@@ -24,6 +27,7 @@ import {
 import { giveOrder } from "./orders";
 import { gunBeams } from "./enemies";
 import { shipHp } from "./ship";
+import { travelSeconds } from "./motion";
 import type { Bug, GateProject, Hive, Ship, ShipDesign, SimState } from "./state";
 
 function hive(state: SimState) {
@@ -119,9 +123,14 @@ describe("hive", () => {
         { sectorId, position: { x: 300, y: 400 } },
       ], delivered: { Metal: 0, Ice: 0 }, complete: true,
     }));
+    const origin = hive(createInitialState(seed)).position;
+    const arrivalEnd = 200 + Math.ceil(Math.max(...gates.map((gate) => travelSeconds(
+      Math.hypot(gate.ends[0].position.x - origin.x, gate.ends[0].position.y - origin.y) + BUG_HOVER_RADIUS,
+      BUG_SPEED_FACTOR,
+    )))) + 4;
     const run = (dt: number) => {
       const snapshots = [];
-      for (const end of [100, 115, 150, 200]) {
+      for (const end of [100, 115, 150, 200, arrivalEnd]) {
         let state: SimState = { ...createInitialState(seed), ships: [], gateProjects: gates };
         const steps = Math.floor(end / dt);
         for (let i = 0; i < steps; i += 1) state = tick(state, dt);
@@ -136,7 +145,19 @@ describe("hive", () => {
     };
     const large = run(200);
     expect(large[0]!.bugs.filter((bug) => bug.state === "invading")).toHaveLength(10);
-    expect(large[3]!.bugs.filter((bug) => bug.sectorId === HIVE_SECTOR && bug.state === "invading")).toHaveLength(10);
+    // The hive moved with the system's gate, but these player-built gates did
+    // not. Both ten-bug groups are still travelling at the second departure.
+    const migrating = large[3]!.bugs.filter((bug) => bug.sectorId === HIVE_SECTOR && bug.state === "invading");
+    expect(migrating).toHaveLength(20);
+    for (const firstId of [0, 10]) {
+      const group = migrating.filter((bug) => bug.id >= firstId && bug.id < firstId + 10);
+      expect(group).toHaveLength(10);
+      expect(new Set(group.map((bug) => bug.targetSectorId)).size).toBe(1);
+      expect(new Set(group.map((bug) => bug.timer)).size).toBe(1);
+    }
+    const arrived = large[4]!;
+    expect(arrived.hives.some((hive) => hive.sectorId !== HIVE_SECTOR)).toBe(true);
+    expect(arrived.bugs.some((bug) => bug.id < 10 && bug.sectorId === HIVE_SECTOR)).toBe(false);
     for (const dt of [1 / 60, 1]) {
       const stepped = run(dt);
       expect(stepped.map((s) => s.hives.map((h) => h.sectorId))).toEqual(large.map((s) => s.hives.map((h) => h.sectorId)));
@@ -220,14 +241,22 @@ describe("hive", () => {
     expect(state.bugs!.filter((bug) => bug.sectorId === destination).every((bug) => bug.hiveId === start.hives![0]!.id)).toBe(true);
   });
 
-  it.each([1 / 60, 1])("keeps joined groups resident through 400 seconds at dt %s", (dt) => {
+  it.each([1 / 60, 1])("keeps joined groups resident through arrival and attacks at dt %s", (dt) => {
     let state = createInitialState(7);
+    const homeGate = state.sectors[0]!.gate.position;
+    const dock = homeStation(state).dock.position;
+    // Allow the first hatch group, travel across Home, and a second chase
+    // after joining. Watch a further hatch group while residents keep biting.
+    const attackWindow = 10 * BUG_SPAWN_SECONDS + 2 * travelSeconds(
+      Math.hypot(homeGate.x - dock.x, homeGate.y - dock.y) + BUG_HOVER_RADIUS, BUG_SPEED_FACTOR,
+    );
+    const end = attackWindow + 10 * BUG_SPAWN_SECONDS;
     const joined = new Set<number>();
     const bouncing = new Set<number>();
     let mostWaitingOffspring = 0;
-    let hpAt250 = 0;
-    let bittenAfter250 = false;
-    for (let step = 0; step < Math.round(400 / dt); step += 1) {
+    let hpAtWindow = 0;
+    let bittenAfterWindow = false;
+    for (let step = 0; step < Math.ceil(end / dt); step += 1) {
       const previous = state;
       state = tick(state, dt);
       for (const bug of state.bugs!) {
@@ -236,8 +265,8 @@ describe("hive", () => {
         if (joined.has(bug.id) && bug.state === "invading") bouncing.add(bug.id);
       }
       const hp = homeStation(state).modules.reduce((total, module) => total + (module.hp ?? MODULE_HP), 0);
-      if (step < Math.round(250 / dt)) hpAt250 = hp;
-      else if (hp < hpAt250) bittenAfter250 = true;
+      if (state.time < attackWindow) hpAtWindow = hp;
+      else if (hp < hpAtWindow) bittenAfterWindow = true;
       for (const hive of state.hives!.filter((hive) => hive.alive)) {
         mostWaitingOffspring = Math.max(mostWaitingOffspring, state.bugs!.filter((bug) => bug.sectorId === hive.sectorId && bug.hiveId === hive.id
           && bug.state !== "invading" && bug.state !== "gathering").length);
@@ -246,7 +275,7 @@ describe("hive", () => {
     expect(joined.size).toBeGreaterThan(0);
     expect([...bouncing]).toEqual([]);
     expect(mostWaitingOffspring).toBeLessThan(10);
-    expect(bittenAfter250).toBe(true);
+    expect(bittenAfterWindow).toBe(true);
   });
 
   it("keeps ten arrivals with three residents until ten own offspring are alive", () => {
@@ -441,6 +470,22 @@ function parkedStart(seed: number): { state: SimState; shipId: number } {
 }
 
 describe("bugs hunt ships", () => {
+  it("chases rather than biting outside the size-scaled contact range", () => {
+    const { state: start, shipId } = parkedStart(7);
+    const ship = start.ships.find((candidate) => candidate.id === shipId)!;
+    const enemy = hive(start);
+    const bugs = Array.from({ length: BUG_ATTACK_THRESHOLD }, (_, id) =>
+      plantedBug(id, enemy, ship.position.x + 2 * SIZE_MULTIPLIER + 0.01, ship.position.y, 0));
+    const next = tick({ ...start, bugs }, 0);
+    expect(shipHp(next.ships.find((candidate) => candidate.id === shipId)!)).toEqual(shipHp(ship));
+    expect(next.bugs!.every((bug) => bug.state === "hunting" && bug.leg !== null)).toBe(true);
+    expect(BUG_BITE_RANGE).toBe(2 * SIZE_MULTIPLIER);
+    const touching = bugs.map((bug) => ({ ...bug, position: { x: ship.position.x + BUG_BITE_RANGE / 2, y: ship.position.y } }));
+    const bitten = tick({ ...start, bugs: touching }, 0);
+    expect(shipHp(bitten.ships.find((candidate) => candidate.id === shipId)!).hp)
+      .toBe(shipHp(ship).hp - BUG_ATTACK_THRESHOLD * BUG_BITE_DAMAGE);
+  });
+
   it("at 5 or more alive, bugs fly at the nearest ship in their sector", () => {
     const { state: start, shipId } = parkedStart(7);
     let state = start;
@@ -490,8 +535,18 @@ describe("bugs hunt ships", () => {
     expect(homeStation(state).inventory).toEqual(homeStation(control).inventory);
     expect(homeStation(state).deliveries).toEqual(homeStation(control).deliveries);
     // Local bugs fall back to loitering; a new group may already be leaving.
+    // Bugs that migrated to Home can legitimately still hunt its modules.
+    expect(state.bugs?.some((bug) => bug.sectorId === HIVE_SECTOR && bug.state === "hovering")).toBe(true);
     for (const bug of state.bugs ?? []) {
-      if (bug.state !== "invading") expect(bug.state).toBe("hovering");
+      expect(bug.targetShipId).not.toBe(shipId);
+      if (bug.sectorId === HIVE_SECTOR && bug.state !== "invading") expect(bug.state).toBe("hovering");
+      if (bug.state === "hunting") {
+        expect(bug.sectorId).toBe(homeStation(state).sectorId);
+        // A chase retains its original quarry until its leg ends, even if
+        // siblings have already killed that Home ship in the meantime.
+        expect(bug.targetModule?.stationId === homeStation(state).id
+          || bug.targetShipId === start.ships[0]!.id).toBe(true);
+      }
     }
   });
 
@@ -767,7 +822,7 @@ describe("station Turrets", () => {
     for (const s of attacked.stations) if (s.id !== stationId) s.sectorId = 2;
     const storage = attacked.stations.find(s => s.id === stationId)!.modules[1]!;
     storage.hp = 1;
-    attacked.bugs = Array.from({ length: 5 }, (_, id) => plantedBug(id, enemy, storage.position.x + 1, storage.position.y, 0));
+    attacked.bugs = Array.from({ length: 5 }, (_, id) => plantedBug(id, enemy, storage.position.x + BUG_BITE_RANGE / 2, storage.position.y, 0));
     const intact = clone(attacked);
     freeze(attacked);
     const destroyed = tick(attacked, 1 / 60);
