@@ -150,10 +150,16 @@ export function drawBlockOutline(
   width: number,
   height: number,
 ): void {
+  // Screen-space threshold survives changes to world-unit ship size and zoom.
+  if (width / design.width < 4 || height / design.height < 4) return;
   ctx.save();
-  ctx.strokeStyle = "#0f172a";
+  ctx.fillStyle = "#0f172a";
   ctx.globalAlpha = 0.45;
-  ctx.lineWidth = 1;
+  // Fill one union of pixel-aligned edges. Shared boundaries appear only once;
+  // intersections receive the same faint opacity as the rest of each line.
+  ctx.beginPath();
+  const occupied = (column: number, row: number) => column >= 0 && column < design.width
+    && row >= 0 && row < design.height && design.slots[row * design.width + column] != null;
   design.slots.forEach((slot, index) => {
     if (slot === null) return;
     const column = index % design.width;
@@ -162,7 +168,11 @@ export function drawBlockOutline(
     const top = Math.round(y + (row * height) / design.height);
     const right = Math.round(x + ((column + 1) * width) / design.width);
     const bottom = Math.round(y + ((row + 1) * height) / design.height);
-    ctx.strokeRect(left + 0.5, top + 0.5, Math.max(0, right - left - 1), Math.max(0, bottom - top - 1));
+    ctx.rect(left, top, right - left, 1);
+    ctx.rect(left, top, 1, bottom - top);
+    if (!occupied(column + 1, row)) ctx.rect(right - 1, top, 1, bottom - top);
+    if (!occupied(column, row + 1)) ctx.rect(left, bottom - 1, right - left, 1);
   });
+  ctx.fill();
   ctx.restore();
 }

@@ -1,6 +1,7 @@
-import { type SimState, type ShipDesign, type DefaultBehaviour } from "sim";
+import { type SimState, type DefaultBehaviour } from "sim";
 import { selectionPanel, type SelectionPanel } from "./selection";
-import { shipPanel, shipSprite } from "./ships";
+import { shipPanel } from "./ships";
+import { createShipThumbnail } from "./ship-thumbnail";
 import { hangarPanelRows, launchAllButton, launchAllDisabled } from "./hangar-panel";
 
 export interface ShipPanelContext {
@@ -23,19 +24,6 @@ const optionKeys = new WeakMap<HTMLSelectElement, string>();
 const BEHAVIOURS: [DefaultBehaviour, string][] = [
   ["mine", "Default: Mine for Station"], ["supply", "Default: Supply construction site"], ["haul", "Default: Haul"], ["none", "Default: None"],
 ];
-
-// A small picture of a ship, scaled to fit the panel.
-function thumbnailElement(design: ShipDesign): HTMLElement {
-  const thumb = document.createElement("canvas");
-  thumb.width = design.width;
-  thumb.height = design.height;
-  thumb.className = "ship-thumb";
-  const scale = Math.min(176 / design.width, 120 / design.height, 24);
-  thumb.style.width = `${design.width * scale}px`;
-  thumb.style.height = `${design.height * scale}px`;
-  thumb.getContext("2d")!.drawImage(shipSprite(design), 0, 0);
-  return thumb;
-}
 
 export function renderShipPanel(state: SimState, shipPanelBox: HTMLElement, context: ShipPanelContext): ShipPanelContext {
   context.selectedShips = context.selectedShips.filter((id) => state.ships.some((ship) => ship.id === id));
@@ -86,7 +74,7 @@ function buildShipPanel(shipPanelBox: HTMLElement, first: Frame, shipId: number)
   sectorsLabel.append(sectorsInput, " Mine in other sectors");
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = "";
   const launch = single ? launchAllButton(first.state, shipId) : null;
-  const thumbnail = single ? thumbnailElement(first.panel.design) : null;
+  const thumbnail = single ? createShipThumbnail(first.panel.design) : null;
   shipPanelBox.replaceChildren(title, rows, labelled("Home: ", homeSelect), defaultSelect, ...routeLabels,
     materialSelect, sectorsLabel, resume, ...(launch ? [launch] : []), ...(thumbnail ? [thumbnail] : []));
 

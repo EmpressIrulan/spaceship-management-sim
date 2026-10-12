@@ -177,10 +177,11 @@ class FakeElement {
   replaceChildren(...children: FakeElement[]): void { this.children = children; }
   addEventListener(name: string, listener: (event: Event) => void): void { this.listeners.set(name, [...(this.listeners.get(name) ?? []), listener]); }
   style: Record<string, string> = {};
+  className = "";
   width = 0;
   height = 0;
   // A ship's thumbnail draws onto a canvas, so the fake needs one to draw on.
-  getContext(): { drawImage: () => void; putImageData: () => void } { return { drawImage: () => {}, putImageData: () => {} }; }
+  getContext() { return { drawImage: () => {}, putImageData: () => {}, save: () => {}, restore: () => {}, beginPath: () => {}, rect: () => {}, fill: () => {} }; }
 }
 
 function fakeDocument(): { createElement: (tag: string) => FakeElement; activeElement: unknown } {
@@ -461,6 +462,21 @@ describe("ship panel while the ship changes", () => {
   function stateLabel(state: SimState): string {
     return shipPanel(state, 0)!.rows.find(([label]) => label === "State")![1];
   }
+
+  it("removes the picture for a multi-selection and restores it for one ship", () => {
+    vi.stubGlobal("document", fakeDocument());
+    const state = createInitialState(7);
+    state.ships.push({ ...state.ships[0]!, id: 1 });
+    const box = new FakeElement();
+    let context = renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0], selectedShip: null, renderedPanel: "" });
+    expect(box.children.some(child => child.className === "ship-thumb")).toBe(true);
+    context.selectedShips = [0, 1];
+    context = renderShipPanel(state, box as unknown as HTMLElement, context);
+    expect(box.children.some(child => child.className === "ship-thumb")).toBe(false);
+    context.selectedShips = [1];
+    renderShipPanel(state, box as unknown as HTMLElement, context);
+    expect(box.children.some(child => child.className === "ship-thumb")).toBe(true);
+  });
 
   it("keeps every control on the same element, in the same order, through a mining cycle", () => {
     const originalDocument = globalThis.document;

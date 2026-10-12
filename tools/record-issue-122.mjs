@@ -12,7 +12,7 @@ const bundle = await build({ entryPoints: ["app/src/main.ts"], bundle: true, for
   name: "issue-122-demo-fixture",
   setup(builder) {
     builder.onLoad({ filter: /app\/src\/main\.ts$/ }, async ({ path }) => ({
-      contents: `${await readFile(path, "utf8")}\nObject.defineProperty(window, "__repro", { value: { get state() { return state; }, get ui() { return ui; }, openShipMenu: shipMenuSystem.openShipMenu } });\nimport { installIssue122Demo } from ${JSON.stringify(resolve("tools/issue-122-demo-fixture.ts"))};\ninstallIssue122Demo(ui, next => { state = next; });`,
+      contents: `${await readFile(path, "utf8")}\nimport { MIN_ZOOM, MAX_ZOOM } from "./camera";\nimport { shipSize } from "sim";\nObject.defineProperty(window, "__repro", { value: { get state() { return state; }, get ui() { return ui; }, openShipMenu: shipMenuSystem.openShipMenu, limits: { min: MIN_ZOOM, max: MAX_ZOOM }, thresholdZoom: 4 * state.ships[0].design.width / shipSize(state.ships[0].design).width } });\nimport { installIssue122Demo } from ${JSON.stringify(resolve("tools/issue-122-demo-fixture.ts"))};\ninstallIssue122Demo(ui, next => { state = next; });`,
       loader: "ts", resolveDir: resolve("app/src"),
     }));
   },
@@ -31,26 +31,48 @@ try {
   await page.goto(pathToFileURL(pagePath).href);
   await page.waitForFunction(() => !!window.__repro);
   await page.addStyleTag({ content: "#info{font-size:20px;line-height:1.4} #info-title{font-size:22px}" });
+  // Enlarge pixels from the actual game canvas, without changing its camera.
+  await page.evaluate(() => {
+    const detail = document.createElement("canvas");
+    detail.id = "demo-detail";
+    detail.width = 640; detail.height = 240;
+    detail.style.cssText = "position:fixed;left:24px;bottom:24px;border:1px solid #64748b;pointer-events:none";
+    document.body.append(detail);
+    function refresh() {
+      const { ui } = window.__repro;
+      detail.hidden = ui.shipMenuBuilder !== null;
+      const source = document.querySelector("#screen");
+      const width = Math.max(100, 65 * ui.camera.zoom), height = width * 240 / 640;
+      const ctx = detail.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(source, (ui.viewport.width - width) / 2, (ui.viewport.height - height) / 2, width, height, 0, 0, 640, 240);
+      requestAnimationFrame(refresh);
+    }
+    refresh();
+  });
   async function show(criterion, caption, fn, hold = 2500) {
     await page.evaluate(fn);
     await page.evaluate(({ criterion, caption }) => {
       let label = document.querySelector("#demo-criterion");
-      if (!label) { label = document.createElement("div"); label.id = "demo-criterion"; label.style.cssText = "position:fixed;left:24px;top:18px;padding:10px 14px;color:#fff;background:#081428ee;border:1px solid #94a3b8;font:22px monospace;z-index:10000;pointer-events:none"; document.body.append(label); }
+      if (!label) { label = document.createElement("div"); label.id = "demo-criterion"; label.style.cssText = "position:fixed;left:24px;right:250px;top:18px;padding:10px 14px;color:#fff;background:#081428ee;border:1px solid #94a3b8;font:20px monospace;z-index:10000;pointer-events:none"; document.body.append(label); }
       label.textContent = `Criterion ${criterion}: ${caption}`;
+      const { ui, limits } = window.__repro;
+      if (ui.camera.zoom < limits.min || ui.camera.zoom > limits.max) throw Error("Camera outside player zoom limits");
+      if (ui.shipMenuBuilder === null) label.textContent += ` | camera ${ui.camera.zoom.toFixed(2)}×; enlarged space detail below`;
     }, { criterion, caption });
     moments.push({ criterion, caption, seconds: (Date.now() - started) / 1000 });
     await page.waitForTimeout(hold);
   }
-  await show(1, "Select the starting miner: count its outlined blocks", () => { window.__repro.ui.camera = { center: { x: 0, y: 0 }, zoom: 10 }; window.__repro.ui.selectedShips = [0]; window.__repro.ui.selectedShip = 0; });
+  await show(1, "Starting zoom: no space lines; count blocks in the right picture", () => { window.__repro.ui.camera = { center: { x: 0, y: 0 }, zoom: 1 }; window.__repro.ui.selectedShips = [0]; window.__repro.ui.selectedShip = 0; });
+  await show(1, "Zoom in: block lines appear in space", () => { window.__repro.ui.camera.zoom = 4; });
   await show(2, "Deselect: the outline disappears", () => { window.__repro.ui.selectedShips = []; window.__repro.ui.selectedShip = null; });
   await show(3, "Select two ships: neither has an outline", () => { window.__repro.ui.selectedShips = [0, 1]; window.__repro.ui.selectedShip = 0; });
   await show(4, "Only the selected ship is outlined", () => { window.__repro.ui.selectedShips = [1]; window.__repro.ui.selectedShip = 1; });
   await show(5, "Empty design squares stay open", () => { window.__repro.ui.selectedShips = [1]; window.__repro.ui.selectedShip = 1; });
-  await show(6, "The outline remains visible at wide and close zoom", () => { window.__repro.ui.selectedShips = [0]; window.__repro.ui.selectedShip = 0; window.__repro.ui.camera = { center: { x: -25, y: 0 }, zoom: 2 }; });
-  await page.waitForTimeout(1200);
-  await page.evaluate(() => window.__repro.ui.camera.zoom = 12);
-  await page.waitForTimeout(1500);
-  await show(7, "Faint lines preserve the block colours", () => { window.__repro.ui.camera.zoom = 18; });
+  await show(6, "Starting zoom: lined right picture, no space lines", () => { window.__repro.ui.selectedShips = [0]; window.__repro.ui.selectedShip = 0; window.__repro.ui.camera = { center: { x: 0, y: 0 }, zoom: 1 }; });
+  await show(6, "Maximum player zoom: space and picture lines", () => { window.__repro.ui.camera.zoom = window.__repro.limits.max; });
+  await show(6, "Four screen pixels per block: space lines begin", () => { window.__repro.ui.camera.zoom = window.__repro.thresholdZoom; });
+  await show(7, "Starting zoom: block colours stay readable in the right picture", () => { window.__repro.ui.camera.zoom = 1; });
   await show(8, "Build ship: starting miner design", () => {
     const { state, ui, openShipMenu } = window.__repro;
     openShipMenu(state.stations[0].modules.length - 1);
