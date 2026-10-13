@@ -21,6 +21,7 @@ import { stationConnectors } from "./station-appearance";
 import { createStationDrawing } from "./station-rendering";
 import { createShipDrawing } from "./ship-rendering";
 import { createOverlayDrawing } from "./overlay-rendering";
+import { stationMarkerVisible } from "./station-marker";
 import type { UiState } from "./ui-state";
 
 const slotKey = ({ x, y }: Vec): string => `${x},${y}`;
@@ -39,6 +40,14 @@ const DROP_COLORS: Record<DropKind, string> = {
 const GUN_SHOT_COLOR = slotColor("Gun");
 const BITE_COLOR = BUG_COLOR;
 const BITE_FLASH_SECONDS = 0.35;
+const MIN_BODY_DOT_PX = 2;
+
+function dotSize(size: Size, zoom: number): Size {
+  return {
+    width: size.width * zoom < MIN_BODY_DOT_PX ? MIN_BODY_DOT_PX / zoom : size.width,
+    height: size.height * zoom < MIN_BODY_DOT_PX ? MIN_BODY_DOT_PX / zoom : size.height,
+  };
+}
 
 // A destroyed hull is gone from the state in one step, so the burst is
 // render-side: a hull seen last frame and gone this frame blasts at the spot
@@ -87,7 +96,7 @@ export function createWorldDrawing(
       if (project.complete) fillWorldRect(end.position, { width: 24, height: 24 }, "#22d3ee");
       else strokeWorldRect(end.position, { width: 24, height: 24 }, "#22d3ee");
     }
-    for (const asteroid of sectorRocks) fillWorldRect(asteroid.position, asteroid.size, asteroidColor(asteroid.material, asteroid.rich));
+    for (const asteroid of sectorRocks) fillWorldRect(asteroid.position, dotSize(asteroid.size, ui.camera.zoom), asteroidColor(asteroid.material, asteroid.rich));
     const state = getState();
     // Loot lies where its thing died (it answers hovers first), then the
     // hive, then its bugs on the ground it flits over.
@@ -101,11 +110,16 @@ export function createWorldDrawing(
       strokeWorldRect(hive.position, HIVE_SIZE, HIVE_OUTLINE_COLOR);
     }
     const sectorBugs = (state.bugs ?? []).filter((bug) => bug.sectorId === ui.currentSector);
-    for (const bug of sectorBugs) fillWorldRect(bug.position, BUG_SIZE, BUG_COLOR);
+    for (const bug of sectorBugs) fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), BUG_COLOR);
     // Every station in the sector draws whole, so a founding one shows its
     // ghosts, its build and its site marker exactly the way Home does.
     for (const station of state.stations) {
       if (station.sectorId !== ui.currentSector) continue;
+      const stationIsTooSmall = stationMarkerVisible(station, ui.camera.zoom);
+      if (stationIsTooSmall) {
+        stationDrawing.drawStationMarker(station);
+        continue;
+      }
       for (const connector of stationConnectors(station.modules)) stationDrawing.drawStationConnector(connector.from, connector.to);
       for (const module of station.modules) stationDrawing.drawStationModule(module);
       // The Cancel under the pointer names the ghosts it would take with it, so

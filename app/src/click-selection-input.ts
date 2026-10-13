@@ -1,4 +1,6 @@
-import { hoveredBody } from "./camera";
+import { hoveredBody, stationMarkerCamera } from "./camera";
+import { flyCameraTo } from "./camera-input";
+import { stationMarkerVisible } from "./station-marker";
 import { storagePanelOpenAfterClick } from "./storage";
 import { openStoragePanel } from "./storage-panel";
 import { toggleShip } from "./selection";
@@ -29,6 +31,10 @@ export function selectClick(context: InputContext, event: MouseEvent, additive: 
   if (stationDockId !== null) {
     ui.stationPanelId = stationById(getState(), stationDockId) ? stationDockId : null;
     ui.removeStationConfirmation = null;
+    const station = stationById(getState(), stationDockId);
+    if (event.detail >= 2 && station && stationMarkerVisible(station, ui.camera.zoom)) {
+      flyCameraTo(ui, stationMarkerCamera(ui.camera, station));
+    }
   } else {
     ui.stationPanelId = null;
     ui.removeStationConfirmation = null;

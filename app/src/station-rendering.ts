@@ -9,13 +9,19 @@ import {
 import { worldToScreen } from "./camera";
 import { moduleAppearance } from "./station-appearance";
 import type { UiState } from "./ui-state";
+import { STATION_MARKER_DETAIL_MIN_PX } from "./station-marker";
 
 export interface StationDrawing {
   drawStationConnector: (from: Vec, to: Vec) => void;
   drawStationModule: (module: StationModule) => void;
   drawConstructionSite: (site: Station["constructionSite"]) => void;
   drawQueuedModule: (module: StationModule, highlighted?: boolean) => void;
+  drawStationMarker: (station: Station) => void;
 }
+
+// Keep a station's component silhouette until its smallest module dimension
+// falls below a readable screen-space width.
+export const STATION_DETAIL_MIN_PX = STATION_MARKER_DETAIL_MIN_PX;
 export function createStationDrawing(
   ui: UiState,
   getState: () => SimState,
@@ -38,6 +44,19 @@ export function createStationDrawing(
     ctx.strokeStyle = "#64748b";
     ctx.lineWidth = Math.max(1, 2 * detailZoom);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawStationMarker(station: Station): void {
+    const center = worldToScreen(ui.camera, ui.viewport, station.dock.position);
+    ctx.save();
+    ctx.fillStyle = "#38bdf8";
+    ctx.fillRect(center.x - 3, center.y - 3, 6, 6);
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillStyle = "#e2e8f0";
+    ctx.fillText(station.name, center.x, center.y - 5);
     ctx.restore();
   }
 
@@ -203,6 +222,7 @@ export function createStationDrawing(
     drawStationModule,
     drawConstructionSite,
     drawQueuedModule,
+    drawStationMarker,
   };
 }
 import { homeStation } from "sim";

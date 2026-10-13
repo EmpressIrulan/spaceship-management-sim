@@ -1,6 +1,29 @@
 import { homeCamera, panBy, wheelZoomFactor, zoomAt } from "./camera";
 import type { SimState, Vec } from "sim";
 import type { UiState } from "./ui-state";
+import type { Camera } from "./camera";
+
+let cameraFlight = 0;
+
+export function flyCameraTo(ui: UiState, target: Camera): void {
+  const start = ui.camera;
+  const startedAt = performance.now();
+  const flight = ++cameraFlight;
+  const animate = (now: number): void => {
+    if (flight !== cameraFlight) return;
+    const progress = Math.min(1, (now - startedAt) / 450);
+    const eased = 1 - (1 - progress) ** 3;
+    ui.camera = {
+      center: {
+        x: start.center.x + (target.center.x - start.center.x) * eased,
+        y: start.center.y + (target.center.y - start.center.y) * eased,
+      },
+      zoom: start.zoom + (target.zoom - start.zoom) * eased,
+    };
+    if (progress < 1) requestAnimationFrame(animate);
+  };
+  requestAnimationFrame(animate);
+}
 
 export function pointerAfterCanvasLeave(pointer: Vec | null, buildControls: Pick<HTMLElement, "contains">, relatedTarget: EventTarget | null): Vec | null {
   return relatedTarget !== null && buildControls.contains(relatedTarget as Node) ? pointer : null;

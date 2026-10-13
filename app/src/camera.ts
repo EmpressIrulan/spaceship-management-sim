@@ -96,6 +96,15 @@ export function homeCamera(bodies: { position: Vec; size: Size }[]): Camera {
   };
 }
 
+export function stationMarkerCamera(camera: Camera, station: SimState["stations"][number]): Camera {
+  const smallestModule = Math.min(...station.modules.map((module) => Math.min(module.size.width, module.size.height)));
+  const detailZoom = smallestModule > 0 ? STATION_MARKER_DETAIL_MIN_PX / smallestModule : camera.zoom;
+  return {
+    center: { ...station.dock.position },
+    zoom: Math.max(camera.zoom, Math.min(MAX_ZOOM, detailZoom)),
+  };
+}
+
 export function panBy(camera: Camera, dxScreen: number, dyScreen: number): Camera {
   return {
     ...camera,
@@ -145,6 +154,11 @@ export function hoveredBody(
 ): Hovered | null {
   if (pointer === null) return null;
   const world = screenToWorld(camera, viewport, pointer);
+  for (const station of state.stations) {
+    if (station.sectorId === currentSector && stationMarkerHit(station, camera.zoom, world)) {
+      return { kind: "dock", stationId: station.id };
+    }
+  }
   // Keep the world-space pick radius from ballooning as far zoom-out grows.
   const floor = MIN_HOVER_PX / Math.max(camera.zoom, MIN_ZOOM);
   const shipFloor = MIN_SHIP_HOVER_PX / camera.zoom;
@@ -308,3 +322,4 @@ export function bodyOf(
   return state.asteroids.find((a) => a.id === hovered.id) ?? null;
 }
 import { stationById } from "sim";
+import { stationMarkerHit, STATION_MARKER_DETAIL_MIN_PX } from "./station-marker";

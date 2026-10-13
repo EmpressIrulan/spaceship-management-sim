@@ -15,6 +15,7 @@ import {
   type Vec,
 } from "sim";
 import { createWorldDrawing } from "./world-rendering";
+import { asteroidColor } from "./asteroid";
 import { createUiState } from "./ui-state";
 import { damageShip } from "../../sim/src/shields";
 
@@ -137,6 +138,42 @@ describe("the world draws the hive and its bugs", () => {
     drawing.draw(0);
     expect(fillWorldRect).toHaveBeenCalledWith(AT, DROP_SIZE, "#84cc16");
     expect(fillWorldRect).toHaveBeenCalledWith({ x: 5, y: 5 }, DROP_SIZE, "#fde68a");
+  });
+});
+
+describe("zoomed-out small bodies", () => {
+  it("keeps bugs and asteroids visible as two-pixel dots", () => {
+    const uiState = ui();
+    uiState.camera = { center: { x: 0, y: 0 }, zoom: 0.01 };
+    const fillWorldRect = vi.fn();
+    const state = createInitialState(7);
+    const asteroid = { ...state.asteroids[0]!, position: AT, sectorId: 0 };
+    const drawing = createWorldDrawing(uiState, () => withBodies(state, {
+      bugs: [bug(0, AT)],
+    }) as SimState, mockCtx(), fillWorldRect, vi.fn());
+    state.asteroids = [asteroid];
+    drawing.draw(0);
+    expect(fillWorldRect).toHaveBeenCalledWith(AT, { width: 200, height: 200 }, asteroidColor(asteroid.material, asteroid.rich));
+    expect(fillWorldRect).toHaveBeenCalledWith(AT, { width: 200, height: 200 }, "#c084fc");
+  });
+
+  it("shows named station markers when modules are too small to read, and restores modules when zoomed in", () => {
+    const uiState = ui();
+    const state = createInitialState(7);
+    const station = state.stations[0]!;
+    const ctx = mockCtx();
+    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
+
+    uiState.camera = { ...uiState.camera, zoom: 0.01 };
+    drawing.draw(0);
+    expect(ctx.fillText).toHaveBeenCalledWith(station.name, expect.any(Number), expect.any(Number));
+    expect(ctx.ellipse).not.toHaveBeenCalled();
+
+    (ctx.fillText as unknown as { mockClear: () => void }).mockClear();
+    uiState.camera = { ...uiState.camera, zoom: 1 };
+    drawing.draw(1);
+    expect(ctx.fillText).not.toHaveBeenCalled();
+    expect(ctx.ellipse).toHaveBeenCalled();
   });
 });
 
