@@ -2,6 +2,7 @@ import { type SimState, type DefaultBehaviour } from "sim";
 import { selectionPanel, type SelectionPanel } from "./selection";
 import { shipPanel } from "./ships";
 import { createShipThumbnail } from "./ship-thumbnail";
+import { createModuleList } from "./ship-modules";
 import { hangarPanelRows, launchAllButton, launchAllDisabled } from "./hangar-panel";
 
 export interface ShipPanelContext {
@@ -75,11 +76,13 @@ function buildShipPanel(shipPanelBox: HTMLElement, first: Frame, shipId: number)
   const resume = document.createElement("button"); resume.textContent = "Resume"; resume.dataset.resume = "";
   const launch = single ? launchAllButton(first.state, shipId) : null;
   const thumbnail = single ? createShipThumbnail(first.panel.design) : null;
+  const modules = single ? createModuleList(first.panel.design) : null;
   shipPanelBox.replaceChildren(title, rows, labelled("Home: ", homeSelect), defaultSelect, ...routeLabels,
-    materialSelect, sectorsLabel, resume, ...(launch ? [launch] : []), ...(thumbnail ? [thumbnail] : []));
+    materialSelect, sectorsLabel, resume, ...(launch ? [launch] : []), ...(thumbnail ? [thumbnail] : []),
+    ...(modules ? [modules] : []));
 
   return ({ state, panel, list, hangarRows }) => {
-    setText(title, list.rows.length > 1 ? `${list.rows.length} ships selected` : `Ship ${panel.size}`);
+    setText(title, list.rows.length > 1 ? `${list.rows.length} ships selected` : "Ship");
     list.rows.forEach((row, index) => setText(statusCells[index]!, row.status));
     const values = [...panel.rows, ...hangarRows];
     figureCells.forEach((cell, index) => {

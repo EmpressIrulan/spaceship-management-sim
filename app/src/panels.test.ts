@@ -478,6 +478,21 @@ describe("ship panel while the ship changes", () => {
     expect(box.children.some(child => child.className === "ship-thumb")).toBe(true);
   });
 
+  it("shows a Modules section for one ship and none for two or more (#123 criteria 1, 5, 7)", () => {
+    vi.stubGlobal("document", fakeDocument());
+    const state = createInitialState(7);
+    state.ships.push({ ...state.ships[0]!, id: 1 });
+    const box = new FakeElement();
+    const moduleSection = () => box.children.find((child) => child.className === "ship-modules");
+    let context = renderShipPanel(state, box as unknown as HTMLElement, { selectedShips: [0], selectedShip: null, renderedPanel: "" });
+    const section = moduleSection()!;
+    expect(section.children.map((child) => child.textContent)).toEqual(["Modules", "Engine x4", "Laser x4", "Storage x8"]);
+    expect(box.children[0]!.textContent).toBe("Ship");
+    context.selectedShips = [0, 1];
+    renderShipPanel(state, box as unknown as HTMLElement, context);
+    expect(moduleSection()).toBeUndefined();
+  });
+
   it("keeps every control on the same element, in the same order, through a mining cycle", () => {
     const originalDocument = globalThis.document;
     globalThis.document = fakeDocument() as unknown as Document;

@@ -16,6 +16,7 @@ import {
   type Vec,
 } from "sim";
 import { screenToWorld, zoomAt, type Camera, type Viewport, type ZoomLimits } from "./camera";
+import { moduleLines } from "./ship-modules";
 
 export const BRUSH_SIZES = [1, 3, 5] as const;
 export type BrushSize = (typeof BRUSH_SIZES)[number];
@@ -247,6 +248,7 @@ export function statsView(design: ShipDesign): StatsView {
 
 export interface ShipMenuView {
   stats: StatsView;
+  modules: string[];
   pixels: string;
   parts: string;
   buildTime: string;
@@ -290,6 +292,7 @@ export function shipMenuView(state: SimState, builder: number, draft: ShipDraft,
   const partOrder: ShipModule[] = ["Hull", "Engine", "Laser", "Storage", "Hangar", "Gun", "Capacitor", "Generator"];
   return {
     stats: statsView(design),
+    modules: moduleLines(design),
     pixels: String(pixelCount(design)),
     parts: partOrder.map((module) => `${module} ${counts[module]} px`).join(", "),
     buildTime: formatDuration(shipBuildSeconds(design)),
