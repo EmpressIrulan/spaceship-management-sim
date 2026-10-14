@@ -111,7 +111,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     const station = stationById(state, stationId);
     const queued = station?.buildQueue[hovered.index];
     if (!queued) return null;
-    const cost = moduleCost(queued.type);
+    const cost = moduleCost(queued.type, queued.width, queued.height);
     if (hovered.index === 0 && station?.construction
       && MATERIALS.every((material) => station.constructionSite.inventory[material] >= cost[material])) {
       return {

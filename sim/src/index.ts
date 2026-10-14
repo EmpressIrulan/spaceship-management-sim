@@ -119,7 +119,7 @@ export { damageStationModule } from "./station-build-queue";
 export { gunBeams } from "./enemies";
 export { supplyQueueLength, supplyQueueStatus } from "./station-build-queue";
 export { stationOwningSite } from "./station-building";
-export { moduleBuildSeconds, moduleCost } from "./station-module-geometry";
+export { moduleBuildSeconds, moduleCost, validDockDimensions } from "./station-module-geometry";
 export {
   PIXEL_SIZE,
   SHIP_BUILD_SECONDS_PER_RESOURCE,

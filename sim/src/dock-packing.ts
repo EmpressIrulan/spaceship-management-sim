@@ -1,8 +1,8 @@
 import type { BerthLayout, Ship, ShipDesign, Vec } from "./model";
 import { PIXEL_SIZE, STARTING_SHIP } from "./ship";
 
-export const DOCK_WIDTH = 8;
-export const DOCK_HEIGHT = 12;
+export const DOCK_WIDTH = 10;
+export const DOCK_HEIGHT = 10;
 export const DOCK_AREA = DOCK_WIDTH * DOCK_HEIGHT;
 
 export function fitsDock(design: ShipDesign): boolean {
@@ -30,7 +30,9 @@ export function berthPoint(layout: BerthLayout, berth: number, design = STARTING
 export function freeBerth(layout: BerthLayout, ships: Ship[], design = STARTING_SHIP): number | null {
   if (!fitsDock(design)) return null;
   const docks = layout.modules.filter((module) => module.type === "Dock");
-  const count = Math.min(docks.length, Math.floor(layout.capacity / DOCK_AREA));
+  // Until ship fitting reads each Dock's dimensions, every standing Dock gets
+  // the default 10x10 packing region. Real per-Dock fitting is a later slice.
+  const count = docks.length;
   const occupied = new Set<number>();
   const reserve = (berth: number, design: ShipDesign): void => {
     const base = Math.floor(berth / DOCK_AREA) * DOCK_AREA;

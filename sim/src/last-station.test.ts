@@ -35,7 +35,7 @@ describe("running without a station", () => {
     const stocked: SimState = {
       ...placed,
       stations: placed.stations.map((candidate) => candidate.id === station.id
-        ? { ...candidate, constructionSite: { ...candidate.constructionSite, inventory: { Metal: 25, Ice: 25 } } }
+        ? { ...candidate, constructionSite: { ...candidate.constructionSite, inventory: { Metal: 100, Ice: 100 } } }
         : candidate),
     };
     const built = startModuleBuild(stocked, station.id, "Dock", availableModuleBuildSites(stocked, station.id)[0]!);

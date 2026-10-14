@@ -154,11 +154,6 @@ export function hoveredBody(
 ): Hovered | null {
   if (pointer === null) return null;
   const world = screenToWorld(camera, viewport, pointer);
-  for (const station of state.stations) {
-    if (station.sectorId === currentSector && stationMarkerHit(station, camera.zoom, world)) {
-      return { kind: "dock", stationId: station.id };
-    }
-  }
   // Keep the world-space pick radius from ballooning as far zoom-out grows.
   const floor = MIN_HOVER_PX / Math.max(camera.zoom, MIN_ZOOM);
   const shipFloor = MIN_SHIP_HOVER_PX / camera.zoom;
@@ -204,6 +199,11 @@ export function hoveredBody(
   if (includeShips) {
     const atRest = closest(ships.filter(({ index }) => (atStationOrGate(index) || parked(index)) && overShip(index)));
     if (atRest) return atRest;
+  }
+  for (const station of state.stations) {
+    if (station.sectorId === currentSector && stationMarkerHit(station, camera.zoom, world)) {
+      return { kind: "dock", stationId: station.id };
+    }
   }
   for (const project of state.gateProjects) {
     const end = project.ends.findIndex((candidate) => candidate.sectorId === currentSector);

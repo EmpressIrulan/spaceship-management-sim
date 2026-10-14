@@ -3,9 +3,10 @@ import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleDestruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
 import { DOCK_CAPACITY, STORAGE_CAPACITY, homeStation, replaceStation, stationById } from "./state";
 import { availableModuleBuildSites, nearbyClearPosition, stationOwningSite } from "./station-building";
-import { moduleBuildSeconds, moduleCost, moduleSize, samePosition } from "./station-module-geometry";
+import { moduleBuildSeconds, moduleCost, moduleSize, samePosition, validDockDimensions } from "./station-module-geometry";
 import { travelSeconds } from "./motion";
 import { speedFactor } from "./ship";
+import { DOCK_HEIGHT, DOCK_WIDTH } from "./dock-packing";
 import type { Draft } from "./tick-mining";
 
 type QueueState = Pick<Station, "constructionSite" | "construction" | "buildQueue">;
@@ -57,7 +58,7 @@ export function settleQueuedBuild(draft: Pick<Draft, "constructionSite" | "const
 // behind a build that can never finish.
 export function refundDetachedBuild(draft: Pick<Draft, "construction" | "constructionSite">): void {
   if (!draft.construction) return;
-  const inventory = adjustInventory(draft.constructionSite.inventory, 1, draft.construction.type);
+  const inventory = adjustInventory(draft.constructionSite.inventory, 1, draft.construction);
   draft.construction = null;
   draft.constructionSite = { ...draft.constructionSite, inventory };
 }
@@ -68,24 +69,25 @@ export function refundStationModule(station: Station): Station {
   return {
     ...station,
     construction: null,
-    constructionSite: { ...station.constructionSite, inventory: adjustInventory(station.constructionSite.inventory, 1, station.construction.type) },
+    constructionSite: { ...station.constructionSite, inventory: adjustInventory(station.constructionSite.inventory, 1, station.construction) },
   };
 }
 
-function adjustInventory(inventory: Record<Material, number>, direction: 1 | -1, type: ModuleType): Record<Material, number> {
-  const cost = moduleCost(type);
+type BuildSpec = { type: ModuleType; width?: number; height?: number };
+function adjustInventory(inventory: Record<Material, number>, direction: 1 | -1, module: BuildSpec): Record<Material, number> {
+  const cost = moduleCost(module.type, module.width, module.height);
   return Object.fromEntries(MATERIALS.map((material) => [material, inventory[material] + direction * cost[material]])) as Record<Material, number>;
 }
 
-function canPay(inventory: Record<Material, number>, type: ModuleType): boolean {
-  const cost = moduleCost(type);
+function canPay(inventory: Record<Material, number>, module: BuildSpec): boolean {
+  const cost = moduleCost(module.type, module.width, module.height);
   return MATERIALS.every((material) => inventory[material] >= cost[material]);
 }
 
 export function startNextQueuedModule<T extends QueueState>(station: T): T {
   const next = station.buildQueue[0];
-  if (station.construction || !next || !canPay(station.constructionSite.inventory, next.type)) return station;
-  const inventory = adjustInventory(station.constructionSite.inventory, -1, next.type);
+  if (station.construction || !next || !canPay(station.constructionSite.inventory, next)) return station;
+  const inventory = adjustInventory(station.constructionSite.inventory, -1, next);
   const construction: ModuleConstruction = { ...next, timer: moduleBuildSeconds(next.type) };
   return {
     ...station,
@@ -108,7 +110,7 @@ export function completeBuild(draft: Draft): void {
     draft.constructionSite.position, nearby, draft.asteroids, draft.stationSector,
   ) };
   if (standing.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
-  if (standing.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
+  if (standing.type === "Dock") draft.dockCapacity += (standing.width ?? DOCK_WIDTH) * (standing.height ?? DOCK_HEIGHT);
   draft.construction = null;
 }
 
@@ -156,7 +158,7 @@ export function completeStationModule(station: Station, context: SettleContext =
     constructionSite: { ...station.constructionSite, position: nearbyClearPosition(
       station.constructionSite.position, obstacles, context.asteroids, station.sectorId,
     ) },
-    dock: standing.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + DOCK_CAPACITY } : station.dock,
+    dock: standing.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + (standing.width ?? DOCK_WIDTH) * (standing.height ?? DOCK_HEIGHT) } : station.dock,
     storage: standing.type === "Storage" ? { ...station.storage, capacity: station.storage.capacity + STORAGE_CAPACITY } : station.storage,
     construction: null,
   };
@@ -172,13 +174,17 @@ export function finishedClaimSectors(before: SimState, after: SimState): number[
   });
 }
 
-export function queueModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {
+export function queueModuleBuild(state: SimState, type: ModuleType, position: Vec, dockDimensions?: { width: number; height: number }): SimState {
   const owner = stationOwningSite(state, position);
   const station = stationById(state, owner);
   if (!station) return state;
   const site = availableModuleBuildSites(state, owner).find((candidate) => samePosition(candidate, position));
   if (!site) return state;
-  const queued: QueuedModuleBuild = { type, position: { ...site }, size: moduleSize(type) };
+  if (type === "Dock" && dockDimensions && !validDockDimensions(dockDimensions)) return state;
+  const width = type === "Dock" ? dockDimensions?.width ?? DOCK_WIDTH : undefined;
+  const height = type === "Dock" ? dockDimensions?.height ?? DOCK_HEIGHT : undefined;
+  const queued: QueuedModuleBuild = { type, position: { ...site }, size: moduleSize(type, width, height),
+    ...(type === "Dock" ? { width, height } : {}) };
   const next = startNextQueuedModule({ ...station, buildQueue: [...station.buildQueue, queued] });
   return replaceStation(state, next);
 }
@@ -325,7 +331,8 @@ export function damageStationModule(station: Station, position: Vec, damage: num
       shipBuilds,
       inventory,
       storage: { ...station.storage, capacity: storageCapacity },
-      dock: { ...station.dock, capacity: Math.max(0, station.dock.capacity - destroyed.filter((module) => module.type === "Dock").length * DOCK_CAPACITY) },
+      dock: { ...station.dock, capacity: Math.max(0, station.dock.capacity - destroyed.filter((module) => module.type === "Dock")
+        .reduce((area, module) => area + (module.width ?? DOCK_WIDTH) * (module.height ?? DOCK_HEIGHT), 0)) },
     },
     destructions,
   };

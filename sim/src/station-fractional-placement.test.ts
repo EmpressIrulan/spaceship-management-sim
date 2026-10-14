@@ -10,7 +10,7 @@ const WHOLE: Vec = { x: -512, y: 0 };
 
 function fundedSite(state: SimState, id: number): SimState {
   return { ...state, stations: state.stations.map((station) => station.id === id ? {
-    ...station, constructionSite: { ...station.constructionSite, inventory: { Metal: 50, Ice: 50 } },
+    ...station, constructionSite: { ...station.constructionSite, inventory: { Metal: 125, Ice: 125 } },
   } : station) };
 }
 

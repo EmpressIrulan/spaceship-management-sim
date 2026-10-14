@@ -112,7 +112,8 @@ describe("building from the construction site", () => {
 
     expect(availableModuleBuilds(state, 0).map(({ enabled, missing }) => ({ enabled, missing })))
       .toEqual([
-        ...Array(4).fill({ enabled: false, missing: { Metal: 0, Ice: 15 } }),
+        { enabled: false, missing: { Metal: 70, Ice: 90 } },
+        ...Array(3).fill({ enabled: false, missing: { Metal: 0, Ice: 15 } }),
         { enabled: false, missing: { Metal: 970, Ice: 990 } },
       ]);
   });
@@ -124,11 +125,11 @@ describe("building from the construction site", () => {
   });
 
   it("pays from the site and leaves Storage exactly as it was", () => {
-    const funded = withSite(withStorage(createInitialState(7), { Metal: 77, Ice: 33 }), { Metal: 40, Ice: 25 });
+    const funded = withSite(withStorage(createInitialState(7), { Metal: 77, Ice: 33 }), { Metal: 120, Ice: 125 });
 
     const building = startModuleBuild(funded, 0, "Dock", east);
 
-    expect(site(building).inventory).toEqual({ Metal: 15, Ice: 0 });
+    expect(site(building).inventory).toEqual({ Metal: 20, Ice: 25 });
     expect(building.stations[0]!.inventory).toEqual({ Metal: 77, Ice: 33 });
     expect(tick(building, 15).stations[0]!.inventory).toEqual({ Metal: 77, Ice: 33 });
   });

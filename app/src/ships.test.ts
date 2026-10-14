@@ -91,8 +91,8 @@ describe("hovering a ship shows its state", () => {
     const settled = tick(tick(fleet, 0), 8);
     const zoomed: Camera = { center: { x: 0, y: 0 }, zoom };
 
-    expect(settled.ships.filter((ship) => ship.state === "unloading")).toHaveLength(6);
-    expect(settled.ships.filter((ship) => ship.state === "waiting")).toHaveLength(3);
+    expect(settled.ships.filter((ship) => ship.state === "unloading")).toHaveLength(4);
+    expect(settled.ships.filter((ship) => ship.state === "waiting")).toHaveLength(5);
     settled.ships.forEach((ship, index) => {
       const pointer = worldToScreen(zoomed, viewport, ship.position);
       expect(hoveredBody(settled, zoomed, viewport, pointer)).toEqual({ kind: "ship", index });
@@ -107,8 +107,8 @@ describe("hovering a ship shows its state", () => {
     const arrived = tick(fleet, 0);
     const lines = arrived.ships.map((_, index) => infoBox(arrived, { kind: "ship", index })?.line);
 
-    expect(lines.slice(0, 6)).toEqual(Array(6).fill("Docking"));
-    expect(lines[6]).toBe("Waiting: dock busy");
+    expect(lines.slice(0, 4)).toEqual(Array(4).fill("Docking"));
+    expect(lines.slice(4)).toEqual(Array(3).fill("Waiting: dock busy"));
   });
 
   it("keeps a ship selectable during its outbound transition from the Dock", () => {

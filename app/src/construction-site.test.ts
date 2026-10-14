@@ -77,7 +77,7 @@ describe("the construction site on screen", () => {
   it("does not count a ship unloading there against the Dock's berths", () => {
     const state = withShip({ state: "unloading", cargo: 5, cargoMaterial: "Metal", transfer: { startingCargo: 5, amount: 5, destination: "constructionSite" } });
 
-    expect(infoBox(state, { kind: "dock", stationId: 0 })?.line).toBe("Dock 0/96\n0 ships inside");
+    expect(infoBox(state, { kind: "dock", stationId: 0 })?.line).toBe("Dock 0/100\n0 ships inside");
   });
 
   it("takes a right-click as an order to supply it", () => {
@@ -97,27 +97,28 @@ describe("the + menu", () => {
 
     expect(items.map(({ disabled, title }) => ({ disabled, title })))
       .toEqual([
-        ...Array(4).fill({ disabled: false, title: "Needs 15 more Ice" }),
+        { disabled: false, title: "Needs 70 more Metal and 90 more Ice" },
+        ...Array(3).fill({ disabled: false, title: "Needs 15 more Ice" }),
         { disabled: false, title: "Needs 970 more Metal and 990 more Ice" },
       ]);
   });
 
   it("names both materials when both are short", () => {
-    expect(buildMenuItems(withSite({ Metal: 0, Ice: 0 }), 0)[0]).toMatchObject({ title: "Needs 25 more Metal and 25 more Ice" });
+    expect(buildMenuItems(withSite({ Metal: 0, Ice: 0 }), 0)[0]).toMatchObject({ title: "Needs 100 more Metal and 100 more Ice" });
   });
 
   it("has no hover text for an option the site can pay", () => {
-    expect(buildMenuItems(withSite({ Metal: 25, Ice: 25 }), 0)).toEqual([
-      { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
+    expect(buildMenuItems(withSite({ Metal: 100, Ice: 100 }), 0)).toEqual([
+      { type: "Dock", cost: "100 Metal, 100 Ice", disabled: false, title: "" },
       { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Turret", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
-      { type: "Claim", cost: "1000 Metal, 1000 Ice", disabled: false, title: "Needs 975 more Metal and 975 more Ice" },
+        { type: "Claim", cost: "1000 Metal, 1000 Ice", disabled: false, title: "Needs 900 more Metal and 900 more Ice" },
     ]);
   });
 
   it("allows another module to be queued while one is being built", () => {
-    const state = withSite({ Metal: 50, Ice: 50 });
+    const state = withSite({ Metal: 100, Ice: 100 });
     const building = { ...state, stations: [{ ...state.stations[0]!, construction: { type: "Dock" as const, position: { x: 80, y: 0 }, size: { width: 40, height: 70 }, timer: 5 } }] };
 
     expect(buildMenuItems(building, 0)[0]).toMatchObject({ disabled: false, title: "" });
@@ -127,17 +128,17 @@ describe("the + menu", () => {
     const placed = placeStation(createInitialState(7), 1, { x: 0, y: 0 });
     const station = placed.stations[1]!;
     const funded = { ...placed, stations: placed.stations.map((candidate) => candidate.id === station.id
-      ? { ...candidate, constructionSite: { ...candidate.constructionSite, inventory: { Metal: 25, Ice: 25 } } }
+      ? { ...candidate, constructionSite: { ...candidate.constructionSite, inventory: { Metal: 100, Ice: 100 } } }
       : candidate) };
 
     expect(buildMenuItems(funded, station.id)).toEqual([
-      { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
+      { type: "Dock", cost: "100 Metal, 100 Ice", disabled: false, title: "" },
       { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
       { type: "Turret", cost: "25 Metal, 25 Ice", disabled: false, title: "" },
-      { type: "Claim", cost: "1000 Metal, 1000 Ice", disabled: false, title: "Needs 975 more Metal and 975 more Ice" },
+      { type: "Claim", cost: "1000 Metal, 1000 Ice", disabled: false, title: "Needs 900 more Metal and 900 more Ice" },
     ]);
-    expect(buildMenuItems(placed, station.id)[0]?.title).toBe("Needs 25 more Metal and 25 more Ice");
+    expect(buildMenuItems(placed, station.id)[0]?.title).toBe("Needs 100 more Metal and 100 more Ice");
   });
 });
 

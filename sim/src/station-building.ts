@@ -3,6 +3,8 @@ import { MATERIALS, MODULE_TYPES } from "./model";
 import type { Material, ModuleType, SimState, Station, Size, Vec } from "./model";
 import { homeStation, replaceStation, stationById } from "./state";
 import { moduleBuildSeconds, moduleCost, moduleSize, samePosition } from "./station-module-geometry";
+import { DOCK_HEIGHT, DOCK_WIDTH } from "./dock-packing";
+import { validDockDimensions } from "./station-module-geometry";
 
 export interface ModuleBuildOption {
   type: ModuleType;
@@ -13,11 +15,11 @@ export interface ModuleBuildOption {
 
 // Every station pays for its own module builds from its own construction
 // site, so the offers and the missing materials read that station's stock.
-export function availableModuleBuilds(state: SimState, stationId: number): ModuleBuildOption[] {
+export function availableModuleBuilds(state: SimState, stationId: number, dockDimensions?: Size): ModuleBuildOption[] {
   const station = stationById(state, stationId) ?? homeStation(state);
   const stock = station.constructionSite.inventory;
   return MODULE_TYPES.map((type) => {
-    const cost = moduleCost(type);
+    const cost = moduleCost(type, type === "Dock" ? dockDimensions?.width : undefined, type === "Dock" ? dockDimensions?.height : undefined);
     const missing = Object.fromEntries(
       MATERIALS.map((material) => [material, Math.max(0, cost[material] - stock[material])]),
     ) as Record<Material, number>;
@@ -90,21 +92,26 @@ export function stationOwningSite(state: SimState, position: Vec): number {
   return owner?.id ?? 0;
 }
 
-export function startModuleBuild(state: SimState, stationId: number, type: ModuleType, position: Vec): SimState {
-  const option = availableModuleBuilds(state, stationId).find((candidate) => candidate.type === type);
+export function startModuleBuild(state: SimState, stationId: number, type: ModuleType, position: Vec, dockDimensions?: Size): SimState {
+  if (type === "Dock" && dockDimensions && !validDockDimensions(dockDimensions)) return state;
+  const option = availableModuleBuilds(state, stationId, dockDimensions).find((candidate) => candidate.type === type);
   const site = availableModuleBuildSites(state, stationId).find((candidate) => samePosition(candidate, position));
   if (!option?.enabled || !site) return state;
   const station = stationById(state, stationId);
   if (!station) return state;
 
-  const cost = moduleCost(type);
+  const dimensions = type === "Dock" ? dockDimensions : undefined;
+  const width = dimensions?.width ?? (type === "Dock" ? DOCK_WIDTH : undefined);
+  const height = dimensions?.height ?? (type === "Dock" ? DOCK_HEIGHT : undefined);
+  const cost = moduleCost(type, width, height);
   const inventory = Object.fromEntries(
     MATERIALS.map((material) => [material, station.constructionSite.inventory[material] - cost[material]]),
   ) as Record<Material, number>;
   const construction = {
     type,
     position: { ...site },
-    size: moduleSize(type),
+    size: moduleSize(type, width, height),
+    ...(type === "Dock" ? { width, height } : {}),
     timer: moduleBuildSeconds(type),
   };
   return replaceStation(state, { ...station, constructionSite: { ...station.constructionSite, inventory }, construction });

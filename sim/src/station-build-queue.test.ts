@@ -118,7 +118,7 @@ describe("the station build queue", () => {
     expect((setup === "queued" ? damaged.buildQueue : [damaged.construction!, ...damaged.buildQueue]).map((module) => module.type)).toEqual(
       setup === "only Dock" ? ["Dock", "Storage", "Builder"] : ["Storage", "Builder"],
     );
-    expect(damaged.constructionSite.inventory).toEqual({ Metal: 150, Ice: 150 });
+    expect(damaged.constructionSite.inventory).toEqual(setup === "only Dock" ? { Metal: 75, Ice: 75 } : { Metal: 150, Ice: 150 });
     for (let frame = 0; frame < 60 * BUILD_SECONDS * 4; frame += 1) {
       state = tick(state, 1 / 60);
       const s = state.stations[0]!;
@@ -190,7 +190,7 @@ describe("the station build queue", () => {
   it("builds in click order and never skips the front ghost", () => {
     let state = queueModuleBuild(createInitialState(7), "Dock", east);
     state = queueModuleBuild(state, "Storage", west);
-    state = tick(withSite(state, 25, 25), 0);
+    state = tick(withSite(state, 100, 100), 0);
 
     expect(state.stations[0]!.construction).toMatchObject({ type: "Dock", position: east });
     expect(state.stations[0]!.buildQueue).toMatchObject([{ type: "Storage", position: west }]);
@@ -357,7 +357,7 @@ describe("the station build queue", () => {
     return {
       ...state,
       stations: state.stations.map((candidate) => candidate.id === id
-        ? { ...candidate, constructionSite: { ...candidate.constructionSite, inventory: { Metal: 50, Ice: 50 } } }
+        ? { ...candidate, constructionSite: { ...candidate.constructionSite, inventory: { Metal: 125, Ice: 125 } } }
         : candidate),
     };
   }

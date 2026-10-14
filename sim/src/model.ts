@@ -160,6 +160,9 @@ export interface StationModule {
   type: ModuleType;
   position: Vec;
   size: Size;
+  // Dock dimensions are in ship pixels. Other module types leave these absent.
+  width?: number;
+  height?: number;
   // Missing on older fixtures means a fresh module at full placeholder HP.
   hp?: number;
   maxHp?: number;

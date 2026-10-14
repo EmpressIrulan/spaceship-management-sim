@@ -32,9 +32,10 @@ describe("Dock and Storage", () => {
     const state = oneStorageStart(7);
 
     expect(state.stations[0]!).toMatchObject({
-      dock: { capacity: 96 },
+      dock: { capacity: 100 },
       storage: { capacity: 1000 },
     });
+    expect(state.stations[0]!.modules[0]).toMatchObject({ type: "Dock", width: 10, height: 10 });
     expect(state.stations[0]!.dock.position).not.toEqual(state.stations[0]!.storage.position);
   });
 

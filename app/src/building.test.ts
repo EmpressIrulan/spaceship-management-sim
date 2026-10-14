@@ -112,7 +112,7 @@ describe("station building controls", () => {
   it("explains when a funded front ghost is waiting for current construction", () => {
     let state = createInitialState(7);
     state = { ...state, stations: [{ ...state.stations[0]!,
-      constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 50, Ice: 50 } } }] };
+       constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 125, Ice: 125 } } }] };
     state = queueModuleBuild(state, "Dock", east);
     state = queueModuleBuild(state, "Storage", west);
 
@@ -129,7 +129,7 @@ describe("station building controls", () => {
     let state = queueModuleBuild(initial, "Dock", east);
     state = queueModuleBuild(state, "Storage", secondPosition);
     state = { ...state, stations: [{ ...state.stations[0]!,
-      constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 25, Ice: 25 } } }] };
+       constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 100, Ice: 100 } } }] };
     state = tick(state, 0);
 
     expect(queuedBuildIndexAt(state, secondPosition)).toBe(0);
@@ -142,7 +142,7 @@ describe("station building controls", () => {
 
   it("presents each module choice with its own cost and queue-ready state", () => {
     expect(buildMenuItems(createInitialState(7), 0)).toEqual([
-      { type: "Dock", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
+      { type: "Dock", cost: "100 Metal, 100 Ice", disabled: false, title: "Needs 100 more Metal and 100 more Ice" },
       { type: "Storage", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Builder", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },
       { type: "Turret", cost: "25 Metal, 25 Ice", disabled: false, title: "Needs 25 more Metal and 25 more Ice" },

@@ -18,7 +18,7 @@ describe("building station modules", () => {
     const state = miningStart(7);
     return {
       ...state,
-      stations: [{ ...state.stations[0]!, constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 50, Ice: 50 } } }],
+      stations: [{ ...state.stations[0]!, constructionSite: { ...state.stations[0]!.constructionSite, inventory: { Metal: 100, Ice: 100 } } }],
     };
   }
 
@@ -30,7 +30,7 @@ describe("building station modules", () => {
     expect(MODULE_COST).toEqual({ Metal: 25, Ice: 25 });
     const missing = { Metal: 25, Ice: 25 };
     expect(availableModuleBuilds(state, 0)).toEqual([
-      { type: "Dock", enabled: false, missing },
+      { type: "Dock", enabled: false, missing: { Metal: 100, Ice: 100 } },
       { type: "Storage", enabled: false, missing },
       { type: "Builder", enabled: false, missing },
       { type: "Turret", enabled: false, missing },
@@ -41,7 +41,7 @@ describe("building station modules", () => {
   it("takes the cost immediately, occupies the next slot, and disables every choice", () => {
     const state = startModuleBuild(funded(), 0, "Storage", east);
 
-    expect(state.stations[0]!.constructionSite.inventory).toEqual({ Metal: 25, Ice: 25 });
+    expect(state.stations[0]!.constructionSite.inventory).toEqual({ Metal: 75, Ice: 75 });
     expect(state.stations[0]!.construction).toMatchObject({
       type: "Storage",
       timer: BUILD_SECONDS,
@@ -97,7 +97,7 @@ describe("building station modules", () => {
     expect(storage.stations[0]!.storage.capacity).toBe(2000);
 
     const dock = tick(startModuleBuild(funded(), 0, "Dock", east), BUILD_SECONDS);
-    expect(dock.stations[0]!.dock.capacity).toBe(192);
+    expect(dock.stations[0]!.dock.capacity).toBe(200);
 
     const builder = tick(startModuleBuild(funded(), 0, "Builder", east), BUILD_SECONDS);
     expect(builder.stations[0]!.modules.at(-1)).toMatchObject({ type: "Builder" });
@@ -141,7 +141,7 @@ describe("building station modules", () => {
 
     expect(settled.stations[0]!.modules.map((module) => module.position)).not.toContainEqual({ x: 200, y: 0 });
     expect(settled.stations[0]!.construction).toBeNull();
-    expect(settled.stations[0]!.constructionSite.inventory).toEqual({ Metal: 50, Ice: 50 });
+    expect(settled.stations[0]!.constructionSite.inventory).toEqual({ Metal: 100, Ice: 100 });
   });
 
   it("leaves a Storage-blocked ship waiting, because a build no longer spends Storage", () => {

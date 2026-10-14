@@ -102,7 +102,7 @@ describe("RTS ship orders", () => {
     expect(delivered.ships[0]).toMatchObject({ cargo: 0, cargoByMaterial: { Metal: 0, Ice: 0 } });
   });
 
-  it("shares the Dock's six berths between loading haulers and unloading miners", () => {
+  it("shares the Dock's four berths between loading haulers and unloading miners", () => {
     let start = startGateBuild(fleet(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
     const dock = start.stations[0]!.dock.position;
     start = { ...start, stations: [{ ...start.stations[0]!, inventory: { Metal: 200, Ice: 200 },
@@ -112,7 +112,7 @@ describe("RTS ship orders", () => {
     const minersDocking = tick(start, 0);
     const ordered = giveOrder(minersDocking, [5, 6], { kind: "haulGate", gateId: 0 });
 
-    expect(ordered.ships.filter((ship) => ship.state === "berthing" && ship.berth !== null)).toHaveLength(6);
+    expect(ordered.ships.filter((ship) => ship.state === "berthing" && ship.berth !== null)).toHaveLength(4);
     expect(ordered.ships[6]).toMatchObject({ state: "berthing", berth: null, cargo: 0, order: { kind: "haulGate" } });
     const parked = until(ordered, (state) => state.ships[6]!.state === "waiting");
     expect(parked.ships[6]).toMatchObject({ state: "waiting", berth: null, cargo: 0, order: { kind: "haulGate" } });

@@ -3,7 +3,7 @@ import {
   MODULE_COST, MODULE_HP, MODULE_SPACING, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
 } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
-import { freeBerth, berthPoint, DOCK_AREA } from "./dock-packing";
+import { freeBerth, berthPoint, DOCK_AREA, DOCK_HEIGHT, DOCK_WIDTH } from "./dock-packing";
 export { freeBerth, berthPoint, dockBerths } from "./dock-packing";
 import type {
   Asteroid, AsteroidField, Beam, BerthLayout, CargoTransfer,
@@ -409,7 +409,7 @@ export function createInitialState(seed: number): SimState {
       storageLimits: { Metal: null, Ice: null },
       deliveries: [],
       modules: [
-        { type: "Dock", position: dockPosition, size: DOCK_SIZE, hp: MODULE_HP, maxHp: MODULE_HP },
+        { type: "Dock", position: dockPosition, size: DOCK_SIZE, width: DOCK_WIDTH, height: DOCK_HEIGHT, hp: MODULE_HP, maxHp: MODULE_HP },
         { type: "Storage", position: storagePosition, size: STORAGE_SIZE, hp: MODULE_HP, maxHp: MODULE_HP },
       ],
       construction: null,
