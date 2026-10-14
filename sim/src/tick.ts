@@ -6,7 +6,7 @@ import { EXPLOSION_CUTOFF_SECONDS } from "./build-constants";
 import { beginHaulLoading, beginHaulUnloading, loadHauler, unloadHauler } from "./tick-hauling";
 import { addCargo, arrivesAtPark, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
 import { distanceAlong, travelSeconds } from "./motion";
-import { afterOrder, nextMiningRock, resumeMining, startMining, travelOrder } from "./orders";
+import { afterOrder, gateHaulEnd, gateTravelOrder, nextMiningRock, resumeMining, startMining } from "./orders";
 import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { completeDocking, syncDockedShips } from "./hangars";
@@ -271,19 +271,40 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
 function carryCargoToGate(draft: Draft, ship: Ship): Ship | null {
   const gateId = ship.order?.kind === "haulGate" ? ship.order.gateId : -1;
   const project = draft.gateProjects.find((candidate) => candidate.id === gateId && !candidate.complete);
-  const end = project?.ends.find((candidate) => candidate.sectorId === ship.sectorId);
+  const end = gateHaulEnd(draft, gateId, ship.sectorId);
   const cargo = cargoByMaterial(ship);
   const material = MATERIALS.find((item) => cargo[item] > 0 && gateOutstanding(draft, gateId, item, ship.id) > 0);
   if (!project || !end || !material) return null;
+  if (ship.sectorId !== end.sectorId) {
+    const route = gateRoute(draft, ship.sectorId, end.sectorId);
+    if (!route) return null;
+    const from = { ...ship.position }; const to = { ...route.from };
+    return { ...ship, state: "moving", position: from, berth: null, transfer: null,
+      leg: { from, to }, timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
+  }
   const from = { ...ship.position }; const to = { ...end.position };
   return { ...ship, state: "gateHauling", position: from, cargoMaterial: material, berth: null, transfer: null,
     leg: { from, to }, timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
 }
 
+function returnGateHauler(draft: Draft, ship: Ship, position: Vec): Ship {
+  const from = { ...position };
+  if (ship.sectorId === draft.stationSector) {
+    const to = { ...draft.dock };
+    return { ...ship, state: "gateReturning", position: from, leg: { from, to },
+      timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
+  }
+  const route = gateRoute(draft, ship.sectorId, draft.stationSector);
+  if (!route) return { ...ship, state: "holding", order: null, target: null, berth: null, transfer: null, leg: null, timer: 0 };
+  const to = { ...route.from };
+  return { ...ship, state: "gateReturning", position: from, leg: { from, to },
+    timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
+}
+
 function loadGateHauler(draft: Draft, ship: Ship): Ship {
   const gateId = ship.order?.kind === "haulGate" ? ship.order.gateId : -1;
   const project = draft.gateProjects.find((candidate) => candidate.id === gateId && !candidate.complete);
-  const end = project?.ends.find((candidate) => candidate.sectorId === ship.sectorId);
+  const end = gateHaulEnd(draft, gateId, ship.sectorId);
   if (!project || !end) return { ...ship, state: "holding", order: null, berth: null, transfer: null, timer: 0, leg: null };
   if (ship.cargo > 0) return carryCargoToGate(draft, ship) ?? toParking(layoutOf(draft), draft.ships, ship);
   const outstanding = (material: "Metal" | "Ice") => gateOutstanding(draft, gateId, material, ship.id);
@@ -483,7 +504,7 @@ function finish(draft: Draft, ship: Ship): Ship {
       return flyHaul({ ...ship, sectorId: source.sectorId, position: { ...gate } }, draft, source.id, "returning");
     }
     case "jumpingOut": {
-      const travel = travelOrder(ship.order);
+      const travel = gateTravelOrder(draft, ship.order, ship.sectorId);
       const targetSector = ship.target?.sectorId ?? travel?.sectorId ?? ship.sectorId;
       const routeGate = gateRoute(draft, ship.sectorId, targetSector);
       const gate = routeGate?.to ?? draft.sectors[targetSector]!.gate.position;
@@ -497,36 +518,39 @@ function finish(draft: Draft, ship: Ship): Ship {
       return { ...ship, sectorId: draft.stationSector, position: { ...gate }, state: "homebound", leg: { from: gate, to: draft.dock }, timer: travelSeconds(length, speedFactor(ship.design)) };
     }
     case "moving":
-      if (ship.order && (travelOrder(ship.order)?.sectorId ?? ship.sectorId) !== ship.sectorId) {
+      if (ship.order && (gateTravelOrder(draft, ship.order, ship.sectorId)?.sectorId ?? ship.sectorId) !== ship.sectorId) {
         return { ...ship, state: "jumpingOut", timer: JUMP_SECONDS, position: { ...(ship.leg?.to ?? ship.position) }, leg: null };
       }
       if (ship.order?.kind === "supplyBuild") return arriveAtBuildSite(draft, ship);
+      if (ship.order?.kind === "haulGate") return carryCargoToGate(draft, ship) ?? loadGateHauler(draft, ship);
       return { ...ship, state: "holding", position: ship.leg ? { ...ship.leg.to } : ship.position, leg: null, timer: 0 };
     case "gateHauling": {
       const position = ship.leg ? { ...ship.leg.to } : ship.position;
       if (ship.cargo > 0) return { ...ship, state: "gateUnloading", position, leg: null,
         transfer: { startingCargo: ship.cargo, amount: ship.cargo }, timer: cargoTransferSeconds(ship.cargo) };
-      ship = { ...ship, position };
-      const from = position;
-      const to = draft.dock;
-      return { ...ship, state: "gateReturning", leg: { from: { ...from }, to: { ...to } },
-        timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
+      return returnGateHauler(draft, ship, position);
     }
     case "gateUnloading": {
       const gateId = ship.order?.kind === "haulGate" ? ship.order.gateId : -1;
       ship = giveToGate(draft, ship, ship.cargo);
       const complete = draft.gateProjects.find((gate) => gate.id === gateId)?.complete ?? true;
       if (complete && ship.cargo === 0) return { ...ship, state: "holding", order: null, leg: null, transfer: null, timer: 0 };
-      ship = { ...ship, transfer: null };
       const from = ship.leg ? ship.leg.to : ship.position;
-      const to = draft.dock;
-      return { ...ship, state: "gateReturning", position: { ...from },
-        leg: { from: { ...from }, to: { ...to } }, timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
+      return returnGateHauler(draft, { ...ship, transfer: null }, from);
     }
-    case "gateReturning":
+    case "gateReturning": {
+      if (ship.sectorId !== draft.stationSector) {
+        const route = gateRoute(draft, ship.sectorId, draft.stationSector);
+        if (!route) return { ...ship, state: "holding", order: null, leg: null, transfer: null, timer: 0 };
+        const atGate = Math.hypot(ship.position.x - route.from.x, ship.position.y - route.from.y) < 0.01;
+        return atGate ? { ...ship, state: "jumpingHome", leg: null, timer: JUMP_SECONDS }
+          : { ...ship, leg: { from: { ...ship.position }, to: { ...route.from } },
+            timer: travelSeconds(Math.hypot(route.from.x - ship.position.x, route.from.y - ship.position.y), speedFactor(ship.design)) };
+      }
       return ship.cargo > 0
         ? berth(draft, { ...ship, position: { ...draft.dock }, leg: null })
         : loadGateHauler(draft, { ...ship, position: { ...draft.dock }, leg: null });
+    }
     case "berthing":
       return arrivesAtPark(draft, ship) ?? arrived(ship);
     case "waiting":

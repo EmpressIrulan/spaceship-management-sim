@@ -11,7 +11,7 @@ import { gateOutstanding } from "./gate-hauling";
 import { travelSeconds } from "./motion";
 import { STARTING_SHIP, canMine, cargoTransferSeconds, shipSize, shipStats, speedFactor } from "./ship";
 import {
-  berthLayout, MATERIALS, gateRoute, HOME_SECTOR, homeStation, miningSite, nearestMineableRock, replaceHomeStation, stationById, toBerth, toParking,
+  berthLayout, MATERIALS, cargoByMaterial, gateRoute, HOME_SECTOR, homeStation, miningSite, nearestMineableRock, replaceHomeStation, stationById, toBerth, toParking,
   type Asteroid, type DefaultBehaviour, type HaulRoute, type Material, type Order, type Station,
   type Sector, type Ship, type SimState, type Vec,
 } from "./state";
@@ -131,6 +131,26 @@ export function travelOrder(order: Order | null): { point: Vec; sectorId: number
   return order?.kind === "move" || order?.kind === "supplyBuild" ? { point: order.point, sectorId: order.sectorId } : null;
 }
 
+export function gateHaulEnd(
+  state: Pick<SimState, "sectors" | "gateProjects">,
+  gateId: number,
+  fromSector: number,
+): SimState["gateProjects"][number]["ends"][number] | undefined {
+  const project = state.gateProjects.find((candidate) => candidate.id === gateId && !candidate.complete);
+  return project?.ends.find((end) => end.sectorId === fromSector)
+    ?? project?.ends.find((end) => gateRoute(state, fromSector, end.sectorId) !== null);
+}
+
+export function gateTravelOrder(
+  state: Pick<SimState, "sectors" | "gateProjects">,
+  order: Order | null,
+  fromSector: number,
+): { point: Vec; sectorId: number } | null {
+  if (order?.kind !== "haulGate") return travelOrder(order);
+  const end = gateHaulEnd(state, order.gateId, fromSector);
+  return end ? { point: end.position, sectorId: end.sectorId } : null;
+}
+
 // The station whose construction site this delivery is for: the one in the
 // ship's supplyBuild order, or the site the supply default targets. Null means
 // the site ships deliver to is Home's.
@@ -178,7 +198,8 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
   if (!selected.length) return state;
   if (target.kind === "haulGate") {
     const project = state.gateProjects.find((candidate) => candidate.id === target.gateId && !candidate.complete);
-    const end = project?.ends.find((candidate) => candidate.sectorId === home.sectorId);
+    const end = project?.ends.find((candidate) => candidate.sectorId === home.sectorId)
+      ?? project?.ends.find((candidate) => gateRoute(state, home.sectorId, candidate.sectorId) !== null);
     if (!project || !end) return state;
     let inventory = { ...home.inventory };
     const ships = [...state.ships];
@@ -186,6 +207,16 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
       const ship = ships[index]!;
       if (!ids.includes(ship.id) || ship.hangarId != null || shipStats(ship.design).hold <= 0) continue;
       const order = { kind: "haulGate" as const, gateId: project.id };
+      const endAtShip = project.ends.find((candidate) => candidate.sectorId === ship.sectorId);
+      const cargo = cargoByMaterial(ship);
+      const materialAtEnd = endAtShip && (MATERIALS as readonly ("Metal" | "Ice")[])
+        .find((material) => cargo[material] > 0 && gateOutstanding({ ...state, ships }, project.id, material, ship.id) > 0);
+      if (endAtShip && ship.sectorId !== home.sectorId && materialAtEnd) {
+        const from = { ...ship.position }; const to = { ...endAtShip.position };
+        ships[index] = { ...ship, state: "gateHauling", order, target: null, berth: null, transfer: null,
+          leg: { from, to }, timer: travelSeconds(Math.hypot(to.x - from.x, to.y - from.y), speedFactor(ship.design)) };
+        continue;
+      }
       const atStorage = ship.sectorId === home.sectorId
         && ship.position.x === home.dock.position.x && ship.position.y === home.dock.position.y;
       if (ship.cargo > 0) {
