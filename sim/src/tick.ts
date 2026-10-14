@@ -271,7 +271,7 @@ function progress(draft: Draft, ship: Ship, timer: number): Ship {
 function carryCargoToGate(draft: Draft, ship: Ship): Ship | null {
   const gateId = ship.order?.kind === "haulGate" ? ship.order.gateId : -1;
   const project = draft.gateProjects.find((candidate) => candidate.id === gateId && !candidate.complete);
-  const end = project?.ends.find((candidate) => candidate.sectorId === HOME_SECTOR);
+  const end = project?.ends.find((candidate) => candidate.sectorId === ship.sectorId);
   const cargo = cargoByMaterial(ship);
   const material = MATERIALS.find((item) => cargo[item] > 0 && gateOutstanding(draft, gateId, item, ship.id) > 0);
   if (!project || !end || !material) return null;
@@ -283,7 +283,7 @@ function carryCargoToGate(draft: Draft, ship: Ship): Ship | null {
 function loadGateHauler(draft: Draft, ship: Ship): Ship {
   const gateId = ship.order?.kind === "haulGate" ? ship.order.gateId : -1;
   const project = draft.gateProjects.find((candidate) => candidate.id === gateId && !candidate.complete);
-  const end = project?.ends.find((candidate) => candidate.sectorId === HOME_SECTOR);
+  const end = project?.ends.find((candidate) => candidate.sectorId === ship.sectorId);
   if (!project || !end) return { ...ship, state: "holding", order: null, berth: null, transfer: null, timer: 0, leg: null };
   if (ship.cargo > 0) return carryCargoToGate(draft, ship) ?? toParking(layoutOf(draft), draft.ships, ship);
   const outstanding = (material: "Metal" | "Ice") => gateOutstanding(draft, gateId, material, ship.id);
