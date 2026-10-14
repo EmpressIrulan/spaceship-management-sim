@@ -191,6 +191,14 @@ describe("hover box", () => {
     expect(infoBox(transferring, { kind: "dock", stationId: 0 })).toEqual({ title: "Home", line: "Dock 32/100\n2 ships inside" });
   });
 
+  it("shows a Dock module's pixel dimensions in its hover title", () => {
+    const state = createInitialState(7);
+    const index = state.stations[0]!.modules.findIndex((module) => module.type === "Dock");
+    state.stations[0]!.modules[index] = { ...state.stations[0]!.modules[index]!, width: 16, height: 40 };
+
+    expect(infoBox(state, { kind: "module", stationId: 0, index })?.title).toBe("Dock (16x40)");
+  });
+
   it("shows the destination name instead of materials once a gate is complete", () => {
     const completed = {
       ...state,

@@ -136,7 +136,7 @@ export function infoBox(state: SimState, hovered: Hovered | null): InfoBox | nul
     if (module.type === "Builder") return { title: "Builder", line: `Click to open Builder\n${moduleHealth(module)}` };
     if (module.type === "Dock") {
       const box = dockBox(state, hovered.stationId);
-      return { ...box, line: `${box.line}\n${moduleHealth(module)}` };
+      return { ...box, title: `Dock (${module.width ?? 10}x${module.height ?? 10})`, line: `${box.line}\n${moduleHealth(module)}` };
     }
     if (module.type === "Storage") {
       const box = storageBox(state, hovered.stationId);
