@@ -51,7 +51,9 @@ export function installContextMenu(
       if (docked.state !== state) setState(docked.state);
       return;
     }
-    const hovered = hoveredBody(state, ui.camera, ui.viewport, point, ui.currentSector);
+    // Structures retain their order target even when a ship is parked on top.
+    // In open space, a damaged ship can still be explicitly repaired.
+    const hovered = hoveredBody(state, ui.camera, ui.viewport, point, ui.currentSector, { includeShips: false }) ?? shipHovered;
     if (!ui.selectedShips.length && !hovered) {
       ui.pendingGate = { sectorId: ui.currentSector, position: screenToWorld(ui.camera, ui.viewport, point) };
       gateMenu.style.left = `${point.x}px`;

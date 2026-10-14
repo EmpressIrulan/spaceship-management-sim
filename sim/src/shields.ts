@@ -101,6 +101,8 @@ export function inRepairRange(repairer: Ship, target: Ship): boolean {
 export function moveRepairShips(ships: Ship[], stations: Station[] = []): Ship[] {
   return ships.map((original) => {
     if (shipRepairRate(original.design) <= 0) return original;
+    // Explicit non-repair orders take precedence over the repair default.
+    if (original.order && original.order.kind !== "repair") return original;
     let repairer = original;
     let targetId = repairTargetOf(repairer);
     if (targetId?.kind === "ship") {
@@ -131,6 +133,9 @@ export function moveRepairShips(ships: Ship[], stations: Station[] = []): Ship[]
       if (targetId) repairer = { ...repairer, repairTarget: targetId, repairTargetShipId: targetId.kind === "ship" ? targetId.shipId : null };
     }
     if (!targetId) return repairer;
+    // Preserve the leg's origin and timer so acceleration advances across
+    // frames. Re-aim after arrival, or immediately when the assignment changes.
+    if (repairer === original && repairer.state === "moving" && repairer.leg) return repairer;
     let position: Vec;
     let targetWidth: number;
     let targetIndex: number;

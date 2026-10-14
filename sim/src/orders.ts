@@ -265,7 +265,8 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
         transfer: { startingCargo: 0, amount } };
       ships[index] = toBerth(berthLayout(home), ships, planned) ?? toParking(berthLayout(home), ships, planned);
     }
-    return { ...replaceHomeStation(state, { ...home, inventory }), ships };
+    return { ...replaceHomeStation(state, { ...home, inventory }), ships: ships.map((ship, index) =>
+      ship !== state.ships[index] ? { ...ship, repairTarget: null, repairTargetShipId: null } : ship) };
   }
   const station = target.kind === "supplyBuild" ? stationById(state, target.stationId) : undefined;
   if (target.kind === "supplyBuild" && !station) return state;
@@ -280,7 +281,10 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
   const spots = formation(point, ids.length);
   return { ...state, ships: state.ships.map((ship) => {
     const slot = ids.indexOf(ship.id);
-    return slot < 0 ? ship : apply(ship, target, target.kind === "home" ? point : spots[slot]!, state);
+    if (slot < 0) return ship;
+    const ordered = apply(ship, target, target.kind === "home" ? point : spots[slot]!, state);
+    return ordered !== ship && target.kind !== "repair"
+      ? { ...ordered, repairTarget: null, repairTargetShipId: null } : ordered;
   }) };
 }
 
