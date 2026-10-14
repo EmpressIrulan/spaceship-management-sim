@@ -82,7 +82,7 @@ export interface Ship {
   mineOtherSectors?: boolean;
   order: Order | null;
   leg: Leg | null;
-  // Dock module * 96 + top-left pixel of the reserved bounding rectangle,
+  // The concatenated Dock-pixel index of the reserved rectangle's top-left,
   // or null when no Dock room is reserved.
   berth: number | null;
   // The cargo aboard when this transfer began and the total units it will move.

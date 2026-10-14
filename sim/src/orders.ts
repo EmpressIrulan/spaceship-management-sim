@@ -2,8 +2,10 @@ import { supplyQueueLength, supplyQueueStatus } from "./station-build-queue";
 import { fitsDock } from "./dock-packing";
 
 export function shipHomeRefusal(state: SimState, ids: number[], stationId: number | null): string | null {
-  if (stationId === null || !stationById(state, stationId)) return null;
-  const ship = state.ships.find((ship) => ids.includes(ship.id) && !fitsDock(ship.design));
+  if (stationId === null) return null;
+  const station = stationById(state, stationId);
+  if (!station) return null;
+  const ship = state.ships.find((ship) => ids.includes(ship.id) && !fitsDock(ship.design, berthLayout(station)));
   return ship ? `Ship ${ship.id + 1} is too big for this Dock` : null;
 }
 import { haulSites, haulStations, resumeHaulShip, validHaulRoute } from "./haul";
@@ -117,9 +119,10 @@ export type OrderTarget = { kind: "mine"; asteroidId: number } | { kind: "move";
 
 export function setShipHome(state: SimState, ids: number[], stationId: number | null): SimState {
   if (stationId !== null && !stationById(state, stationId)) return state;
+  const destination = stationId === null ? null : berthLayout(stationById(state, stationId)!);
   let changed = false;
   const ships = state.ships.map((ship) => {
-    if (!ids.includes(ship.id) || ship.homeStationId === stationId || (stationId !== null && !fitsDock(ship.design))) return ship;
+    if (!ids.includes(ship.id) || ship.homeStationId === stationId || (destination !== null && !fitsDock(ship.design, destination))) return ship;
     changed = true;
     return { ...ship, homeStationId: stationId };
   });
