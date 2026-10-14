@@ -16,6 +16,7 @@ export interface UiState {
   renderedSites: string;
   controlsHovered: boolean;
   selectedBuildSite: Vec | null;
+  dockBuildSize: { width: number; height: number } | null;
   shipMenuBuilder: number | null;
   shipMenuPosition: Vec | null;
   shipMenuStation: number;
@@ -64,6 +65,7 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     renderedSites: "",
     controlsHovered: false,
     selectedBuildSite: null,
+    dockBuildSize: null,
     shipMenuBuilder: null,
     shipMenuPosition: null,
     shipMenuStation: 0,

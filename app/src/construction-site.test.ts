@@ -107,6 +107,13 @@ describe("the + menu", () => {
     expect(buildMenuItems(withSite({ Metal: 0, Ice: 0 }), 0)[0]).toMatchObject({ title: "Needs 100 more Metal and 100 more Ice" });
   });
 
+  it("prices the selected Dock dimensions and disables its Build action when unaffordable", () => {
+    expect(buildMenuItems(withSite({ Metal: 150, Ice: 180 }), 0, { width: 15, height: 12 })[0])
+      .toMatchObject({ cost: "180 Metal, 180 Ice", disabled: true, dimensions: { width: 15, height: 12 } });
+    expect(buildMenuItems(withSite({ Metal: 180, Ice: 180 }), 0, { width: 15, height: 12 })[0])
+      .toMatchObject({ cost: "180 Metal, 180 Ice", disabled: false });
+  });
+
   it("has no hover text for an option the site can pay", () => {
     expect(buildMenuItems(withSite({ Metal: 100, Ice: 100 }), 0)).toEqual([
       { type: "Dock", cost: "100 Metal, 100 Ice", disabled: false, title: "" },

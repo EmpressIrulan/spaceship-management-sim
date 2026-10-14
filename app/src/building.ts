@@ -8,6 +8,7 @@ import {
   type QueuedModuleBuild,
   type SimState,
   type Vec,
+  type Size,
 } from "sim";
 import { homeStation } from "sim";
 
@@ -17,17 +18,19 @@ export interface BuildMenuItem {
   disabled: boolean;
   // Hover text for a greyed-out option: what the construction site lacks.
   title: string;
+  dimensions?: Size;
 }
 
 // The + menu reads its stock from the station it grows, so every question is
 // about that one station.
-export function buildMenuItems(state: SimState, stationId: number): BuildMenuItem[] {
-  return availableModuleBuilds(state, stationId).map((option) => {
-    const cost = MATERIALS.map((material) => `${moduleCost(option.type)[material]} ${material}`).join(", ");
+export function buildMenuItems(state: SimState, stationId: number, dockDimensions?: Size): BuildMenuItem[] {
+  return availableModuleBuilds(state, stationId, dockDimensions).map((option) => {
+    const cost = MATERIALS.map((material) => `${moduleCost(option.type, option.type === "Dock" ? dockDimensions?.width : undefined, option.type === "Dock" ? dockDimensions?.height : undefined)[material]} ${material}`).join(", ");
     const short = MATERIALS.filter((material) => option.missing[material] > 0)
       .map((material) => `${option.missing[material]} more ${material}`);
     const title = short.length > 0 ? `Needs ${short.join(" and ")}` : "";
-    return { type: option.type, cost, disabled: false, title };
+    const invalidDockSize = dockDimensions !== undefined && (dockDimensions.width < 4 || dockDimensions.height < 4);
+    return { type: option.type, cost, disabled: option.type === "Dock" && dockDimensions !== undefined && (!option.enabled || invalidDockSize), title, ...(option.type === "Dock" && dockDimensions ? { dimensions: dockDimensions } : {}) };
   });
 }
 
