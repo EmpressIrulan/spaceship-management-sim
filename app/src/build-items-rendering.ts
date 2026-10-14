@@ -5,7 +5,7 @@ import type { UiState } from "./ui-state";
 export function syncBuildMenuItems(ui: UiState, getState: () => SimState, buildMenu: HTMLElement): void {
   // The menu reads the stock of the station that owns the site it opened on,
   // so each station offers builds paid from its own construction site.
-  const stationId = ui.selectedBuildSite ? stationOwningSite(getState(), ui.selectedBuildSite) : 0;
+  const stationId = ui.selectedBuildSite ? stationOwningSite(getState(), ui.selectedBuildSite, ui.dockBuildSize ?? undefined) : 0;
   const menuItems = buildMenuItems(getState(), stationId, ui.dockBuildSize ?? undefined);
   const menuKey = JSON.stringify({ station: stationId, items: menuItems, dockSize: ui.dockBuildSize });
   if (menuKey !== ui.renderedMenu) {

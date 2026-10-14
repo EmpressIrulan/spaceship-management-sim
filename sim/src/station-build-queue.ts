@@ -2,7 +2,7 @@ import { MODULE_HP, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleDestruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
 import { DOCK_CAPACITY, STORAGE_CAPACITY, homeStation, replaceStation, stationById } from "./state";
-import { availableModuleBuildSites, nearbyClearPosition, stationOwningSite } from "./station-building";
+import { availableModuleBuildSites, footprintsTouch, nearbyClearPosition, stationOwningSite } from "./station-building";
 import { moduleBuildSeconds, moduleCost, moduleSize, samePosition, validDockDimensions } from "./station-module-geometry";
 import { travelSeconds } from "./motion";
 import { speedFactor } from "./ship";
@@ -175,10 +175,11 @@ export function finishedClaimSectors(before: SimState, after: SimState): number[
 }
 
 export function queueModuleBuild(state: SimState, type: ModuleType, position: Vec, dockDimensions?: { width: number; height: number }): SimState {
-  const owner = stationOwningSite(state, position);
+  const dimensions = type === "Dock" ? dockDimensions : undefined;
+  const owner = stationOwningSite(state, position, dimensions);
   const station = stationById(state, owner);
   if (!station) return state;
-  const site = availableModuleBuildSites(state, owner).find((candidate) => samePosition(candidate, position));
+  const site = availableModuleBuildSites(state, owner, dimensions).find((candidate) => samePosition(candidate, position));
   if (!site) return state;
   if (type === "Dock" && dockDimensions && !validDockDimensions(dockDimensions)) return state;
   const width = type === "Dock" ? dockDimensions?.width ?? DOCK_WIDTH : undefined;
@@ -189,18 +190,16 @@ export function queueModuleBuild(state: SimState, type: ModuleType, position: Ve
   return replaceStation(state, next);
 }
 
-// Positions come from world coordinates, so a zoomed click lands on a fraction
-// and the distance between two neighbours can miss MODULE_SPACING by a rounding
-// step. An exact comparison then drops a Storage that was placed beside its Dock.
-const TOUCH_TOLERANCE = 1e-6;
-
-function touching(a: Vec, b: Vec): boolean {
-  return Math.abs(Math.hypot(a.x - b.x, a.y - b.y) - MODULE_SPACING) < TOUCH_TOLERANCE;
+// Footprint-edge attachment follows the same spacing rule used to offer clear
+// sites, including larger Docks that need more than one default slot of room.
+// The modules the station already stands on, with their actual footprints.
+function standingFootprints(station: StationGraph): Array<{ position: Vec; size: { width: number; height: number } }> {
+  return station.modules.map((module) => ({ position: module.position, size: module.size }));
 }
 
-// The modules the station already stands on.
-function standingPositions(station: StationGraph): Vec[] {
-  return station.modules.map((module) => module.position);
+function attachedFootprints(a: { position: Vec; size: { width: number; height: number } }, b: { position: Vec; size: { width: number; height: number } }): boolean {
+  return footprintsTouch(a, b)
+    || Math.abs(Math.hypot(a.position.x - b.position.x, a.position.y - b.position.y) - MODULE_SPACING) < 1e-6;
 }
 
 // The slots in `order` that will be standing attached to the station by the time
@@ -211,12 +210,15 @@ function standingPositions(station: StationGraph): Vec[] {
 // the station through a ghost behind it out of the queue, since it would finish
 // a module off the station while it waited its turn. The cancel cascade and the
 // guard on a module finishing both read this, so attached means one thing here.
-function attachedInOrder(anchors: Vec[], order: Vec[]): Vec[] {
-  const attached: Vec[] = [];
-  for (const position of order) {
-    if ([...anchors, ...attached].some((other) => touching(other, position))) attached.push(position);
+function attachedInOrder(
+  anchors: Array<{ position: Vec; size: { width: number; height: number } }>,
+  order: Array<{ position: Vec; size: { width: number; height: number } }>,
+): Vec[] {
+  const attached: Array<{ position: Vec; size: { width: number; height: number } }> = [];
+  for (const footprint of order) {
+    if ([...anchors, ...attached].some((other) => attachedFootprints(other, footprint))) attached.push(footprint);
   }
-  return attached;
+  return attached.map(({ position }) => position);
 }
 
 // The ghosts still waiting once the one at `index` is cancelled: every other
@@ -224,8 +226,8 @@ function attachedInOrder(anchors: Vec[], order: Vec[]): Vec[] {
 // modules, the module under construction, or a ghost ahead of it that is too.
 function queueAfterCancel(station: StationGraph, index: number): QueuedModuleBuild[] {
   const remaining = station.buildQueue.filter((_, at) => at !== index);
-  const anchors = [...standingPositions(station), ...(station.construction ? [station.construction.position] : [])];
-  const attached = attachedInOrder(anchors, remaining.map((queued) => queued.position));
+  const anchors = [...standingFootprints(station), ...(station.construction ? [{ position: station.construction.position, size: station.construction.size }] : [])];
+  const attached = attachedInOrder(anchors, remaining.map(({ position, size }) => ({ position, size })));
   return remaining.filter((queued) => attached.includes(queued.position));
 }
 
@@ -244,7 +246,7 @@ export function queuedDependents(station: StationGraph, index: number): QueuedMo
 // order, so nothing still queued can be what it hangs off.
 export function constructionAttached(station: StationGraph): boolean {
   if (!station.construction) return false;
-  return attachedInOrder(standingPositions(station), [station.construction.position]).length > 0;
+  return attachedInOrder(standingFootprints(station), [{ position: station.construction.position, size: station.construction.size }]).length > 0;
 }
 
 function moduleHp(module: Station["modules"][number]): number {
@@ -258,7 +260,7 @@ function connectedToDock(modules: Station["modules"]): Set<number> {
     changed = false;
     for (let index = 0; index < modules.length; index += 1) {
       if (connected.has(index)) continue;
-      if (modules.some((module, other) => connected.has(other) && touching(module.position, modules[index]!.position))) {
+      if (modules.some((module, other) => connected.has(other) && attachedFootprints(module, modules[index]!))) {
         connected.add(index);
         changed = true;
       }
@@ -312,16 +314,17 @@ export function damageStationModule(station: Station, position: Vec, damage: num
   }
   // Keep independent orders ahead of replacements, but move cut-off orders
   // behind their supports. An emptied station must rebuild its Dock first.
-  const anchors = [...modules, ...(next.construction ? [next.construction] : [])].map(module => module.position);
+  const anchors = [...modules, ...(next.construction ? [next.construction] : [])]
+    .map(({ position, size }) => ({ position, size }));
   const buildQueue: QueuedModuleBuild[] = [];
   while (pending.length > 0) {
     const index = pending.findIndex(module => anchors.length === 0
       ? module.type === "Dock"
-      : anchors.some(anchor => touching(anchor, module.position)));
+      : anchors.some(anchor => attachedFootprints(anchor, module)));
     if (index < 0) throw new Error("Destroyed station has an unattached build order");
     const module = pending.splice(index, 1)[0]!;
     buildQueue.push(module);
-    anchors.push(module.position);
+    anchors.push({ position: module.position, size: module.size });
   }
   return {
     station: {

@@ -3,11 +3,13 @@ import { miningStart } from "./test-ships";
 import {
   BUILD_SECONDS,
   DOCK_SIZE,
+  createInitialState,
   MODULE_COST,
   MODULE_SPACING,
   availableModuleBuildSites,
   availableModuleBuilds,
   startModuleBuild,
+  queueModuleBuild,
   tick,
   type SimState,
   type Vec,
@@ -88,6 +90,28 @@ describe("building station modules", () => {
     const withSecondDock = tick(startModuleBuild(fresh, 0, "Dock", east), BUILD_SECONDS);
     expect(withSecondDock.stations[0]!.modules.filter((module) => module.type === "Dock")).toHaveLength(2);
     expectClear(withSecondDock);
+  });
+
+  it.each([[30, 30], [40, 40], [40, 16]] as const)("keeps a newly queued %ix%i Dock from overlapping any module", (width, height) => {
+    const fresh = createInitialState(1);
+    const home = fresh.stations[0]!;
+    const state: SimState = {
+      ...fresh,
+      stations: [{ ...home, constructionSite: { ...home.constructionSite, inventory: { Metal: width * height, Ice: width * height } } }],
+    };
+    const firstSite = availableModuleBuildSites(state, 0, { width, height })[0]!;
+    const queued = queueModuleBuild(state, "Dock", firstSite, { width, height });
+    const built = tick(queued, BUILD_SECONDS);
+    const modules = built.stations[0]!.modules;
+    expect(modules.some((module) => module.width === width && module.height === height)).toBe(true);
+    for (let left = 0; left < modules.length; left += 1) {
+      for (let right = left + 1; right < modules.length; right += 1) {
+        const a = modules[left]!, b = modules[right]!;
+        const overlapX = Math.abs(a.position.x - b.position.x) < (a.size.width + b.size.width) / 2;
+        const overlapY = Math.abs(a.position.y - b.position.y) < (a.size.height + b.size.height) / 2;
+        expect(overlapX && overlapY, `${a.type} ${JSON.stringify(a.position)} overlaps ${b.type} ${JSON.stringify(b.position)}`).toBe(false);
+      }
+    }
   });
 
   it("finishes modules after 15 seconds and increases the matching capacity", () => {

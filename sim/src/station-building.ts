@@ -38,13 +38,26 @@ const BUILD_DIRECTIONS: Vec[] = [
 
 // A site is offered before the module type is picked, so it has to fit the
 // largest module, the Dock.
-function overlapsFootprint(site: Vec, footprint: { position: Vec; size: Size }): boolean {
-  return Math.abs(site.x - footprint.position.x) < (DOCK_SIZE.width + footprint.size.width) / 2
-    && Math.abs(site.y - footprint.position.y) < (DOCK_SIZE.height + footprint.size.height) / 2;
+const BUILD_CLEARANCE = 0.01;
+
+function overlapsFootprint(site: Vec, footprint: { position: Vec; size: Size }, size = DOCK_SIZE): boolean {
+  return Math.abs(site.x - footprint.position.x) < (size.width + footprint.size.width) / 2
+    && Math.abs(site.y - footprint.position.y) < (size.height + footprint.size.height) / 2;
 }
 
-export function availableModuleBuildSites(state: SimState, stationId: number): Vec[] {
+export function footprintsTouch(a: { position: Vec; size: Size }, b: { position: Vec; size: Size }): boolean {
+  const dx = Math.abs(a.position.x - b.position.x);
+  const dy = Math.abs(a.position.y - b.position.y);
+  const horizontal = dy < 1e-6
+    && Math.abs(dx - Math.max(MODULE_SPACING, (a.size.width + b.size.width) / 2 + BUILD_CLEARANCE)) < 1e-6;
+  const vertical = dx < 1e-6
+    && Math.abs(dy - Math.max(MODULE_SPACING, (a.size.height + b.size.height) / 2 + BUILD_CLEARANCE)) < 1e-6;
+  return horizontal || vertical || Math.abs(Math.hypot(dx, dy) - MODULE_SPACING) < 1e-6;
+}
+
+export function availableModuleBuildSites(state: SimState, stationId: number, dockDimensions?: Size): Vec[] {
   const station = stationById(state, stationId) ?? homeStation(state);
+  const proposedSize = dockDimensions ? moduleSize("Dock", dockDimensions.width, dockDimensions.height) : DOCK_SIZE;
   const footprints = [
     ...state.stations.flatMap((other) => (other.sectorId === station.sectorId
       ? [...other.modules, ...(other.construction ? [other.construction] : []), ...other.buildQueue]
@@ -54,10 +67,17 @@ export function availableModuleBuildSites(state: SimState, stationId: number): V
   const sites: Vec[] = [];
   for (const module of anchors) {
     for (const direction of BUILD_DIRECTIONS) {
-      const site = { x: module.position.x + direction.x, y: module.position.y + direction.y };
-      const blocked = footprints.some((footprint) => overlapsFootprint(site, footprint))
+      const horizontal = direction.x !== 0;
+      const offset = Math.max(MODULE_SPACING, (horizontal
+        ? proposedSize.width + module.size.width
+        : proposedSize.height + module.size.height) / 2 + BUILD_CLEARANCE);
+      const site = {
+        x: module.position.x + (horizontal ? Math.sign(direction.x) * offset : 0),
+        y: module.position.y + (horizontal ? 0 : Math.sign(direction.y) * offset),
+      };
+      const blocked = footprints.some((footprint) => overlapsFootprint(site, footprint, proposedSize))
         || state.asteroids.some((asteroid) => asteroid.sectorId === station.sectorId
-          && overlapsFootprint(site, asteroid));
+          && overlapsFootprint(site, asteroid, proposedSize));
       if (!blocked && !sites.some((position) => samePosition(position, site))) sites.push(site);
     }
   }
@@ -84,10 +104,10 @@ export function nearbyClearPosition(position: Vec, obstacles: Array<{ position: 
 
 // The station that owns the slot a + was clicked at. Slots are offered per
 // station and never overlap, so the pointer's slot names its owner.
-export function stationOwningSite(state: SimState, position: Vec): number {
+export function stationOwningSite(state: SimState, position: Vec, dockDimensions?: Size): number {
   const owner = stationById(state, state.supplyStation);
   for (const station of state.stations) {
-    if (availableModuleBuildSites(state, station.id).some((site) => samePosition(site, position))) return station.id;
+    if (availableModuleBuildSites(state, station.id, dockDimensions).some((site) => samePosition(site, position))) return station.id;
   }
   return owner?.id ?? 0;
 }
@@ -95,7 +115,7 @@ export function stationOwningSite(state: SimState, position: Vec): number {
 export function startModuleBuild(state: SimState, stationId: number, type: ModuleType, position: Vec, dockDimensions?: Size): SimState {
   if (type === "Dock" && dockDimensions && !validDockDimensions(dockDimensions)) return state;
   const option = availableModuleBuilds(state, stationId, dockDimensions).find((candidate) => candidate.type === type);
-  const site = availableModuleBuildSites(state, stationId).find((candidate) => samePosition(candidate, position));
+  const site = availableModuleBuildSites(state, stationId, dockDimensions).find((candidate) => samePosition(candidate, position));
   if (!option?.enabled || !site) return state;
   const station = stationById(state, stationId);
   if (!station) return state;

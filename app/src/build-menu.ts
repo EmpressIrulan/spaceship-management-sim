@@ -1,4 +1,4 @@
-import { queueModuleBuild, type ModuleType, type SimState, type Vec } from "sim";
+import { availableModuleBuildSites, queueModuleBuild, stationOwningSite, validDockDimensions, type ModuleType, type SimState, type Vec } from "sim";
 import { dismissBuildMenuForClick } from "./building";
 import type { UiState } from "./ui-state";
 
@@ -49,7 +49,21 @@ export function installBuildMenu(
     if (!input || !ui.dockBuildSize) return;
     const value = Number(input.value);
     if (!Number.isFinite(value)) return;
+    const state = getState();
+    const stationId = ui.selectedBuildSite
+      ? stationOwningSite(state, ui.selectedBuildSite, ui.dockBuildSize)
+      : 0;
     ui.dockBuildSize = { ...ui.dockBuildSize, [input.dataset.dockDimension!]: Math.floor(value) };
+    if (validDockDimensions(ui.dockBuildSize) && ui.selectedBuildSite) {
+      const sites = availableModuleBuildSites(state, stationId, ui.dockBuildSize);
+      const nearest = sites.reduce<Vec | null>((best, site) => {
+        if (!best) return site;
+        const distance = Math.hypot(site.x - ui.selectedBuildSite!.x, site.y - ui.selectedBuildSite!.y);
+        const bestDistance = Math.hypot(best.x - ui.selectedBuildSite!.x, best.y - ui.selectedBuildSite!.y);
+        return distance < bestDistance ? site : best;
+      }, null);
+      if (nearest) ui.selectedBuildSite = nearest;
+    }
   });
   document.addEventListener("click", (event) => {
     if (!ui.buildMenuOpen) return;

@@ -118,7 +118,7 @@ export { cancelQueuedModuleBuild, queueModuleBuild, queuedDependents, startNextQ
 export { damageStationModule } from "./station-build-queue";
 export { gunBeams } from "./enemies";
 export { supplyQueueLength, supplyQueueStatus } from "./station-build-queue";
-export { stationOwningSite } from "./station-building";
+export { footprintsTouch, stationOwningSite } from "./station-building";
 export { moduleBuildSeconds, moduleCost, validDockDimensions } from "./station-module-geometry";
 export {
   PIXEL_SIZE,
