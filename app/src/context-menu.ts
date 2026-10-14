@@ -1,9 +1,10 @@
-import { giveOrder, HOME_SECTOR, stationById, type SimState, type Vec } from "sim";
+import { giveOrder, homeStation, stationById, type SimState, type Vec } from "sim";
 import { hoveredBody, screenToWorld } from "./camera";
 import { dismissGatePlacement } from "./sectors";
 import { contextOrderAllowed, orderTargetAt } from "./selection";
 import type { UiState } from "./ui-state";
 import { dockAtHoveredCarrier } from "./hangar-input";
+import { placeStationSite } from "./station-site-input";
 
 export function installContextMenu(
   ui: UiState,
@@ -28,7 +29,13 @@ export function installContextMenu(
     ui.pendingStation = true;
     closeGateMenu();
   });
-  gateMenu.addEventListener("click", () => {
+  gateMenu.addEventListener("click", (event) => {
+    if ((event.target as HTMLElement | null)?.closest?.("[data-build-station]")) {
+      const pending = ui.pendingGate;
+      if (pending) placeStationSite(ui, getState, setState, pending.position);
+      closeGateMenu();
+      return;
+    }
     gateMenu.hidden = true;
     ui.mapOpen = ui.pendingGate !== null;
   });
@@ -50,7 +57,7 @@ export function installContextMenu(
       return;
     }
     const hovered = hoveredBody(state, ui.camera, ui.viewport, point, ui.currentSector, { includeShips: false });
-    if (!ui.selectedShips.length && !hovered && ui.currentSector === HOME_SECTOR) {
+    if (!ui.selectedShips.length && !hovered) {
       ui.pendingGate = { sectorId: ui.currentSector, position: screenToWorld(ui.camera, ui.viewport, point) };
       gateMenu.style.left = `${point.x}px`;
       gateMenu.style.top = `${point.y}px`;
@@ -70,4 +77,3 @@ export function installContextMenu(
   });
   return closeGateMenu;
 }
-import { homeStation } from "sim";

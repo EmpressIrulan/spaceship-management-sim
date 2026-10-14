@@ -12,6 +12,7 @@ import { placeGate } from "./gate-placement-input";
 import { selectBox } from "./box-selection-input";
 import { navigateMap } from "./map-navigation-input";
 import { selectClick } from "./click-selection-input";
+import { screenToWorld } from "./camera";
 
 export interface InputElements {
   canvas: HTMLCanvasElement;
@@ -86,7 +87,7 @@ export function installInput(
     ui.dragBox = null;
     const click = !isBoxDrag(start, end);
     if (click && event.target === canvas && ui.pendingStation && !ui.mapOpen) {
-      placeStationSite(context, event);
+      placeStationSite(ui, getState, setState, screenToWorld(ui.camera, ui.viewport, pointFromEvent(event)));
     } else if (
       click &&
       event.target === canvas &&

@@ -1,14 +1,15 @@
-import { placeStation, setSupplyStation, stationById } from "sim";
-import { screenToWorld } from "./camera";
-import type { InputContext } from "./input-context";
+import { placeStation, setSupplyStation, stationById, type SimState, type Vec } from "sim";
+import type { UiState } from "./ui-state";
 
-// The click that "Build station" has been waiting for: the spot becomes a
-// founding construction site, and it is the site ships supply until another
-// one is selected.
-export function placeStationSite(context: InputContext, event: MouseEvent): void {
-  const { ui, getState, setState, mousePoint } = context;
+// Place and select a founding construction site at the supplied world point.
+export function placeStationSite(
+  ui: UiState,
+  getState: () => SimState,
+  setState: (state: SimState) => void,
+  position: Vec,
+): void {
   const priorState = getState();
-  const placed = placeStation(priorState, ui.currentSector, screenToWorld(ui.camera, ui.viewport, mousePoint(event)));
+  const placed = placeStation(priorState, ui.currentSector, position);
   if (placed === priorState) return;
   setState(placed);
   ui.pendingStation = false;
