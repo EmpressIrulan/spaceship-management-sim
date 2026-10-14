@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SHIELD_RECHARGE_DELAY, SHIELD_RECHARGE_PER_PIXEL } from "./build-constants";
-import { damageShip } from "./shields";
+import { advanceShipRepairs, damageShip } from "./shields";
 import { miningStart } from "./test-ships";
 import { tick } from "./tick";
 import type { ShipDesign } from "./model";
@@ -12,6 +12,12 @@ function ship() {
 }
 
 describe("ship shield damage", () => {
+  it("repairs hull at its configured rate, including during combat, and stops at full HP", () => {
+    const repairShip = { ...ship(), design: { width: 4, height: 1, slots: ["Repair", "Repair", "Repair", "Repair"] as ShipDesign["slots"] }, hp: 30 };
+    expect(advanceShipRepairs([repairShip], 1)[0]!.hp).toBe(30.8);
+    expect(advanceShipRepairs([{ ...repairShip, hp: 39.9 }], 1)[0]!.hp).toBe(40);
+  });
+
   it("soaks a hit before hull and carries leftover damage into hull", () => {
     const damaged = damageShip({ ...ship(), shield: 5 }, 8, 12);
     expect(damaged).toMatchObject({ shield: 0, hp: 37, shieldLastHit: 12 });

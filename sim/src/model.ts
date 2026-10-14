@@ -15,7 +15,7 @@ export const MODULE_TYPES = ["Dock", "Storage", "Builder", "Turret", "Claim"] as
 
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and draws, but does nothing.
 // Gun shoots bugs and the hive on the ship's own; see enemies.ts.
-export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun", "Capacitor", "Generator"] as const;
+export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun", "Capacitor", "Generator", "Repair"] as const;
 export type ShipModule = (typeof SHIP_MODULES)[number];
 export interface ShipDesign { width: number; height: number; slots: (ShipModule | null)[] }
 

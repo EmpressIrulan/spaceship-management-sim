@@ -1,5 +1,5 @@
 import { SHIELD_RECHARGE_DELAY } from "./build-constants";
-import { shipHp, shipShield } from "./ship";
+import { shipHp, shipRepairRate, shipShield } from "./ship";
 import type { Ship } from "./model";
 
 // Applies one hit to the shield and then to the hull. Null means the ship was
@@ -44,4 +44,13 @@ export function nextShieldEvent(ships: Ship[], now: number): number {
     soonest = Math.min(soonest, wait);
   }
   return soonest;
+}
+
+export function advanceShipRepairs(ships: Ship[], seconds: number): Ship[] {
+  return ships.map((ship) => {
+    const { hp, maxHp } = shipHp(ship);
+    const rate = shipRepairRate(ship.design);
+    if (hp >= maxHp || rate <= 0 || seconds <= 0) return ship;
+    return { ...ship, hp: Math.min(maxHp, hp + rate * seconds), maxHp };
+  });
 }
