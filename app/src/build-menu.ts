@@ -1,4 +1,4 @@
-import { queueModuleBuild, type ModuleType, type SimState, type Vec } from "sim";
+import { availableModuleBuildSites, queueModuleBuild, stationOwningSite, validDockDimensions, type ModuleType, type SimState, type Vec } from "sim";
 import { dismissBuildMenuForClick } from "./building";
 import type { UiState } from "./ui-state";
 
@@ -14,6 +14,7 @@ export function installBuildMenu(
     ui.buildMenuOpen = false;
     buildMenu.hidden = true;
     ui.selectedBuildSite = null;
+    ui.dockBuildSize = null;
   };
   buildControls.addEventListener("pointerover", () => { ui.controlsHovered = true; });
   buildControls.addEventListener("pointermove", (event) => { ui.pointer = mousePoint(event); });
@@ -28,10 +29,41 @@ export function installBuildMenu(
     buildMenu.hidden = false;
   });
   buildMenu.addEventListener("click", (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-module]");
+    const target = event.target as HTMLElement;
+    if (target.closest("button[data-module='Dock']") && ui.selectedBuildSite) {
+      ui.dockBuildSize = { width: 10, height: 10 };
+      return;
+    }
+    if (target.closest("button[data-build-dock]") && ui.dockBuildSize && ui.selectedBuildSite) {
+      setState(queueModuleBuild(getState(), "Dock", ui.selectedBuildSite, ui.dockBuildSize));
+      closeBuildMenu();
+      return;
+    }
+    const button = target.closest<HTMLButtonElement>("button[data-module]");
     if (!button || button.disabled || !ui.selectedBuildSite) return;
     setState(queueModuleBuild(getState(), button.dataset.module as ModuleType, ui.selectedBuildSite));
     closeBuildMenu();
+  });
+  buildMenu.addEventListener("input", (event) => {
+    const input = (event.target as HTMLElement).closest<HTMLInputElement>("input[data-dock-dimension]");
+    if (!input || !ui.dockBuildSize) return;
+    const value = Number(input.value);
+    if (!Number.isFinite(value)) return;
+    const state = getState();
+    const stationId = ui.selectedBuildSite
+      ? stationOwningSite(state, ui.selectedBuildSite, ui.dockBuildSize)
+      : 0;
+    ui.dockBuildSize = { ...ui.dockBuildSize, [input.dataset.dockDimension!]: Math.floor(value) };
+    if (validDockDimensions(ui.dockBuildSize) && ui.selectedBuildSite) {
+      const sites = availableModuleBuildSites(state, stationId, ui.dockBuildSize);
+      const nearest = sites.reduce<Vec | null>((best, site) => {
+        if (!best) return site;
+        const distance = Math.hypot(site.x - ui.selectedBuildSite!.x, site.y - ui.selectedBuildSite!.y);
+        const bestDistance = Math.hypot(best.x - ui.selectedBuildSite!.x, best.y - ui.selectedBuildSite!.y);
+        return distance < bestDistance ? site : best;
+      }, null);
+      if (nearest) ui.selectedBuildSite = nearest;
+    }
   });
   document.addEventListener("click", (event) => {
     if (!ui.buildMenuOpen) return;

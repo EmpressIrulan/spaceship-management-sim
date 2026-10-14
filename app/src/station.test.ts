@@ -77,7 +77,7 @@ describe("station module hover", () => {
     const empty = createInitialState(7);
     expect(infoBox(empty, { kind: "dock", stationId: 0 })).toEqual({
       title: "Home",
-      line: "Dock 0/96\n0 ships inside",
+      line: "Dock 0/100\n0 ships inside",
     });
 
     const unloading: SimState = {
@@ -93,7 +93,7 @@ describe("station module hover", () => {
     };
     expect(infoBox(unloading, { kind: "dock", stationId: 0 })).toEqual({
       title: "Home",
-      line: "Dock 16/96\n1 ships inside",
+      line: "Dock 16/100\n1 ships inside",
     });
   });
 

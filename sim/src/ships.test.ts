@@ -77,7 +77,7 @@ describe("the starting ship", () => {
     expect(PIXEL_SIZE).toBe(2.25 * SIZE_MULTIPLIER);
     expect(BUILDER_SIZE.width).toBeCloseTo(10);
     expect(BUILDER_SIZE.height).toBeCloseTo(40 / 3);
-    expect(DOCK_SIZE).toEqual({ width: 6, height: 9 });
+    expect(DOCK_SIZE).toEqual({ width: 7.5, height: 7.5 });
     expect(HIVE_SIZE).toEqual({ width: 10, height: 10 });
     expect(BUG_SIZE.width).toBeCloseTo(10 / 3);
     expect(BUG_SIZE.height).toBeCloseTo(8 / 3);
@@ -316,7 +316,7 @@ describe("several ships", () => {
     expect(new Set(targets).size).toBe(3);
   });
 
-  it("unloads at most 6 ships at the Dock and the rest wait their turn", () => {
+  it("unloads at most 4 starting ships at the 10x10 Dock and the rest wait their turn", () => {
     const state = fleet(7);
     const home: SimState = {
       ...state,
@@ -332,13 +332,13 @@ describe("several ships", () => {
     };
 
     const arrived = tick(home, 0);
-    expect(arrived.ships.filter((ship) => ship.state === "berthing" && ship.berth !== null)).toHaveLength(6);
+    expect(arrived.ships.filter((ship) => ship.state === "berthing" && ship.berth !== null)).toHaveLength(4);
 
     // Everyone has reached a pad or a parking spot, and nobody has finished.
     const settled = tick(arrived, 8);
-    expect(settled.ships.filter((ship) => ship.state === "unloading")).toHaveLength(6);
+    expect(settled.ships.filter((ship) => ship.state === "unloading")).toHaveLength(4);
     const waiting = settled.ships.filter((ship) => ship.state === "waiting");
-    expect(waiting).toHaveLength(1);
+    expect(waiting).toHaveLength(3);
 
     const soonest = Math.min(...settled.ships.filter((ship) => ship.state === "unloading").map((ship) => ship.timer));
     const berthFree = tick(settled, soonest);

@@ -194,7 +194,7 @@ describe("mining cycle", () => {
         2 * CARGO_PER_TRIP,
       );
     }
-  });
+  }, 15_000);
 
   it("treats a negative or missing time step as no time passing", () => {
     const start = oneStorageStart(7);

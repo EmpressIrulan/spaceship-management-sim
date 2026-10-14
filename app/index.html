@@ -94,6 +94,11 @@
         background: #1e293b;
         cursor: not-allowed;
       }
+      #build-menu [data-dock-size-form] { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; color: #e5e7eb; font: 12px monospace; }
+      #build-menu [data-dock-size-form] label { display: grid; gap: 3px; }
+      #build-menu [data-dock-size-form] input { box-sizing: border-box; width: 100%; padding: 5px; border: 1px solid #64748b; background: #0f172a; color: #f8fafc; font: 12px monospace; }
+      #build-menu [data-dock-size-form] [data-dock-cost] { align-self: center; white-space: nowrap; }
+      #build-menu [data-dock-size-form] button { grid-column: 1 / -1; justify-content: center; }
       #ship-menu, #ship-panel, #storage-panel, #station-panel {
         position: absolute;
         z-index: 2;

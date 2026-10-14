@@ -2,10 +2,11 @@ import { MODULE_HP, MODULE_SPACING } from "./build-constants";
 import { MATERIALS } from "./model";
 import type { Material, ModuleConstruction, ModuleDestruction, ModuleType, QueuedModuleBuild, SimState, Station, Vec, Ship } from "./model";
 import { DOCK_CAPACITY, STORAGE_CAPACITY, homeStation, replaceStation, stationById } from "./state";
-import { availableModuleBuildSites, nearbyClearPosition, stationOwningSite } from "./station-building";
-import { moduleBuildSeconds, moduleCost, moduleSize, samePosition } from "./station-module-geometry";
+import { availableModuleBuildSites, footprintsTouch, nearbyClearPosition, stationOwningSite } from "./station-building";
+import { moduleBuildSeconds, moduleCost, moduleSize, samePosition, validDockDimensions } from "./station-module-geometry";
 import { travelSeconds } from "./motion";
 import { speedFactor } from "./ship";
+import { DOCK_HEIGHT, DOCK_WIDTH } from "./dock-packing";
 import type { Draft } from "./tick-mining";
 
 type QueueState = Pick<Station, "constructionSite" | "construction" | "buildQueue">;
@@ -57,7 +58,7 @@ export function settleQueuedBuild(draft: Pick<Draft, "constructionSite" | "const
 // behind a build that can never finish.
 export function refundDetachedBuild(draft: Pick<Draft, "construction" | "constructionSite">): void {
   if (!draft.construction) return;
-  const inventory = adjustInventory(draft.constructionSite.inventory, 1, draft.construction.type);
+  const inventory = adjustInventory(draft.constructionSite.inventory, 1, draft.construction);
   draft.construction = null;
   draft.constructionSite = { ...draft.constructionSite, inventory };
 }
@@ -68,24 +69,25 @@ export function refundStationModule(station: Station): Station {
   return {
     ...station,
     construction: null,
-    constructionSite: { ...station.constructionSite, inventory: adjustInventory(station.constructionSite.inventory, 1, station.construction.type) },
+    constructionSite: { ...station.constructionSite, inventory: adjustInventory(station.constructionSite.inventory, 1, station.construction) },
   };
 }
 
-function adjustInventory(inventory: Record<Material, number>, direction: 1 | -1, type: ModuleType): Record<Material, number> {
-  const cost = moduleCost(type);
+type BuildSpec = { type: ModuleType; width?: number; height?: number };
+function adjustInventory(inventory: Record<Material, number>, direction: 1 | -1, module: BuildSpec): Record<Material, number> {
+  const cost = moduleCost(module.type, module.width, module.height);
   return Object.fromEntries(MATERIALS.map((material) => [material, inventory[material] + direction * cost[material]])) as Record<Material, number>;
 }
 
-function canPay(inventory: Record<Material, number>, type: ModuleType): boolean {
-  const cost = moduleCost(type);
+function canPay(inventory: Record<Material, number>, module: BuildSpec): boolean {
+  const cost = moduleCost(module.type, module.width, module.height);
   return MATERIALS.every((material) => inventory[material] >= cost[material]);
 }
 
 export function startNextQueuedModule<T extends QueueState>(station: T): T {
   const next = station.buildQueue[0];
-  if (station.construction || !next || !canPay(station.constructionSite.inventory, next.type)) return station;
-  const inventory = adjustInventory(station.constructionSite.inventory, -1, next.type);
+  if (station.construction || !next || !canPay(station.constructionSite.inventory, next)) return station;
+  const inventory = adjustInventory(station.constructionSite.inventory, -1, next);
   const construction: ModuleConstruction = { ...next, timer: moduleBuildSeconds(next.type) };
   return {
     ...station,
@@ -108,7 +110,7 @@ export function completeBuild(draft: Draft): void {
     draft.constructionSite.position, nearby, draft.asteroids, draft.stationSector,
   ) };
   if (standing.type === "Storage") draft.storageCapacity += STORAGE_CAPACITY;
-  if (standing.type === "Dock") draft.dockCapacity += DOCK_CAPACITY;
+  if (standing.type === "Dock") draft.dockCapacity += (standing.width ?? DOCK_WIDTH) * (standing.height ?? DOCK_HEIGHT);
   draft.construction = null;
 }
 
@@ -156,7 +158,7 @@ export function completeStationModule(station: Station, context: SettleContext =
     constructionSite: { ...station.constructionSite, position: nearbyClearPosition(
       station.constructionSite.position, obstacles, context.asteroids, station.sectorId,
     ) },
-    dock: standing.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + DOCK_CAPACITY } : station.dock,
+    dock: standing.type === "Dock" ? { ...station.dock, capacity: station.dock.capacity + (standing.width ?? DOCK_WIDTH) * (standing.height ?? DOCK_HEIGHT) } : station.dock,
     storage: standing.type === "Storage" ? { ...station.storage, capacity: station.storage.capacity + STORAGE_CAPACITY } : station.storage,
     construction: null,
   };
@@ -172,29 +174,32 @@ export function finishedClaimSectors(before: SimState, after: SimState): number[
   });
 }
 
-export function queueModuleBuild(state: SimState, type: ModuleType, position: Vec): SimState {
-  const owner = stationOwningSite(state, position);
+export function queueModuleBuild(state: SimState, type: ModuleType, position: Vec, dockDimensions?: { width: number; height: number }): SimState {
+  const dimensions = type === "Dock" ? dockDimensions : undefined;
+  const owner = stationOwningSite(state, position, dimensions);
   const station = stationById(state, owner);
   if (!station) return state;
-  const site = availableModuleBuildSites(state, owner).find((candidate) => samePosition(candidate, position));
+  const site = availableModuleBuildSites(state, owner, dimensions).find((candidate) => samePosition(candidate, position));
   if (!site) return state;
-  const queued: QueuedModuleBuild = { type, position: { ...site }, size: moduleSize(type) };
+  if (type === "Dock" && dockDimensions && !validDockDimensions(dockDimensions)) return state;
+  const width = type === "Dock" ? dockDimensions?.width ?? DOCK_WIDTH : undefined;
+  const height = type === "Dock" ? dockDimensions?.height ?? DOCK_HEIGHT : undefined;
+  const queued: QueuedModuleBuild = { type, position: { ...site }, size: moduleSize(type, width, height),
+    ...(type === "Dock" ? { width, height } : {}) };
   const next = startNextQueuedModule({ ...station, buildQueue: [...station.buildQueue, queued] });
   return replaceStation(state, next);
 }
 
-// Positions come from world coordinates, so a zoomed click lands on a fraction
-// and the distance between two neighbours can miss MODULE_SPACING by a rounding
-// step. An exact comparison then drops a Storage that was placed beside its Dock.
-const TOUCH_TOLERANCE = 1e-6;
-
-function touching(a: Vec, b: Vec): boolean {
-  return Math.abs(Math.hypot(a.x - b.x, a.y - b.y) - MODULE_SPACING) < TOUCH_TOLERANCE;
+// Footprint-edge attachment follows the same spacing rule used to offer clear
+// sites, including larger Docks that need more than one default slot of room.
+// The modules the station already stands on, with their actual footprints.
+function standingFootprints(station: StationGraph): Array<{ position: Vec; size: { width: number; height: number } }> {
+  return station.modules.map((module) => ({ position: module.position, size: module.size }));
 }
 
-// The modules the station already stands on.
-function standingPositions(station: StationGraph): Vec[] {
-  return station.modules.map((module) => module.position);
+function attachedFootprints(a: { position: Vec; size: { width: number; height: number } }, b: { position: Vec; size: { width: number; height: number } }): boolean {
+  return footprintsTouch(a, b)
+    || Math.abs(Math.hypot(a.position.x - b.position.x, a.position.y - b.position.y) - MODULE_SPACING) < 1e-6;
 }
 
 // The slots in `order` that will be standing attached to the station by the time
@@ -205,12 +210,15 @@ function standingPositions(station: StationGraph): Vec[] {
 // the station through a ghost behind it out of the queue, since it would finish
 // a module off the station while it waited its turn. The cancel cascade and the
 // guard on a module finishing both read this, so attached means one thing here.
-function attachedInOrder(anchors: Vec[], order: Vec[]): Vec[] {
-  const attached: Vec[] = [];
-  for (const position of order) {
-    if ([...anchors, ...attached].some((other) => touching(other, position))) attached.push(position);
+function attachedInOrder(
+  anchors: Array<{ position: Vec; size: { width: number; height: number } }>,
+  order: Array<{ position: Vec; size: { width: number; height: number } }>,
+): Vec[] {
+  const attached: Array<{ position: Vec; size: { width: number; height: number } }> = [];
+  for (const footprint of order) {
+    if ([...anchors, ...attached].some((other) => attachedFootprints(other, footprint))) attached.push(footprint);
   }
-  return attached;
+  return attached.map(({ position }) => position);
 }
 
 // The ghosts still waiting once the one at `index` is cancelled: every other
@@ -218,8 +226,8 @@ function attachedInOrder(anchors: Vec[], order: Vec[]): Vec[] {
 // modules, the module under construction, or a ghost ahead of it that is too.
 function queueAfterCancel(station: StationGraph, index: number): QueuedModuleBuild[] {
   const remaining = station.buildQueue.filter((_, at) => at !== index);
-  const anchors = [...standingPositions(station), ...(station.construction ? [station.construction.position] : [])];
-  const attached = attachedInOrder(anchors, remaining.map((queued) => queued.position));
+  const anchors = [...standingFootprints(station), ...(station.construction ? [{ position: station.construction.position, size: station.construction.size }] : [])];
+  const attached = attachedInOrder(anchors, remaining.map(({ position, size }) => ({ position, size })));
   return remaining.filter((queued) => attached.includes(queued.position));
 }
 
@@ -238,7 +246,7 @@ export function queuedDependents(station: StationGraph, index: number): QueuedMo
 // order, so nothing still queued can be what it hangs off.
 export function constructionAttached(station: StationGraph): boolean {
   if (!station.construction) return false;
-  return attachedInOrder(standingPositions(station), [station.construction.position]).length > 0;
+  return attachedInOrder(standingFootprints(station), [{ position: station.construction.position, size: station.construction.size }]).length > 0;
 }
 
 function moduleHp(module: Station["modules"][number]): number {
@@ -252,7 +260,7 @@ function connectedToDock(modules: Station["modules"]): Set<number> {
     changed = false;
     for (let index = 0; index < modules.length; index += 1) {
       if (connected.has(index)) continue;
-      if (modules.some((module, other) => connected.has(other) && touching(module.position, modules[index]!.position))) {
+      if (modules.some((module, other) => connected.has(other) && attachedFootprints(module, modules[index]!))) {
         connected.add(index);
         changed = true;
       }
@@ -306,16 +314,17 @@ export function damageStationModule(station: Station, position: Vec, damage: num
   }
   // Keep independent orders ahead of replacements, but move cut-off orders
   // behind their supports. An emptied station must rebuild its Dock first.
-  const anchors = [...modules, ...(next.construction ? [next.construction] : [])].map(module => module.position);
+  const anchors = [...modules, ...(next.construction ? [next.construction] : [])]
+    .map(({ position, size }) => ({ position, size }));
   const buildQueue: QueuedModuleBuild[] = [];
   while (pending.length > 0) {
     const index = pending.findIndex(module => anchors.length === 0
       ? module.type === "Dock"
-      : anchors.some(anchor => touching(anchor, module.position)));
+      : anchors.some(anchor => attachedFootprints(anchor, module)));
     if (index < 0) throw new Error("Destroyed station has an unattached build order");
     const module = pending.splice(index, 1)[0]!;
     buildQueue.push(module);
-    anchors.push(module.position);
+    anchors.push({ position: module.position, size: module.size });
   }
   return {
     station: {
@@ -325,7 +334,8 @@ export function damageStationModule(station: Station, position: Vec, damage: num
       shipBuilds,
       inventory,
       storage: { ...station.storage, capacity: storageCapacity },
-      dock: { ...station.dock, capacity: Math.max(0, station.dock.capacity - destroyed.filter((module) => module.type === "Dock").length * DOCK_CAPACITY) },
+      dock: { ...station.dock, capacity: Math.max(0, station.dock.capacity - destroyed.filter((module) => module.type === "Dock")
+        .reduce((area, module) => area + (module.width ?? DOCK_WIDTH) * (module.height ?? DOCK_HEIGHT), 0)) },
     },
     destructions,
   };

@@ -99,7 +99,7 @@ export function foundedStation(id: number, sectorId: number, x: number, y: numbe
     storageLimits: { Metal: null, Ice: null },
     deliveries: [],
     modules: [
-      { type: "Dock", position: dock, size: DOCK_SIZE },
+      { type: "Dock", position: dock, size: DOCK_SIZE, width: 10, height: 10 },
       { type: "Storage", position: { x: x + MODULE_SPACING / 2, y }, size: STORAGE_SIZE },
     ],
     construction: null,

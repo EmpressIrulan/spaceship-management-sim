@@ -1,12 +1,23 @@
-import type { BerthLayout, Ship, ShipDesign, Vec } from "./model";
+import type { BerthLayout, Ship, ShipDesign, StationModule, Vec } from "./model";
 import { PIXEL_SIZE, STARTING_SHIP } from "./ship";
 
-export const DOCK_WIDTH = 8;
-export const DOCK_HEIGHT = 12;
+export const DOCK_WIDTH = 10;
+export const DOCK_HEIGHT = 10;
 export const DOCK_AREA = DOCK_WIDTH * DOCK_HEIGHT;
 
-export function fitsDock(design: ShipDesign): boolean {
-  return design.width > 0 && design.height > 0 && design.width <= DOCK_WIDTH && design.height <= DOCK_HEIGHT;
+function dimensions(dock: StationModule) {
+  return { width: dock.width ?? DOCK_WIDTH, height: dock.height ?? DOCK_HEIGHT };
+}
+
+function docksFor(layout: BerthLayout): StationModule[] {
+  return layout.modules.filter((module) => module.type === "Dock");
+}
+
+export function fitsDock(design: ShipDesign, layout?: BerthLayout): boolean {
+  if (design.width <= 0 || design.height <= 0) return false;
+  const docks = layout ? docksFor(layout) : [];
+  return (docks.length ? docks : [{ type: "Dock" as const, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }])
+    .some((dock) => design.width <= dimensions(dock).width && design.height <= dimensions(dock).height);
 }
 
 export function holdsBerth(ship: Ship): boolean {
@@ -15,43 +26,44 @@ export function holdsBerth(ship: Ship): boolean {
     || (ship.state === "berthing" && ship.berth !== null);
 }
 
-// A berth encodes the Dock module and the top-left pixel of the reserved
-// rectangle. Reservations stay put until departure; ships never jump to repack.
+function berthDock(layout: BerthLayout, berth: number): { dock: StationModule; index: number; offset: number } | null {
+  const docks = docksFor(layout);
+  let offset = 0;
+  for (const dock of docks) {
+    const size = dimensions(dock);
+    const area = size.width * size.height;
+    if (berth < offset + area) return { dock, index: berth - offset, offset };
+    offset += area;
+  }
+  return null;
+}
+
 export function berthPoint(layout: BerthLayout, berth: number, design = STARTING_SHIP): Vec {
-  const docks = layout.modules.filter((module) => module.type === "Dock");
-  const dock = docks[Math.floor(berth / DOCK_AREA)]?.position ?? layout.dock;
-  const cell = berth % DOCK_AREA;
+  const found = berthDock(layout, berth);
+  const dock = found?.dock.position ?? layout.dock;
+  const width = found ? dimensions(found.dock).width : DOCK_WIDTH;
+  const height = found ? dimensions(found.dock).height : DOCK_HEIGHT;
+  const cell = found?.index ?? berth;
   return {
-    x: dock.x + (cell % DOCK_WIDTH + design.width / 2 - DOCK_WIDTH / 2) * PIXEL_SIZE,
-    y: dock.y + (Math.floor(cell / DOCK_WIDTH) + design.height / 2 - DOCK_HEIGHT / 2) * PIXEL_SIZE,
+    x: dock.x + (cell % width + design.width / 2 - width / 2) * PIXEL_SIZE,
+    y: dock.y + (Math.floor(cell / width) + design.height / 2 - height / 2) * PIXEL_SIZE,
   };
 }
 
 export function freeBerth(layout: BerthLayout, ships: Ship[], design = STARTING_SHIP): number | null {
-  if (!fitsDock(design)) return null;
-  const docks = layout.modules.filter((module) => module.type === "Dock");
-  const count = Math.min(docks.length, Math.floor(layout.capacity / DOCK_AREA));
-  const occupied = new Set<number>();
-  const reserve = (berth: number, design: ShipDesign): void => {
-    const base = Math.floor(berth / DOCK_AREA) * DOCK_AREA;
-    const cell = berth % DOCK_AREA;
-    for (let y = 0; y < design.height; y++) for (let x = 0; x < design.width; x++) {
-      occupied.add(base + cell + y * DOCK_WIDTH + x);
+  const docks = docksFor(layout);
+  if (!fitsDock(design, layout)) return null;
+  const occupied = new Set<string>();
+  const reserve = (berth: number, shipDesign: ShipDesign): void => {
+    const found = berthDock(layout, berth);
+    if (!found) return;
+    const width = dimensions(found.dock).width;
+    const cell = found.index;
+    const x = cell % width;
+    const y = Math.floor(cell / width);
+    for (let dy = 0; dy < shipDesign.height; dy++) for (let dx = 0; dx < shipDesign.width; dx++) {
+      occupied.add(`${found.offset}:${x + dx}:${y + dy}`);
     }
-  };
-  const find = (design: ShipDesign): number | null => {
-    if (!fitsDock(design)) return null;
-    for (let dock = 0; dock < count; dock++) {
-      for (let y = 0; y <= DOCK_HEIGHT - design.height; y++) for (let x = 0; x <= DOCK_WIDTH - design.width; x++) {
-        const berth = dock * DOCK_AREA + y * DOCK_WIDTH + x;
-        let clear = true;
-        for (let dy = 0; dy < design.height; dy++) for (let dx = 0; dx < design.width; dx++) {
-          if (occupied.has(berth + dy * DOCK_WIDTH + dx)) clear = false;
-        }
-        if (clear) return berth;
-      }
-    }
-    return null;
   };
   const holders = ships.filter((ship) => {
     if (!holdsBerth(ship) || ship.sectorId !== layout.sectorId) return false;
@@ -60,19 +72,32 @@ export function freeBerth(layout: BerthLayout, ships: Ship[], design = STARTING_
       && Math.abs(point.y - dock.position.y) <= dock.size.height / 2);
   });
   for (const ship of holders) if (ship.berth !== null) reserve(ship.berth, ship.design);
-  // Empty ships sent home in older states may unload without a reservation.
-  // Account for each one separately, rather than assigning them the same room.
   for (const ship of holders) if (ship.berth === null) {
-    const berth = find(ship.design);
+    const berth = findBerth(layout, occupied, ship.design);
     if (berth !== null) reserve(berth, ship.design);
   }
-  return find(design);
+  return findBerth(layout, occupied, design);
 }
 
-// Starting-ship positions retained for fixtures that ask where a 4x4 lands.
-// These are not fixed pads: smaller ships use finer positions in the same bay.
+function findBerth(layout: BerthLayout, occupied: Set<string>, design: ShipDesign): number | null {
+  let offset = 0;
+  for (const dock of docksFor(layout)) {
+    const { width, height } = dimensions(dock);
+    for (let y = 0; y <= height - design.height; y++) for (let x = 0; x <= width - design.width; x++) {
+      let clear = true;
+      for (let dy = 0; dy < design.height; dy++) for (let dx = 0; dx < design.width; dx++) {
+        if (occupied.has(`${offset}:${x + dx}:${y + dy}`)) clear = false;
+      }
+      if (clear) return offset + y * width + x;
+    }
+    offset += width * height;
+  }
+  return null;
+}
+
 export function dockBerths(dock: Vec): Vec[] {
-  const layout = { dock, sectorId: 0, modules: [], capacity: DOCK_AREA };
+  const module: StationModule = { type: "Dock", position: dock, size: { width: DOCK_WIDTH * PIXEL_SIZE, height: DOCK_HEIGHT * PIXEL_SIZE }, width: DOCK_WIDTH, height: DOCK_HEIGHT };
+  const layout = { dock, sectorId: 0, modules: [module], capacity: DOCK_AREA };
   const points: Vec[] = [];
   for (let y = 0; y <= DOCK_HEIGHT - STARTING_SHIP.height; y += STARTING_SHIP.height) {
     for (let x = 0; x <= DOCK_WIDTH - STARTING_SHIP.width; x += STARTING_SHIP.width) {

@@ -1,6 +1,7 @@
-import { ASTEROID_MIN_SPACING, DOCK_SIZE, MODULE_COST, MODULE_SPACING, SIZE_MULTIPLIER, STORAGE_SIZE } from "./build-constants";
+import { ASTEROID_MIN_SPACING, DOCK_SIZE, MODULE_SPACING, SIZE_MULTIPLIER, STORAGE_SIZE } from "./build-constants";
 import type { SimState, Size, Station, Vec } from "./model";
 import { nextRandom } from "./prng";
+import { DOCK_HEIGHT, DOCK_WIDTH } from "./dock-packing";
 import { CONSTRUCTION_SITE_SIZE, replaceStation } from "./state";
 
 // A placed site spans the pair of slots its first Dock and Storage will stand
@@ -30,7 +31,7 @@ export function placeStation(state: SimState, sectorId: number, position: Vec): 
     modules: [],
     construction: null,
     buildQueue: [
-      { type: "Dock", position: dockPosition, size: DOCK_SIZE },
+      { type: "Dock", position: dockPosition, size: DOCK_SIZE, width: DOCK_WIDTH, height: DOCK_HEIGHT },
       { type: "Storage", position: storagePosition, size: STORAGE_SIZE },
     ],
     shipBuilds: [],

@@ -1,4 +1,4 @@
-import { MODULE_SPACING, type ModuleType, type StationModule, type Vec } from "sim";
+import { footprintsTouch, type ModuleType, type StationModule, type Vec } from "sim";
 
 export type ModuleSilhouette = "open-bay" | "tank-cluster" | "crane" | "beacon" | "turret";
 
@@ -30,9 +30,7 @@ export function stationConnectors(modules: StationModule[]): StationConnector[] 
     for (let right = left + 1; right < modules.length; right += 1) {
       const from = modules[left]!.position;
       const to = modules[right]!.position;
-      const dx = Math.abs(from.x - to.x);
-      const dy = Math.abs(from.y - to.y);
-      if ((dx === MODULE_SPACING && dy === 0) || (dy === MODULE_SPACING && dx === 0)) {
+      if (footprintsTouch(modules[left]!, modules[right]!)) {
         connectors.push({ from, to });
       }
     }

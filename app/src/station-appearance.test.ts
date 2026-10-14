@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MODULE_SPACING, STORAGE_SIZE, type StationModule } from "sim";
+import { DOCK_SIZE, MODULE_SPACING, PIXEL_SIZE, STORAGE_SIZE, type StationModule } from "sim";
 import { moduleAppearance, stationConnectors } from "./station-appearance";
 
 const module = (type: StationModule["type"], x: number, y: number): StationModule => ({
@@ -21,6 +21,22 @@ describe("station appearance", () => {
       { from: { x: 0, y: 0 }, to: { x: 0, y: MODULE_SPACING } },
       { from: { x: 0, y: MODULE_SPACING }, to: { x: MODULE_SPACING, y: MODULE_SPACING } },
       { from: { x: MODULE_SPACING, y: MODULE_SPACING }, to: { x: 2 * MODULE_SPACING, y: MODULE_SPACING } },
+    ]);
+  });
+
+  it("connects a larger Dock at its expanded, non-overlapping build spacing", () => {
+    const smallDock: StationModule = { type: "Dock", position: { x: 0, y: 0 }, size: DOCK_SIZE, width: 10, height: 10 };
+    const largeSize = { width: 30 * PIXEL_SIZE, height: 30 * PIXEL_SIZE };
+    const largeDock: StationModule = {
+      type: "Dock",
+      position: { x: Math.max(MODULE_SPACING, (DOCK_SIZE.width + largeSize.width) / 2 + 0.01), y: 0 },
+      size: largeSize,
+      width: 30,
+      height: 30,
+    };
+
+    expect(stationConnectors([smallDock, largeDock])).toEqual([
+      { from: smallDock.position, to: largeDock.position },
     ]);
   });
 

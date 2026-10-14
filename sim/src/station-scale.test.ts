@@ -15,7 +15,7 @@ describe("station-local scale", () => {
   it("relocates a blocked build pad in scaled half-slot steps", () => {
     const dock = createInitialState(7).stations[0]!.dock;
     expect(nearbyClearPosition(dock.position, [dock], [], 0))
-      .toEqual({ x: -20 * SIZE_MULTIPLIER, y: -20 * SIZE_MULTIPLIER });
+      .toEqual({ x: -40 * SIZE_MULTIPLIER, y: -40 * SIZE_MULTIPLIER });
   });
 
   it("scales both the first parking arc and subsequent arc gaps", () => {

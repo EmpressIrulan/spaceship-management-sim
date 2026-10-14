@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   DOCK_CAPACITY,
-  MODULE_COST,
   SIZE_MULTIPLIER,
   createInitialState,
   homeStation,
@@ -87,7 +86,7 @@ function fundSite(state: SimState, id: number): SimState {
   return {
     ...state,
     stations: state.stations.map((candidate) => candidate.id === id
-      ? { ...candidate, constructionSite: { ...candidate.constructionSite, inventory: { ...MODULE_COST } } }
+      ? { ...candidate, constructionSite: { ...candidate.constructionSite, inventory: { Metal: 100, Ice: 100 } } }
       : candidate),
   };
 }
@@ -143,12 +142,12 @@ describe("criterion 2: ships supply the site and a Dock builds", () => {
     const id = state.nextStationId - 1;
     state = fundSite(state, id);
     state = { ...state, stations: state.stations.map((station) => station.id === id
-      ? { ...station, constructionSite: { ...station.constructionSite, inventory: { Metal: 50, Ice: 50 } } }
+      ? { ...station, constructionSite: { ...station.constructionSite, inventory: { Metal: 125, Ice: 125 } } }
       : station) };
     const station = stationById(state, id)!;
     const built = startModuleBuild(state, id, "Storage", availableModuleBuildSites(state, id)[0]!);
 
-    expect(stationById(built, id)!.constructionSite.inventory).toEqual({ Metal: 25, Ice: 25 });
+    expect(stationById(built, id)!.constructionSite.inventory).toEqual({ Metal: 100, Ice: 100 });
     expect(homeStation(built).constructionSite.inventory).toEqual(homeStation(state).constructionSite.inventory);
     expect(stationById(built, id)!.construction?.type).toBe("Storage");
   });
@@ -257,7 +256,7 @@ describe("criterion 2: ships supply the site and a Dock builds", () => {
     let state = spot(createInitialState(7), 0).state;
     const id = state.nextStationId - 1;
     state = { ...state, stations: state.stations.map((station) => station.id === id ? {
-      ...station, constructionSite: { ...station.constructionSite, inventory: { Metal: 50, Ice: 50 } },
+      ...station, constructionSite: { ...station.constructionSite, inventory: { Metal: 125, Ice: 125 } },
     } : station) };
     state = removeStation(state, 0);
 
@@ -303,7 +302,7 @@ describe("criterion 2: ships supply the site and a Dock builds", () => {
       ...ship, defaultBehaviour: "supply" as const, mineMaterials: ["Metal", "Ice"] as const,
     })) };
     // Almost an hour of play: trips, builds and the Dock still to come after.
-    for (let elapsed = 0; elapsed < 3600; elapsed += 1) state = tick(state, 1);
+    for (let elapsed = 0; elapsed < 9000; elapsed += 1) state = tick(state, 1);
     const docked = until(state, (next) => stationById(next, id)!.modules.some((module) => module.type === "Dock"), 600);
     expect(docked.stations.find((candidate) => candidate.id === id)!.inventory).toEqual({ Metal: 0, Ice: 0 });
     // The build keeps riding the founded Dock: Storage next, then named stops.
