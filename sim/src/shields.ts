@@ -1,5 +1,6 @@
 import { SHIELD_RECHARGE_DELAY } from "./build-constants";
-import { shipHp, shipRepairRate, shipShield } from "./ship";
+import { shipHp, shipRepairRate, shipShield, shipSize, speedFactor } from "./ship";
+import { travelSeconds } from "./motion";
 import type { Ship } from "./model";
 
 // Applies one hit to the shield and then to the hull. Null means the ship was
@@ -47,10 +48,42 @@ export function nextShieldEvent(ships: Ship[], now: number): number {
 }
 
 export function advanceShipRepairs(ships: Ship[], seconds: number): Ship[] {
-  return ships.map((ship) => {
-    const { hp, maxHp } = shipHp(ship);
-    const rate = shipRepairRate(ship.design);
-    if (hp >= maxHp || rate <= 0 || seconds <= 0) return ship;
-    return { ...ship, hp: Math.min(maxHp, hp + rate * seconds), maxHp };
+  const rates = new Map(ships.map((ship) => [ship.id, shipRepairRate(ship.design)]));
+  return ships.map((target) => {
+    const { hp, maxHp } = shipHp(target);
+    if (hp >= maxHp || seconds <= 0) return target;
+    const repairedBy = ships.reduce((total, repairer) => {
+      if (repairer.id === target.id || repairer.repairTargetShipId !== target.id
+        || repairer.sectorId !== target.sectorId || !inRepairRange(repairer, target)) return total;
+      return total + (rates.get(repairer.id) ?? 0);
+    }, 0);
+    if (repairedBy <= 0) return target;
+    return { ...target, hp: Math.min(maxHp, hp + repairedBy * seconds), maxHp };
+  });
+}
+
+export function inRepairRange(repairer: Ship, target: Ship): boolean {
+  const a = shipSize(repairer.design);
+  const b = shipSize(target.design);
+  const reach = Math.hypot(a.width + b.width, a.height + b.height) / 2 + 1;
+  return Math.hypot(repairer.position.x - target.position.x, repairer.position.y - target.position.y) <= reach;
+}
+
+// Keep explicitly assigned Repair ships parked beside their target. The target
+// point is deterministic, so two repair ships can approach opposite sides.
+export function moveRepairShips(ships: Ship[]): Ship[] {
+  return ships.map((repairer) => {
+    if (repairer.repairTargetShipId == null || shipRepairRate(repairer.design) <= 0) return repairer;
+    const target = ships.find((candidate) => candidate.id === repairer.repairTargetShipId && candidate.id !== repairer.id
+      && candidate.sectorId === repairer.sectorId);
+    if (!target || inRepairRange(repairer, target)) return repairer;
+    const a = shipSize(repairer.design);
+    const b = shipSize(target.design);
+    const side = repairer.id < target.id ? -1 : 1;
+    const destination = { x: target.position.x + side * (a.width + b.width) / 2, y: target.position.y };
+    const from = { ...repairer.position };
+    const length = Math.hypot(destination.x - from.x, destination.y - from.y);
+    return { ...repairer, state: "moving", berth: null, transfer: null,
+      leg: { from, to: destination }, timer: travelSeconds(length, Math.max(0.01, speedFactor(repairer.design))) };
   });
 }

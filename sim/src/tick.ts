@@ -10,6 +10,7 @@ import { afterOrder, gateHaulEnd, gateTravelOrder, nextMiningRock, resumeMining,
 import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { completeDocking, syncDockedShips } from "./hangars";
+import { moveRepairShips } from "./shields";
 import { startWaitingShipBuilds } from "./ship-build-queue";
 import {
   constructionAttached,
@@ -815,6 +816,7 @@ function settle(draft: Draft): void {
     const ship = draft.ships[i]!;
     if (ship.timer <= 0) draft.ships[i] = forShipHome(draft, ship, () => finish(draft, ship));
   }
+  draft.ships = moveRepairShips(draft.ships);
   settleQueuedBuild(draft);
   if (draft.founding && draft.buildQueue.length === 0 && !draft.construction) draft.founding = false;
 }

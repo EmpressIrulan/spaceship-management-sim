@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SHIELD_RECHARGE_DELAY, SHIELD_RECHARGE_PER_PIXEL } from "./build-constants";
-import { advanceShipRepairs, damageShip } from "./shields";
+import { advanceShipRepairs, damageShip, inRepairRange } from "./shields";
 import { miningStart } from "./test-ships";
 import { tick } from "./tick";
 import type { ShipDesign } from "./model";
@@ -12,10 +12,33 @@ function ship() {
 }
 
 describe("ship shield damage", () => {
-  it("repairs hull at its configured rate, including during combat, and stops at full HP", () => {
-    const repairShip = { ...ship(), design: { width: 4, height: 1, slots: ["Repair", "Repair", "Repair", "Repair"] as ShipDesign["slots"] }, hp: 30 };
-    expect(advanceShipRepairs([repairShip], 1)[0]!.hp).toBe(30.8);
-    expect(advanceShipRepairs([{ ...repairShip, hp: 39.9 }], 1)[0]!.hp).toBe(40);
+  it("heals a nearby target at the configured rate but never heals itself", () => {
+    const repairShip = { ...ship(), id: 1, position: { x: 0, y: 0 }, repairTargetShipId: 2,
+      design: { width: 4, height: 1, slots: ["Repair", "Repair", "Repair", "Repair"] as ShipDesign["slots"] } };
+    const target = { ...ship(), id: 2, position: { x: 1, y: 0 }, hp: 30 };
+    const [repaired, healed] = advanceShipRepairs([repairShip, target], 1);
+    expect(repaired!.hp).toBe(40);
+    expect(healed!.hp).toBe(30.8);
+  });
+
+  it("lets two repair ships heal one another", () => {
+    const design = { width: 1, height: 1, slots: ["Repair"] as ShipDesign["slots"] };
+    const first = { ...ship(), id: 1, design, repairTargetShipId: 2, hp: 30, position: { x: 0, y: 0 } };
+    const second = { ...ship(), id: 2, design, repairTargetShipId: 1, hp: 30, position: { x: 1, y: 0 } };
+    expect(advanceShipRepairs([first, second], 1).map((candidate) => candidate!.hp)).toEqual([30.2, 30.2]);
+  });
+
+  it("moves to a set repair target, then heals it while parked beside it", () => {
+    const state = miningStart(7);
+    const design = { width: 5, height: 1, slots: ["Engine", "Repair", "Repair", "Repair", "Repair"] as ShipDesign["slots"] };
+    const target = { ...state.ships[0]!, id: 10, state: "holding" as const, position: { x: 1000, y: 1000 }, hp: 30, maxHp: 40 };
+    const repairer = { ...target, id: 11, design, position: { x: 0, y: 0 }, hp: 40, repairTargetShipId: 10 };
+    const started = tick({ ...state, hives: [], bugs: [], ships: [repairer, target] }, 1);
+    const moved = tick(started, 10000);
+    expect(moved.ships[0]!.position).not.toEqual(repairer.position);
+    expect(inRepairRange(moved.ships[0]!, moved.ships[1]!)).toBe(true);
+    expect(moved.ships[1]!.hp).toBeGreaterThan(30);
+    expect(moved.ships[0]!.hp).toBe(40);
   });
 
   it("soaks a hit before hull and carries leftover damage into hull", () => {

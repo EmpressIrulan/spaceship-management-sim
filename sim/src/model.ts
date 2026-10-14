@@ -93,6 +93,8 @@ export interface Ship {
   // not been bitten: a fresh ship still has SHIP_HP of hull.
   hp?: number;
   maxHp?: number;
+  // Explicit repair assignment; selection is handled by player orders.
+  repairTargetShipId?: number | null;
   // Current and full shield. Missing on older fixtures means a new ship's full shield.
   shield?: number;
   maxShield?: number;
