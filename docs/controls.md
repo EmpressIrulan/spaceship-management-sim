@@ -19,7 +19,7 @@ See also: [design.md](design.md) for how the game is put together, and the [READ
 | Right-click with ships selected | Gives an order, depending on what you clicked: an asteroid means mine it, your station's Dock means fly home, a building site means deliver supplies to that station, an unfinished gate means haul Metal and Ice to the gate end, anything else means move there. |
 | Right-click an enemy carrier ship | The selected ships fly to it and dock inside its hangar. |
 | Right-click empty space with nothing selected | Opens a small menu: "Build station here", which plants a new station site where you clicked, ships then supply it; or "Build gate here". |
-| Middle-drag or right-drag | Pan the camera. |
+| Middle-drag | Pan the camera. |
 | Mouse wheel | Zoom toward the cursor. |
 
 Clicking away from any open menu closes it, and so does Escape.
