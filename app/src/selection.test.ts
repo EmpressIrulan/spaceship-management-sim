@@ -5,6 +5,19 @@ import { fitCamera, hoveredBody, worldToScreen } from "./camera";
 import { contextOrderAllowed, orderLineAlpha, orderTargetAt, selectionPanel, shipsInBox, toggleShip, type SelectionPanel } from "./selection";
 
 describe("RTS selection helpers", () => {
+  it("turns a right-click on damaged ships and station modules into repair orders", () => {
+    const initial = createInitialState(7);
+    const target = { ...initial.ships[0]!, id: 42, hp: 20, maxHp: 40 };
+    const station = { ...initial.stations[0]!, modules: initial.stations[0]!.modules.map((module, index) => index === 0 ? { ...module, hp: 20, maxHp: 40 } : module) };
+    const state = { ...initial, ships: [...initial.ships, target], stations: [station] };
+    expect(orderTargetAt(state, { kind: "ship", index: 1 }, { x: 0, y: 0 })).toEqual({ kind: "repair", target: { kind: "ship", shipId: 42 } });
+    expect(orderTargetAt(state, { kind: "module", index: 0, stationId: station.id }, { x: 0, y: 0 })).toEqual({
+      kind: "repair", target: { kind: "module", stationId: station.id, position: station.modules[0]!.position },
+    });
+    expect(orderTargetAt(state, { kind: "dock", stationId: station.id }, { x: 0, y: 0 })).toEqual({
+      kind: "repair", target: { kind: "module", stationId: station.id, position: station.modules[0]!.position },
+    });
+  });
   it("box-selects by ship id and shift selection toggles by id", () => {
     const state = createInitialState(7);
     const camera = fitCamera({ width: 800, height: 600 }, [state.stations[0]!.dock, ...state.asteroids]);

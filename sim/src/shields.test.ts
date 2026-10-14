@@ -3,6 +3,7 @@ import { SHIELD_RECHARGE_DELAY, SHIELD_RECHARGE_PER_PIXEL } from "./build-consta
 import { advanceShipRepairs, damageShip, inRepairRange } from "./shields";
 import { miningStart } from "./test-ships";
 import { tick } from "./tick";
+import { giveOrder } from "./orders";
 import type { ShipDesign } from "./model";
 
 const SHIP: ShipDesign = { width: 3, height: 1, slots: ["Capacitor", "Generator", "Hull"] };
@@ -39,6 +40,42 @@ describe("ship shield damage", () => {
     expect(inRepairRange(moved.ships[0]!, moved.ships[1]!)).toBe(true);
     expect(moved.ships[1]!.hp).toBeGreaterThan(30);
     expect(moved.ships[0]!.hp).toBe(40);
+  });
+
+  it("repairs a damaged station module after selecting the nearest target by default", () => {
+    const state = miningStart(7);
+    const repairer = { ...state.ships[0]!, id: 11, defaultBehaviour: "repair" as const,
+      design: { width: 1, height: 1, slots: ["Repair"] as ShipDesign["slots"] },
+      state: "holding" as const, position: { x: 1, y: 0 }, timer: 0, order: null, leg: null };
+    const station = { ...state.stations[0]!, modules: state.stations[0]!.modules.map((module, index) => index === 0
+      ? { ...module, hp: 20, maxHp: 40 } : module) };
+    const started = tick({ ...state, ships: [repairer], stations: [station], hives: [], bugs: [] }, 0);
+    const healed = tick(started, 1);
+    expect(started.ships[0]!.repairTarget).toEqual({ kind: "module", stationId: station.id, position: station.modules[0]!.position });
+    expect(healed.stations[0]!.modules[0]!.hp).toBeGreaterThan(20);
+  });
+
+  it("accepts a one-off module repair assignment for a Repair ship", () => {
+    const base = miningStart(7);
+    const repairer = { ...base.ships[0]!, design: { width: 1, height: 1, slots: ["Repair"] as ShipDesign["slots"] }, state: "holding" as const };
+    const module = base.stations[0]!.modules[0]!;
+    const station = { ...base.stations[0]!, modules: base.stations[0]!.modules.map((item, index) => index === 0 ? { ...item, hp: 20, maxHp: 40 } : item) };
+    const state = { ...base, ships: [repairer], stations: [station] };
+    const ordered = giveOrder(state, [repairer.id], { kind: "repair", target: { kind: "module", stationId: station.id, position: module.position } });
+    expect(ordered.ships[0]).toMatchObject({ order: { kind: "repair" }, repairTarget: { kind: "module", stationId: station.id } });
+    expect(tick(ordered, 1).stations[0]!.modules[0]!.hp).toBeGreaterThan(20);
+  });
+
+  it("returns from a one-off ship repair to the ship's default when the target is full", () => {
+    const state = miningStart(7);
+    const design = { width: 1, height: 1, slots: ["Repair"] as ShipDesign["slots"] };
+    const repairTarget = { kind: "ship" as const, shipId: 2 };
+    const repairer = { ...state.ships[0]!, id: 1, design, defaultBehaviour: "mine" as const,
+      state: "holding" as const, position: { x: 0, y: 0 }, order: { kind: "repair" as const, target: repairTarget }, repairTarget };
+    const target = { ...state.ships[0]!, id: 2, state: "holding" as const, position: { x: 1, y: 0 }, hp: 39.9, maxHp: 40 };
+    const result = tick({ ...state, hives: [], bugs: [], ships: [repairer, target] }, 1);
+    expect(result.ships[1]!.hp).toBe(40);
+    expect(result.ships[0]).toMatchObject({ defaultBehaviour: "mine", order: null, repairTarget: null });
   });
 
   it("soaks a hit before hull and carries leftover damage into hull", () => {

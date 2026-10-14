@@ -558,4 +558,17 @@ describe("ship panel while the ship changes", () => {
       globalThis.document = originalDocument;
     }
   });
+
+  it("offers Default: Repair in the ship orders menu", () => {
+    const originalDocument = globalThis.document;
+    globalThis.document = fakeDocument() as unknown as Document;
+    try {
+      const box = new FakeElement();
+      renderShipPanel(miningStart(7), box as unknown as HTMLElement, { selectedShips: [0], selectedShip: null, renderedPanel: "" });
+      const select = box.children.find((child) => child.name === "default")!;
+      expect(select.children.some((option) => option.value === "repair" && option.textContent === "Default: Repair")).toBe(true);
+    } finally {
+      globalThis.document = originalDocument;
+    }
+  });
 });

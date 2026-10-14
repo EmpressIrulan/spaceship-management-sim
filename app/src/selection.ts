@@ -14,6 +14,18 @@ export function toggleShip(selected: number[], id: number): number[] {
   return selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id].sort((a, b) => a - b);
 }
 export function orderTargetAt(state: SimState, hovered: Hovered | null, world: Vec, currentSector = 0): OrderTarget {
+  if (hovered?.kind === "ship") {
+    const ship = state.ships[hovered.index];
+    if (ship && (ship.hp ?? 40) < (ship.maxHp ?? 40)) return { kind: "repair", target: { kind: "ship", shipId: ship.id } };
+  }
+  if (hovered?.kind === "module" || hovered?.kind === "dock" || hovered?.kind === "storage") {
+    const stationId = hovered.kind === "module" || hovered.kind === "dock" ? hovered.stationId : hovered.stationId ?? 0;
+    const station = state.stations.find((item) => item.id === stationId);
+    const module = hovered.kind === "module" ? station?.modules[hovered.index]
+      : station?.modules.find((item) => item.type === (hovered.kind === "dock" ? "Dock" : "Storage"));
+    if (station && module && (module.hp ?? module.maxHp ?? 40) < (module.maxHp ?? 40))
+      return { kind: "repair", target: { kind: "module", stationId: station.id, position: module.position } };
+  }
   if (hovered?.kind === "gateProject") {
     const project = state.gateProjects.find((candidate) => candidate.id === hovered.id);
     return project?.complete ? { kind: "move", point: world, sectorId: currentSector } : { kind: "haulGate", gateId: hovered.id };

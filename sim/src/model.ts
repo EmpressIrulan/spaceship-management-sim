@@ -29,7 +29,7 @@ export type ShipState =
   | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning" | "haulLoading"
   | "haulOutbound" | "haulJumpingOutbound" | "haulUnloading" | "haulReturning"
   | "haulJumpingReturning" | "haulWaitingSource" | "haulWaitingFull";
-export type DefaultBehaviour = "mine" | "haul" | "supply" | "none";
+export type DefaultBehaviour = "mine" | "haul" | "supply" | "repair" | "none";
 export type HaulStationId = "home" | `station:${number}`;
 // Haul loads at a station's Storage; a route may end at the same station's
 // construction site instead of another Storage.
@@ -41,6 +41,7 @@ export type Order =
   | { kind: "home" }
   | { kind: "haulGate"; gateId: number }
   | { kind: "supplyBuild"; stationId: number; point: Vec; sectorId: number }
+  | { kind: "repair"; target: RepairTarget }
   | { kind: "dock"; carrierId: number };
 export interface Leg { from: Vec; to: Vec }
 export interface CargoTransfer {
@@ -95,6 +96,7 @@ export interface Ship {
   maxHp?: number;
   // Explicit repair assignment; selection is handled by player orders.
   repairTargetShipId?: number | null;
+  repairTarget?: RepairTarget | null;
   // Current and full shield. Missing on older fixtures means a new ship's full shield.
   shield?: number;
   maxShield?: number;
@@ -112,6 +114,8 @@ export interface Ship {
   // renderer draws it. Null once the flash has burned out.
   gunShot?: GunShot | null;
 }
+
+export type RepairTarget = { kind: "ship"; shipId: number } | { kind: "module"; stationId: number; position: Vec };
 
 export interface Station {
   // Home carries 0; each placed station gets the next count up.
