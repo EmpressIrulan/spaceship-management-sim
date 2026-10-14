@@ -7,12 +7,10 @@ import { installCancelHoverInput } from "./cancel-hover-input";
 import { installRenameInput } from "./rename-input";
 import { installSpeedInput } from "./speed-input";
 import { isBoxDrag } from "./selection";
-import { placeStationSite } from "./station-site-input";
 import { placeGate } from "./gate-placement-input";
 import { selectBox } from "./box-selection-input";
 import { navigateMap } from "./map-navigation-input";
 import { selectClick } from "./click-selection-input";
-import { screenToWorld } from "./camera";
 
 export interface InputElements {
   canvas: HTMLCanvasElement;
@@ -86,9 +84,7 @@ export function installInput(
     const { start, end, additive } = ui.dragBox;
     ui.dragBox = null;
     const click = !isBoxDrag(start, end);
-    if (click && event.target === canvas && ui.pendingStation && !ui.mapOpen) {
-      placeStationSite(ui, getState, setState, screenToWorld(ui.camera, ui.viewport, pointFromEvent(event)));
-    } else if (
+    if (
       click &&
       event.target === canvas &&
       ui.pendingGate?.targetSector === ui.currentSector

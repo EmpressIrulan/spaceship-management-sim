@@ -37,9 +37,6 @@ export interface UiState {
   dragBox: { start: Vec; end: Vec; additive: boolean } | null;
   orderLines: { from: Vec[]; to: Vec; start: number } | null;
   pendingGate: PendingGate | null;
-  // Set from the map's "Build station" button: the next canvas click places a
-  // construction site in the sector it lands in.
-  pendingStation: boolean;
   renamingSector: number | null;
   stickyQueuedBuild: { position: Vec; stationId: number } | null;
   // The ghost whose Cancel control the pointer is on, so the ghosts that would
@@ -88,7 +85,6 @@ export function createUiState(blueprints: Blueprint[]): UiState {
     dragBox: null,
     orderLines: null,
     pendingGate: null,
-    pendingStation: false,
     renamingSector: null,
     stickyQueuedBuild: null,
     cancelHoveredBuild: null,

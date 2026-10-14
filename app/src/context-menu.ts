@@ -12,7 +12,6 @@ export function installContextMenu(
   setState: (state: SimState) => void,
   canvas: HTMLCanvasElement,
   gateMenu: HTMLElement,
-  stationButton: HTMLButtonElement,
   mousePoint: (event: MouseEvent) => Vec,
 ): () => void {
   const closeGateMenu = (): void => {
@@ -25,10 +24,6 @@ export function installContextMenu(
   window.addEventListener("mousedown", (event) => {
     if (!gateMenu.hidden && !gateMenu.contains(event.target as Node | null)) closeGateMenu();
   }, true);
-  stationButton.addEventListener("click", () => {
-    ui.pendingStation = true;
-    closeGateMenu();
-  });
   gateMenu.addEventListener("click", (event) => {
     if ((event.target as HTMLElement | null)?.closest?.("[data-build-station]")) {
       const pending = ui.pendingGate;

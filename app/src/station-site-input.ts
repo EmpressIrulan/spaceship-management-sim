@@ -12,7 +12,6 @@ export function placeStationSite(
   const placed = placeStation(priorState, ui.currentSector, position);
   if (placed === priorState) return;
   setState(placed);
-  ui.pendingStation = false;
   const id = placed.nextStationId - 1;
   if (stationById(placed, id)) setState(setSupplyStation(placed, id));
 }

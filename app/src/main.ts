@@ -24,12 +24,10 @@ const shipPanelEl = document.querySelector<HTMLElement>("#ship-panel");
 const partTipEl = document.querySelector<HTMLElement>("#part-tip");
 const sectorNameEl = document.querySelector<HTMLElement>("#sector-name");
 const gateMenuEl = document.querySelector<HTMLElement>("#gate-menu");
-const stationButtonEl = document.querySelector<HTMLButtonElement>("#station-button");
 const hintEl = document.querySelector<HTMLElement>("#hint");
 const renameBoxEl = document.querySelector<HTMLInputElement>("#rename-box");
 const infoActionEl = document.querySelector<HTMLButtonElement>("#info-action");
-if (!stationButtonEl || !hintEl || !renameBoxEl || !infoActionEl) throw new Error("missing build station controls");
-const stationButton: HTMLButtonElement = stationButtonEl;
+if (!hintEl || !renameBoxEl || !infoActionEl) throw new Error("missing interface controls");
 const hint: HTMLElement = hintEl;
 const renameBox: HTMLInputElement = renameBoxEl;
 const infoAction: HTMLButtonElement = infoActionEl;
@@ -83,10 +81,10 @@ stationPanel.addEventListener("click", (event) => {
 const closeStoragePanel = installPanels(ui, () => state, (next) => { state = next; }, storagePanel, shipPanelBox);
 const closeBuildMenu = installBuildMenu(ui, () => state, (next) => { state = next; }, buildControls, buildMenu, (event) => mousePoint(canvas, event));
 const shipMenuSystem = installShipMenu(ui, () => state, (next) => { state = next; }, shipMenu, shipPanelBox, blueprintStore);
-const closeGateMenu = installContextMenu(ui, () => state, (next) => { state = next; }, canvas, gateMenu, stationButton, (event) => mousePoint(canvas, event));
+const closeGateMenu = installContextMenu(ui, () => state, (next) => { state = next; }, canvas, gateMenu, (event) => mousePoint(canvas, event));
 const startRename = installInput(ui, () => state, (next) => { state = next; }, { canvas, box, infoAction, renameBox, speedControls, storagePanel, buildControls, ctx }, { closeStoragePanel, closeBuildMenu, closeGateMenu, openShipMenu: shipMenuSystem.openShipMenu, closeShipMenu: shipMenuSystem.closeShipMenu });
 
-const draw = createRenderer(ui, () => state, { ctx, canvas, shipPanelBox, partTip, sectorNameEl, buildControls, box, boxTitle, boxLine, infoAction, buildMenu, stationButton, hint, renameBox, shipMenu, storagePanel, stationPanel, paintViewport: shipMenuSystem.paintViewport, paintPointAt: shipMenuSystem.paintPointAt });
+const draw = createRenderer(ui, () => state, { ctx, canvas, shipPanelBox, partTip, sectorNameEl, buildControls, box, boxTitle, boxLine, infoAction, buildMenu, hint, renameBox, shipMenu, storagePanel, stationPanel, paintViewport: shipMenuSystem.paintViewport, paintPointAt: shipMenuSystem.paintPointAt });
 
 function frame(nowMs: number): void {
   const dt = Math.max(0, (nowMs - ui.lastTimeMs) / 1000);

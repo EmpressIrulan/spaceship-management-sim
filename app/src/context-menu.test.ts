@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createInitialState, stationById } from "sim";
+import { createInitialState, stationById, type SimState } from "sim";
 import { installContextMenu } from "./context-menu";
 import { createUiState } from "./ui-state";
 
@@ -31,7 +31,7 @@ describe("empty-space build menu", () => {
     const menu = new Target();
     let current = initial;
     installContextMenu(ui, () => current, (next) => { current = next; }, canvas as unknown as HTMLCanvasElement,
-      menu as unknown as HTMLElement, new Target() as unknown as HTMLButtonElement, () => ({ x: 25, y: 35 }));
+      menu as unknown as HTMLElement, () => ({ x: 25, y: 35 }));
 
     canvas.fire("contextmenu", { preventDefault() {} });
     expect(menu.hidden).toBe(false);
@@ -43,5 +43,25 @@ describe("empty-space build menu", () => {
     expect(site?.constructionSite.position).toEqual({ x: 125, y: 225 });
     expect(current.supplyStation).toBe(site?.id);
     expect(menu.hidden).toBe(true);
+  });
+
+  it("right-clicking with ships selected orders them without opening the build menu", () => {
+    vi.stubGlobal("document", new Target());
+    vi.stubGlobal("window", new Target());
+    vi.stubGlobal("performance", { now: () => 10_000 });
+    hoveredBodyMock.mockReset().mockReturnValue(null);
+    const initial = createInitialState(8);
+    const state = { ...initial, ships: [{ ...initial.ships[0]!, id: 2, sectorId: 2, order: null }] } as SimState;
+    const ui = { ...createUiState([]), currentSector: 2, selectedShips: [2], viewport: { width: 500, height: 500 } };
+    const canvas = new Target();
+    const menu = new Target();
+    let current = state;
+    installContextMenu(ui, () => current, (next) => { current = next; }, canvas as unknown as HTMLCanvasElement,
+      menu as unknown as HTMLElement, () => ({ x: 25, y: 35 }));
+
+    canvas.fire("contextmenu", { preventDefault() {} });
+
+    expect(menu.hidden).toBe(true);
+    expect(current.ships[0]?.order).toMatchObject({ kind: "move", sectorId: 2 });
   });
 });

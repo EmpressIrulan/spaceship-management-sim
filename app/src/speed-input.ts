@@ -21,7 +21,6 @@ export function installSpeedInput(ui: UiState, speedControls: HTMLElement, actio
   const { closeBuildMenu, closeGateMenu, closeShipMenu } = actions;
   window.addEventListener("keydown", (event) => {
     if (isTextEntryTarget(event.target)) return;
-    if (event.key === "Escape") ui.pendingStation = false;
     if (event.key.toLowerCase() === "m" || event.key === "Escape") ui.mapOpen = mapToggled(ui.mapOpen, event.key);
     if (event.key === "Escape") closeGateMenu();
     if (ui.buildMenuOpen && dismissBuildMenuForKey(event.key)) closeBuildMenu();
