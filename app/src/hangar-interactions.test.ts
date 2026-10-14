@@ -38,10 +38,9 @@ describe("hangar actions", () => {
     const ui = { ...createUiState([]), selectedShips: [2], currentSector: 0, viewport: { width: 100, height: 100 } };
     const canvas = new FakeTarget();
     const menu = new FakeTarget() as unknown as HTMLElement;
-    const stationButton = new FakeTarget();
     let current = state;
     installContextMenu(ui, () => current, (next) => { current = next; }, canvas as unknown as HTMLCanvasElement,
-      menu, stationButton as unknown as HTMLButtonElement, () => ({ x: 50, y: 50 }));
+      menu, () => ({ x: 50, y: 50 }));
 
     canvas.fire("contextmenu", { preventDefault() {} });
 
@@ -65,7 +64,7 @@ describe("hangar actions", () => {
     const ui = { ...createUiState([]), selectedShips: [2], currentSector: 0, viewport: { width: 100, height: 100 } };
     const canvas = new FakeTarget();
     installContextMenu(ui, () => state, () => {}, canvas as unknown as HTMLCanvasElement,
-      new FakeTarget() as unknown as HTMLElement, new FakeTarget() as unknown as HTMLButtonElement, () => ({ x: 50, y: 50 }));
+      new FakeTarget() as unknown as HTMLElement, () => ({ x: 50, y: 50 }));
     canvas.fire("contextmenu", { preventDefault() {} });
     expect(state.ships.find((ship) => ship.id === 2)?.order).toEqual({ kind: "move", target: { x: 80, y: 80 } });
     expect(ui.routeRefusalMessage).toContain("hangar is full");
@@ -90,7 +89,7 @@ describe("hangar actions", () => {
     const canvas = new FakeTarget();
     let current = state;
     installContextMenu(ui, () => current, (next) => { current = next; }, canvas as unknown as HTMLCanvasElement,
-      new FakeTarget() as unknown as HTMLElement, new FakeTarget() as unknown as HTMLButtonElement, () => ({ x: 50, y: 50 }));
+      new FakeTarget() as unknown as HTMLElement, () => ({ x: 50, y: 50 }));
     canvas.fire("contextmenu", { preventDefault() {} });
     expect(current.ships.find((ship) => ship.id === 2)?.order).toEqual({ kind: "move", point: { x: 50, y: 50 }, sectorId: 0 });
   });
@@ -107,7 +106,7 @@ describe("hangar actions", () => {
     const canvas = new FakeTarget();
     let current = state;
     installContextMenu(ui, () => current, (next) => { current = next; }, canvas as unknown as HTMLCanvasElement,
-      new FakeTarget() as unknown as HTMLElement, new FakeTarget() as unknown as HTMLButtonElement, () => ({ x: 50, y: 50 }));
+      new FakeTarget() as unknown as HTMLElement, () => ({ x: 50, y: 50 }));
     canvas.fire("contextmenu", { preventDefault() {} });
     expect(current.ships.find((ship) => ship.id === 2)?.order).toEqual({ kind: "move", point: { x: 50, y: 50 }, sectorId: 0 });
     expect(ui.routeRefusalMessage).toBeNull();

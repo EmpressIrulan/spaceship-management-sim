@@ -23,7 +23,6 @@ export interface RendererElements {
   boxLine: HTMLElement;
   infoAction: HTMLButtonElement;
   buildMenu: HTMLElement;
-  stationButton: HTMLButtonElement;
   hint: HTMLElement;
   renameBox: HTMLInputElement;
   shipMenu: HTMLElement;
@@ -50,7 +49,6 @@ export function createRenderer(
     boxLine,
     infoAction,
     buildMenu,
-    stationButton,
     hint,
     renameBox,
     shipMenu,
@@ -139,11 +137,8 @@ export function createRenderer(
     syncShipMenuStats(ui, getState, shipMenu);
     syncBuildMenuItems(ui, getState, buildMenu);
 
-    stationButton.hidden = !ui.mapOpen;
-    hint.hidden = !ui.pendingStation && !ui.routeRefusalMessage;
-    hint.textContent = ui.routeRefusalMessage ?? (ui.mapOpen
-      ? "Pick the sector for the new station"
-      : "Click a spot for the new station. Esc cancels.");
+    hint.hidden = !ui.routeRefusalMessage;
+    hint.textContent = ui.routeRefusalMessage ?? "";
     renameBox.hidden = ui.renamingSector === null || !ui.mapOpen;
     if (renameBox.hidden) ui.renamingSector = null;
 

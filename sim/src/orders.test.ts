@@ -42,6 +42,34 @@ function farSector(state: SimState, changes: Partial<SimState["ships"][number]> 
 }
 
 describe("RTS ship orders", () => {
+  it("hauls a gate between non-Home sectors through a reachable project end", () => {
+    let start = startGateBuild(miningStart(7), 1, { x: 80, y: 0 }, 2, { x: -80, y: 0 });
+    start = { ...start, stations: [{ ...start.stations[0]!, inventory: { Metal: 200, Ice: 200 } }],
+      ships: [{ ...start.ships[0]!, state: "holding", position: { ...start.stations[0]!.dock.position }, timer: 0, leg: null, target: null }] };
+
+    const ordered = giveOrder(start, [0], { kind: "haulGate", gateId: 0 });
+
+    expect(ordered).not.toBe(start);
+    expect(ordered.ships[0]).toMatchObject({ order: { kind: "haulGate", gateId: 0 } });
+    const delivered = run(ordered, 600);
+    expect(delivered.gateProjects[0]!.delivered.Metal).toBeGreaterThan(0);
+  });
+
+  it.each([1, 2])("lets a loaded ship supply a non-Home gate from sector %i", (sectorId) => {
+    let start = startGateBuild(miningStart(7), 1, { x: 80, y: 0 }, 2, { x: -80, y: 0 });
+    const end = start.gateProjects[0]!.ends.find((candidate) => candidate.sectorId === sectorId)!;
+    const ship = { ...start.ships[0]!, sectorId, state: "holding" as const, position: { ...end.position }, timer: 0,
+      cargo: 20, cargoByMaterial: { Metal: 20, Ice: 0 }, cargoMaterial: "Metal" as const,
+      order: null, leg: null, target: null, berth: null, transfer: null };
+    start = { ...start, gateProjects: [{ ...start.gateProjects[0]!, delivered: { Metal: 180, Ice: 200 } }], ships: [ship] };
+
+    const ordered = giveOrder(start, [ship.id], { kind: "haulGate", gateId: 0 });
+
+    expect(ordered.ships[0]).toMatchObject({ state: "gateHauling", order: { kind: "haulGate", gateId: 0 } });
+    const complete = until(ordered, (state) => state.gateProjects[0]!.complete);
+    expect(complete.gateProjects[0]!.delivered).toEqual({ Metal: 200, Ice: 200 });
+  });
+
   it("loads Storage ships over time and loops deliveries to a gate project", () => {
     let start = startGateBuild(miningStart(7), 0, { x: 80, y: 0 }, 3, { x: -80, y: 0 });
     start = { ...start, stations: [{ ...start.stations[0]!, inventory: { Metal: 200, Ice: 200 } }],

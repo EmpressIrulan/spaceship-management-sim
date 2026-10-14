@@ -111,7 +111,7 @@ export function sectorInGateRange(a: number, b: number): boolean {
 
 export function startGateBuild(state: SimState, fromSector: number, from: Vec, toSector: number, to: Vec): SimState {
   if (fromSector === toSector || !state.sectors[fromSector] || !state.sectors[toSector]
-    || (fromSector !== HOME_SECTOR && toSector !== HOME_SECTOR) || !sectorInGateRange(fromSector, toSector)) return state;
+    || !sectorInGateRange(fromSector, toSector)) return state;
   const project: GateProject = {
     id: state.nextGateId,
     ends: [{ sectorId: fromSector, position: { ...from } }, { sectorId: toSector, position: { ...to } }],
