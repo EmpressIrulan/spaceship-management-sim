@@ -22,6 +22,7 @@ import { createStationDrawing } from "./station-rendering";
 import { createShipDrawing } from "./ship-rendering";
 import { createOverlayDrawing } from "./overlay-rendering";
 import { stationMarkerVisible } from "./station-marker";
+import { repairBeam } from "./repair-beam";
 import type { UiState } from "./ui-state";
 
 const slotKey = ({ x, y }: Vec): string => `${x},${y}`;
@@ -135,6 +136,8 @@ export function createWorldDrawing(
     for (const ship of sectorShips) {
       const beam = laserBeam(getState(), ship);
       if (beam) shipDrawing.drawLaser(beam, seconds);
+      const repair = repairBeam(getState(), ship);
+      if (repair) shipDrawing.drawLaser(repair, seconds, "#4ade80");
     }
     // Every gun shot burning out in the sector draws its projectile; a bite flashes
     // briefly after the event, rather than throughout its cooldown.
