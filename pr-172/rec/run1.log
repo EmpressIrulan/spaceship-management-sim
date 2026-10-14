@@ -1,0 +1,23 @@
+Criterion 1 verified
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(Math.abs(after.ships[1].hp-before.ships[1].hp-0.8)<1e-8)
+
+    at file:///home/alice/repos/.worktrees/spaceship-136/tools/record-issue-136.mjs:79:14
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v22.23.2
+EXIT=1

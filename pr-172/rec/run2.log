@@ -1,0 +1,16 @@
+Criterion 1 verified
+Criterion 2 verified
+Criterion 3 verified
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+page.waitForTimeout: Target page, context or browser has been closed
+    at frames (/home/alice/repos/.worktrees/spaceship-136/tools/record-issue-136.mjs:36:16)
+    at async until (/home/alice/repos/.worktrees/spaceship-136/tools/record-issue-136.mjs:42:5)
+    at async file:///home/alice/repos/.worktrees/spaceship-136/tools/record-issue-136.mjs:90:7 {
+  log: []
+}
+
+Node.js v22.23.2
+EXIT=124

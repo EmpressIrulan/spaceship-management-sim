@@ -1,0 +1,5614 @@
+[
+  {
+    "name": "criterion-1-palette",
+    "state": {
+      "tickCount": 0,
+      "time": 0,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          }
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 30,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-2-before",
+    "state": {
+      "tickCount": 0,
+      "time": 0,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          }
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 30,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-2-after",
+    "state": {
+      "tickCount": 10,
+      "time": 0.9999999999999999,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": -0.9999999999999999,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          }
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -0.9999999999999999,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 30.799999999999983,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-3-before",
+    "state": {
+      "tickCount": 0,
+      "time": 0,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          }
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 30,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-3-after",
+    "state": {
+      "tickCount": 10,
+      "time": 0.9999999999999999,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": -0.9999999999999999,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          }
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -0.9999999999999999,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 30.799999999999983,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-4-nearest-ship",
+    "state": {
+      "tickCount": 1,
+      "time": 0.1,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -10,
+                "y": 0
+              },
+              "size": {
+                "width": 2,
+                "height": 2
+              },
+              "hp": 39.2,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1,
+            "y": 0
+          },
+          "timer": -0.1,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "repair",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          },
+          "repairTargetShipId": 11
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -0.1,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 39.2,
+          "maxHp": 40
+        },
+        {
+          "id": 12,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 15,
+            "y": 0
+          },
+          "timer": -0.1,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 39.2,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-4-next-builder",
+    "state": {
+      "tickCount": 3,
+      "time": 1.1,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -10,
+                "y": 0
+              },
+              "size": {
+                "width": 2,
+                "height": 2
+              },
+              "hp": 39.2,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "moving",
+          "sectorId": 0,
+          "position": {
+            "x": -1,
+            "y": 0
+          },
+          "timer": 1.4361406616345074,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "repair",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": {
+            "from": {
+              "x": -1,
+              "y": 0
+            },
+            "to": {
+              "x": -7.875,
+              "y": 0
+            }
+          },
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "module",
+            "stationId": 0,
+            "position": {
+              "x": -10,
+              "y": 0
+            }
+          },
+          "repairTargetShipId": null
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -1.1,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40
+        },
+        {
+          "id": 12,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 15,
+            "y": 0
+          },
+          "timer": -1.1,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 39.2,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-4-next-ship",
+    "state": {
+      "tickCount": 8,
+      "time": 3.6,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -10,
+                "y": 0
+              },
+              "size": {
+                "width": 2,
+                "height": 2
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "moving",
+          "sectorId": 0,
+          "position": {
+            "x": -7.875,
+            "y": 0
+          },
+          "timer": 2.509980079602227,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "repair",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": {
+            "from": {
+              "x": -7.875,
+              "y": 0
+            },
+            "to": {
+              "x": 13.125,
+              "y": 0
+            }
+          },
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 12
+          },
+          "repairTargetShipId": 12
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -3.6,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40
+        },
+        {
+          "id": 12,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 15,
+            "y": 0
+          },
+          "timer": -3.6,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 39.2,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-4-all-full",
+    "state": {
+      "tickCount": 21,
+      "time": 10.1,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -10,
+                "y": 0
+              },
+              "size": {
+                "width": 2,
+                "height": 2
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 13.125,
+            "y": 0
+          },
+          "timer": -0.10557280900008326,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "repair",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": null,
+          "repairTargetShipId": null
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -10.1,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40
+        },
+        {
+          "id": 12,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 15,
+            "y": 0
+          },
+          "timer": -10.1,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-5-right-click",
+    "state": {
+      "tickCount": 0,
+      "time": 0,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "repair",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": {
+            "kind": "repair",
+            "target": {
+              "kind": "ship",
+              "shipId": 12
+            }
+          },
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 12
+          },
+          "repairTargetShipId": 12
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 38.4,
+          "maxHp": 40
+        },
+        {
+          "id": 12,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 30,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 38.4,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-5-back-to-default",
+    "state": {
+      "tickCount": 24,
+      "time": 11.6,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "moving",
+          "sectorId": 0,
+          "position": {
+            "x": 28.125,
+            "y": 0
+          },
+          "timer": 2.9495762407505253,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "repair",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": {
+            "from": {
+              "x": 28.125,
+              "y": 0
+            },
+            "to": {
+              "x": -0.875,
+              "y": 0
+            }
+          },
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          },
+          "repairTargetShipId": 11
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -11.6,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 38.4,
+          "maxHp": 40
+        },
+        {
+          "id": 12,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 30,
+            "y": 0
+          },
+          "timer": -11.6,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-6-parked-beam",
+    "state": {
+      "tickCount": 0,
+      "time": 0,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          }
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 36,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-6-full",
+    "state": {
+      "tickCount": 12,
+      "time": 5.6,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": -5.6,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": null,
+          "repairTargetShipId": null
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -5.6,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-7-before-bite",
+    "state": {
+      "tickCount": 0,
+      "time": 0,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          }
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": 0,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 30,
+          "maxHp": 40
+        }
+      ],
+      "hives": [],
+      "bugs": [
+        {
+          "id": 0,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 0.2
+        },
+        {
+          "id": 1,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0.4
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 100
+        },
+        {
+          "id": 2,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0.8
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 100
+        },
+        {
+          "id": 3,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 1.2000000000000002
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 100
+        },
+        {
+          "id": 4,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 1.6
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 100
+        }
+      ],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-7-bitten",
+    "state": {
+      "tickCount": 3,
+      "time": 0.30000000000000004,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": -0.30000000000000004,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          }
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -0.30000000000000004,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 29.239999999999995,
+          "maxHp": 40,
+          "shield": 0,
+          "maxShield": 0
+        }
+      ],
+      "hives": [],
+      "bugs": [
+        {
+          "id": 0,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 5.9
+        },
+        {
+          "id": 1,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0.4
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 99.70000000000002
+        },
+        {
+          "id": 2,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0.8
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 99.70000000000002
+        },
+        {
+          "id": 3,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 1.2000000000000002
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 99.70000000000002
+        },
+        {
+          "id": 4,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 1.6
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 99.70000000000002
+        }
+      ],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-7-healing-between-bites",
+    "state": {
+      "tickCount": 8,
+      "time": 0.7999999999999999,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": -0.7999999999999999,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          }
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -0.7999999999999999,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 29.639999999999986,
+          "maxHp": 40,
+          "shield": 0,
+          "maxShield": 0
+        }
+      ],
+      "hives": [],
+      "bugs": [
+        {
+          "id": 0,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 5.400000000000002
+        },
+        {
+          "id": 1,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0.4
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 99.20000000000005
+        },
+        {
+          "id": 2,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0.8
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 99.20000000000005
+        },
+        {
+          "id": 3,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 1.2000000000000002
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 99.20000000000005
+        },
+        {
+          "id": 4,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 1.6
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 99.20000000000005
+        }
+      ],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-7-fight-continues",
+    "state": {
+      "tickCount": 38,
+      "time": 3.800000000000002,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": -3.800000000000002,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 40,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          }
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 2,
+            "height": 2,
+            "slots": [
+              "Hull",
+              "Hull",
+              "Hull",
+              "Hull"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -3.800000000000002,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "none",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 32.039999999999935,
+          "maxHp": 40,
+          "shield": 0,
+          "maxShield": 0
+        }
+      ],
+      "hives": [],
+      "bugs": [
+        {
+          "id": 0,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 2.4000000000000057
+        },
+        {
+          "id": 1,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0.4
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 96.20000000000022
+        },
+        {
+          "id": 2,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 0.8
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 96.20000000000022
+        },
+        {
+          "id": 3,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 1.2000000000000002
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 96.20000000000022
+        },
+        {
+          "id": 4,
+          "hiveId": 0,
+          "sectorId": 0,
+          "position": {
+            "x": 1.4,
+            "y": 1.6
+          },
+          "hp": 6,
+          "maxHp": 6,
+          "state": "hunting",
+          "targetShipId": 11,
+          "targetModule": null,
+          "leg": null,
+          "timer": 96.20000000000022
+        }
+      ],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-8-alone-no-self-heal",
+    "state": {
+      "tickCount": 20,
+      "time": 2.0000000000000004,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": -2.0000000000000004,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "repair",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 30,
+          "maxHp": 40,
+          "repairTarget": null
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  },
+  {
+    "name": "criterion-8-mutual-heal",
+    "state": {
+      "tickCount": 40,
+      "time": 4.000000000000002,
+      "rng": 3297967848,
+      "enemyRng": 1542469170,
+      "nextAsteroidId": 60,
+      "sectors": [
+        {
+          "id": 0,
+          "name": "Kael",
+          "generatedName": "Kael",
+          "gate": {
+            "position": {
+              "x": -1989.4045437176162,
+              "y": 1342.4863356607036
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "dense",
+            "richRocks": 0
+          }
+        },
+        {
+          "id": 1,
+          "name": "Ulmar",
+          "generatedName": "Ulmar",
+          "gate": {
+            "position": {
+              "x": -2346.1847150735457,
+              "y": 505.38824952235
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 0
+          },
+          "character": {
+            "abundant": "Metal",
+            "density": "sparse",
+            "richRocks": 3
+          }
+        },
+        {
+          "id": 2,
+          "name": "Hyron",
+          "generatedName": "Hyron",
+          "gate": {
+            "position": {
+              "x": 151.82317378778805,
+              "y": 2395.1930452264182
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 2
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "sparse",
+            "richRocks": 2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Selen",
+          "generatedName": "Selen",
+          "gate": {
+            "position": {
+              "x": -2266.5416174000343,
+              "y": -789.1698781590923
+            },
+            "size": {
+              "width": 24,
+              "height": 24
+            },
+            "to": 3
+          },
+          "character": {
+            "abundant": "Ice",
+            "density": "dense",
+            "richRocks": 0
+          }
+        }
+      ],
+      "fields": [],
+      "nextGateId": 0,
+      "gateProjects": [],
+      "nextStationId": 1,
+      "supplyStation": 0,
+      "nextShipId": 1,
+      "stations": [
+        {
+          "id": 0,
+          "name": "Home",
+          "founding": false,
+          "builtAt": 0,
+          "sectorId": 0,
+          "dock": {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 7.5,
+              "height": 7.5
+            },
+            "capacity": 100
+          },
+          "storage": {
+            "position": {
+              "x": 13.333333333333332,
+              "y": 0
+            },
+            "size": {
+              "width": 10,
+              "height": 13.333333333333332
+            },
+            "capacity": 1000
+          },
+          "inventory": {
+            "Metal": 500,
+            "Ice": 500
+          },
+          "constructionSite": {
+            "position": {
+              "x": 25,
+              "y": -20
+            },
+            "size": {
+              "width": 9.333333333333332,
+              "height": 9.333333333333332
+            },
+            "inventory": {
+              "Metal": 0,
+              "Ice": 0
+            }
+          },
+          "storageLimits": {
+            "Metal": null,
+            "Ice": null
+          },
+          "deliveries": [],
+          "modules": [
+            {
+              "type": "Builder",
+              "position": {
+                "x": -150,
+                "y": 0
+              },
+              "size": {
+                "width": 30,
+                "height": 40
+              },
+              "hp": 40,
+              "maxHp": 40
+            }
+          ],
+          "construction": null,
+          "buildQueue": [],
+          "shipBuilds": []
+        }
+      ],
+      "asteroids": [],
+      "respawns": [],
+      "ships": [
+        {
+          "id": 10,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": -1.8,
+            "y": 0
+          },
+          "timer": -4.000000000000002,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "repair",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 31.519999999999968,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 11
+          },
+          "repairTargetShipId": 11
+        },
+        {
+          "id": 11,
+          "design": {
+            "width": 3,
+            "height": 2,
+            "slots": [
+              "Engine",
+              "Repair",
+              "Repair",
+              "Engine",
+              "Repair",
+              "Repair"
+            ]
+          },
+          "state": "holding",
+          "sectorId": 0,
+          "position": {
+            "x": 1,
+            "y": 0
+          },
+          "timer": -4.000000000000002,
+          "cargo": 0,
+          "cargoByMaterial": {
+            "Metal": 0,
+            "Ice": 0
+          },
+          "cargoMaterial": null,
+          "target": null,
+          "homeStationId": 0,
+          "defaultBehaviour": "repair",
+          "mineMaterials": [],
+          "mineOtherSectors": false,
+          "order": null,
+          "leg": null,
+          "berth": null,
+          "transfer": null,
+          "hp": 31.519999999999968,
+          "maxHp": 40,
+          "repairTarget": {
+            "kind": "ship",
+            "shipId": 10
+          },
+          "repairTargetShipId": 10
+        }
+      ],
+      "hives": [],
+      "bugs": [],
+      "nextBugId": 0,
+      "nextHiveId": 1,
+      "drops": [],
+      "nextDropId": 0,
+      "moduleDestructions": [],
+      "finishedClaims": []
+    }
+  }
+]
