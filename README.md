@@ -21,6 +21,17 @@ npm run dev      # then open the printed URL
 
 `npm run build` writes `dist/index.html`, one self-contained file that opens from the filesystem with no server.
 
+Reference pages: [docs/controls.md](docs/controls.md) lists every key, mouse action and menu, and [docs/design.md](docs/design.md) explains how the code is laid out.
+
+## Tests
+
+```sh
+npm run typecheck   # TypeScript across every workspace
+npm test            # vitest across every workspace
+```
+
+`bash .claude/pre-pr.sh` runs the same install, typecheck and test steps CI does.
+
 ## Stations and ships
 
 Use **Build station** to place construction sites in any sector. Select a site to direct supply ships to it; once its first Dock is built, the station can grow from its own site stock. Stations have generated names and can be renamed or removed from their Dock panel. Ship panels show each ship's home station and allow changing it. Miners unload at their home station (into its construction site until Storage exists), and ships built at a Builder start with that station as home. Removing a station clears the home of ships assigned there; those ships show `Home: None` and `Default: None` and hold in place.
