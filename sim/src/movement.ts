@@ -16,7 +16,9 @@ function movingBug(bug: Bug): boolean {
 function moveApart(movers: Mover[], modules: { sectorId: number; module: StationModule }[]): void {
   const radii = movers.map(({ size }) => Math.hypot(size.width, size.height) / 2);
   const obstaclesBySector = new Map<number, ReturnType<typeof moduleBounds>[]>();
+  const activeSectors = new Set(movers.filter(({ active }) => active).map(({ sectorId }) => sectorId));
   modules.forEach(({ sectorId, module }) => {
+    if (!activeSectors.has(sectorId)) return;
     const obstacles = obstaclesBySector.get(sectorId) ?? [];
     obstacles.push(moduleBounds(module.position, module.size));
     obstaclesBySector.set(sectorId, obstacles);
