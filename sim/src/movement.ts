@@ -50,7 +50,7 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
       mover.position.y = center.y + Math.sin(angle) * radius;
     });
   }
-  const maxPasses = 2;
+  const maxPasses = 1;
   for (let pass = 0; pass < maxPasses; pass += 1) {
     let changed = false;
     // Numeric sector/column/row keys avoid allocating 25 strings per body.
@@ -72,10 +72,10 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
         const at = cell(a);
         nearby = [];
         const sector = buckets.get(a.sectorId)!;
-        for (let x = at.x - 2; x <= at.x + 2; x += 1) {
+        for (let x = at.x - 1; x <= at.x + 1; x += 1) {
           const column = sector.get(x);
           if (!column) continue;
-          for (let y = at.y - 2; y <= at.y + 2; y += 1) {
+          for (let y = at.y - 1; y <= at.y + 1; y += 1) {
             const bucket = column.get(y);
             if (bucket) nearby.push(...bucket);
           }
