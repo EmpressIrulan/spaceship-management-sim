@@ -13,17 +13,30 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
   let cellSize = 1;
   for (const mover of movers) cellSize = Math.max(cellSize, Math.hypot(mover.size.width, mover.size.height));
   const cell = (mover: Mover) => ({ x: Math.floor(mover.position.x / cellSize), y: Math.floor(mover.position.y / cellSize) });
-  // Ordinary traffic gets two local passes. Only a truly stacked start needs
-  // deeper settling; this keeps long simulation runs from paying for it every tick.
-  const positions = new Set<string>();
-  const hasStackedStart = movers.some(({ sectorId, position, active }) => {
-    if (!active) return false;
-    const key = `${sectorId}:${position.x}:${position.y}`;
-    if (positions.has(key)) return true;
-    positions.add(key);
-    return false;
+  // Break exact stacks in one deterministic placement instead of iterating
+  // many times over a crowded group on every simulation tick.
+  const stacks = new Map<string, number[]>();
+  movers.forEach((mover, index) => {
+    if (!mover.active) return;
+    const key = `${mover.sectorId}:${mover.position.x}:${mover.position.y}`;
+    const stack = stacks.get(key) ?? [];
+    stack.push(index);
+    stacks.set(key, stack);
   });
-  const maxPasses = hasStackedStart ? 12 : 2;
+  for (const indices of stacks.values()) {
+    if (indices.length < 2) continue;
+    const largest = Math.max(...indices.map((index) => Math.hypot(movers[index]!.size.width, movers[index]!.size.height)));
+    const radius = largest / (2 * Math.sin(Math.PI / indices.length));
+    const center = { ...movers[indices[0]!]!.position };
+    const phase = (movers[indices[0]!]!.id % 360) * Math.PI / 180;
+    indices.forEach((index, slot) => {
+      const mover = movers[index]!;
+      const angle = phase + slot * 2 * Math.PI / indices.length;
+      mover.position.x = center.x + Math.cos(angle) * radius;
+      mover.position.y = center.y + Math.sin(angle) * radius;
+    });
+  }
+  const maxPasses = 2;
   for (let pass = 0; pass < maxPasses; pass += 1) {
     let changed = false;
     const buckets = new Map<string, number[]>();
