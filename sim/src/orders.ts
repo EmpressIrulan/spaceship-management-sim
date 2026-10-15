@@ -11,7 +11,7 @@ export function shipHomeRefusal(state: SimState, ids: number[], stationId: numbe
 import { haulSites, haulStations, resumeHaulShip, validHaulRoute } from "./haul";
 import { gateOutstanding } from "./gate-hauling";
 import { travelSeconds } from "./motion";
-import { STARTING_SHIP, canMine, cargoTransferSeconds, shipSize, shipStats, speedFactor } from "./ship";
+import { STARTING_SHIP, canMine, cargoTransferSeconds, shipRepairRate, shipSize, shipStats, speedFactor } from "./ship";
 import {
   berthLayout, MATERIALS, cargoByMaterial, gateRoute, HOME_SECTOR, homeStation, miningSite, nearestMineableRock, replaceHomeStation, stationById, toBerth, toParking,
   type Asteroid, type DefaultBehaviour, type HaulRoute, type Material, type Order, type Station,
@@ -103,6 +103,7 @@ export function resumeDefaultShip(state: SimState, ship: Ship): Ship {
       : routeHome(ship, assignedHome.dock.position, state.sectors, state.gateProjects, assignedHome.sectorId);
   }
   return ship.defaultBehaviour === "haul" ? resumeHaulShip(state, ship)
+    : ship.defaultBehaviour === "repair" ? { ...ship, repairTarget: null, repairTargetShipId: null, order: null, state: "holding", timer: 0, leg: null }
     : resumeMining(ship, assignedHome.dock.position, state.asteroids, state.sectors, state.gateProjects, state.ships, assignedHome.sectorId);
 }
 
@@ -115,7 +116,7 @@ export function afterOrder(ship: Ship, dock: Vec, asteroids: Asteroid[], sectors
   return resumeMining({ ...ship, order: null }, dock, asteroids, sectors, gateProjects, [], homeSector);
 }
 
-export type OrderTarget = { kind: "mine"; asteroidId: number } | { kind: "move"; point: Vec; sectorId?: number } | { kind: "home" } | { kind: "haulGate"; gateId: number } | { kind: "supplyBuild"; stationId: number };
+export type OrderTarget = { kind: "mine"; asteroidId: number } | { kind: "move"; point: Vec; sectorId?: number } | { kind: "home" } | { kind: "haulGate"; gateId: number } | { kind: "supplyBuild"; stationId: number } | { kind: "repair"; target: import("./model").RepairTarget };
 
 export function setShipHome(state: SimState, ids: number[], stationId: number | null): SimState {
   if (stationId !== null && !stationById(state, stationId)) return state;
@@ -167,6 +168,22 @@ function apply(ship: Ship, target: OrderTarget, point: Vec, state: SimState): Sh
   const home = homeStation(state);
   const assignedHome = stationById(state, ship.homeStationId ?? 0) ?? home;
   if (target.kind === "haulGate") return ship;
+  if (target.kind === "repair") {
+    if (shipRepairRate(ship.design) <= 0) return ship;
+    const repairTarget = target.target;
+    if (repairTarget.kind === "ship") {
+      const damaged = state.ships.find((candidate) => candidate.id === repairTarget.shipId && candidate.id !== ship.id
+        && candidate.sectorId === ship.sectorId && candidate.state !== "docked" && candidate.hangarId == null
+        && (candidate.hp ?? 40) < (candidate.maxHp ?? 40));
+      if (!damaged) return ship;
+    } else {
+      const station = stationById(state, repairTarget.stationId);
+      const module = station?.modules.find((item) => item.position.x === repairTarget.position.x && item.position.y === repairTarget.position.y);
+      if (!station || station.sectorId !== ship.sectorId || !module || (module.hp ?? module.maxHp ?? 40) >= (module.maxHp ?? 40)) return ship;
+    }
+    return { ...ship, target: null, order: { kind: "repair", target: repairTarget }, repairTarget,
+      repairTargetShipId: repairTarget.kind === "ship" ? repairTarget.shipId : null, state: "holding", timer: 0, leg: null, berth: null, transfer: null };
+  }
   if (target.kind === "supplyBuild") {
     if (ship.cargo <= 0 || !ship.cargoMaterial) return ship;
     const station = stationById(state, target.stationId);
@@ -248,24 +265,32 @@ export function giveOrder(state: SimState, ids: number[], target: OrderTarget): 
         transfer: { startingCargo: 0, amount } };
       ships[index] = toBerth(berthLayout(home), ships, planned) ?? toParking(berthLayout(home), ships, planned);
     }
-    return { ...replaceHomeStation(state, { ...home, inventory }), ships };
+    return { ...replaceHomeStation(state, { ...home, inventory }), ships: ships.map((ship, index) =>
+      ship !== state.ships[index] ? { ...ship, repairTarget: null, repairTargetShipId: null } : ship) };
   }
   const station = target.kind === "supplyBuild" ? stationById(state, target.stationId) : undefined;
   if (target.kind === "supplyBuild" && !station) return state;
+  const repairPoint = target.kind === "repair" ? (target.target.kind === "ship"
+    ? state.ships.find((item) => item.id === (target.target as import("./model").RepairTarget & { kind: "ship" }).shipId)?.position
+    : target.target.position) : undefined;
   const point = target.kind === "move" ? target.point : target.kind === "supplyBuild" ? station!.constructionSite.position
+    : target.kind === "repair" ? repairPoint ?? home.dock.position
     : target.kind === "home" ? home.dock.position
     : (() => { const rock = state.asteroids.find((a) => a.id === target.asteroidId); return rock ? miningSite(home.dock.position, rock, shipSize(selected[0]!.design)) : null; })();
   if (!point) return state;
   const spots = formation(point, ids.length);
   return { ...state, ships: state.ships.map((ship) => {
     const slot = ids.indexOf(ship.id);
-    return slot < 0 ? ship : apply(ship, target, target.kind === "home" ? point : spots[slot]!, state);
+    if (slot < 0) return ship;
+    const ordered = apply(ship, target, target.kind === "home" ? point : spots[slot]!, state);
+    return ordered !== ship && target.kind !== "repair"
+      ? { ...ordered, repairTarget: null, repairTargetShipId: null } : ordered;
   }) };
 }
 
 export function resumeDefault(state: SimState, ids: number[]): SimState {
   return { ...state, ships: state.ships.map((ship) => ids.includes(ship.id) && ship.order
-     ? resumeDefaultShip(state, { ...ship, order: null }) : ship) };
+     ? resumeDefaultShip(state, { ...ship, order: null, repairTarget: null, repairTargetShipId: null }) : ship) };
 }
 
 export function setDefaultBehaviour(state: SimState, ids: number[], behaviour: DefaultBehaviour): SimState {
@@ -280,9 +305,11 @@ export function setDefaultBehaviour(state: SimState, ids: number[], behaviour: D
     // A supplier starts with both materials ticked, so a ship nobody has ticked
     // anything on still supplies; ticks already set are kept.
     const mineMaterials = behaviour === "supply" && ship.mineMaterials.length === 0 ? [...MATERIALS] : ship.mineMaterials;
-    const next = { ...ship, defaultBehaviour: behaviour, haulRoute, mineMaterials };
+    const returningFromRepair = ship.order?.kind === "repair";
+    const next = { ...ship, defaultBehaviour: behaviour, haulRoute, mineMaterials,
+      ...(returningFromRepair ? { order: null, repairTarget: null, repairTargetShipId: null } : {}) };
     const wasHauling = ship.state.startsWith("haul");
-    if (!next.order && (behaviour === "haul" || wasHauling || next.state === "holding")) return resumeDefaultShip(state, next);
+    if (!next.order && (behaviour === "haul" || behaviour === "repair" || wasHauling || next.state === "holding")) return resumeDefaultShip(state, next);
     return next;
   }) };
 }

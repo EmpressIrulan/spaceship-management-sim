@@ -23,7 +23,7 @@ const syncs = new WeakMap<HTMLElement, Sync>();
 const optionKeys = new WeakMap<HTMLSelectElement, string>();
 
 const BEHAVIOURS: [DefaultBehaviour, string][] = [
-  ["mine", "Default: Mine for Station"], ["supply", "Default: Supply construction site"], ["haul", "Default: Haul"], ["none", "Default: None"],
+  ["mine", "Default: Mine for Station"], ["supply", "Default: Supply construction site"], ["haul", "Default: Haul"], ["repair", "Default: Repair"], ["none", "Default: None"],
 ];
 
 export function renderShipPanel(state: SimState, shipPanelBox: HTMLElement, context: ShipPanelContext): ShipPanelContext {

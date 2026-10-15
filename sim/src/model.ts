@@ -15,7 +15,7 @@ export const MODULE_TYPES = ["Dock", "Storage", "Builder", "Turret", "Claim"] as
 
 // Hull is structure only. It costs, weighs (it dilutes the engine share) and draws, but does nothing.
 // Gun shoots bugs and the hive on the ship's own; see enemies.ts.
-export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun", "Capacitor", "Generator"] as const;
+export const SHIP_MODULES = ["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun", "Capacitor", "Generator", "Repair"] as const;
 export type ShipModule = (typeof SHIP_MODULES)[number];
 export interface ShipDesign { width: number; height: number; slots: (ShipModule | null)[] }
 
@@ -29,7 +29,7 @@ export type ShipState =
   | "jumpingOut" | "jumpingHome" | "gateHauling" | "gateReturning" | "haulLoading"
   | "haulOutbound" | "haulJumpingOutbound" | "haulUnloading" | "haulReturning"
   | "haulJumpingReturning" | "haulWaitingSource" | "haulWaitingFull";
-export type DefaultBehaviour = "mine" | "haul" | "supply" | "none";
+export type DefaultBehaviour = "mine" | "haul" | "supply" | "repair" | "none";
 export type HaulStationId = "home" | `station:${number}`;
 // Haul loads at a station's Storage; a route may end at the same station's
 // construction site instead of another Storage.
@@ -41,6 +41,7 @@ export type Order =
   | { kind: "home" }
   | { kind: "haulGate"; gateId: number }
   | { kind: "supplyBuild"; stationId: number; point: Vec; sectorId: number }
+  | { kind: "repair"; target: RepairTarget }
   | { kind: "dock"; carrierId: number };
 export interface Leg { from: Vec; to: Vec }
 export interface CargoTransfer {
@@ -93,6 +94,9 @@ export interface Ship {
   // not been bitten: a fresh ship still has SHIP_HP of hull.
   hp?: number;
   maxHp?: number;
+  // Explicit repair assignment; selection is handled by player orders.
+  repairTargetShipId?: number | null;
+  repairTarget?: RepairTarget | null;
   // Current and full shield. Missing on older fixtures means a new ship's full shield.
   shield?: number;
   maxShield?: number;
@@ -110,6 +114,8 @@ export interface Ship {
   // renderer draws it. Null once the flash has burned out.
   gunShot?: GunShot | null;
 }
+
+export type RepairTarget = { kind: "ship"; shipId: number } | { kind: "module"; stationId: number; position: Vec };
 
 export interface Station {
   // Home carries 0; each placed station gets the next count up.

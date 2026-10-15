@@ -51,7 +51,9 @@ export function installContextMenu(
       if (docked.state !== state) setState(docked.state);
       return;
     }
-    const hovered = hoveredBody(state, ui.camera, ui.viewport, point, ui.currentSector, { includeShips: false });
+    // Structures retain their order target even when a ship is parked on top.
+    // In open space, a damaged ship can still be explicitly repaired.
+    const hovered = hoveredBody(state, ui.camera, ui.viewport, point, ui.currentSector, { includeShips: false }) ?? shipHovered;
     if (!ui.selectedShips.length && !hovered) {
       ui.pendingGate = { sectorId: ui.currentSector, position: screenToWorld(ui.camera, ui.viewport, point) };
       gateMenu.style.left = `${point.x}px`;
@@ -65,6 +67,7 @@ export function installContextMenu(
     const to = target.kind === "move" ? target.point : target.kind === "home" ? homeStation(state).dock.position
       : target.kind === "haulGate" ? world
       : target.kind === "supplyBuild" ? stationById(state, target.stationId)?.constructionSite.position ?? world
+      : target.kind === "repair" ? target.target.kind === "ship" ? state.ships.find((ship) => ship.id === (target.target as { kind: "ship"; shipId: number }).shipId)?.position ?? world : target.target.position
       : state.asteroids.find((asteroid) => asteroid.id === target.asteroidId)?.position ?? world;
     ui.orderLines = { from: ui.selectedShips.flatMap((id) => { const ship = state.ships.find((item) => item.id === id); return ship ? [ship.position] : []; }), to, start: performance.now() / 1000 };
     setState(giveOrder(state, ui.selectedShips, target));

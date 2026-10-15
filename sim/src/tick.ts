@@ -6,10 +6,11 @@ import { EXPLOSION_CUTOFF_SECONDS } from "./build-constants";
 import { beginHaulLoading, beginHaulUnloading, loadHauler, unloadHauler } from "./tick-hauling";
 import { addCargo, arrivesAtPark, berth, layoutOf, storageRemaining, transferCargo, withCargo } from "./tick-shared";
 import { distanceAlong, travelSeconds } from "./motion";
-import { afterOrder, gateHaulEnd, gateTravelOrder, nextMiningRock, resumeMining, startMining } from "./orders";
+import { afterOrder, gateHaulEnd, gateTravelOrder, nextMiningRock, resumeDefaultShip, resumeMining, startMining } from "./orders";
 import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { completeDocking, syncDockedShips } from "./hangars";
+import { moveRepairShips } from "./shields";
 import { startWaitingShipBuilds } from "./ship-build-queue";
 import {
   constructionAttached,
@@ -815,6 +816,10 @@ function settle(draft: Draft): void {
     const ship = draft.ships[i]!;
     if (ship.timer <= 0) draft.ships[i] = forShipHome(draft, ship, () => finish(draft, ship));
   }
+  draft.ships = moveRepairShips(draft.ships, [
+    { id: draft.activeStationId, sectorId: draft.stationSector, modules: draft.modules } as Station,
+    ...draft.others,
+  ]);
   settleQueuedBuild(draft);
   if (draft.founding && draft.buildQueue.length === 0 && !draft.construction) draft.founding = false;
 }
@@ -844,7 +849,11 @@ function trimmedDeliveries(deliveries: Delivery[], time: number): Delivery[] {
 }
 
 export function tick(state: SimState, dt: number): SimState {
-  const next = simulate(state, dt);
+  const simulated = simulate(state, dt);
+  const completedRepairs = new Set(state.ships.filter((ship) => ship.order?.kind === "repair"
+    && simulated.ships.find((candidate) => candidate.id === ship.id)?.order?.kind !== "repair").map((ship) => ship.id));
+  const next = completedRepairs.size ? { ...simulated, ships: simulated.ships.map((ship) => completedRepairs.has(ship.id)
+    ? resumeDefaultShip(simulated, ship) : ship) } : simulated;
   return { ...next, finishedClaims: finishedClaimSectors(state, next) };
 }
 

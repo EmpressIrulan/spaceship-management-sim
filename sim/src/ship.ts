@@ -51,7 +51,10 @@ export const SHIP_MODULE_COST: Record<ShipModule, Record<Material, number>> = {
   Gun: { Metal: 15, Ice: 10 },
   Capacitor: { Metal: 10, Ice: 15 },
   Generator: { Metal: 15, Ice: 10 },
+  // Repair has no resource cost; it trades only the time spent building it.
+  Repair: { Metal: 0, Ice: 0 },
 };
+export const REPAIR_HP_PER_SECOND_PER_PIXEL = 0.2;
 export const SHIP_BUILD_SECONDS_PER_RESOURCE = 0.1;
 // Engines per painted pixel that move a ship at SHIP_CRUISE_SPEED: one in four.
 const ENGINES_PER_PIXEL_AT_CRUISE = 1 / 4;
@@ -74,6 +77,10 @@ function count(design: ShipDesign, module: ShipModule): number {
 
 export function shipModuleCounts(design: ShipDesign): Record<ShipModule, number> {
   return Object.fromEntries(SHIP_MODULES.map((module) => [module, count(design, module)])) as Record<ShipModule, number>;
+}
+
+export function shipRepairRate(design: ShipDesign): number {
+  return shipModuleCounts(design).Repair * REPAIR_HP_PER_SECOND_PER_PIXEL;
 }
 
 // Multiplies the base cruise speed and acceleration.

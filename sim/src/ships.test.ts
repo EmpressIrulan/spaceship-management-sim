@@ -16,6 +16,7 @@ import {
   shipBuildCost,
   shipBuildSeconds,
   shipShield,
+  shipRepairRate,
   shipModuleCounts,
   shipSize,
   shipStats,
@@ -101,7 +102,7 @@ describe("the starting ship", () => {
 
 describe("ship stats", () => {
   it("offers shield modules next to the other working modules", () => {
-    expect(SHIP_MODULES).toEqual(["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun", "Capacitor", "Generator"]);
+    expect(SHIP_MODULES).toEqual(["Engine", "Laser", "Storage", "Hangar", "Hull", "Gun", "Capacitor", "Generator", "Repair"]);
   });
 
   it("takes speed from the share of painted pixels that are engines, hull included", () => {
@@ -140,6 +141,13 @@ describe("ship shields", () => {
   it("gets capacity from Capacitors and refill rate from Generators", () => {
     const layout = design(4, 1, ["Capacitor", "Capacitor", "Generator", "Generator"]);
     expect(shipShield({ design: layout })).toMatchObject({ maxShield: 40, shield: 40, recharge: 2 });
+  });
+
+  it("repairs at 0.2 HP per second per Repair pixel without adding build cost", () => {
+    const layout = design(4, 1, ["Repair", "Repair", "Repair", "Repair"]);
+    expect(SHIP_MODULES).toContain("Repair");
+    expect(shipRepairRate(layout)).toBe(0.8);
+    expect(shipBuildCost(layout)).toEqual({ Metal: 0, Ice: 0 });
   });
 
   it("has no shield when a ship has Generators but no Capacitor", () => {
@@ -194,6 +202,7 @@ describe("building a ship", () => {
       Gun: 0,
       Capacitor: 0,
       Generator: 0,
+      Repair: 0,
     });
   });
 

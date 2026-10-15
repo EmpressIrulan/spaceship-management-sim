@@ -8,7 +8,7 @@ import {
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
 import { shipModuleCounts } from "./ship";
-import { damageShip, advanceShields, nextShieldEvent } from "./shields";
+import { damageShip, advanceShields, advanceShipRepairs, advanceModuleRepairs, nextShieldEvent } from "./shields";
 import { damageStationModule } from "./station-build-queue";
 import type { Beam, Bug, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Station, StationModule, Vec } from "./model";
 import type { Draft } from "./tick-mining";
@@ -318,12 +318,15 @@ export function advanceEnemies(draft: Draft, seconds: number): void {
   draft.bugs = draft.bugs.map((bug) => progressBug(bug, seconds));
   // Gun ships reload towards their next shot, and shots in flight burn out.
   const from = draft.time - seconds;
-  draft.ships = advanceShields(draft.ships, from, draft.time).map((ship) => {
+  draft.ships = advanceShipRepairs(advanceShields(draft.ships, from, draft.time), seconds).map((ship) => {
     if (!ship.gunTimer && !ship.gunShot) return ship;
     const gunTimer = Math.max(0, (ship.gunTimer ?? 0) - seconds);
     const gunShot = ship.gunShot ? burnOut(ship.gunShot, seconds) : null;
     return { ...ship, gunTimer, gunShot };
   });
+  const repairedStations = advanceModuleRepairs(draft.ships, [activeStation(draft), ...draft.others], seconds);
+  draft.modules = repairedStations.find((station) => station.id === draft.activeStationId)?.modules ?? draft.modules;
+  draft.others = draft.others.map((station) => repairedStations.find((candidate) => candidate.id === station.id) ?? station);
   draft.modules = advanceTurrets(draft.modules, seconds);
   draft.others = draft.others.map((station) => ({ ...station, modules: advanceTurrets(station.modules, seconds) }));
 }

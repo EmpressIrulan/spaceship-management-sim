@@ -29,6 +29,7 @@ export const MODULE_COLORS: Record<ShipModule, string> = {
   Gun: "#facc15",
   Capacitor: "#60a5fa",
   Generator: "#22d3ee",
+  Repair: "#4ade80",
 };
 
 export function slotColor(slot: ShipModule): string {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, SIZE_MULTIPLIER, tick, type GateProject, type Ship, type ShipDesign, type SimState, type Station } from "sim";
+import { createInitialState, SHIP_MODULES, SIZE_MULTIPLIER, tick, type GateProject, type Ship, type ShipDesign, type SimState, type Station } from "sim";
 import { hoveredBody, worldToScreen, type Camera } from "./camera";
 import { infoBox } from "./labels";
 import { MODULE_COLORS, spritePixels, shipPanel } from "./ships";
@@ -11,6 +11,11 @@ const noLaser: ShipDesign = { width: 2, height: 1, slots: ["Engine", "Storage"] 
 const big: ShipDesign = { width: 6, height: 6, slots: Array(36).fill("Hull") };
 
 describe("ship module palette", () => {
+  it("includes Repair in the designer's selectable module palette", () => {
+    expect(SHIP_MODULES).toContain("Repair");
+    expect(MODULE_COLORS.Repair).toBeDefined();
+  });
+
   it("has distinct colours for the shield modules", () => {
     expect(MODULE_COLORS.Capacitor).toBeDefined();
     expect(MODULE_COLORS.Generator).toBeDefined();
