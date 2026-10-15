@@ -388,6 +388,7 @@ export function createInitialState(seed: number): SimState {
     time: 0,
     rng,
     enemyRng: (seed ^ 0x5bf03635) >>> 0,
+    bugDesignRng: (seed ^ 0x9e3779b9) >>> 0,
     nextAsteroidId: asteroids.length,
     sectors,
     fields,

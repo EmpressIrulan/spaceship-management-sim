@@ -89,7 +89,9 @@ const AT = { x: 40, y: -20 };
 describe("the world draws the hive and its bugs", () => {
   it("shows each bug's module design inside an organic shell", () => {
     const ctx = mockCtx();
-    const drawing = createWorldDrawing(ui(), () => withBodies(createInitialState(7), {
+    const uiState = ui();
+    uiState.camera = { ...uiState.camera, zoom: 30 };
+    const drawing = createWorldDrawing(uiState, () => withBodies(createInitialState(7), {
       bugs: [bug(0, AT)],
       stations: [],
     }), ctx, vi.fn(), vi.fn());
@@ -98,6 +100,26 @@ describe("the world draws the hive and its bugs", () => {
 
     expect(ctx.drawImage).toHaveBeenCalled();
     expect(ctx.ellipse).toHaveBeenCalled();
+  });
+
+  it("draws larger bug designs larger instead of squeezing them into one fixed box", () => {
+    const ctx = mockCtx();
+    const state = createInitialState(7);
+    state.ships = [];
+    state.stations = [];
+    state.bugs = [
+      { ...bug(0, { x: -10, y: 0 }), design: { width: 2, height: 1, slots: ["Gun", "Engine"] } },
+      { ...bug(0, { x: 0, y: 0 }), design: { width: 3, height: 2, slots: ["Gun", "Engine", "Gun", "Hull", "Engine", "Hull"] } },
+      { ...bug(0, { x: 10, y: 0 }), design: { width: 4, height: 2, slots: ["Gun", "Engine", "Gun", "Hull", "Gun", "Engine", "Gun", "Hull"] } },
+    ];
+    const uiState = ui();
+    uiState.camera = { ...uiState.camera, zoom: 30 };
+    createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn()).draw(0);
+
+    const calls = (ctx.drawImage as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const widths = calls.filter((call) => call.length === 5).map((call) => Number(call[3]));
+    expect(widths[0]).toBeLessThan(widths[1]!);
+    expect(widths[1]).toBeLessThan(widths[2]!);
   });
 
   it("draws the hive of the sector on its spot", () => {

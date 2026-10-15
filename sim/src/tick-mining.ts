@@ -23,6 +23,8 @@ export interface Draft {
   rng: number;
   // The enemies' own stream, per SimState.rng.
   enemyRng: number;
+  // Bug design variety must not perturb enemy movement/migration randomness.
+  bugDesignRng: number;
   nextAsteroidId: number;
   nextShipId: number;
   // The Dock module's position, the station's home point and route origin.

@@ -40,9 +40,11 @@ export function spawnBug(draft: Draft, hive: Hive): Bug {
   draft.enemyRng = angleRoll.state;
   const reachRoll = nextRandom(draft.enemyRng);
   draft.enemyRng = reachRoll.state;
+  const designRoll = nextRandom(draft.bugDesignRng);
+  draft.bugDesignRng = designRoll.state;
   const angle = angleRoll.value * Math.PI * 2;
   const radius = reachRoll.value * BUG_HOVER_RADIUS;
-  const design = BUG_DESIGNS[angleRoll.value < 0.6 ? 0 : angleRoll.value < 0.9 ? 1 : 2]!;
+  const design = BUG_DESIGNS[designRoll.value < 0.6 ? 0 : designRoll.value < 0.9 ? 1 : 2]!;
   const maxHp = pixelCount(design) * BUG_HP;
   return {
     id: draft.nextBugId,
@@ -53,6 +55,7 @@ export function spawnBug(draft: Draft, hive: Hive): Bug {
       y: hive.position.y + Math.sin(angle) * radius,
     },
     design,
+    loiterRng: (draft.enemyRng ^ Math.imul(draft.nextBugId + 1, 0x9e3779b9)) >>> 0,
     hp: maxHp,
     maxHp,
     state: "hovering",
@@ -66,11 +69,12 @@ export function spawnBug(draft: Draft, hive: Hive): Bug {
 // A new point to loiter at, inside the hover ring around the hive. The minimum
 // reach keeps the point off the bug's current spot, so the leg always takes
 // real time and the tick never spins on a zero-length hop.
-function loiterPoint(draft: Draft, hive: Pick<Hive, "position">, bug: Bug): { to: Vec; seconds: number } {
-  const angleRoll = nextRandom(draft.enemyRng);
-  draft.enemyRng = angleRoll.state;
-  const reachRoll = nextRandom(draft.enemyRng);
-  draft.enemyRng = reachRoll.state;
+function loiterPoint(hive: Pick<Hive, "position">, bug: Bug): { to: Vec; seconds: number; rng: number } {
+  let rng = bug.loiterRng ?? ((Math.imul(bug.id + 1, 0x9e3779b9) ^ Math.imul(bug.hiveId + 1, 0x85ebca6b)) >>> 0);
+  const angleRoll = nextRandom(rng);
+  rng = angleRoll.state;
+  const reachRoll = nextRandom(rng);
+  rng = reachRoll.state;
   const angle = angleRoll.value * Math.PI * 2;
   const radius = BUG_HOVER_MIN_REACH + reachRoll.value * (BUG_HOVER_RADIUS - BUG_HOVER_MIN_REACH);
   const to = {
@@ -78,7 +82,7 @@ function loiterPoint(draft: Draft, hive: Pick<Hive, "position">, bug: Bug): { to
     y: hive.position.y + Math.sin(angle) * radius,
   };
   const length = Math.hypot(to.x - bug.position.x, to.y - bug.position.y);
-  return { to, seconds: loiterSeconds(length) };
+  return { to, seconds: loiterSeconds(length), rng };
 }
 
 function bugSpeed(bug: Bug): number {
@@ -152,8 +156,8 @@ function settleArrivals(draft: Draft): void {
           x: route.to.x + Math.cos(index * Math.PI * 2 / group.length) * 24,
           y: route.to.y + Math.sin(index * Math.PI * 2 / group.length) * 24,
         } : { ...route.to };
-        const loiter = hive || resident ? loiterPoint(draft, hive ?? resident!, { ...bug, position }) : null;
-        return { ...bug, sectorId, position,
+        const loiter = hive || resident ? loiterPoint(hive ?? resident!, { ...bug, position }) : null;
+        return { ...bug, sectorId, position, loiterRng: loiter?.rng ?? bug.loiterRng,
           state: !hive && !resident ? "gathering" : "hovering",
           targetSectorId: !hive && !resident ? sectorId : null,
           leg: { from: position, to: loiter?.to ?? { ...route.to } },
@@ -267,11 +271,6 @@ function quarryFor(draft: Draft, bug: Bug): Quarry | null {
   return best;
 }
 
-// Enemy fire scales with each bug's Gun pixels, just like a player design.
-function bugGunCount(bug: Bug): number {
-  return bug.design?.slots.filter((slot) => slot === "Gun").length ?? 1;
-}
-
 function bugShotDamage(draft: Draft, bug: Bug): void {
   const shot = bug.gunShot;
   if (!shot) return;
@@ -279,7 +278,7 @@ function bugShotDamage(draft: Draft, bug: Bug): void {
     const shipId = shot.target.id;
     const ship = draft.ships.find((candidate) => candidate.id === shipId);
     if (!ship) return;
-    const next = damageShip(ship, GUN_DAMAGE * bugGunCount(bug), draft.time);
+    const next = damageShip(ship, GUN_DAMAGE, draft.time);
     draft.ships = next ? draft.ships.map((candidate) => candidate.id === ship.id ? next : candidate)
       : draft.ships.filter((candidate) => candidate.id !== ship.id);
   } else {
@@ -288,7 +287,7 @@ function bugShotDamage(draft: Draft, bug: Bug): void {
       : draft.others.find((candidate) => candidate.id === stationId);
     const module = station?.modules.find((candidate) => candidate.position.x === position.x
       && candidate.position.y === position.y);
-    if (station && module) damageModule(draft, station.id, module, GUN_DAMAGE * bugGunCount(bug));
+    if (station && module) damageModule(draft, station.id, module, GUN_DAMAGE);
   }
 }
 
@@ -425,8 +424,9 @@ export function settleEnemies(draft: Draft): void {
     // Hive-less joiners spread around the resident population, not their natal hive.
     const centre = hive ?? draft.bugs.find((candidate) => candidate.sectorId === bug.sectorId);
     if (!centre) return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: null, timer: 1 };
-    const loiter = loiterPoint(draft, centre, bug);
-    return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: { from: { ...bug.position }, to: loiter.to }, timer: loiter.seconds };
+    const loiter = loiterPoint(centre, bug);
+    return { ...bug, loiterRng: loiter.rng, state: "hovering", targetShipId: null, targetModule: null,
+      leg: { from: { ...bug.position }, to: loiter.to }, timer: loiter.seconds };
   });
   // After the bugs' shots land, every gun ship that is loaded
   // shoots the nearest bug in range, or the hive when no bug is close enough.

@@ -232,6 +232,9 @@ export interface Bug {
   position: Vec;
   // Missing on older fixtures; every newly hatched bug has a design.
   design?: ShipDesign;
+  // Each bug gets a stable loiter stream so simultaneous arrival order cannot
+  // reshuffle destinations when a tick is split into smaller steps.
+  loiterRng?: number;
   hp: number;
   maxHp: number;
   state: BugState;
@@ -276,6 +279,9 @@ export interface SimState {
   // the tick loitering never perturbs where the main stream puts a rock.
   // Missing on older fixtures: falls out of the main stream's seed.
   enemyRng?: number;
+  // Bug sizes use a separate deterministic stream, so visual variety does not
+  // consume randomness used for enemy movement and migration.
+  bugDesignRng?: number;
   nextAsteroidId: number;
   nextShipId: number;
   sectors: Sector[];

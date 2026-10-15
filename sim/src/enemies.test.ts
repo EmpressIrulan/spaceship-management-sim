@@ -82,6 +82,20 @@ describe("hive", () => {
     expect(born.hp).toBe(born.maxHp);
   });
 
+  it("chooses bug size independently of its spawn direction", () => {
+    const first = tick(createInitialState(2), BUG_SPAWN_SECONDS).bugs![0]!;
+    const second = tick(createInitialState(6), BUG_SPAWN_SECONDS).bugs![0]!;
+    const firstHive = hive(createInitialState(2));
+    const secondHive = hive(createInitialState(6));
+    const firstAngle = Math.atan2(first.position.y - firstHive.position.y, first.position.x - firstHive.position.x);
+    const secondAngle = Math.atan2(second.position.y - secondHive.position.y, second.position.x - secondHive.position.x);
+
+    expect(Math.floor(((firstAngle + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)))
+      .toBe(Math.floor(((secondAngle + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)));
+    expect(first.design?.slots.filter((slot) => slot === "Gun").length)
+      .not.toBe(second.design?.slots.filter((slot) => slot === "Gun").length);
+  });
+
   it("with fewer than 5 alive, bugs loiter by the hive and ignore ships", () => {
     // 40 seconds hatches four bugs (at 10, 20, 30 and 40 s), one short of the
     // attack threshold, and leaves them a few seconds of loitering each.
@@ -546,11 +560,11 @@ describe("bugs hunt ships", () => {
       || (ship.shield ?? 0) < (ship.maxShield ?? 0)).toBe(true);
   });
 
-  it("scales enemy damage by Gun pixels and lets shields soak it", () => {
+  it("deals one player-Gun shot of damage per bug volley and lets shields soak it", () => {
     const { state: start, shipId } = parkedStart(7);
     const ship = start.ships.find((candidate) => candidate.id === shipId)!;
     const shieldDesign: ShipDesign = { width: 2, height: 1, slots: ["Generator", "Capacitor"] };
-    const shielded = { ...ship, design: shieldDesign, shield: 40, maxShield: 40 };
+    const shielded = { ...ship, design: shieldDesign, shield: 5, maxShield: 5 };
     const enemy = hive(start);
     const swarm = Array.from({ length: BUG_ATTACK_THRESHOLD }, (_, id) => ({
       ...plantedBug(id, enemy, ship.position.x + GUN_RANGE / 2, ship.position.y, 0),
@@ -560,7 +574,7 @@ describe("bugs hunt ships", () => {
     state = tick(state, GUN_SHOT_SECONDS);
     const damaged = state.ships.find((candidate) => candidate.id === shipId)!;
     expect(damaged.shield).toBe(0);
-    expect(shipHp(damaged).hp).toBe(shipHp(shielded).hp - (BUG_ATTACK_THRESHOLD * 4 * GUN_DAMAGE - 40));
+    expect(shipHp(damaged).hp).toBe(shipHp(shielded).hp - (BUG_ATTACK_THRESHOLD * GUN_DAMAGE - 5));
   });
 
   it("at 0 HP the ship explodes and it and its cargo are gone", () => {
@@ -939,12 +953,15 @@ describe("station Turrets", () => {
     expect(state.stations[0]!.inventory.Metal).toBe(TURRET_METAL_PER_SHOT / 2);
   });
 
-  it("takes damage as a normal station module", () => {
+  it("deals one player-Gun shot of damage to modules regardless of bug size", () => {
     const { state: start, modulePosition, hive } = turretStart();
     let state = start;
-    const bugs = Array.from({ length: 5 }, (_, id) => plantedBug(id, hive, modulePosition.x + 1, modulePosition.y, 0));
+    const bugs = Array.from({ length: 5 }, (_, id) => ({
+      ...plantedBug(id, hive, modulePosition.x + 1, modulePosition.y, 0),
+      design: BUG_DESIGNS[2]!,
+    }));
     state = tick({ ...state, bugs, stations: [{ ...state.stations[0]!, inventory: { Metal: 0, Ice: 0 } }] }, GUN_SHOT_SECONDS);
-    expect(state.stations[0]!.modules[0]!.hp).toBeLessThan(MODULE_HP);
+    expect(state.stations[0]!.modules[0]!.hp).toBe(MODULE_HP - BUG_ATTACK_THRESHOLD * GUN_DAMAGE);
   });
 });
 

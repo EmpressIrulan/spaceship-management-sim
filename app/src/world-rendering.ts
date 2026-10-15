@@ -114,9 +114,7 @@ export function createWorldDrawing(
         fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), BUG_COLOR);
         continue;
       }
-      const designSize = shipSize(bug.design);
-      const bugScale = Math.min(BUG_SIZE.width / designSize.width, BUG_SIZE.height / designSize.height);
-      const size = { width: designSize.width * bugScale, height: designSize.height * bugScale };
+      const size = shipSize(bug.design);
       const topLeft = worldToScreen(ui.camera, ui.viewport, {
         x: bug.position.x - size.width / 2,
         y: bug.position.y - size.height / 2,
