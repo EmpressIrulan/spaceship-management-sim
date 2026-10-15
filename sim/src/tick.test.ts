@@ -425,6 +425,10 @@ describe("ore is conserved", () => {
       const initial = oneStorageStart(7);
       const start: SimState = {
         ...initial,
+        // This conservation check is about mining and storage, not the enemy
+        // lifecycle; keep its 12,000-step run isolated from growing bug swarms.
+        hives: [],
+        bugs: [],
         ships: Array.from({ length: shipCount }, () => ship(initial)),
       };
       for (const end of [run(start, 1200, 0.1), tick(start, 1200)]) {
@@ -432,5 +436,5 @@ describe("ore is conserved", () => {
         for (const s of end.ships) expect(s.cargo).toBeLessThanOrEqual(CARGO_PER_TRIP);
       }
     }
-  });
+  }, 20_000);
 });

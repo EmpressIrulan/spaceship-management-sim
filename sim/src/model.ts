@@ -231,6 +231,8 @@ export interface Bug {
   hiveId: number;
   sectorId: number;
   position: Vec;
+  // Missing on older fixtures; every newly hatched bug has a design.
+  design?: ShipDesign;
   hp: number;
   maxHp: number;
   state: BugState;

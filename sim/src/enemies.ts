@@ -1,13 +1,13 @@
 import {
   BUG_ATTACK_THRESHOLD, BUG_BITE_DAMAGE, BUG_BITE_RANGE, BUG_BITE_SECONDS,
-  BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP, BUG_SPAWN_SECONDS,
+  BUG_DESIGNS, BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP, BUG_SPAWN_SECONDS,
   BUG_SPEED_FACTOR, GUN_DAMAGE, GUN_RANGE, GUN_SECONDS, GUN_SHOT_SECONDS,
   HIVE_GATE_FRACTION, HIVE_HP, MODULE_HP,
   TURRET_DAMAGE, TURRET_METAL_PER_SHOT, TURRET_RANGE, TURRET_SECONDS, TURRET_SHOT_SECONDS,
 } from "./build-constants";
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
-import { shipModuleCounts } from "./ship";
+import { pixelCount, shipModuleCounts } from "./ship";
 import { damageShip, advanceShields, advanceShipRepairs, advanceModuleRepairs, nextShieldEvent } from "./shields";
 import { damageStationModule } from "./station-build-queue";
 import type { Beam, Bug, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Station, StationModule, Vec } from "./model";
@@ -42,6 +42,8 @@ export function spawnBug(draft: Draft, hive: Hive): Bug {
   draft.enemyRng = reachRoll.state;
   const angle = angleRoll.value * Math.PI * 2;
   const radius = reachRoll.value * BUG_HOVER_RADIUS;
+  const design = BUG_DESIGNS[angleRoll.value < 0.6 ? 0 : angleRoll.value < 0.9 ? 1 : 2]!;
+  const maxHp = pixelCount(design) * BUG_HP;
   return {
     id: draft.nextBugId,
     hiveId: hive.id,
@@ -50,8 +52,9 @@ export function spawnBug(draft: Draft, hive: Hive): Bug {
       x: hive.position.x + Math.cos(angle) * radius,
       y: hive.position.y + Math.sin(angle) * radius,
     },
-    hp: BUG_HP,
-    maxHp: BUG_HP,
+    design,
+    hp: maxHp,
+    maxHp,
     state: "hovering",
     targetShipId: null,
     targetModule: null,
@@ -78,6 +81,11 @@ function loiterPoint(draft: Draft, hive: Pick<Hive, "position">, bug: Bug): { to
   return { to, seconds: loiterSeconds(length) };
 }
 
+function bugSpeed(bug: Bug): number {
+  const largeHunter = bug.state === "hunting" && bug.design?.slots.filter((slot) => slot !== null).length === 4;
+  return BUG_SPEED_FACTOR / (largeHunter ? 2 : 1);
+}
+
 // Loiter legs run a whole number of LOITER_QUANTUM seconds, and that quantum
 // is a dyadic fraction: binary floats then step every enemy timer exactly, so
 // the other timers a tick walks with them — a 300 s Claim build, for one —
@@ -93,8 +101,8 @@ function loiterSeconds(length: number): number {
 // swarm's bites then land in steps whose lengths are dyadic fractions, and the
 // timers the tick travels between finish on their exact second rather than a
 // rounding dust past it.
-function huntSeconds(length: number): number {
-  const raw = travelSeconds(length, BUG_SPEED_FACTOR);
+function huntSeconds(length: number, bug?: Bug): number {
+  const raw = travelSeconds(length, bug ? bugSpeed(bug) : BUG_SPEED_FACTOR);
   return Math.ceil(raw / LOITER_QUANTUM) * LOITER_QUANTUM;
 }
 
@@ -186,7 +194,7 @@ function settleInvasions(draft: Draft): void {
     const destination = routes[Math.floor(pick.value * routes.length)]!;
     const seconds = Math.max(LOITER_QUANTUM, ...group.map((bug) => huntSeconds(Math.hypot(
       destination.route.from.x - bug.position.x, destination.route.from.y - bug.position.y,
-    ))));
+    ), { ...bug, state: "invading" })));
     const ids = new Set(group.map((bug) => bug.id));
     draft.bugs = draft.bugs.map((bug) => ids.has(bug.id) ? {
       ...bug,
@@ -207,7 +215,7 @@ function progressBug(bug: Bug, seconds: number): Bug {
   const timer = Math.abs(left) < 1e-9 ? 0 : left;
   if (!bug.leg) return { ...bug, timer: Math.max(0, timer) };
   const length = Math.hypot(bug.leg.to.x - bug.leg.from.x, bug.leg.to.y - bug.leg.from.y);
-  const total = travelSeconds(length, BUG_SPEED_FACTOR);
+  const total = travelSeconds(length, bugSpeed(bug));
   const elapsed = total - timer;
   const fraction = total <= 0 ? 1 : Math.min(1, Math.max(0, elapsed / total));
   return {
@@ -375,7 +383,7 @@ export function settleEnemies(draft: Draft): void {
           targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
           targetModule: quarry.kind === "module" ? { stationId: quarry.stationId, position: { ...quarry.module.position } } : null,
           leg: { from: { ...bug.position }, to: { ...target.position } },
-          timer: huntSeconds(length),
+          timer: huntSeconds(length, { ...bug, state: "hunting" }),
         };
       }
     }

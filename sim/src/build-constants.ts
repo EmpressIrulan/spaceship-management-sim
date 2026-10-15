@@ -1,4 +1,4 @@
-import type { Material, Size } from "./model";
+import type { Material, ShipDesign, Size } from "./model";
 import { PIXEL_SIZE } from "./ship";
 import { DOCK_WIDTH, DOCK_HEIGHT } from "./dock-packing";
 import { SIZE_MULTIPLIER } from "./size-constants";
@@ -30,9 +30,15 @@ export const HIVE_HP = 200;
 export const HIVE_SIZE: Size = { width: 30 * SIZE_MULTIPLIER, height: 30 * SIZE_MULTIPLIER };
 // How far along the line from the sector's middle to its gate the hive sits.
 export const HIVE_GATE_FRACTION = 0.75;
-// A bug hatches every BUG_SPAWN_SECONDS and starts with BUG_HP.
+// A bug hatches every BUG_SPAWN_SECONDS. Each occupied design pixel contributes BUG_HP.
 export const BUG_SPAWN_SECONDS = 10;
 export const BUG_HP = 6;
+// Bug hull scales with its number of occupied pixels.
+export const BUG_DESIGNS: readonly ShipDesign[] = [
+  { width: 1, height: 1, slots: ["Gun"] },
+  { width: 2, height: 1, slots: ["Gun", "Gun"] },
+  { width: 4, height: 1, slots: ["Gun", "Gun", "Gun", "Gun"] },
+];
 export const BUG_SIZE: Size = { width: 10 * SIZE_MULTIPLIER, height: 8 * SIZE_MULTIPLIER };
 // The sim's clock runs at up to 4x speed while the app's explosion burst
 // lasts EXPLOSION_SECONDS = 0.9 real seconds (app/src/world-rendering.ts), so
@@ -55,8 +61,8 @@ export const BUG_BITE_DAMAGE = 1;
 export const BUG_BITE_SECONDS = 6;
 // A gun ship shoots the nearest bug in range, or the hive when no bug is
 // close enough, every GUN_SECONDS. Range, damage and cadence are placeholders,
-// like the hive numbers, until there is something to play with. A bug's BUG_HP
-// lasts a few shots; the hive's 200 are a long stand-off.
+// like the hive numbers, until there is something to play with. Bug hull scales
+// with occupied pixels; the hive's 200 are a long stand-off.
 export const GUN_RANGE = 80;
 export const GUN_DAMAGE = 3;
 export const GUN_SECONDS = 2;

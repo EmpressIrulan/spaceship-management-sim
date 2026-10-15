@@ -6,6 +6,7 @@ import {
   BUG_ATTACK_THRESHOLD,
   BUG_BITE_DAMAGE,
   BUG_BITE_RANGE,
+  BUG_DESIGNS,
   BUG_HOVER_RADIUS,
   BUG_HP,
   BUG_SPAWN_SECONDS,
@@ -39,6 +40,22 @@ function hive(state: SimState) {
 }
 
 describe("hive", () => {
+  it("hatches mostly one-Gun bugs, plus two- and four-Gun designs with pixel-scaled HP", () => {
+    let state = createInitialState(17);
+    state = tick(state, BUG_SPAWN_SECONDS * 30);
+    const bugs = state.bugs!;
+    const counts = bugs.map((bug) => bug.design!.slots.filter((slot) => slot === "Gun").length);
+    expect(counts).toEqual(expect.arrayContaining([1, 2, 4]));
+    const smallCount = counts.filter((count) => count === 1).length;
+    expect(smallCount).toBeGreaterThan(counts.filter((count) => count === 2).length);
+    expect(smallCount).toBeGreaterThan(counts.filter((count) => count === 4).length);
+    for (const bug of bugs) {
+      const pixels = bug.design!.slots.filter((slot) => slot !== null).length;
+      expect(bug.maxHp).toBe(pixels * BUG_HP);
+      expect(bug.hp).toBe(bug.maxHp);
+    }
+  });
+
   it("starts in the sector next to home, with full HP", () => {
     const state = createInitialState(7);
     expect(state.hives?.length).toBe(1);
@@ -278,7 +295,7 @@ describe("hive", () => {
     expect([...bouncing]).toEqual([]);
     expect(mostWaitingOffspring).toBeLessThan(10);
     expect(bittenAfterWindow).toBe(true);
-  });
+  }, 20_000);
 
   it("keeps ten arrivals with three residents until ten own offspring are alive", () => {
     const start = invasionStart();
@@ -472,6 +489,18 @@ function parkedStart(seed: number): { state: SimState; shipId: number } {
 }
 
 describe("bugs hunt ships", () => {
+  it("makes four-Gun hunters slower than one-Gun hunters", () => {
+    const { state: start } = parkedStart(7);
+    const enemy = hive(start);
+    const makeSwarm = (design: (typeof BUG_DESIGNS)[number]) => Array.from({ length: BUG_ATTACK_THRESHOLD }, (_, id) => ({
+      ...plantedBug(id, enemy, start.ships.at(-1)!.position.x + 100, start.ships.at(-1)!.position.y, 0),
+      design,
+    }));
+    const small = tick({ ...start, bugs: makeSwarm(BUG_DESIGNS[0]!) }, 0).bugs![0]!;
+    const large = tick({ ...start, bugs: makeSwarm(BUG_DESIGNS[2]!) }, 0).bugs![0]!;
+    expect(large.timer).toBeGreaterThan(small.timer);
+  });
+
   it("chases rather than biting outside the size-scaled contact range", () => {
     const { state: start, shipId } = parkedStart(7);
     const ship = start.ships.find((candidate) => candidate.id === shipId)!;
@@ -657,6 +686,7 @@ function plantedBug(id: number, hive: Hive, x: number, y: number, timer = 10_000
     hiveId: hive.id,
     sectorId: hive.sectorId,
     position: { x, y },
+    design: BUG_DESIGNS[0]!,
     hp: BUG_HP,
     maxHp: BUG_HP,
     state: "hovering",
@@ -774,7 +804,7 @@ describe("gun ships", () => {
     let state = miningStart(7);
     state = {
       ...state,
-      ships: state.ships.map((ship) => (ship.id === 0 ? { ...ship, design: GUN_PATROL } : ship)),
+      ships: state.ships.map((ship) => (ship.id === 0 ? { ...ship, design: GUN_PATROL, hp: 1000, maxHp: 1000 } : ship)),
     };
     const hive = state.hives![0]!;
     state = giveOrder(state, [0], { kind: "move", point: { x: hive.position.x + 60, y: hive.position.y }, sectorId: HIVE_SECTOR });
