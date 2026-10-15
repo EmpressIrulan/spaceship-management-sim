@@ -1,0 +1,10 @@
+All five criterion scenes passed. Final state: {
+  distance: 150,
+  defenders: 0,
+  hovering: 5,
+  raids: 0,
+  shot: false,
+  targets: 0
+}
+VIDEO=/home/alice/.cache/spaceship-management-sim-144/video/page@9310d6ddc82582805be79b1b1ca56a7f.webm
+EXIT=0

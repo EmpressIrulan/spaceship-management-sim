@@ -1,0 +1,45 @@
+
+> sim@0.0.0 test
+> vitest run --maxWorkers=1
+
+
+ RUN  v5.0.1 /home/alice/repos/.worktrees/spaceship-management-sim-144/sim
+
+
+ Test Files  39 passed (39)
+      Tests  466 passed (466)
+   Start at  11:54:54
+   Duration  45.62s (tests 91%, import 5%, transform 2%, worker 1%)
+
+    Isolate  39 workers spawned · ~153ms startup each (spawn + environment, per file)
+             at least ~5.81s faster with isolate: false — reuses workers across files instead of one per file
+
+
+> app@0.0.0 test
+> vitest run --maxWorkers=1
+
+
+ RUN  v5.0.1 /home/alice/repos/.worktrees/spaceship-management-sim-144/app
+
+
+ Test Files  40 passed (40)
+      Tests  386 passed (386)
+   Start at  11:55:40
+   Duration  11.10s (tests 41%, import 37%, transform 17%, worker 4%)
+
+    Isolate  40 workers spawned · ~128ms startup each (spawn + environment, per file)
+             at least ~5.00s faster with isolate: false — reuses workers across files instead of one per file
+
+
+> tools@0.0.0 test
+> vitest run --maxWorkers=1
+
+
+ RUN  v5.0.1 /home/alice/repos/.worktrees/spaceship-management-sim-144/tools
+
+
+ Test Files  2 passed (2)
+      Tests  7 passed (7)
+   Start at  11:55:52
+   Duration  1.02s (transform 56%, tests 25%, import 16%, worker 2%)
+
