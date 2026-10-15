@@ -13,9 +13,19 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
   let cellSize = 1;
   for (const mover of movers) cellSize = Math.max(cellSize, Math.hypot(mover.size.width, mover.size.height));
   const cell = (mover: Mover) => ({ x: Math.floor(mover.position.x / cellSize), y: Math.floor(mover.position.y / cellSize) });
-  // Repeat in stable fleet order: resolving a later pair can put an earlier
-  // pair back in contact in a dense cluster.
-  for (let pass = 0; pass < 24; pass += 1) {
+  // Ordinary traffic gets two local passes. Only a truly stacked start needs
+  // deeper settling; this keeps long simulation runs from paying for it every tick.
+  const positions = new Set<string>();
+  const hasStackedStart = movers.some(({ sectorId, position, active }) => {
+    if (!active) return false;
+    const key = `${sectorId}:${position.x}:${position.y}`;
+    if (positions.has(key)) return true;
+    positions.add(key);
+    return false;
+  });
+  const maxPasses = hasStackedStart ? 12 : 2;
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    let changed = false;
     const buckets = new Map<string, number[]>();
     movers.forEach((mover, index) => {
       const at = cell(mover);
@@ -40,9 +50,10 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
         const dy = b.position.y - a.position.y;
         const distance = Math.hypot(dx, dy);
         const required = (Math.hypot(a.size.width, a.size.height) + Math.hypot(b.size.width, b.size.height)) / 2;
-        if (distance >= required) continue;
+        if (distance >= required - 1e-9) continue;
+        changed = true;
         const angle = distance > 1e-9 ? Math.atan2(dy, dx) : ((a.id * 31 + b.id * 17) % 360) * Math.PI / 180;
-        const push = (required - distance) / ((b.active ? 1 : 0) + (a.active ? 1 : 0));
+        const push = (required + 1e-6 - distance) / ((b.active ? 1 : 0) + (a.active ? 1 : 0));
         if (a.active) { a.position.x -= Math.cos(angle) * push; a.position.y -= Math.sin(angle) * push; }
         if (b.active) { b.position.x += Math.cos(angle) * push; b.position.y += Math.sin(angle) * push; }
       }
@@ -69,6 +80,7 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
         a.position.x = choices[0]!.x; a.position.y = choices[0]!.y;
       }
     }
+    if (!changed) break;
   }
 }
 
