@@ -11,6 +11,7 @@ import { nextRandom } from "./prng";
 import { cargoTransferSeconds, shipStats, speedFactor } from "./ship";
 import { completeDocking, syncDockedShips } from "./hangars";
 import { moveRepairShips } from "./shields";
+import { separateTraffic } from "./movement";
 import { startWaitingShipBuilds } from "./ship-build-queue";
 import {
   constructionAttached,
@@ -688,6 +689,11 @@ function advance(draft: Draft, seconds: number): void {
     ? { ...station, construction: { ...station.construction, timer: station.construction.timer - seconds }, shipBuilds: countDownShipBuilds(station.shipBuilds, seconds) }
     : { ...station, shipBuilds: countDownShipBuilds(station.shipBuilds, seconds) }));
   advanceEnemies(draft, seconds);
+  const traffic = separateTraffic(draft.ships, draft.bugs,
+    [...draft.modules, ...draft.others.flatMap((station) => station.modules)],
+    [...draft.modules.map(() => draft.stationSector), ...draft.others.flatMap((station) => station.modules.map(() => station.sectorId))]);
+  draft.ships = traffic.ships;
+  draft.bugs = traffic.bugs;
 }
 
 function runningShipBuilds(jobs: ShipBuild[]): ShipBuild[] {

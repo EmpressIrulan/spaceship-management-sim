@@ -23,6 +23,13 @@ export function moduleSize(type: ModuleType, width?: number, height?: number): S
   return BUILDER_SIZE;
 }
 
+// The module's stored position is its centre; movement uses the same footprint
+// as placement and rendering rather than treating station modules as points.
+export function moduleBounds(position: Vec, size: Size): { left: number; right: number; top: number; bottom: number } {
+  return { left: position.x - size.width / 2, right: position.x + size.width / 2,
+    top: position.y - size.height / 2, bottom: position.y + size.height / 2 };
+}
+
 export function moduleCost(type: ModuleType, width?: number, height?: number): Record<Material, number> {
   return type === "Claim" ? CLAIM_COST : type === "Dock"
     ? { Metal: (width ?? DOCK_WIDTH) * (height ?? DOCK_HEIGHT), Ice: (width ?? DOCK_WIDTH) * (height ?? DOCK_HEIGHT) }
