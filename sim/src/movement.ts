@@ -10,43 +10,64 @@ function moving(ship: Ship): boolean {
 }
 
 function moveApart(movers: Mover[], modules: { sectorId: number; module: StationModule }[]): void {
-  // Fleet order and the fixed separation direction keep coincident traffic deterministic.
-  for (let i = 0; i < movers.length; i += 1) {
-    const a = movers[i]!;
-    for (let j = i + 1; j < movers.length; j += 1) {
-      const b = movers[j]!;
-      if (a.sectorId !== b.sectorId || (!a.active && !b.active)) continue;
-      const dx = b.position.x - a.position.x;
-      const dy = b.position.y - a.position.y;
-      const distance = Math.hypot(dx, dy);
-      const required = (Math.hypot(a.size.width, a.size.height) + Math.hypot(b.size.width, b.size.height)) / 2;
-      if (distance >= required) continue;
-      const angle = distance > 1e-9 ? Math.atan2(dy, dx) : ((a.id * 31 + b.id * 17) % 360) * Math.PI / 180;
-      const push = (required - distance) / ((b.active ? 1 : 0) + (a.active ? 1 : 0));
-      if (a.active) { a.position.x -= Math.cos(angle) * push; a.position.y -= Math.sin(angle) * push; }
-      if (b.active) { b.position.x += Math.cos(angle) * push; b.position.y += Math.sin(angle) * push; }
-    }
-    if (!a.active) continue;
-    for (const { sectorId, module } of modules) {
-      if (sectorId !== a.sectorId) continue;
-      const bounds = moduleBounds(module.position, module.size);
-      if (a.destination && a.destination.x >= bounds.left && a.destination.x <= bounds.right
-        && a.destination.y >= bounds.top && a.destination.y <= bounds.bottom) continue;
-      const hx = a.size.width / 2; const hy = a.size.height / 2;
-      const left = bounds.left - hx; const right = bounds.right + hx;
-      const top = bounds.top - hy; const bottom = bounds.bottom + hy;
-      // A ship's legitimate route starts at the Dock's centre. Let it leave
-      // that footprint, then treat it as an obstacle like every other module.
-      if (a.origin && a.origin.x >= left && a.origin.x <= right && a.origin.y >= top && a.origin.y <= bottom
-        && (a.position.x < left || a.position.x > right || a.position.y < top || a.position.y > bottom)) continue;
-      if (a.position.x <= left || a.position.x >= right || a.position.y <= top || a.position.y >= bottom) continue;
-      const choices = [
-        { distance: a.position.x - left, x: left, y: a.position.y },
-        { distance: right - a.position.x, x: right, y: a.position.y },
-        { distance: a.position.y - top, x: a.position.x, y: top },
-        { distance: bottom - a.position.y, x: a.position.x, y: bottom },
-      ].sort((p, q) => p.distance - q.distance);
-      a.position.x = choices[0]!.x; a.position.y = choices[0]!.y;
+  let cellSize = 1;
+  for (const mover of movers) cellSize = Math.max(cellSize, Math.hypot(mover.size.width, mover.size.height));
+  const cell = (mover: Mover) => ({ x: Math.floor(mover.position.x / cellSize), y: Math.floor(mover.position.y / cellSize) });
+  // Repeat in stable fleet order: resolving a later pair can put an earlier
+  // pair back in contact in a dense cluster.
+  for (let pass = 0; pass < 24; pass += 1) {
+    const buckets = new Map<string, number[]>();
+    movers.forEach((mover, index) => {
+      const at = cell(mover);
+      const key = `${mover.sectorId}:${at.x}:${at.y}`;
+      const bucket = buckets.get(key) ?? [];
+      bucket.push(index);
+      buckets.set(key, bucket);
+    });
+    for (let i = 0; i < movers.length; i += 1) {
+      const a = movers[i]!;
+      const at = cell(a);
+      const nearby: number[] = [];
+      for (let x = at.x - 2; x <= at.x + 2; x += 1) for (let y = at.y - 2; y <= at.y + 2; y += 1) {
+        nearby.push(...(buckets.get(`${a.sectorId}:${x}:${y}`) ?? []));
+      }
+      nearby.sort((left, right) => left - right);
+      for (const j of nearby) {
+        if (j <= i) continue;
+        const b = movers[j]!;
+        if (!a.active && !b.active) continue;
+        const dx = b.position.x - a.position.x;
+        const dy = b.position.y - a.position.y;
+        const distance = Math.hypot(dx, dy);
+        const required = (Math.hypot(a.size.width, a.size.height) + Math.hypot(b.size.width, b.size.height)) / 2;
+        if (distance >= required) continue;
+        const angle = distance > 1e-9 ? Math.atan2(dy, dx) : ((a.id * 31 + b.id * 17) % 360) * Math.PI / 180;
+        const push = (required - distance) / ((b.active ? 1 : 0) + (a.active ? 1 : 0));
+        if (a.active) { a.position.x -= Math.cos(angle) * push; a.position.y -= Math.sin(angle) * push; }
+        if (b.active) { b.position.x += Math.cos(angle) * push; b.position.y += Math.sin(angle) * push; }
+      }
+      if (!a.active) continue;
+      for (const { sectorId, module } of modules) {
+        if (sectorId !== a.sectorId) continue;
+        const bounds = moduleBounds(module.position, module.size);
+        if (a.destination && a.destination.x >= bounds.left && a.destination.x <= bounds.right
+          && a.destination.y >= bounds.top && a.destination.y <= bounds.bottom) continue;
+        const hx = a.size.width / 2; const hy = a.size.height / 2;
+        const left = bounds.left - hx; const right = bounds.right + hx;
+        const top = bounds.top - hy; const bottom = bounds.bottom + hy;
+        // A ship's legitimate route starts at the Dock's centre. Let it leave
+        // that footprint, then treat it as an obstacle like every other module.
+        if (a.origin && a.origin.x >= left && a.origin.x <= right && a.origin.y >= top && a.origin.y <= bottom
+          && (a.position.x < left || a.position.x > right || a.position.y < top || a.position.y > bottom)) continue;
+        if (a.position.x <= left || a.position.x >= right || a.position.y <= top || a.position.y >= bottom) continue;
+        const choices = [
+          { distance: a.position.x - left, x: left, y: a.position.y },
+          { distance: right - a.position.x, x: right, y: a.position.y },
+          { distance: a.position.y - top, x: a.position.x, y: top },
+          { distance: bottom - a.position.y, x: a.position.x, y: bottom },
+        ].sort((p, q) => p.distance - q.distance);
+        a.position.x = choices[0]!.x; a.position.y = choices[0]!.y;
+      }
     }
   }
 }
