@@ -1,6 +1,6 @@
 import {
   BUG_ATTACK_THRESHOLD,
-  BUG_DESIGNS, BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP, BUG_SPAWN_SECONDS,
+  BUG_DESIGNS, BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP, BUG_SPAWN_SECONDS, HIVE_DEFENSE_RADIUS,
   BUG_SPEED_FACTOR, GUN_DAMAGE, GUN_RANGE, GUN_SECONDS, GUN_SHOT_SECONDS,
   HIVE_GATE_FRACTION, HIVE_HP, MODULE_HP,
   TURRET_DAMAGE, TURRET_METAL_PER_SHOT, TURRET_RANGE, TURRET_SECONDS, TURRET_SHOT_SECONDS,
@@ -131,6 +131,22 @@ function invasionRoutes(draft: Draft, fromSector: number): { sectorId: number; r
   });
 }
 
+function shipInsideHiveDefenseRadius(draft: Draft, hive: Hive): boolean {
+  return draft.ships.some((ship) => ship.sectorId === hive.sectorId && ship.state !== "docked"
+    && Math.hypot(ship.position.x - hive.position.x, ship.position.y - hive.position.y) <= HIVE_DEFENSE_RADIUS);
+}
+
+function nearestDefenseShip(draft: Draft, bug: Bug, hive: Hive): Ship | null {
+  return draft.ships
+    .filter((ship) => ship.sectorId === hive.sectorId && ship.state !== "docked"
+      && Math.hypot(ship.position.x - hive.position.x, ship.position.y - hive.position.y) <= HIVE_DEFENSE_RADIUS)
+    .sort((a, b) => {
+      const distance = Math.hypot(a.position.x - bug.position.x, a.position.y - bug.position.y)
+        - Math.hypot(b.position.x - bug.position.x, b.position.y - bug.position.y);
+      return distance || a.id - b.id;
+    })[0] ?? null;
+}
+
 function settleArrivals(draft: Draft): void {
   const arrivals = new Map<string, Bug[]>();
   for (const bug of draft.bugs) {
@@ -189,6 +205,7 @@ function settleInvasions(draft: Draft): void {
   for (const hive of draft.hives.filter((hive) => hive.alive)) {
     const sectorId = hive.sectorId;
     // Joined bugs attack here permanently; only this hive's offspring leave.
+    if (shipInsideHiveDefenseRadius(draft, hive)) continue;
     const group = draft.bugs.filter((bug) => bug.sectorId === sectorId && bug.hiveId === hive.id
       && bug.state !== "invading" && bug.state !== "gathering").slice(0, 10);
     const routes = invasionRoutes(draft, sectorId);
@@ -203,6 +220,7 @@ function settleInvasions(draft: Draft): void {
     draft.bugs = draft.bugs.map((bug) => ids.has(bug.id) ? {
       ...bug,
       state: "invading",
+      defendingHiveId: null,
       targetShipId: null,
       targetModule: null,
       targetSectorId: destination.sectorId,
@@ -247,11 +265,12 @@ function moduleHp(module: StationModule): number {
   return module.hp ?? module.maxHp ?? MODULE_HP;
 }
 
-function quarryFor(draft: Draft, bug: Bug): Quarry | null {
+function quarryFor(draft: Draft, bug: Bug, guardHive?: Hive): Quarry | null {
   let best: Quarry | null = null;
   let bestDistance = Infinity;
   for (const ship of draft.ships) {
     if (ship.sectorId !== bug.sectorId || ship.state === "docked") continue;
+    if (guardHive && Math.hypot(ship.position.x - guardHive.position.x, ship.position.y - guardHive.position.y) > HIVE_DEFENSE_RADIUS) continue;
     const length = Math.hypot(ship.position.x - bug.position.x, ship.position.y - bug.position.y);
     if (!best || length < bestDistance || (length === bestDistance && best.kind === "ship" && ship.id < best.ship.id)) {
       best = { kind: "ship", ship };
@@ -393,31 +412,43 @@ export function settleEnemies(draft: Draft): void {
   // Fewer alive bugs than the threshold loiter by the hive. At the threshold
   // they attack the nearest quarry in their own sector with their Guns.
   draft.bugs = draft.bugs.map((bug) => {
-    if (bug.timer > 0) return bug;
-    if (bug.state === "invading") return bug;
+    if (bug.state === "invading" || bug.state === "gathering") return bug;
     const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === bug.sectorId);
+    const wasDefending = bug.defendingHiveId != null;
+    const defenseShip = hive && (bug.state === "hovering" || wasDefending)
+      ? nearestDefenseShip(draft, bug, hive) : null;
+    if (wasDefending && !defenseShip) {
+      const centre = draft.hives.find((candidate) => candidate.id === bug.defendingHiveId) ?? hive;
+      const loiter = centre ? loiterPoint(centre, bug) : null;
+      return { ...bug, defendingHiveId: null, state: "hovering", targetShipId: null, targetModule: null,
+        loiterRng: loiter?.rng ?? bug.loiterRng,
+        leg: loiter ? { from: { ...bug.position }, to: loiter.to } : null, timer: loiter?.seconds ?? 1 };
+    }
+    const startingDefense = defenseShip !== null && !wasDefending;
+    // A change of target interrupts a defense chase; unchanged legs finish normally.
+    if (bug.timer > 0 && !startingDefense && !(wasDefending && defenseShip?.id !== bug.targetShipId)) return bug;
     const hunting = draft.bugs.filter((candidate) => candidate.sectorId === bug.sectorId
       && candidate.state !== "invading" && candidate.state !== "gathering").length >= BUG_ATTACK_THRESHOLD;
-    if (hunting) {
-      const quarry = quarryFor(draft, bug);
-      if (quarry) {
-        const target = quarry.kind === "ship" ? quarry.ship : quarry.module;
-        const length = Math.hypot(target.position.x - bug.position.x, target.position.y - bug.position.y);
-        if (length <= GUN_RANGE) {
-          const updated = bug.gunShot || (bug.gunTimer ?? 0) > 0 ? bug : fireBug(bug, quarry);
-          return { ...updated, state: "hunting", targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
-            targetModule: quarry.kind === "module" ? { stationId: quarry.stationId, position: { ...quarry.module.position } } : null,
-            leg: null, timer: Math.max(LOITER_QUANTUM, updated.gunTimer ?? GUN_SECONDS) };
-        }
-        return {
-          ...bug,
-          state: "hunting",
-          targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
+    if (startingDefense) bug = { ...bug, defendingHiveId: hive!.id };
+    const quarry = defenseShip ? { kind: "ship" as const, ship: defenseShip }
+      : hunting ? quarryFor(draft, bug, bug.state === "hovering" && bug.hiveId === hive?.id ? hive : undefined) : null;
+    if (quarry) {
+      const target = quarry.kind === "ship" ? quarry.ship : quarry.module;
+      const length = Math.hypot(target.position.x - bug.position.x, target.position.y - bug.position.y);
+      if (length <= GUN_RANGE) {
+        const updated = bug.gunShot || (bug.gunTimer ?? 0) > 0 ? bug : fireBug(bug, quarry);
+        return { ...updated, state: "hunting", targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
           targetModule: quarry.kind === "module" ? { stationId: quarry.stationId, position: { ...quarry.module.position } } : null,
-          leg: { from: { ...bug.position }, to: { ...target.position } },
-          timer: huntSeconds(length, { ...bug, state: "hunting" }),
-        };
+          leg: null, timer: Math.max(LOITER_QUANTUM, updated.gunTimer ?? GUN_SECONDS) };
       }
+      return {
+        ...bug,
+        state: "hunting",
+        targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
+        targetModule: quarry.kind === "module" ? { stationId: quarry.stationId, position: { ...quarry.module.position } } : null,
+        leg: { from: { ...bug.position }, to: { ...target.position } },
+        timer: huntSeconds(length, { ...bug, state: "hunting" }),
+      };
     }
     // Nothing to hunt: loiter, whether the bug was hovering or had lost its
     // quarry to a sibling's shot.

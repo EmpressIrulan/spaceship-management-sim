@@ -238,6 +238,8 @@ export interface Bug {
   hp: number;
   maxHp: number;
   state: BugState;
+  // Temporary hive defense, distinct from an already-departed raid or hunter.
+  defendingHiveId?: number | null;
   // The ship this bug is attacking, when it hunts. Null while hovering.
   targetShipId: number | null;
   // The sector a migrating group is crossing into. Missing for older bugs.

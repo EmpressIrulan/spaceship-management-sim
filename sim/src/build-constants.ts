@@ -28,6 +28,8 @@ export const TURRET_SIZE: Size = { width: 30 * SIZE_MULTIPLIER, height: 40 * SIZ
 export const HIVE_SECTOR = 1;
 export const HIVE_HP = 200;
 export const HIVE_SIZE: Size = { width: 30 * SIZE_MULTIPLIER, height: 30 * SIZE_MULTIPLIER };
+// Ships within this distance trigger the hive's local defenders.
+export const HIVE_DEFENSE_RADIUS = 120;
 // How far along the line from the sector's middle to its gate the hive sits.
 export const HIVE_GATE_FRACTION = 0.75;
 // A bug hatches every BUG_SPAWN_SECONDS. Each occupied design pixel contributes BUG_HP.

@@ -6,6 +6,7 @@ import {
   BUG_ATTACK_THRESHOLD,
   BUG_BITE_RANGE,
   BUG_DESIGNS,
+  HIVE_DEFENSE_RADIUS,
   BUG_HOVER_RADIUS,
   BUG_HP,
   BUG_SPAWN_SECONDS,
@@ -424,7 +425,7 @@ describe("hive", () => {
 
     expect(hunting.bugs!.filter((bug) => bug.sectorId === found.sectorId).every((bug) => bug.state === "hunting")).toBe(true);
     const invadingBugs = Array.from({ length: 10 }, (_, id) => ({ ...bugs[id % bugs.length]!, id, state: "hovering" as const, timer: 0 }));
-    const invading = tick({ ...hunting, bugs: invadingBugs, nextBugId: 10 }, 0);
+    const invading = tick({ ...hunting, ships: hunting.ships.filter((candidate) => candidate.id !== ship.id), bugs: invadingBugs, nextBugId: 10 }, 0);
     expect(invading.bugs!.filter((bug) => bug.state === "invading")).toHaveLength(10);
   });
 
@@ -502,6 +503,74 @@ function parkedStart(seed: number): { state: SimState; shipId: number } {
 }
 
 describe("bugs hunt ships", () => {
+  it("hive defenders attack a nearby ship regardless of swarm size and return when it leaves", () => {
+    const { state: start, shipId } = parkedStart(7);
+    const enemy = hive(start);
+    const ship = start.ships.find((candidate) => candidate.id === shipId)!;
+    const bugs = [plantedBug(0, enemy, enemy.position.x + 20, enemy.position.y, 0)];
+    const nearby = { ...ship, position: { x: enemy.position.x + HIVE_DEFENSE_RADIUS - 1, y: enemy.position.y } };
+    const defending = tick({ ...start, ships: start.ships.map((candidate) => candidate.id === shipId ? nearby : candidate), bugs }, 0);
+    expect(defending.bugs![0]!.state).toBe("hunting");
+    expect(defending.bugs![0]!.targetShipId).toBe(shipId);
+
+    const outside = { ...nearby, position: { x: enemy.position.x + HIVE_DEFENSE_RADIUS + 1, y: enemy.position.y } };
+    const retreated = tick({ ...defending, ships: defending.ships.map((candidate) => candidate.id === shipId ? outside : candidate) }, 0);
+    expect(retreated.bugs!.every((bug) => bug.state === "hovering" && bug.targetShipId === null)).toBe(true);
+  });
+
+  it("hive defenders do not launch a raid while a ship is inside the defense radius", () => {
+    const gateProjects: GateProject[] = [{
+      id: 0,
+      ends: [
+        { sectorId: HIVE_SECTOR, position: { x: 10, y: 20 } },
+        { sectorId: 2, position: { x: 30, y: 40 } },
+      ],
+      delivered: { Metal: 0, Ice: 0 },
+      complete: true,
+    }];
+    const start = createInitialState(7);
+    const enemy = hive(start);
+    const ship = { ...start.ships[0]!, id: start.nextShipId, state: "holding" as const,
+      sectorId: HIVE_SECTOR, position: { x: enemy.position.x + 30, y: enemy.position.y },
+      defaultBehaviour: "none" as const, order: null, target: null, leg: null, berth: null, transfer: null };
+    const bugs = Array.from({ length: 10 }, (_, id) => plantedBug(id, enemy, enemy.position.x + 20, enemy.position.y, 0));
+    const next = tick({ ...start, gateProjects, ships: [...start.ships, ship], bugs }, 0);
+    expect(next.bugs!.every((bug) => bug.state !== "invading")).toBe(true);
+  });
+
+  it("ignores ships outside the hive defense radius", () => {
+    const { state: start, shipId } = parkedStart(7);
+    const enemy = hive(start);
+    const ship = start.ships.find((candidate) => candidate.id === shipId)!;
+    const outside = { ...ship, position: { x: enemy.position.x + HIVE_DEFENSE_RADIUS + 1, y: enemy.position.y } };
+    const bugs = Array.from({ length: BUG_ATTACK_THRESHOLD }, (_, id) => plantedBug(id, enemy, enemy.position.x + 20, enemy.position.y, 0));
+    const quietStart = { ...start, ships: start.ships.map((candidate) => candidate.id === shipId ? outside : candidate) };
+    const next = tick({ ...quietStart, bugs }, 0);
+    expect(next.bugs!.every((bug) => bug.state === "hovering")).toBe(true);
+  });
+
+  it("interrupts every hover leg, but leaves a departing raid and an existing hunter alone", () => {
+    const { state: start, shipId } = parkedStart(7);
+    const enemy = hive(start);
+    const hovering = Array.from({ length: 3 }, (_, id) => ({
+      ...plantedBug(id, enemy, enemy.position.x + 20, enemy.position.y, 15),
+      leg: { from: { x: enemy.position.x + 20, y: enemy.position.y }, to: enemy.position },
+    }));
+    const raid: Bug = { ...plantedBug(3, enemy, enemy.position.x + 150, enemy.position.y, 15),
+      state: "invading", targetSectorId: 0 };
+    const hunter: Bug = { ...plantedBug(4, enemy, enemy.position.x + 150, enemy.position.y, 15),
+      state: "hunting", targetShipId: shipId };
+    const next = tick({ ...start, bugs: [...hovering, raid, hunter] }, 0);
+    expect(next.bugs!.slice(0, 3).every((bug) => bug.state === "hunting" && bug.targetShipId === shipId)).toBe(true);
+    expect(next.bugs![3]).toEqual(raid);
+    expect(next.bugs![4]).toEqual(hunter);
+    const retreated = tick({ ...next, ships: next.ships.filter((ship) => ship.id !== shipId) }, 0);
+    expect(retreated.bugs!.slice(0, 3).every((bug) => bug.state === "hovering" && bug.targetShipId === null
+      && bug.leg !== null && Math.hypot(bug.leg.to.x - enemy.position.x, bug.leg.to.y - enemy.position.y) <= BUG_HOVER_RADIUS)).toBe(true);
+    expect(retreated.bugs![3]).toEqual(raid);
+    expect(retreated.bugs![4]).toEqual(hunter);
+  });
+
   it("makes four-Gun hunters slower than one-Gun hunters", () => {
     const { state: start } = parkedStart(7);
     const enemy = hive(start);
