@@ -55,6 +55,17 @@ describe("smooth traffic separation", () => {
     }
   });
 
+  it("steers a leg around a ship parked on its path instead of through it", () => {
+    const parked: Ship = { ...ship(9, { x: 0, y: 0 }, { x: 1, y: 0 }, 0), state: "holding", leg: null, timer: 0 };
+    const step = 0.8;
+    const frames = sweep(110, step, (along) => [ship(1, { x: -40, y: 0 }, { x: 40, y: 0 }, along), parked]);
+    expect(Math.max(...jumps(frames, 0))).toBeLessThan(step * 2);
+    for (const [mover, still] of frames) {
+      expect(still!.position).toEqual({ x: 0, y: 0 });
+      expect(Math.hypot(mover!.position.x, mover!.position.y)).toBeGreaterThan(2);
+    }
+  });
+
   // The same scan a reviewer ran: no body may hop more than a body length
   // while its leg is unchanged.
   it.each([

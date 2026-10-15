@@ -66,6 +66,7 @@ let radius = new Float64Array(0);
 let key = new Float64Array(0);
 let sector = new Int32Array(0);
 let active = new Uint8Array(0);
+let still = new Uint8Array(0);
 let ordered = new Int32Array(0);
 let orderedCount = -1;
 let crowd = new Float64Array(0);
@@ -80,7 +81,7 @@ function reserve(count: number): void {
   heading = new Float64Array(capacity * 2);
   halfX = new Float64Array(capacity); halfY = new Float64Array(capacity);
   radius = new Float64Array(capacity); key = new Float64Array(capacity);
-  sector = new Int32Array(capacity); active = new Uint8Array(capacity); ordered = new Int32Array(capacity); orderedCount = -1; crowd = new Float64Array(capacity);
+  sector = new Int32Array(capacity); active = new Uint8Array(capacity); still = new Uint8Array(capacity); ordered = new Int32Array(capacity); orderedCount = -1; crowd = new Float64Array(capacity);
   outX = new Float64Array(capacity); outY = new Float64Array(capacity);
 }
 
@@ -163,6 +164,8 @@ export function separateTraffic(ships: Ship[], bugs: Bug[], modules: StationModu
     radius[i] = body.radius;
     sector[i] = item.sectorId;
     active[i] = live ? 1 : 0;
+    // Parked at a point in space, as opposed to inside a Dock or on its way.
+    still[i] = !live && item.leg === null && (isBug || (item as Ship).state !== "docked") ? 1 : 0;
     key[i] = item.id * 2 + (isBug ? 1 : 0);
     const leg = item.leg;
     if (live && leg) {
@@ -175,20 +178,29 @@ export function separateTraffic(ships: Ship[], bugs: Bug[], modules: StationModu
     }
   }
 
-  // Station modules steer legs, not bodies already past them.
-  if (modules.length > 0) {
+  // Station modules and bodies sitting still steer legs: a leg is bent around
+  // each one it would run into, and eased back after it.
+  let anyActive = false;
+  for (let i = 0; i < count; i += 1) if (active[i]) { anyActive = true; break; }
+  if (anyActive) {
     const bounds: Bounds[] = [];
     const sectors: number[] = [];
+    const watched = (sectorId: number): boolean => {
+      for (let b = 0; b < count; b += 1) if (active[b] && sector[b] === sectorId) return true;
+      return false;
+    };
     modules.forEach((module, i) => {
       const sectorId = moduleSectors[i] ?? 0;
-      for (let b = 0; b < count; b += 1) {
-        if (active[b] && sector[b] === sectorId) {
-          bounds.push(moduleBounds(module.position, module.size));
-          sectors.push(sectorId);
-          return;
-        }
-      }
+      if (!watched(sectorId)) return;
+      bounds.push(moduleBounds(module.position, module.size));
+      sectors.push(sectorId);
     });
+    for (let i = 0; i < count; i += 1) {
+      if (active[i] || !still[i]) continue;
+      if (!watched(sector[i]!)) continue;
+      bounds.push({ left: px[i]! - halfX[i]!, right: px[i]! + halfX[i]!, top: py[i]! - halfY[i]!, bottom: py[i]! + halfY[i]! });
+      sectors.push(sector[i]!);
+    }
     if (bounds.length > 0) {
       const half = { x: 0, y: 0 };
       for (let i = 0; i < count; i += 1) {
