@@ -16,6 +16,25 @@ const bug = (id: number, x: number, y: number): Bug => ({
 });
 
 describe("shared traffic separation", () => {
+  it("leaves completed route endpoints for the arrival state transition", () => {
+    const ships = [{ ...ship(1, 0, 0), timer: 0 }];
+    const bugs = [{ ...bug(1, 0, 0), timer: 0 }];
+    expect(separateTraffic(ships, bugs, [])).toEqual({ ships, bugs });
+  });
+
+  it("bounds grid lookups to nearby cells for a spread-out fleet", () => {
+    const ships = Array.from({ length: 64 }, (_, id) => ship(id, id * 100, 0));
+    const get = vi.spyOn(Map.prototype, "get");
+    let lookups: number;
+    try {
+      separateTraffic(ships, [], []);
+      lookups = get.mock.calls.length;
+    } finally {
+      get.mockRestore();
+    }
+    expect(lookups).toBeLessThan(ships.length * 16);
+  });
+
   it("does not recompute body sizes for every nearby pair", () => {
     const ships = Array.from({ length: 64 }, (_, id) => ship(id, id * 4, 0));
     const hypot = vi.spyOn(Math, "hypot");

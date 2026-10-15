@@ -6,7 +6,11 @@ import type { Bug, Ship, StationModule, Vec } from "./model";
 type Mover = { id: number; sectorId: number; position: Vec; origin: Vec | null; destination: Vec | null; size: { width: number; height: number }; active: boolean };
 
 function moving(ship: Ship): boolean {
-  return ship.leg !== null && !["docked", "docking", "berthing"].includes(ship.state);
+  return ship.leg !== null && ship.timer > 0 && !["docked", "docking", "berthing"].includes(ship.state);
+}
+
+function movingBug(bug: Bug): boolean {
+  return bug.leg !== null && bug.timer > 0;
 }
 
 function moveApart(movers: Mover[], modules: { sectorId: number; module: StationModule }[]): void {
@@ -44,13 +48,17 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
   const maxPasses = 2;
   for (let pass = 0; pass < maxPasses; pass += 1) {
     let changed = false;
-    const buckets = new Map<string, number[]>();
+    // Numeric sector/column/row keys avoid allocating 25 strings per body.
+    const buckets = new Map<number, Map<number, Map<number, number[]>>>();
     if (useGrid) movers.forEach((mover, index) => {
       const at = cell(mover);
-      const key = `${mover.sectorId}:${at.x}:${at.y}`;
-      const bucket = buckets.get(key) ?? [];
+      let sector = buckets.get(mover.sectorId);
+      if (!sector) { sector = new Map(); buckets.set(mover.sectorId, sector); }
+      let column = sector.get(at.x);
+      if (!column) { column = new Map(); sector.set(at.x, column); }
+      let bucket = column.get(at.y);
+      if (!bucket) { bucket = []; column.set(at.y, bucket); }
       bucket.push(index);
-      buckets.set(key, bucket);
     });
     for (let i = 0; i < movers.length; i += 1) {
       const a = movers[i]!;
@@ -58,9 +66,14 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
       if (useGrid) {
         const at = cell(a);
         nearby = [];
-        for (let x = at.x - 2; x <= at.x + 2; x += 1) for (let y = at.y - 2; y <= at.y + 2; y += 1) {
-          const bucket = buckets.get(`${a.sectorId}:${x}:${y}`);
-          if (bucket) nearby.push(...bucket);
+        const sector = buckets.get(a.sectorId)!;
+        for (let x = at.x - 2; x <= at.x + 2; x += 1) {
+          const column = sector.get(x);
+          if (!column) continue;
+          for (let y = at.y - 2; y <= at.y + 2; y += 1) {
+            const bucket = column.get(y);
+            if (bucket) nearby.push(...bucket);
+          }
         }
         nearby.sort((left, right) => left - right);
       }
@@ -107,10 +120,11 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
 }
 
 export function separateTraffic(ships: Ship[], bugs: Bug[], modules: StationModule[], moduleSectors: number[] = []): { ships: Ship[]; bugs: Bug[] } {
-  if (!ships.some(moving) && !bugs.some((bug) => bug.leg !== null)) return { ships, bugs };
+  // Arrival transitions consume the exact endpoint before starting a new leg.
+  if (!ships.some(moving) && !bugs.some(movingBug)) return { ships, bugs };
   const movers: Mover[] = [
     ...ships.map((ship) => ({ id: ship.id, sectorId: ship.sectorId, position: { ...ship.position }, origin: ship.leg?.from ?? null, destination: ship.leg?.to ?? null, size: shipSize(ship.design), active: moving(ship) })),
-    ...bugs.map((bug) => ({ id: bug.id, sectorId: bug.sectorId, position: { ...bug.position }, origin: bug.leg?.from ?? null, destination: bug.leg?.to ?? null, size: BUG_SIZE, active: bug.leg !== null })),
+    ...bugs.map((bug) => ({ id: bug.id, sectorId: bug.sectorId, position: { ...bug.position }, origin: bug.leg?.from ?? null, destination: bug.leg?.to ?? null, size: BUG_SIZE, active: movingBug(bug) })),
   ];
   moveApart(movers, modules.map((module, i) => ({ sectorId: moduleSectors[i] ?? 0, module })));
   const shifted = <T extends { position: Vec }>(item: T, mover: Mover): T => {
