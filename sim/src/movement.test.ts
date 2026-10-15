@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { separateTraffic } from "./movement";
 import { shipSize } from "./ship";
+import { miningStart } from "./test-ships";
+import { giveOrder } from "./orders";
+import { tick } from "./tick";
 import type { Bug, Ship, StationModule } from "./model";
 
 const ship = (id: number, x: number, y: number): Ship => ({
@@ -80,6 +83,26 @@ describe("shared traffic separation", () => {
     for (let i = 0; i < result.ships.length; i += 1) for (let j = i + 1; j < result.ships.length; j += 1) {
       const a = result.ships[i]!.position; const b = result.ships[j]!.position;
       expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(Math.hypot(shipSize(ships[0]!.design).width, shipSize(ships[0]!.design).height) - 1e-9);
+    }
+  });
+
+  it("spreads a group sent to one point across free spots around it", () => {
+    const base = miningStart(7);
+    const point = { x: 120, y: 80 };
+    const group = Array.from({ length: 4 }, (_, id) => ({ ...base.ships[0]!, id,
+      state: "holding" as const, position: { ...base.stations[0]!.dock.position }, timer: 0, leg: null, target: null }));
+    const ordered = giveOrder({ ...base, ships: group, bugs: [], hives: [] }, group.map(({ id }) => id), { kind: "move", point });
+    let arrived = ordered;
+    for (let i = 0; i < 1000 && arrived.ships.some(({ state }) => state === "moving"); i += 1) arrived = tick(arrived, 1 / 30);
+
+    const positions = arrived.ships.map(({ position }) => `${position.x},${position.y}`);
+    expect(arrived.ships.every(({ state }) => state === "holding")).toBe(true);
+    expect(new Set(positions).size).toBe(group.length);
+    expect(arrived.ships.every(({ position }) => Math.hypot(position.x - point.x, position.y - point.y) < 100)).toBe(true);
+    const separation = Math.hypot(shipSize(group[0]!.design).width, shipSize(group[0]!.design).height);
+    for (let i = 0; i < arrived.ships.length; i += 1) for (let j = i + 1; j < arrived.ships.length; j += 1) {
+      const a = arrived.ships[i]!.position; const b = arrived.ships[j]!.position;
+      expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(separation - 1e-9);
     }
   });
 
