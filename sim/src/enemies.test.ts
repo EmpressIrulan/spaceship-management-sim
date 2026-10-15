@@ -243,6 +243,10 @@ describe("hive", () => {
     expect(state.bugs!.filter((bug) => bug.sectorId === destination).every((bug) => bug.hiveId === start.hives![0]!.id)).toBe(true);
   });
 
+  // Replays about 530 s of game time one 1/60 s step at a time, roughly 32k
+  // ticks, so it takes a couple of seconds with the file to itself and can
+  // reach vitest's 5 s default on a loaded machine. A shorter window or a
+  // coarser dt would change what it checks, so it gets its own limit instead.
   it.each([1 / 60, 1])("keeps joined groups resident through arrival and attacks at dt %s", (dt) => {
     let state = createInitialState(7);
     const homeGate = state.sectors[0]!.gate.position;
@@ -278,7 +282,7 @@ describe("hive", () => {
     expect([...bouncing]).toEqual([]);
     expect(mostWaitingOffspring).toBeLessThan(10);
     expect(bittenAfterWindow).toBe(true);
-  });
+  }, 20_000);
 
   it("keeps ten arrivals with three residents until ten own offspring are alive", () => {
     const start = invasionStart();
