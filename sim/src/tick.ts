@@ -692,7 +692,8 @@ function advance(draft: Draft, seconds: number): void {
   if (trafficMoving(draft.ships, draft.bugs)) {
     const traffic = separateTraffic(draft.ships, draft.bugs,
       [...draft.modules, ...draft.others.flatMap((station) => station.modules)],
-      [...draft.modules.map(() => draft.stationSector), ...draft.others.flatMap((station) => station.modules.map(() => station.sectorId))]);
+      [...draft.modules.map(() => draft.stationSector), ...draft.others.flatMap((station) => station.modules.map(() => station.sectorId))],
+      seconds);
     draft.ships = traffic.ships;
     draft.bugs = traffic.bugs;
   }

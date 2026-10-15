@@ -1,6 +1,7 @@
-import { BUG_SIZE } from "./build-constants";
+import { BUG_SIZE, BUG_SPEED_FACTOR } from "./build-constants";
 import { moduleBounds } from "./station-module-geometry";
-import { shipSize } from "./ship";
+import { shipSize, speedFactor } from "./ship";
+import { SHIP_CRUISE_SPEED } from "./motion";
 import type { Bug, Ship, ShipDesign, StationModule } from "./model";
 
 // Separation is a pure function of where every body would be on its straight
@@ -20,19 +21,20 @@ const RANGE = 1.5;
 const FIXED_SIDE = 0.5;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
-type Body = { half: { x: number; y: number }; radius: number };
+type Body = { half: { x: number; y: number }; radius: number; cruise: number };
 
 const bodySizes = new WeakMap<ShipDesign, Body>();
 const bugBody: Body = {
   half: { x: BUG_SIZE.width / 2, y: BUG_SIZE.height / 2 },
   radius: Math.hypot(BUG_SIZE.width, BUG_SIZE.height) / 2,
+  cruise: SHIP_CRUISE_SPEED * BUG_SPEED_FACTOR,
 };
 
 function shipBody(design: ShipDesign): Body {
   let body = bodySizes.get(design);
   if (!body) {
     const size = shipSize(design);
-    body = { half: { x: size.width / 2, y: size.height / 2 }, radius: Math.hypot(size.width, size.height) / 2 };
+    body = { half: { x: size.width / 2, y: size.height / 2 }, radius: Math.hypot(size.width, size.height) / 2, cruise: SHIP_CRUISE_SPEED * speedFactor(design) };
     bodySizes.set(design, body);
   }
   return body;
@@ -60,6 +62,7 @@ let dx = new Float64Array(0);
 let dy = new Float64Array(0);
 let heading = new Float64Array(0);
 let velocity = new Float64Array(0);
+let cruise = new Float64Array(0);
 let halfX = new Float64Array(0);
 let halfY = new Float64Array(0);
 let radius = new Float64Array(0);
@@ -81,6 +84,7 @@ function reserve(count: number): void {
   dx = new Float64Array(capacity); dy = new Float64Array(capacity);
   heading = new Float64Array(capacity * 2);
   velocity = new Float64Array(capacity * 2);
+  cruise = new Float64Array(capacity);
   halfX = new Float64Array(capacity); halfY = new Float64Array(capacity);
   radius = new Float64Array(capacity); key = new Float64Array(capacity);
   sector = new Int32Array(capacity); active = new Uint8Array(capacity); still = new Uint8Array(capacity); ordered = new Int32Array(capacity); orderedCount = -1; crowd = new Float64Array(capacity);
@@ -152,7 +156,13 @@ function bendAround(
   return offset;
 }
 
-export function separateTraffic(ships: Ship[], bugs: Bug[], modules: StationModule[], moduleSectors: number[] = []): { ships: Ship[]; bugs: Bug[] } {
+// With `seconds`, separation may change a body's offset by at most half a
+// cruise step per frame, easing on from the offset it left last frame, so a
+// crowd opens up over several frames. Module clearance is not eased: it comes
+// from the leg alone. Without `seconds` the answer is applied whole.
+export function separateTraffic(
+  ships: Ship[], bugs: Bug[], modules: StationModule[], moduleSectors: number[] = [], seconds = Infinity,
+): { ships: Ship[]; bugs: Bug[] } {
   // Arrival transitions consume the exact endpoint before starting a new leg.
   if (!trafficMoving(ships, bugs)) return { ships, bugs };
   const shipCount = ships.length;
@@ -168,6 +178,7 @@ export function separateTraffic(ships: Ship[], bugs: Bug[], modules: StationModu
     px[i] = item.position.x; py[i] = item.position.y;
     dx[i] = 0; dy[i] = 0; crowd[i] = 0;
     radius[i] = body.radius;
+    cruise[i] = body.cruise;
     sector[i] = item.sectorId;
     active[i] = live ? 1 : 0;
     // Parked at a point in space, as opposed to inside a Dock or on its way.
@@ -330,19 +341,40 @@ export function separateTraffic(ships: Ship[], bugs: Bug[], modules: StationModu
     outY[i] = py[i]! + dy[i]! * scale;
   }
 
+  const limited = Number.isFinite(seconds);
   let shipsOut = ships;
   let bugsOut = bugs;
   for (let i = 0; i < count; i += 1) {
-    if (!active[i]) continue;
-    const item = i >= shipCount ? bugs[i - shipCount]! : ships[i]!;
-    const x = outX[i]!; const y = outY[i]!;
-    if (x === item.position.x && y === item.position.y) continue;
-    if (i >= shipCount) {
+    const isBug = i >= shipCount;
+    const item = isBug ? bugs[i - shipCount]! : ships[i]!;
+    let next: Ship | Bug | null = null;
+    if (!active[i]) {
+      // Whatever nudged a body that has stopped is over.
+      if (limited && (item.nudgeX || item.nudgeY)) next = { ...item, nudgeX: 0, nudgeY: 0 };
+    } else {
+      // Where the leg and the modules put the body, and how far separation
+      // wants it moved from there.
+      let nx = outX[i]! - px[i]!; let ny = outY[i]! - py[i]!;
+      if (limited) {
+        const bx = item.nudgeX ?? 0; const by = item.nudgeY ?? 0;
+        const mx = nx - bx; const my = ny - by;
+        const move = Math.sqrt(mx * mx + my * my);
+        const allowed = 0.5 * cruise[i]! * seconds;
+        if (move > allowed) { nx = bx + mx * allowed / move; ny = by + my * allowed / move; }
+      }
+      const x = px[i]! + nx; const y = py[i]! + ny;
+      const moved = x !== item.position.x || y !== item.position.y;
+      if (moved || (limited && ((item.nudgeX ?? 0) !== nx || (item.nudgeY ?? 0) !== ny))) {
+        next = limited ? { ...item, position: { x, y }, nudgeX: nx, nudgeY: ny } : { ...item, position: { x, y } };
+      }
+    }
+    if (!next) continue;
+    if (isBug) {
       if (bugsOut === bugs) bugsOut = bugs.slice();
-      bugsOut[i - shipCount] = { ...(item as Bug), position: { x, y } };
+      bugsOut[i - shipCount] = next as Bug;
     } else {
       if (shipsOut === ships) shipsOut = ships.slice();
-      shipsOut[i] = { ...(item as Ship), position: { x, y } };
+      shipsOut[i] = next as Ship;
     }
   }
   return { ships: shipsOut, bugs: bugsOut };

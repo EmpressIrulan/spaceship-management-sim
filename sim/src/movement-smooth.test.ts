@@ -107,51 +107,75 @@ describe("smooth traffic separation", () => {
     for (const index of [0, 1]) expect(Math.max(...jumps(coarse, index))).toBeLessThan(1.6);
   });
 
-  // The same scan a reviewer ran: no body may hop more than 1.7 units a frame
-  // (ordinary flight is 0.5 to 0.8) while its leg is unchanged.
-  // The one allowed exception is the few frames after a neighbour within reach
-  // starts a new leg. Its new direction changes which way the pair slides past each
-  // other (as does one that stops), and that is an event, not the flicker of a
-  // crowd reshuffling.
+  // Separation eases a body aside over several frames: on top of its own cruise
+  // step it may add at most half a cruise step, whatever its neighbours do.
   it.each([
     ["createInitialState(3)", () => createInitialState(3)],
     ["createInitialState(7)", () => createInitialState(7)],
     ["miningStart(7)", () => miningStart(7)],
-  ])("moves every ship and bug smoothly over a long run from %s", (_name, start) => {
+  ])("never adds more than half a cruise step of separation in a frame from %s", (_name, start) => {
+    const dt = 1 / 30;
     let state: SimState = start();
-    type Seen = { x: number; y: number; leg: string; state: string };
-    let previous = new Map<string, Seen>();
-    // The last frame each body started a new leg or stopped.
-    const changedAt = new Map<string, number>();
-    let worst = 0;
+    const previous = new Map<string, { x: number; y: number; leg: string; state: string }>();
+    let worstRatio = 0;
     let bad = 0;
     for (let i = 0; i < 9000; i += 1) {
-      state = tick(state, 1 / 30);
+      state = tick(state, dt);
       const bodies = [
-        ...state.ships.map((body) => ({ key: `s${body.id}`, body, sector: body.sectorId })),
-        ...(state.bugs as Bug[]).map((body) => ({ key: `b${body.id}`, body, sector: body.sectorId })),
+        ...state.ships.map((body) => ({ key: `s${body.id}`, body, cruise: 25 })),
+        ...(state.bugs as Bug[]).map((body) => ({ key: `b${body.id}`, body, cruise: 15 })),
       ];
-      const now = new Map<string, Seen>();
-      const fresh = new Set<string>();
-      for (const { key, body } of bodies) {
-        const leg = (body.leg ? `${body.leg.from.x},${body.leg.from.y},${body.leg.to.x},${body.leg.to.y}` : "") + (body.timer > 0 ? "" : "|stopped");
-        now.set(key, { x: body.position.x, y: body.position.y, leg, state: body.state });
+      for (const { key, body, cruise } of bodies) {
+        const leg = body.leg ? `${body.leg.from.x},${body.leg.from.y},${body.leg.to.x},${body.leg.to.y}` : "";
         const before = previous.get(key);
-        if (!before || before.leg !== leg || before.state !== body.state) { fresh.add(key); changedAt.set(key, i); }
-      }
-      for (const { key, body, sector } of bodies) {
-        const before = previous.get(key);
-        if (!before || fresh.has(key) || !body.leg) continue;
+        previous.set(key, { x: body.position.x, y: body.position.y, leg, state: body.state });
+        if (!before || !leg || before.leg !== leg || before.state !== body.state) continue;
         const step = Math.hypot(body.position.x - before.x, body.position.y - before.y);
-        const neighbourChanged = bodies.some((other) => other.key !== key && i - (changedAt.get(other.key) ?? -99) <= 3 && other.sector === sector
-          && Math.hypot(other.body.position.x - body.position.x, other.body.position.y - body.position.y) < 9);
-        if (neighbourChanged) continue;
-        worst = Math.max(worst, step);
-        if (step > 1.7) bad += 1;
+        worstRatio = Math.max(worstRatio, step / (cruise * dt));
+        if (step > cruise * dt * 1.5 + 1e-6) bad += 1;
       }
-      previous = now;
     }
-    expect({ bad, worst: Math.round(worst * 10) / 10 }).toEqual({ bad: 0, worst: expect.any(Number) });
-    expect(worst).toBeLessThan(1.7);
+    expect({ bad, worstRatio: Math.round(worstRatio * 100) / 100 }).toEqual({ bad: 0, worstRatio: expect.any(Number) });
   }, 60000);
+
+  // The same passes with separation limited to half a cruise step a frame, the
+  // way the tick applies it: each frame starts from where the last one showed
+  // the ship. Clearance must survive being eased in.
+  it.each([
+    ["head-on", 0], ["crossing at 15 degrees", 15], ["crossing at 45 degrees", 45], ["crossing at 90 degrees", 90],
+  ])("keeps two isolated ships clear while easing aside, %s", (_name, degrees) => {
+    const turn = degrees * Math.PI / 180;
+    const dir = { x: Math.cos(turn), y: Math.sin(turn) };
+    const head = degrees === 0;
+    const build = (along: number) => [
+      ship(1, { x: -40, y: 0 }, { x: 40, y: 0 }, along),
+      head ? ship(2, { x: 40, y: 0 }, { x: -40, y: 0 }, along)
+        : ship(2, { x: -40 * dir.x, y: -40 * dir.y }, { x: 40 * dir.x, y: 40 * dir.y }, along),
+    ];
+    // 0.1 unit steps at 20 units a second.
+    const seconds = 0.1 / 20;
+    let nudges: Vec[] = [{ x: 0, y: 0 }, { x: 0, y: 0 }];
+    let worstOverlap = 0;
+    for (let i = 0; i < 801; i += 1) {
+      const raw = build(i * 0.1).map((s, index) => ({ ...s, nudgeX: nudges[index]!.x, nudgeY: nudges[index]!.y }));
+      const out = separateTraffic(raw, [], [], [], seconds).ships;
+      nudges = out.map((s) => ({ x: s.nudgeX ?? 0, y: s.nudgeY ?? 0 }));
+      const a = out[0]!.position; const b = out[1]!.position;
+      if (overlap(a, b)) worstOverlap = Math.max(worstOverlap, 1.5 - Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)));
+    }
+    expect(worstOverlap).toBe(0);
+  });
+
+  it("keeps module clearance while separation is being eased", () => {
+    const module: StationModule = { type: "Storage", position: { x: 0, y: 0 }, size: { width: 40, height: 20 } };
+    const seconds = 0.1 / 20;
+    let nudge = { x: 0, y: 0 };
+    for (let i = 0; i < 851; i += 1) {
+      const raw = ship(1, { x: -60, y: 0 }, { x: 25, y: 0 }, i * 0.1);
+      const out = separateTraffic([{ ...raw, nudgeX: nudge.x, nudgeY: nudge.y }], [], [module], [], seconds).ships[0]!;
+      nudge = { x: out.nudgeX ?? 0, y: out.nudgeY ?? 0 };
+      const { x, y } = out.position;
+      expect(Math.abs(x) < 20 + 0.75 - 1e-6 && Math.abs(y) < 10 + 0.75 - 1e-6).toBe(false);
+    }
+  });
 });

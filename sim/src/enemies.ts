@@ -63,6 +63,9 @@ export function spawnBug(draft: Draft, hive: Hive): Bug {
     targetModule: null,
     leg: null,
     timer: 0,
+    // Present from birth so every bug shares one object shape.
+    nudgeX: 0,
+    nudgeY: 0,
   };
 }
 
