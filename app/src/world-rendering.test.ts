@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   BUG_SIZE,
-  BUG_BITE_SECONDS,
   DROP_SIZE,
   HIVE_SIZE,
   SIZE_MULTIPLIER,
@@ -178,7 +177,7 @@ describe("zoomed-out small bodies", () => {
 });
 
 function shotState(ship: Ship, bugs: Bug[] = []): SimState {
-  // No station draws beside the ships, so each beam path is a shot or a bite.
+  // No station draws beside the ships, so each projectile belongs to a ship or bug.
   return withBodies(createInitialState(7), { ships: [ship], bugs, stations: [] });
 }
 
@@ -257,35 +256,19 @@ describe("the world draws gun shots", () => {
     expect(ctx.fillRect).toHaveBeenCalledWith(428, 328, 4, 4);
   });
 
-  it("draws a bite as a flash between the bug and the ship it is biting", () => {
+  it("draws an in-flight bug shot as a projectile", () => {
     const uiState = ui();
     const ctx = mockCtx();
     const base = createInitialState(7).ships[0]!;
     const ship = { ...base, id: 9, position: { x: 0, y: 0 } };
-    const biting = { ...bug(0, { x: 8, y: 0 }, 9), timer: BUG_BITE_SECONDS };
-    const drawing = createWorldDrawing(uiState, () => shotState(ship, [biting]), ctx, vi.fn(), vi.fn());
+    const shooter = { ...bug(0, { x: 8, y: 0 }, 9), gunShot: {
+      from: { x: 8, y: 0 }, to: { x: 0, y: 0 }, target: { kind: "ship" as const, id: 9 }, timer: 0.25,
+    } };
+    const drawing = createWorldDrawing(uiState, () => shotState(ship, [shooter]), ctx, vi.fn(), vi.fn());
     drawing.draw(0);
-    expect(ctx.moveTo).toHaveBeenCalledWith(408, 300);
-    expect(ctx.lineTo).toHaveBeenCalledWith(400, 300);
-  });
-
-  it("does not keep drawing a bite throughout its cooldown or track a moved quarry", () => {
-    const uiState = ui();
-    const ctx = mockCtx();
-    const base = createInitialState(7).ships[0]!;
-    const ship = { ...base, id: 9, position: { x: 0, y: 0 } };
-    let biteBug = { ...bug(0, { x: 8, y: 0 }, 9), timer: BUG_BITE_SECONDS - 0.3 };
-    let state = shotState(ship, [biteBug]);
-    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
-    drawing.draw(0);
-    expect(ctx.moveTo).toHaveBeenCalledTimes(1);
-    (ctx.moveTo as unknown as { mockClear: () => void }).mockClear();
-    (ctx.lineTo as unknown as { mockClear: () => void }).mockClear();
-    biteBug = { ...biteBug, timer: BUG_BITE_SECONDS - 1, position: { x: 12, y: 0 } };
-    state = shotState({ ...ship, position: { x: 100, y: 0 } }, [biteBug]);
-    drawing.draw(1);
     expect(ctx.moveTo).not.toHaveBeenCalled();
     expect(ctx.lineTo).not.toHaveBeenCalled();
+    expect(ctx.fillRect).toHaveBeenCalledWith(402, 298, 4, 4);
   });
 });
 

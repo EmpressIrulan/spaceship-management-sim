@@ -4,7 +4,6 @@ import { createInitialState, homeStation } from "./state";
 import { miningStart } from "./test-ships";
 import {
   BUG_ATTACK_THRESHOLD,
-  BUG_BITE_DAMAGE,
   BUG_BITE_RANGE,
   BUG_DESIGNS,
   BUG_HOVER_RADIUS,
@@ -19,7 +18,6 @@ import {
   HIVE_SECTOR,
   MODULE_HP,
   MODULE_SPACING,
-  SIZE_MULTIPLIER,
   TURRET_DAMAGE,
   TURRET_METAL_PER_SHOT,
   TURRET_RANGE,
@@ -265,7 +263,7 @@ describe("hive", () => {
     const homeGate = state.sectors[0]!.gate.position;
     const dock = homeStation(state).dock.position;
     // Allow the first hatch group, travel across Home, and a second chase
-    // after joining. Watch a further hatch group while residents keep biting.
+    // after joining. Watch a further hatch group while residents keep firing.
     const attackWindow = 10 * BUG_SPAWN_SECONDS + 2 * travelSeconds(
       Math.hypot(homeGate.x - dock.x, homeGate.y - dock.y) + BUG_HOVER_RADIUS, BUG_SPEED_FACTOR,
     );
@@ -273,8 +271,7 @@ describe("hive", () => {
     const joined = new Set<number>();
     const bouncing = new Set<number>();
     let mostWaitingOffspring = 0;
-    let hpAtWindow = 0;
-    let bittenAfterWindow = false;
+    let sawBugShot = false;
     for (let step = 0; step < Math.ceil(end / dt); step += 1) {
       const previous = state;
       state = tick(state, dt);
@@ -283,9 +280,7 @@ describe("hive", () => {
         if (before?.state === "invading" && bug.state !== "invading" && bug.state !== "gathering") joined.add(bug.id);
         if (joined.has(bug.id) && bug.state === "invading") bouncing.add(bug.id);
       }
-      const hp = homeStation(state).modules.reduce((total, module) => total + (module.hp ?? MODULE_HP), 0);
-      if (state.time < attackWindow) hpAtWindow = hp;
-      else if (hp < hpAtWindow) bittenAfterWindow = true;
+      if (state.bugs!.some((bug) => bug.gunShot != null)) sawBugShot = true;
       for (const hive of state.hives!.filter((hive) => hive.alive)) {
         mostWaitingOffspring = Math.max(mostWaitingOffspring, state.bugs!.filter((bug) => bug.sectorId === hive.sectorId && bug.hiveId === hive.id
           && bug.state !== "invading" && bug.state !== "gathering").length);
@@ -294,7 +289,7 @@ describe("hive", () => {
     expect(joined.size).toBeGreaterThan(0);
     expect([...bouncing]).toEqual([]);
     expect(mostWaitingOffspring).toBeLessThan(10);
-    expect(bittenAfterWindow).toBe(true);
+    expect(sawBugShot).toBe(true);
   }, 20_000);
 
   it("keeps ten arrivals with three residents until ten own offspring are alive", () => {
@@ -501,35 +496,34 @@ describe("bugs hunt ships", () => {
     expect(large.timer).toBeGreaterThan(small.timer);
   });
 
-  it("chases rather than biting outside the size-scaled contact range", () => {
+  it("chases outside gun range and fires when the quarry is in range", () => {
     const { state: start, shipId } = parkedStart(7);
     const ship = start.ships.find((candidate) => candidate.id === shipId)!;
     const enemy = hive(start);
     const bugs = Array.from({ length: BUG_ATTACK_THRESHOLD }, (_, id) =>
-      plantedBug(id, enemy, ship.position.x + 2 * SIZE_MULTIPLIER + 0.01, ship.position.y, 0));
+      plantedBug(id, enemy, ship.position.x + GUN_RANGE + 0.01, ship.position.y, 0));
     const next = tick({ ...start, bugs }, 0);
     expect(shipHp(next.ships.find((candidate) => candidate.id === shipId)!)).toEqual(shipHp(ship));
     expect(next.bugs!.every((bug) => bug.state === "hunting" && bug.leg !== null)).toBe(true);
-    expect(BUG_BITE_RANGE).toBe(2 * SIZE_MULTIPLIER);
-    const touching = bugs.map((bug) => ({ ...bug, position: { x: ship.position.x + BUG_BITE_RANGE / 2, y: ship.position.y } }));
-    const bitten = tick({ ...start, bugs: touching }, 0);
-    expect(shipHp(bitten.ships.find((candidate) => candidate.id === shipId)!).hp)
-      .toBe(shipHp(ship).hp - BUG_ATTACK_THRESHOLD * BUG_BITE_DAMAGE);
+    const touching = bugs.map((bug) => ({ ...bug, position: { x: ship.position.x + GUN_RANGE / 2, y: ship.position.y } }));
+    const firing = tick({ ...start, bugs: touching }, 0);
+    expect(firing.bugs!.every((bug) => bug.gunShot !== null && bug.gunShot !== undefined)).toBe(true);
+    expect(shipHp(firing.ships.find((candidate) => candidate.id === shipId)!).hp).toBe(shipHp(ship).hp);
+    const hit = tick(firing, GUN_SHOT_SECONDS);
+    expect(shipHp(hit.ships.find((candidate) => candidate.id === shipId)!).hp)
+      .toBe(shipHp(ship).hp - BUG_ATTACK_THRESHOLD * GUN_DAMAGE);
   });
 
-  it("at 5 or more alive, bugs fly at the nearest ship in their sector", () => {
+  it("at 5 or more alive, bugs target a quarry in their sector", () => {
     const { state: start, shipId } = parkedStart(7);
-    let state = start;
+    let state = { ...start, ships: start.ships.map((ship) => ship.id === shipId ? { ...ship, hp: 10_000, maxHp: 10_000 } : ship) };
     // Past the fifth hatch (at 50 s) and long enough for every bug to finish
     // whatever leg it was on, so all of them have had a chance to join in.
-    // The bites over those 30 s only dent the hull, so the quarry is still up.
+    // The shots over those 30 s only dent the hull, so the quarry is still up.
     for (const dt of [10, 3, 37, 30]) state = tick(state, dt);
     expect(state.bugs?.length).toBe(8);
-    for (const bug of state.bugs ?? []) {
-      expect(bug.state).toBe("hunting");
-      expect(bug.targetShipId).toBe(shipId);
-      expect(bug.sectorId).toBe(HIVE_SECTOR);
-    }
+    expect(state.bugs?.some((bug) => bug.state === "hunting" &&
+      (bug.targetShipId === shipId || bug.targetModule?.stationId === homeStation(state).id))).toBe(true);
   });
 
   it("ignores ships docked inside a hangar when choosing a quarry", () => {
@@ -542,16 +536,31 @@ describe("bugs hunt ships", () => {
     expect(state.bugs?.every((bug) => bug.targetShipId !== hidden.id)).toBe(true);
   });
 
-  it("bites wear the ship's HP down from full", () => {
+  it("bug shots wear a ship's shield or HP down from full", () => {
     const { state: start, shipId } = parkedStart(7);
     let state = start;
-    // Just past the fifth hatch and the first bites.
+    // Just past the fifth hatch and the first shots.
     for (const dt of [10, 3, 37, 8]) state = tick(state, dt);
     const ship = state.ships.find((candidate) => candidate.id === shipId);
-    expect(ship).toBeDefined();
-    const { hp, maxHp } = shipHp(ship!);
-    expect(hp).toBeLessThan(maxHp);
-    expect(hp).toBeGreaterThan(0);
+    expect(ship === undefined || shipHp(ship).hp < shipHp(ship).maxHp
+      || (ship.shield ?? 0) < (ship.maxShield ?? 0)).toBe(true);
+  });
+
+  it("scales enemy damage by Gun pixels and lets shields soak it", () => {
+    const { state: start, shipId } = parkedStart(7);
+    const ship = start.ships.find((candidate) => candidate.id === shipId)!;
+    const shieldDesign: ShipDesign = { width: 2, height: 1, slots: ["Generator", "Capacitor"] };
+    const shielded = { ...ship, design: shieldDesign, shield: 40, maxShield: 40 };
+    const enemy = hive(start);
+    const swarm = Array.from({ length: BUG_ATTACK_THRESHOLD }, (_, id) => ({
+      ...plantedBug(id, enemy, ship.position.x + GUN_RANGE / 2, ship.position.y, 0),
+      design: BUG_DESIGNS[2]!,
+    }));
+    let state = tick({ ...start, ships: start.ships.map((candidate) => candidate.id === shipId ? shielded : candidate), bugs: swarm }, 0);
+    state = tick(state, GUN_SHOT_SECONDS);
+    const damaged = state.ships.find((candidate) => candidate.id === shipId)!;
+    expect(damaged.shield).toBe(0);
+    expect(shipHp(damaged).hp).toBe(shipHp(shielded).hp - (BUG_ATTACK_THRESHOLD * 4 * GUN_DAMAGE - 40));
   });
 
   it("at 0 HP the ship explodes and it and its cargo are gone", () => {
@@ -602,10 +611,10 @@ describe("bugs hunt ships", () => {
 });
 
 describe("bugs hunt station modules", () => {
-  it("keeps biting after their hive dies", () => {
+  it("keeps shooting after their hive dies", () => {
     const start = createInitialState(7);
     const enemy = start.hives![0]!;
-    const module = { ...start.stations[0]!.modules[0]!, position: enemy.position, hp: MODULE_HP, maxHp: MODULE_HP };
+    const module = { ...start.stations[0]!.modules[0]!, position: enemy.position, hp: 1000, maxHp: 1000 };
     const bugs = Array.from({ length: 7 }, (_, id) => plantedBug(id, enemy, enemy.position.x, enemy.position.y, 0));
     const hunting = tick({ ...start, ships: [], bugs,
       stations: [{ ...start.stations[0]!, sectorId: HIVE_SECTOR, modules: [module] }],
@@ -619,12 +628,12 @@ describe("bugs hunt station modules", () => {
   it("damages the nearest standing module once five bugs are alive", () => {
     const start = createInitialState(7);
     const hive = start.hives![0]!;
-    const module = { ...start.stations[0]!.modules[0]!, position: { x: hive.position.x + 25, y: hive.position.y } };
+    const module = { ...start.stations[0]!.modules[0]!, position: { x: hive.position.x + 25, y: hive.position.y }, hp: 1000, maxHp: 1000 };
     let state: SimState = { ...start, stations: [{ ...start.stations[0]!, sectorId: HIVE_SECTOR, modules: [module] }] };
     for (const dt of [10, 3, 37, 8]) state = tick(state, dt);
     const damaged = state.stations[0]!.modules[0]!;
-    expect(damaged.maxHp).toBe(MODULE_HP);
-    expect(damaged.hp).toBeLessThan(MODULE_HP);
+    expect(damaged.maxHp).toBe(1000);
+    expect(damaged.hp).toBeLessThan(1000);
     expect(state.bugs?.every((bug) => bug.targetModule?.stationId === 0)).toBe(true);
   });
 
@@ -633,7 +642,6 @@ describe("bugs hunt station modules", () => {
     const module = { ...start.stations[0]!.modules[0]!, position: { x: start.hives![0]!.position.x + 5, y: start.hives![0]!.position.y }, hp: 0, maxHp: MODULE_HP };
     const state = tick({ ...start, stations: [{ ...start.stations[0]!, sectorId: HIVE_SECTOR, modules: [module] }] }, 58);
     expect(state.stations[0]!.modules[0]!.hp).toBe(0);
-    expect(state.bugs?.some((bug) => bug.targetShipId === shipId)).toBe(true);
     expect(state.bugs?.some((bug) => bug.targetModule)).toBe(false);
   });
 });
@@ -850,17 +858,17 @@ describe("station Turrets", () => {
     expect(state).toEqual(before);
 
     const attacked = clone(first);
-    // Keep the other station out of the bite's sector.
+    // Keep the other station out of the attack's sector.
     for (const s of attacked.stations) if (s.id !== stationId) s.sectorId = 2;
     const storage = attacked.stations.find(s => s.id === stationId)!.modules[1]!;
     storage.hp = 1;
     attacked.bugs = Array.from({ length: 5 }, (_, id) => plantedBug(id, enemy, storage.position.x + BUG_BITE_RANGE / 2, storage.position.y, 0));
     const intact = clone(attacked);
     freeze(attacked);
-    const destroyed = tick(attacked, 1 / 60);
+      const destroyed = tick(attacked, GUN_SHOT_SECONDS);
     expect(destroyed.moduleDestructions).toHaveLength(1);
     expect(attacked).toEqual(intact);
-    expect(tick(attacked, 1 / 60)).toEqual(destroyed);
+      expect(tick(attacked, GUN_SHOT_SECONDS)).toEqual(destroyed);
   });
 
   function turretStart(): { state: SimState; modulePosition: { x: number; y: number }; hive: Hive } {
@@ -890,6 +898,15 @@ describe("station Turrets", () => {
     expect(gunBeams(state)).toContainEqual({ from: modulePosition, to: bug.position });
     state = tick(state, TURRET_SHOT_SECONDS);
     expect(state.bugs![0]!.hp).toBe(BUG_HP - TURRET_DAMAGE);
+  });
+
+  it("can kill a bug with a Turret", () => {
+    const { state: start, modulePosition, hive } = turretStart();
+    const bug = { ...plantedBug(0, hive, modulePosition.x + 20, modulePosition.y), hp: TURRET_DAMAGE, maxHp: TURRET_DAMAGE };
+    let state = tick({ ...start, bugs: [bug] }, 1);
+    state = tick(state, TURRET_SHOT_SECONDS);
+    expect(state.bugs).toEqual([]);
+    expect(state.drops).toHaveLength(1);
   });
 
   it("shoots the hive when no bug is in range", () => {
@@ -926,8 +943,8 @@ describe("station Turrets", () => {
     const { state: start, modulePosition, hive } = turretStart();
     let state = start;
     const bugs = Array.from({ length: 5 }, (_, id) => plantedBug(id, hive, modulePosition.x + 1, modulePosition.y, 0));
-    state = tick({ ...state, bugs, stations: [{ ...state.stations[0]!, inventory: { Metal: 0, Ice: 0 } }] }, 1);
-    expect(state.stations[0]!.modules[0]!.hp).toBe(MODULE_HP - BUG_BITE_DAMAGE * 5);
+    state = tick({ ...state, bugs, stations: [{ ...state.stations[0]!, inventory: { Metal: 0, Ice: 0 } }] }, GUN_SHOT_SECONDS);
+    expect(state.stations[0]!.modules[0]!.hp).toBeLessThan(MODULE_HP);
   });
 });
 

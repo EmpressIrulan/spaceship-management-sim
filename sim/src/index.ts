@@ -90,6 +90,7 @@ export {
   type GateEnd,
   type GateProject,
   type Bug,
+  type BugShot,
   type BugState,
   type Drop,
   type DropKind,

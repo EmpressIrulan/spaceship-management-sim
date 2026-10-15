@@ -1,5 +1,5 @@
 import {
-  BUG_ATTACK_THRESHOLD, BUG_BITE_DAMAGE, BUG_BITE_RANGE, BUG_BITE_SECONDS,
+  BUG_ATTACK_THRESHOLD,
   BUG_DESIGNS, BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP, BUG_SPAWN_SECONDS,
   BUG_SPEED_FACTOR, GUN_DAMAGE, GUN_RANGE, GUN_SECONDS, GUN_SHOT_SECONDS,
   HIVE_GATE_FRACTION, HIVE_HP, MODULE_HP,
@@ -10,7 +10,7 @@ import { nextRandom } from "./prng";
 import { pixelCount, shipModuleCounts } from "./ship";
 import { damageShip, advanceShields, advanceShipRepairs, advanceModuleRepairs, nextShieldEvent } from "./shields";
 import { damageStationModule } from "./station-build-queue";
-import type { Beam, Bug, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Station, StationModule, Vec } from "./model";
+import type { Beam, Bug, BugShot, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Station, StationModule, Vec } from "./model";
 import type { Draft } from "./tick-mining";
 
 // Where a sector's hive sits: along the line from the sector's middle to its
@@ -97,8 +97,8 @@ function loiterSeconds(length: number): number {
   return Math.ceil(raw / LOITER_QUANTUM) * LOITER_QUANTUM;
 }
 
-// Chase legs run the same quantum as loiter legs, for the same reason: a
-// swarm's bites then land in steps whose lengths are dyadic fractions, and the
+// Chase legs run the same quantum as loiter legs, for the same reason: shots
+// then land in steps whose lengths are dyadic fractions, and the
 // timers the tick travels between finish on their exact second rather than a
 // rounding dust past it.
 function huntSeconds(length: number, bug?: Bug): number {
@@ -267,21 +267,45 @@ function quarryFor(draft: Draft, bug: Bug): Quarry | null {
   return best;
 }
 
-// One bite. Wears the hull down and, at zero, takes the ship out of the state
-// together with its cargo: it explodes and nothing is left of either. Returns
-// whether it survived.
-function bite(draft: Draft, ship: Ship): boolean {
-  const next = damageShip(ship, BUG_BITE_DAMAGE, draft.time);
-  if (next) {
-    draft.ships = draft.ships.map((other) => (other.id === ship.id ? next : other));
-    return true;
-  }
-  draft.ships = draft.ships.filter((other) => other.id !== ship.id);
-  return false;
+// Enemy fire scales with each bug's Gun pixels, just like a player design.
+function bugGunCount(bug: Bug): number {
+  return bug.design?.slots.filter((slot) => slot === "Gun").length ?? 1;
 }
 
-function biteModule(draft: Draft, stationId: number, module: StationModule): void {
-  const hp = Math.max(0, moduleHp(module) - BUG_BITE_DAMAGE);
+function bugShotDamage(draft: Draft, bug: Bug): void {
+  const shot = bug.gunShot;
+  if (!shot) return;
+  if ("id" in shot.target) {
+    const shipId = shot.target.id;
+    const ship = draft.ships.find((candidate) => candidate.id === shipId);
+    if (!ship) return;
+    const next = damageShip(ship, GUN_DAMAGE * bugGunCount(bug), draft.time);
+    draft.ships = next ? draft.ships.map((candidate) => candidate.id === ship.id ? next : candidate)
+      : draft.ships.filter((candidate) => candidate.id !== ship.id);
+  } else {
+    const { stationId, position } = shot.target;
+    const station = stationId === draft.activeStationId ? activeStation(draft)
+      : draft.others.find((candidate) => candidate.id === stationId);
+    const module = station?.modules.find((candidate) => candidate.position.x === position.x
+      && candidate.position.y === position.y);
+    if (station && module) damageModule(draft, station.id, module, GUN_DAMAGE * bugGunCount(bug));
+  }
+}
+
+function fireBug(bug: Bug, target: Quarry): Bug {
+  const value = target.kind === "ship" ? target.ship : target.module;
+  const gunShot: BugShot = {
+    from: { ...bug.position },
+    to: { ...value.position },
+    target: target.kind === "ship" ? { kind: "ship", id: target.ship.id }
+      : { kind: "module", stationId: target.stationId, position: { ...target.module.position } },
+    timer: GUN_SHOT_SECONDS,
+  };
+  return { ...bug, gunTimer: GUN_SECONDS, gunShot };
+}
+
+function damageModule(draft: Draft, stationId: number, module: StationModule, damage: number): void {
+  const hp = Math.max(0, moduleHp(module) - damage);
   const update = (candidate: StationModule) => candidate.position.x === module.position.x && candidate.position.y === module.position.y
     ? { ...candidate, hp, maxHp: candidate.maxHp ?? MODULE_HP } : candidate;
   if (hp > 0) {
@@ -291,7 +315,7 @@ function biteModule(draft: Draft, stationId: number, module: StationModule): voi
   }
   const source = stationId === draft.activeStationId ? activeStation(draft) : draft.others.find((station) => station.id === stationId);
   if (!source) return;
-  const result = damageStationModule(source, module.position, BUG_BITE_DAMAGE, draft.time);
+  const result = damageStationModule(source, module.position, damage, draft.time);
   draft.moduleDestructions.push(...result.destructions);
   if (stationId === draft.activeStationId) {
     draft.modules = result.station.modules;
@@ -323,7 +347,12 @@ export function advanceEnemies(draft: Draft, seconds: number): void {
     const left = hive.spawnTimer - seconds;
     return { ...hive, spawnTimer: Math.abs(left) < 1e-9 ? 0 : left };
   });
-  draft.bugs = draft.bugs.map((bug) => progressBug(bug, seconds));
+  draft.bugs = draft.bugs.map((bug) => {
+    const next = progressBug(bug, seconds);
+    if (bug.gunTimer === undefined && !bug.gunShot) return next;
+    return { ...next, gunTimer: Math.max(0, (bug.gunTimer ?? 0) - seconds),
+      gunShot: bug.gunShot ? burnOut(bug.gunShot, seconds) : null };
+  });
   // Gun ships reload towards their next shot, and shots in flight burn out.
   const from = draft.time - seconds;
   draft.ships = advanceShipRepairs(advanceShields(draft.ships, from, draft.time), seconds).map((ship) => {
@@ -339,12 +368,12 @@ export function advanceEnemies(draft: Draft, seconds: number): void {
   draft.others = draft.others.map((station) => ({ ...station, modules: advanceTurrets(station.modules, seconds) }));
 }
 
-function burnOut(shot: GunShot, seconds: number): GunShot {
+function burnOut<T extends { timer: number }>(shot: T, seconds: number): T {
   return { ...shot, timer: Math.max(0, shot.timer - seconds) };
 }
 
 // Fires every enemy timer that has reached zero: hives hatch, hovering bugs
-// pick the next spot to hang about at, and hunting bugs bite their quarry or
+// pick the next spot to hang about at, and hunting bugs shoot their quarry or
 // chase it. Bugs that hunt re-pick the nearest ship in their sector each time
 // a leg runs out, so a moved or destroyed target hands them on.
 export function settleEnemies(draft: Draft): void {
@@ -356,9 +385,14 @@ export function settleEnemies(draft: Draft): void {
   });
   settleArrivals(draft);
   settleInvasions(draft);
-  // Fewer alive bugs than the threshold loiter by the hive and ignore ships
-  // (criterion 3). At the threshold they fly at the nearest ship in their own
-  // sector (criterion 4) and bite it alongside.
+  let expiredBugShot = false;
+  for (const bug of draft.bugs) if (bug.gunShot?.timer === 0) {
+    bugShotDamage(draft, bug);
+    expiredBugShot = true;
+  }
+  if (expiredBugShot) draft.bugs = draft.bugs.map((bug) => bug.gunShot?.timer === 0 ? { ...bug, gunShot: null } : bug);
+  // Fewer alive bugs than the threshold loiter by the hive. At the threshold
+  // they attack the nearest quarry in their own sector with their Guns.
   draft.bugs = draft.bugs.map((bug) => {
     if (bug.timer > 0) return bug;
     if (bug.state === "invading") return bug;
@@ -370,12 +404,11 @@ export function settleEnemies(draft: Draft): void {
       if (quarry) {
         const target = quarry.kind === "ship" ? quarry.ship : quarry.module;
         const length = Math.hypot(target.position.x - bug.position.x, target.position.y - bug.position.y);
-        if (length <= BUG_BITE_RANGE) {
-          if (quarry.kind === "ship") bite(draft, quarry.ship);
-          else biteModule(draft, quarry.stationId, quarry.module);
-          return { ...bug, state: "hunting", targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
+        if (length <= GUN_RANGE) {
+          const updated = bug.gunShot || (bug.gunTimer ?? 0) > 0 ? bug : fireBug(bug, quarry);
+          return { ...updated, state: "hunting", targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
             targetModule: quarry.kind === "module" ? { stationId: quarry.stationId, position: { ...quarry.module.position } } : null,
-            leg: null, timer: BUG_BITE_SECONDS };
+            leg: null, timer: Math.max(LOITER_QUANTUM, updated.gunTimer ?? GUN_SECONDS) };
         }
         return {
           ...bug,
@@ -388,14 +421,14 @@ export function settleEnemies(draft: Draft): void {
       }
     }
     // Nothing to hunt: loiter, whether the bug was hovering or had lost its
-    // quarry to a bite from a sibling.
+    // quarry to a sibling's shot.
     // Hive-less joiners spread around the resident population, not their natal hive.
     const centre = hive ?? draft.bugs.find((candidate) => candidate.sectorId === bug.sectorId);
     if (!centre) return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: null, timer: 1 };
     const loiter = loiterPoint(draft, centre, bug);
     return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: { from: { ...bug.position }, to: loiter.to }, timer: loiter.seconds };
   });
-  // After the bugs have taken their bites, every gun ship that is loaded
+  // After the bugs' shots land, every gun ship that is loaded
   // shoots the nearest bug in range, or the hive when no bug is close enough.
   settleGuns(draft);
   settleTurrets(draft);
@@ -564,7 +597,7 @@ export function gunBeams(state: Pick<SimState, "ships">): Beam[] {
 
 // Seconds until the next ENEMY timer that drives the event loop runs out: the
 // hive's spawn clock and, once the swarm hunts, every hunting bug's flight,
-// chase and bite clock. Loitering bugs hang off the same loop, but their legs
+// chase and gun clock. Loitering bugs hang off the same loop, but their legs
 // are cosmetic, so they advance with whatever steps land anyway instead of
 // splitting every second into a step of their own (with thirty bugs busy about
 // the hive that would be a step every fraction of a second, and every timer in
@@ -577,6 +610,8 @@ export function nextEnemyEvent(draft: Draft): number {
   for (const bug of draft.bugs) {
     // Loiter completions also draw RNG and set the next departure's position.
     soonest = Math.min(soonest, bug.timer);
+    if (bug.gunTimer && bug.gunTimer > 0) soonest = Math.min(soonest, bug.gunTimer);
+    if (bug.gunShot) soonest = Math.min(soonest, bug.gunShot.timer);
   }
   // A reloading gun holds the next event, and a burning-out shot holds one
   // last event to clear it. A loaded gun with nothing in range holds nothing:

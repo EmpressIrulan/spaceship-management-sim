@@ -1,6 +1,5 @@
 import {
   BUG_SIZE,
-  BUG_BITE_SECONDS,
   DROP_SIZE,
   HIVE_SIZE,
   GUN_SHOT_SECONDS,
@@ -39,7 +38,6 @@ const DROP_COLORS: Record<DropKind, string> = {
 // A gun shot wears the yellow of the Gun pixel that fired it, so the shot
 // traces straight back to its ship.
 const GUN_SHOT_COLOR = slotColor("Gun");
-const BITE_COLOR = BUG_COLOR;
 const BITE_FLASH_SECONDS = 0.35;
 const MIN_BODY_DOT_PX = 2;
 
@@ -139,8 +137,7 @@ export function createWorldDrawing(
       const repair = repairBeam(getState(), ship);
       if (repair) shipDrawing.drawLaser(repair, seconds, "#4ade80");
     }
-    // Every gun shot burning out in the sector draws its projectile; a bite flashes
-    // briefly after the event, rather than throughout its cooldown.
+    // Every gun shot burning out in the sector draws its projectile.
     for (const ship of sectorShips) {
       const shot = ship.gunShot;
       if (!shot) continue;
@@ -151,6 +148,16 @@ export function createWorldDrawing(
       };
       const pixel = worldToScreen(ui.camera, ui.viewport, point);
       ctx.fillStyle = GUN_SHOT_COLOR;
+      ctx.fillRect(Math.round(pixel.x) - 2, Math.round(pixel.y) - 2, 4, 4);
+    }
+    for (const bug of sectorBugs) {
+      const shot = bug.gunShot;
+      if (!shot) continue;
+      const progress = 1 - shot.timer / GUN_SHOT_SECONDS;
+      const point = { x: shot.from.x + (shot.to.x - shot.from.x) * progress,
+        y: shot.from.y + (shot.to.y - shot.from.y) * progress };
+      const pixel = worldToScreen(ui.camera, ui.viewport, point);
+      ctx.fillStyle = "#fb7185";
       ctx.fillRect(Math.round(pixel.x) - 2, Math.round(pixel.y) - 2, 4, 4);
     }
     for (const station of state.stations) {
@@ -167,12 +174,6 @@ export function createWorldDrawing(
         ctx.fillStyle = GUN_SHOT_COLOR;
         ctx.fillRect(Math.round(pixel.x) - 2, Math.round(pixel.y) - 2, 4, 4);
       }
-    }
-    for (const bug of sectorBugs) {
-      if (bug.state !== "hunting" || bug.leg !== null || bug.targetShipId === null
-        || bug.timer < BUG_BITE_SECONDS - BITE_FLASH_SECONDS) continue;
-      const quarry = state.ships.find((candidate) => candidate.id === bug.targetShipId);
-      if (quarry) shipDrawing.drawLaser({ from: bug.position, to: quarry.position }, seconds, BITE_COLOR);
     }
     // A hull seen one frame and gone the next has been destroyed: blast at
     // the spot where it was last seen.
