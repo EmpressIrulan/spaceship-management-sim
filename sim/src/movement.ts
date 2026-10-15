@@ -9,16 +9,15 @@ import type { Bug, Ship, ShipDesign, StationModule } from "./model";
 // those positions: a body drifts aside as others approach instead of snapping
 // to a new layout when the crowd's order changes.
 
-// Under this share of the contact distance a pair's "away" direction fades out
-// instead of turning sharply as the pair passes through each other.
-const SOFT_PUSH = 1;
 // A body's pushes are averaged once their combined overlap passes this many
 // contact distances, and summed below it.
 const CROWD = 1.5;
-// How strongly a pair's push leans toward the sidestep direction while they
-// overlap.
-const SIDESTEP = 1;
 // Spreads body ids evenly round the circle, so any set of ids fans out.
+// Moving bodies start to slide round each other this many contact distances out.
+const RANGE = 1.5;
+// Relative speed, in world units a second, below which a pair's motion is too
+// small to say which way they pass each other.
+const FIXED_SIDE = 0.5;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 type Body = { half: { x: number; y: number }; radius: number };
@@ -60,6 +59,7 @@ let py = new Float64Array(0);
 let dx = new Float64Array(0);
 let dy = new Float64Array(0);
 let heading = new Float64Array(0);
+let velocity = new Float64Array(0);
 let halfX = new Float64Array(0);
 let halfY = new Float64Array(0);
 let radius = new Float64Array(0);
@@ -68,6 +68,7 @@ let sector = new Int32Array(0);
 let active = new Uint8Array(0);
 let still = new Uint8Array(0);
 let ordered = new Int32Array(0);
+const edges: number[] = [];
 let orderedCount = -1;
 let crowd = new Float64Array(0);
 let outX = new Float64Array(0);
@@ -79,6 +80,7 @@ function reserve(count: number): void {
   px = new Float64Array(capacity); py = new Float64Array(capacity);
   dx = new Float64Array(capacity); dy = new Float64Array(capacity);
   heading = new Float64Array(capacity * 2);
+  velocity = new Float64Array(capacity * 2);
   halfX = new Float64Array(capacity); halfY = new Float64Array(capacity);
   radius = new Float64Array(capacity); key = new Float64Array(capacity);
   sector = new Int32Array(capacity); active = new Uint8Array(capacity); still = new Uint8Array(capacity); ordered = new Int32Array(capacity); orderedCount = -1; crowd = new Float64Array(capacity);
@@ -137,13 +139,17 @@ function bendAround(
   const along = (at.x - from.x) * hx + (at.y - from.y) * hy;
   let offset = 0;
   for (let i = 0; i < side.length; i += 3) {
-    const rise = smooth((along - (side[i]! - ramp)) / ramp);
-    const fall = smooth((side[i + 1]! + ramp - along) / ramp);
-    const value = side[i + 2]! * Math.min(rise, fall);
+    // The offset eases in and out only on the stretch of leg that lies clear of
+    // the module, so the ship is never inside it while the offset shrinks.
+    const start = side[i]!; const end = side[i + 1]!;
+    const rise = start > 0 ? Math.min(ramp, start) : 0;
+    const fall = length - end > 0 ? Math.min(ramp, length - end) : 0;
+    const up = rise > 0 ? smooth((along - (start - rise)) / rise) : 1;
+    const down = fall > 0 ? smooth((end + fall - along) / fall) : 1;
+    const value = side[i + 2]! * Math.min(up, down);
     if (Math.abs(value) > Math.abs(offset)) offset = value;
   }
-  // Leave and arrive exactly on the leg, so a new leg never starts with a hop.
-  return offset * smooth(along / ramp) * smooth((length - along) / ramp);
+  return offset;
 }
 
 export function separateTraffic(ships: Ship[], bugs: Bug[], modules: StationModule[], moduleSectors: number[] = []): { ships: Ship[]; bugs: Bug[] } {
@@ -173,8 +179,14 @@ export function separateTraffic(ships: Ship[], bugs: Bug[], modules: StationModu
       const length = Math.sqrt(lx * lx + ly * ly);
       heading[i * 2] = length > 1e-9 ? lx / length : 0;
       heading[i * 2 + 1] = length > 1e-9 ? ly / length : 0;
+      // Average velocity over the rest of the leg: what is left to cover over
+      // the time left. It is exact for a bug, whose legs run at one speed.
+      const left = Math.max(item.timer, 1e-3);
+      velocity[i * 2] = (leg.to.x - item.position.x) / left;
+      velocity[i * 2 + 1] = (leg.to.y - item.position.y) / left;
     } else {
       heading[i * 2] = 0; heading[i * 2 + 1] = 0;
+      velocity[i * 2] = 0; velocity[i * 2 + 1] = 0;
     }
   }
 
@@ -217,41 +229,24 @@ export function separateTraffic(ships: Ship[], bugs: Bug[], modules: StationModu
 
   // Nearby pairs push each other apart. Every push is computed from the same
   // positions and summed afterwards, so the result does not depend on the order
-  // of the bodies.
-  const pair = (i: number, j: number): void => {
+  // of the bodies. A first sweep finds the overlapping pairs and how crowded
+  // each body is, and a second one pushes.
+  edges.length = 0;
+  const overlapping = (i: number, j: number): void => {
     if (!active[i] && !active[j]) return;
     const required = radius[i]! + radius[j]!;
     const ox = px[j]! - px[i]!; const oy = py[j]! - py[i]!;
     const squared = ox * ox + oy * oy;
-    if (squared >= required * required) return;
-    // Work in a fixed order so the pair sees one geometry from either side.
-    const first = key[i]! <= key[j]! ? i : j;
-    const second = first === i ? j : i;
-    const rx = first === i ? ox : -ox; const ry = first === i ? oy : -oy;
-    const push = required - Math.sqrt(squared);
-    // Sidestep: the side each body takes if it keeps to its own right. Bodies
-    // on one heading, or none, leave along fixed directions spread by id.
-    let sx = heading[first * 2 + 1]! - heading[second * 2 + 1]!;
-    let sy = heading[second * 2]! - heading[first * 2]!;
-    let sideLength = Math.sqrt(sx * sx + sy * sy);
-    if (sideLength > 0.5) { sx /= sideLength; sy /= sideLength; } else {
-      const a = key[first]! * GOLDEN_ANGLE; const b = key[second]! * GOLDEN_ANGLE;
-      sx = Math.cos(b) - Math.cos(a); sy = Math.sin(b) - Math.sin(a);
-      sideLength = Math.sqrt(sx * sx + sy * sy);
-      sx /= sideLength; sy /= sideLength;
-    }
-    const vx = rx + SIDESTEP * push * sx; const vy = ry + SIDESTEP * push * sy;
-    const scale = push / Math.max(Math.sqrt(vx * vx + vy * vy), SOFT_PUSH * required);
-    const share = active[i] && active[j] ? 0.5 : 1;
-    const gx = vx * scale * share; const gy = vy * scale * share;
-    const weight = push / required;
-    if (active[first]) { dx[first] = dx[first]! - gx; dy[first] = dy[first]! - gy; crowd[first] = crowd[first]! + weight; }
-    if (active[second]) { dx[second] = dx[second]! + gx; dy[second] = dy[second]! + gy; crowd[second] = crowd[second]! + weight; }
+    if (squared >= required * required * RANGE * RANGE) return;
+    edges.push(i, j);
+    const weight = Math.max(0, 1 - Math.sqrt(squared) / required);
+    if (active[i]) crowd[i] = crowd[i]! + weight;
+    if (active[j]) crowd[j] = crowd[j]! + weight;
   };
   // Sweep along x: bodies are visited in order and each is compared only with
   // the ones within one body width ahead of it.
   let reach = 1;
-  for (let i = 0; i < count; i += 1) reach = Math.max(reach, radius[i]! * 2);
+  for (let i = 0; i < count; i += 1) reach = Math.max(reach, radius[i]! * 2 * RANGE);
   // Bodies barely move in x between ticks, so last tick's order is nearly
   // sorted and an insertion pass finishes it in about one sweep.
   const order = ordered;
@@ -273,8 +268,57 @@ export function separateTraffic(ships: Ship[], bugs: Bug[], modules: StationModu
       const j = order[b]!;
       if (px[j]! - x >= reach) break;
       if (Math.abs(py[j]! - y) >= reach || sector[i] !== sector[j]) continue;
-      pair(i, j);
+      overlapping(i, j);
     }
+  }
+  for (let e = 0; e < edges.length; e += 2) {
+    const i = edges[e]!; const j = edges[e + 1]!;
+    const required = radius[i]! + radius[j]!;
+    const ox = px[j]! - px[i]!; const oy = py[j]! - py[i]!;
+    // Work in a fixed order so the pair sees one geometry from either side.
+    const first = key[i]! <= key[j]! ? i : j;
+    const second = first === i ? j : i;
+    const rx = first === i ? ox : -ox; const ry = first === i ? oy : -oy;
+    const distance = Math.sqrt(rx * rx + ry * ry);
+    // Sideways: perpendicular to how the two close on each other.
+    // Bodies that hardly move relative to each other have no side to pass on,
+    // so they fade to a fixed direction per pair, spread by id.
+    const dvx = velocity[second * 2]! - velocity[first * 2]!;
+    const dvy = velocity[second * 2 + 1]! - velocity[first * 2 + 1]!;
+    const closing = Math.sqrt(dvx * dvx + dvy * dvy);
+    const sure = smooth((closing - FIXED_SIDE) / (3 * FIXED_SIDE));
+    const ga = key[first]! * GOLDEN_ANGLE; const gb = key[second]! * GOLDEN_ANGLE;
+    let sx = sure * (-dvy / (closing || 1)) + (1 - sure) * (Math.cos(gb) - Math.cos(ga));
+    let sy = sure * (dvx / (closing || 1)) + (1 - sure) * (Math.sin(gb) - Math.sin(ga));
+    const sideLength = Math.sqrt(sx * sx + sy * sy) || 1;
+    sx /= sideLength; sy /= sideLength;
+    // Alone, a pair begins to slide sideways before contact, on the side they
+    // are already offset to, far enough to clear each other by the time they
+    // meet. The slide grows smoothly from nothing, so there is no sudden swap
+    // when they cross. In a crowd that answer would change sharply as
+    // neighbours come and go, so it gives way to a gentler push that leaves
+    // some overlap.
+    let tx = sx; let ty = sy;
+    if (rx * sx + ry * sy < -1e-6) { tx = -sx; ty = -sy; }
+    // Only as much slide as the pair still needs: how far apart sideways they
+    // must be at this point along their pass, less how far they already are.
+    const sideways = Math.max(0, rx * tx + ry * ty);
+    const along = Math.sqrt(Math.max(0, distance * distance - sideways * sideways)) / (required * RANGE);
+    const slide = Math.max(0, required * Math.max(0, 1 - along * along) - sideways);
+    const exactX = tx * slide; const exactY = ty * slide;
+    const push = Math.max(0, required - distance);
+    const bx = rx + push * sx; const by = ry + push * sy;
+    const soft = push / Math.max(Math.sqrt(bx * bx + by * by), required);
+    const softX = bx * soft; const softY = by * soft;
+    const crowded = Math.max(crowd[i]!, crowd[j]!);
+    // Bodies that barely move relative to each other have no side to pass on
+    // either, and get the gentle push too.
+    const gentle = 1 - (1 - smooth(crowded - 1)) * sure;
+    const share = active[i] && active[j] ? 0.5 : 1;
+    const gx = (exactX + (softX - exactX) * gentle) * share;
+    const gy = (exactY + (softY - exactY) * gentle) * share;
+    if (active[first]) { dx[first] = dx[first]! - gx; dy[first] = dy[first]! - gy; }
+    if (active[second]) { dx[second] = dx[second]! + gx; dy[second] = dy[second]! + gy; }
   }
 
   // A body squeezed by several neighbours moves by the average of their pushes
