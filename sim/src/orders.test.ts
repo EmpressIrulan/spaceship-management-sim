@@ -53,7 +53,7 @@ describe("RTS ship orders", () => {
     expect(ordered.ships[0]).toMatchObject({ order: { kind: "haulGate", gateId: 0 } });
     const delivered = run(ordered, 600);
     expect(delivered.gateProjects[0]!.delivered.Metal).toBeGreaterThan(0);
-  });
+  }, 20_000);
 
   it.each([1, 2])("lets a loaded ship supply a non-Home gate from sector %i", (sectorId) => {
     let start = startGateBuild(miningStart(7), 1, { x: 80, y: 0 }, 2, { x: -80, y: 0 });

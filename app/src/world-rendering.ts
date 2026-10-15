@@ -1,6 +1,5 @@
 import {
   BUG_SIZE,
-  BUG_BITE_SECONDS,
   DROP_SIZE,
   HIVE_SIZE,
   GUN_SHOT_SECONDS,
@@ -15,7 +14,7 @@ import {
 import { worldToScreen } from "./camera";
 import { asteroidColor } from "./asteroid";
 import { cargoGauge } from "./labels";
-import { slotColor } from "./ships";
+import { shipSprite, slotColor } from "./ships";
 import { cancelDependentsAt } from "./building";
 import { stationConnectors } from "./station-appearance";
 import { createStationDrawing } from "./station-rendering";
@@ -39,7 +38,6 @@ const DROP_COLORS: Record<DropKind, string> = {
 // A gun shot wears the yellow of the Gun pixel that fired it, so the shot
 // traces straight back to its ship.
 const GUN_SHOT_COLOR = slotColor("Gun");
-const BITE_COLOR = BUG_COLOR;
 const BITE_FLASH_SECONDS = 0.35;
 const MIN_BODY_DOT_PX = 2;
 
@@ -111,7 +109,39 @@ export function createWorldDrawing(
       strokeWorldRect(hive.position, HIVE_SIZE, HIVE_OUTLINE_COLOR);
     }
     const sectorBugs = (state.bugs ?? []).filter((bug) => bug.sectorId === ui.currentSector);
-    for (const bug of sectorBugs) fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), BUG_COLOR);
+    for (const bug of sectorBugs) {
+      if (!bug.design) {
+        fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), BUG_COLOR);
+        continue;
+      }
+      const size = shipSize(bug.design);
+      const topLeft = worldToScreen(ui.camera, ui.viewport, {
+        x: bug.position.x - size.width / 2,
+        y: bug.position.y - size.height / 2,
+      });
+      const bottomRight = worldToScreen(ui.camera, ui.viewport, {
+        x: bug.position.x + size.width / 2,
+        y: bug.position.y + size.height / 2,
+      });
+      const x = Math.round(topLeft.x);
+      const y = Math.round(topLeft.y);
+      const width = Math.max(1, Math.round(bottomRight.x) - x);
+      const height = Math.max(1, Math.round(bottomRight.y) - y);
+      if (width < 2 || height < 2) {
+        fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), BUG_COLOR);
+        continue;
+      }
+      // The modules remain individually readable, while this soft, organic
+      // perimeter makes the design read as a creature rather than a ship.
+      ctx.drawImage(shipSprite(bug.design), x, y, width, height);
+      ctx.save();
+      ctx.strokeStyle = BUG_COLOR;
+      ctx.lineWidth = Math.max(1, Math.min(width, height) * 0.045);
+      ctx.beginPath();
+      ctx.ellipse(x + width / 2, y + height / 2, width * 0.62, height * 0.78, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     // Every station in the sector draws whole, so a founding one shows its
     // ghosts, its build and its site marker exactly the way Home does.
     for (const station of state.stations) {
@@ -139,8 +169,7 @@ export function createWorldDrawing(
       const repair = repairBeam(getState(), ship);
       if (repair) shipDrawing.drawLaser(repair, seconds, "#4ade80");
     }
-    // Every gun shot burning out in the sector draws its projectile; a bite flashes
-    // briefly after the event, rather than throughout its cooldown.
+    // Every gun shot burning out in the sector draws its projectile.
     for (const ship of sectorShips) {
       const shot = ship.gunShot;
       if (!shot) continue;
@@ -151,6 +180,16 @@ export function createWorldDrawing(
       };
       const pixel = worldToScreen(ui.camera, ui.viewport, point);
       ctx.fillStyle = GUN_SHOT_COLOR;
+      ctx.fillRect(Math.round(pixel.x) - 2, Math.round(pixel.y) - 2, 4, 4);
+    }
+    for (const bug of sectorBugs) {
+      const shot = bug.gunShot;
+      if (!shot) continue;
+      const progress = 1 - shot.timer / GUN_SHOT_SECONDS;
+      const point = { x: shot.from.x + (shot.to.x - shot.from.x) * progress,
+        y: shot.from.y + (shot.to.y - shot.from.y) * progress };
+      const pixel = worldToScreen(ui.camera, ui.viewport, point);
+      ctx.fillStyle = "#fb7185";
       ctx.fillRect(Math.round(pixel.x) - 2, Math.round(pixel.y) - 2, 4, 4);
     }
     for (const station of state.stations) {
@@ -167,12 +206,6 @@ export function createWorldDrawing(
         ctx.fillStyle = GUN_SHOT_COLOR;
         ctx.fillRect(Math.round(pixel.x) - 2, Math.round(pixel.y) - 2, 4, 4);
       }
-    }
-    for (const bug of sectorBugs) {
-      if (bug.state !== "hunting" || bug.leg !== null || bug.targetShipId === null
-        || bug.timer < BUG_BITE_SECONDS - BITE_FLASH_SECONDS) continue;
-      const quarry = state.ships.find((candidate) => candidate.id === bug.targetShipId);
-      if (quarry) shipDrawing.drawLaser({ from: bug.position, to: quarry.position }, seconds, BITE_COLOR);
     }
     // A hull seen one frame and gone the next has been destroyed: blast at
     // the spot where it was last seen.

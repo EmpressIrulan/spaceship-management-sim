@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   BUG_SIZE,
-  BUG_BITE_SECONDS,
   DROP_SIZE,
   HIVE_SIZE,
   SIZE_MULTIPLIER,
@@ -67,6 +66,7 @@ function bug(sector: number, position: Vec, targetShipId: number | null = null):
     hiveId: 1,
     sectorId: sector,
     position,
+    design: { width: 2, height: 1, slots: ["Gun", "Engine"] },
     hp: 6,
     maxHp: 6,
     state: targetShipId === null ? "hovering" : "hunting",
@@ -87,6 +87,41 @@ function withBodies(state: SimState, bodies: { stations?: SimState["stations"]; 
 const AT = { x: 40, y: -20 };
 
 describe("the world draws the hive and its bugs", () => {
+  it("shows each bug's module design inside an organic shell", () => {
+    const ctx = mockCtx();
+    const uiState = ui();
+    uiState.camera = { ...uiState.camera, zoom: 30 };
+    const drawing = createWorldDrawing(uiState, () => withBodies(createInitialState(7), {
+      bugs: [bug(0, AT)],
+      stations: [],
+    }), ctx, vi.fn(), vi.fn());
+
+    drawing.draw(0);
+
+    expect(ctx.drawImage).toHaveBeenCalled();
+    expect(ctx.ellipse).toHaveBeenCalled();
+  });
+
+  it("draws larger bug designs larger instead of squeezing them into one fixed box", () => {
+    const ctx = mockCtx();
+    const state = createInitialState(7);
+    state.ships = [];
+    state.stations = [];
+    state.bugs = [
+      { ...bug(0, { x: -10, y: 0 }), design: { width: 2, height: 1, slots: ["Gun", "Engine"] } },
+      { ...bug(0, { x: 0, y: 0 }), design: { width: 3, height: 2, slots: ["Gun", "Engine", "Gun", "Hull", "Engine", "Hull"] } },
+      { ...bug(0, { x: 10, y: 0 }), design: { width: 4, height: 2, slots: ["Gun", "Engine", "Gun", "Hull", "Gun", "Engine", "Gun", "Hull"] } },
+    ];
+    const uiState = ui();
+    uiState.camera = { ...uiState.camera, zoom: 30 };
+    createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn()).draw(0);
+
+    const calls = (ctx.drawImage as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const widths = calls.filter((call) => call.length === 5).map((call) => Number(call[3]));
+    expect(widths[0]).toBeLessThan(widths[1]!);
+    expect(widths[1]).toBeLessThan(widths[2]!);
+  });
+
   it("draws the hive of the sector on its spot", () => {
     const uiState = ui();
     const ctx = mockCtx();
@@ -105,7 +140,7 @@ describe("the world draws the hive and its bugs", () => {
     const fillWorldRect = vi.fn();
     const drawing = createWorldDrawing(uiState, () => withBodies(createInitialState(7), {
       hives: [hive(0, AT, false)],
-      bugs: [bug(0, AT), bug(1, { x: 0, y: 0 })],
+      bugs: [{ ...bug(0, AT), design: undefined }, { ...bug(1, { x: 0, y: 0 }), design: undefined }],
     }), ctx, fillWorldRect, vi.fn());
     drawing.draw(0);
     expect(fillWorldRect).toHaveBeenCalledWith(AT, BUG_SIZE, "#c084fc");
@@ -119,7 +154,7 @@ describe("the world draws the hive and its bugs", () => {
     const gathering = { x: 90, y: 50 };
     const drawing = createWorldDrawing(uiState, () => withBodies(createInitialState(7), {
       hives: [hive(2, founded)],
-      bugs: [bug(2, gathering)],
+      bugs: [{ ...bug(2, gathering), design: undefined }],
     }), ctx, fillWorldRect, vi.fn());
 
     drawing.draw(0);
@@ -178,7 +213,7 @@ describe("zoomed-out small bodies", () => {
 });
 
 function shotState(ship: Ship, bugs: Bug[] = []): SimState {
-  // No station draws beside the ships, so each beam path is a shot or a bite.
+  // No station draws beside the ships, so each projectile belongs to a ship or bug.
   return withBodies(createInitialState(7), { ships: [ship], bugs, stations: [] });
 }
 
@@ -257,35 +292,19 @@ describe("the world draws gun shots", () => {
     expect(ctx.fillRect).toHaveBeenCalledWith(428, 328, 4, 4);
   });
 
-  it("draws a bite as a flash between the bug and the ship it is biting", () => {
+  it("draws an in-flight bug shot as a projectile", () => {
     const uiState = ui();
     const ctx = mockCtx();
     const base = createInitialState(7).ships[0]!;
     const ship = { ...base, id: 9, position: { x: 0, y: 0 } };
-    const biting = { ...bug(0, { x: 8, y: 0 }, 9), timer: BUG_BITE_SECONDS };
-    const drawing = createWorldDrawing(uiState, () => shotState(ship, [biting]), ctx, vi.fn(), vi.fn());
+    const shooter = { ...bug(0, { x: 8, y: 0 }, 9), gunShot: {
+      from: { x: 8, y: 0 }, to: { x: 0, y: 0 }, target: { kind: "ship" as const, id: 9 }, timer: 0.25,
+    } };
+    const drawing = createWorldDrawing(uiState, () => shotState(ship, [shooter]), ctx, vi.fn(), vi.fn());
     drawing.draw(0);
-    expect(ctx.moveTo).toHaveBeenCalledWith(408, 300);
-    expect(ctx.lineTo).toHaveBeenCalledWith(400, 300);
-  });
-
-  it("does not keep drawing a bite throughout its cooldown or track a moved quarry", () => {
-    const uiState = ui();
-    const ctx = mockCtx();
-    const base = createInitialState(7).ships[0]!;
-    const ship = { ...base, id: 9, position: { x: 0, y: 0 } };
-    let biteBug = { ...bug(0, { x: 8, y: 0 }, 9), timer: BUG_BITE_SECONDS - 0.3 };
-    let state = shotState(ship, [biteBug]);
-    const drawing = createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn());
-    drawing.draw(0);
-    expect(ctx.moveTo).toHaveBeenCalledTimes(1);
-    (ctx.moveTo as unknown as { mockClear: () => void }).mockClear();
-    (ctx.lineTo as unknown as { mockClear: () => void }).mockClear();
-    biteBug = { ...biteBug, timer: BUG_BITE_SECONDS - 1, position: { x: 12, y: 0 } };
-    state = shotState({ ...ship, position: { x: 100, y: 0 } }, [biteBug]);
-    drawing.draw(1);
     expect(ctx.moveTo).not.toHaveBeenCalled();
     expect(ctx.lineTo).not.toHaveBeenCalled();
+    expect(ctx.fillRect).toHaveBeenCalledWith(402, 298, 4, 4);
   });
 });
 

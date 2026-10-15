@@ -89,9 +89,8 @@ export interface Ship {
   // The cargo aboard when this transfer began and the total units it will move.
   // This makes partial transfers deterministic and safe to interrupt.
   transfer: CargoTransfer | null;
-  // Current and full hull. Bugs bite these down; at 0 the ship explodes and it
-  // and its cargo are gone. Missing on older fixtures and on ships that have
-  // not been bitten: a fresh ship still has SHIP_HP of hull.
+  // Current and full hull. Enemy gun hits wear this down; at 0 the ship and
+  // its cargo are gone. Missing on older fixtures: a fresh ship has SHIP_HP.
   hp?: number;
   maxHp?: number;
   // Explicit repair assignment; selection is handled by player orders.
@@ -223,7 +222,7 @@ export interface Hive {
   // False once killed: a dead hive stops releasing bugs.
   alive: boolean;
 }
-// Hovering bugs hang about the hive; hunting ones fly at a ship and bite it.
+// Hovering bugs hang about the hive; hunting ones engage nearby ships or modules.
 export type BugState = "hovering" | "hunting" | "invading" | "gathering";
 export interface Bug {
   id: number;
@@ -231,16 +230,31 @@ export interface Bug {
   hiveId: number;
   sectorId: number;
   position: Vec;
+  // Missing on older fixtures; every newly hatched bug has a design.
+  design?: ShipDesign;
+  // Each bug gets a stable loiter stream so simultaneous arrival order cannot
+  // reshuffle destinations when a tick is split into smaller steps.
+  loiterRng?: number;
   hp: number;
   maxHp: number;
   state: BugState;
-  // The ship this bug flies at and bites, when it hunts. Null while hovering.
+  // The ship this bug is attacking, when it hunts. Null while hovering.
   targetShipId: number | null;
   // The sector a migrating group is crossing into. Missing for older bugs.
   targetSectorId?: number | null;
   targetModule?: { stationId: number; position: Vec } | null;
   leg: Leg | null;
-  // Seconds left in the current leg. Unused while holding still.
+  // Seconds left in the current leg or attack cadence.
+  timer: number;
+  // Seconds until the bug's next shot. Missing on older fixtures means loaded.
+  gunTimer?: number;
+  gunShot?: BugShot | null;
+}
+
+export interface BugShot {
+  from: Vec;
+  to: Vec;
+  target: { kind: "ship"; id: number } | { kind: "module"; stationId: number; position: Vec };
   timer: number;
 }
 
@@ -265,6 +279,9 @@ export interface SimState {
   // the tick loitering never perturbs where the main stream puts a rock.
   // Missing on older fixtures: falls out of the main stream's seed.
   enemyRng?: number;
+  // Bug sizes use a separate deterministic stream, so visual variety does not
+  // consume randomness used for enemy movement and migration.
+  bugDesignRng?: number;
   nextAsteroidId: number;
   nextShipId: number;
   sectors: Sector[];

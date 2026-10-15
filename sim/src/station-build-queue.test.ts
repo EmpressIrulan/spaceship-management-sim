@@ -15,7 +15,7 @@ import {
 import { suppliersComingHome } from "./test-ships";
 import { placeStation } from "./station-placement";
 import { damageStationModule } from "./station-build-queue";
-import { BUG_BITE_RANGE, BUILDER_SIZE, MODULE_SPACING, STORAGE_SIZE } from "./build-constants";
+import { BUILDER_SIZE, GUN_SHOT_SECONDS, MODULE_SPACING, STORAGE_SIZE } from "./build-constants";
 
 const east = { x: 2 * MODULE_SPACING, y: 0 };
 const farEast = { x: 3 * MODULE_SPACING, y: 0 };
@@ -78,15 +78,15 @@ describe("the station build queue", () => {
     station.modules[1] = { ...station.modules[1]!, hp: 1 };
     station.modules.push({ type: "Storage", position: west, size: STORAGE_SIZE });
     state.bugs = Array.from({ length: 5 }, (_, id) => ({ id, hiveId: 0, sectorId: 0,
-      position: { x: station.modules[1]!.position.x + BUG_BITE_RANGE / 2, y: 0 }, hp: 6, maxHp: 6, state: "hunting", targetShipId: null, leg: null, timer: 0 }));
+      position: { ...station.modules[1]!.position }, hp: 6, maxHp: 6, state: "hunting", targetShipId: null, leg: null, timer: 0 }));
     const before = JSON.stringify(state);
     freeze(state);
-    const result = tick(state, 1 / 60);
+    const result = tick(state, GUN_SHOT_SECONDS);
     expect(result.stations[0]!.inventory).toEqual({ Metal: 100, Ice: 50 });
     expect(result.stations[0]!.storage.capacity).toBe(1000);
     expect(result.stations[0]!.modules.filter(module => module.type === "Storage")).toHaveLength(1);
     expect(JSON.stringify(state)).toBe(before);
-    expect(tick(state, 1 / 60)).toEqual(result);
+    expect(tick(state, GUN_SHOT_SECONDS)).toEqual(result);
   });
 
   it.each(["construction", "queued", "only Dock"])("preserves %s builds when their attachment is destroyed", (setup) => {
@@ -107,9 +107,9 @@ describe("the station build queue", () => {
     const target = station.modules[setup === "only Dock" ? 0 : 1]!;
     target.hp = 3;
     state.bugs = Array.from({ length: 5 }, (_, id) => ({ id, hiveId: 0, sectorId: 0,
-      position: { x: target.position.x + BUG_BITE_RANGE / 2, y: target.position.y }, hp: 6, maxHp: 6,
+      position: { ...target.position }, hp: 6, maxHp: 6,
       state: "hunting", targetShipId: null, leg: null, timer: 0 }));
-    state = tick(state, 1 / 60);
+    state = tick(state, GUN_SHOT_SECONDS);
     state = { ...state, bugs: [] };
     const damaged = state.stations[0]!;
     expect(damaged.construction).toMatchObject(setup === "queued"
