@@ -1,4 +1,5 @@
 export { createPrng, type Prng } from "./prng";
+export { HIVE_DEFENSE_RADIUS } from "./build-constants";
 export {
   ASTEROID_ORE,
   ASTEROID_SIZE,
