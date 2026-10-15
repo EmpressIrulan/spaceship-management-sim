@@ -15,7 +15,12 @@ function movingBug(bug: Bug): boolean {
 
 function moveApart(movers: Mover[], modules: { sectorId: number; module: StationModule }[]): void {
   const radii = movers.map(({ size }) => Math.hypot(size.width, size.height) / 2);
-  const obstacles = modules.map(({ sectorId, module }) => ({ sectorId, bounds: moduleBounds(module.position, module.size) }));
+  const obstaclesBySector = new Map<number, ReturnType<typeof moduleBounds>[]>();
+  modules.forEach(({ sectorId, module }) => {
+    const obstacles = obstaclesBySector.get(sectorId) ?? [];
+    obstacles.push(moduleBounds(module.position, module.size));
+    obstaclesBySector.set(sectorId, obstacles);
+  });
   let cellSize = 1;
   for (const radius of radii) cellSize = Math.max(cellSize, radius * 2);
   const cell = (mover: Mover) => ({ x: Math.floor(mover.position.x / cellSize), y: Math.floor(mover.position.y / cellSize) });
@@ -94,8 +99,7 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
         if (b.active) { b.position.x += Math.cos(angle) * push; b.position.y += Math.sin(angle) * push; }
       }
       if (!a.active) continue;
-      for (const { sectorId, bounds } of obstacles) {
-        if (sectorId !== a.sectorId) continue;
+      for (const bounds of obstaclesBySector.get(a.sectorId) ?? []) {
         if (a.destination && a.destination.x >= bounds.left && a.destination.x <= bounds.right
           && a.destination.y >= bounds.top && a.destination.y <= bounds.bottom) continue;
         const hx = a.size.width / 2; const hy = a.size.height / 2;
