@@ -14,7 +14,7 @@ import {
 import { worldToScreen } from "./camera";
 import { asteroidColor } from "./asteroid";
 import { cargoGauge } from "./labels";
-import { slotColor } from "./ships";
+import { shipSprite, slotColor } from "./ships";
 import { cancelDependentsAt } from "./building";
 import { stationConnectors } from "./station-appearance";
 import { createStationDrawing } from "./station-rendering";
@@ -109,7 +109,41 @@ export function createWorldDrawing(
       strokeWorldRect(hive.position, HIVE_SIZE, HIVE_OUTLINE_COLOR);
     }
     const sectorBugs = (state.bugs ?? []).filter((bug) => bug.sectorId === ui.currentSector);
-    for (const bug of sectorBugs) fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), BUG_COLOR);
+    for (const bug of sectorBugs) {
+      if (!bug.design) {
+        fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), BUG_COLOR);
+        continue;
+      }
+      const designSize = shipSize(bug.design);
+      const bugScale = Math.min(BUG_SIZE.width / designSize.width, BUG_SIZE.height / designSize.height);
+      const size = { width: designSize.width * bugScale, height: designSize.height * bugScale };
+      const topLeft = worldToScreen(ui.camera, ui.viewport, {
+        x: bug.position.x - size.width / 2,
+        y: bug.position.y - size.height / 2,
+      });
+      const bottomRight = worldToScreen(ui.camera, ui.viewport, {
+        x: bug.position.x + size.width / 2,
+        y: bug.position.y + size.height / 2,
+      });
+      const x = Math.round(topLeft.x);
+      const y = Math.round(topLeft.y);
+      const width = Math.max(1, Math.round(bottomRight.x) - x);
+      const height = Math.max(1, Math.round(bottomRight.y) - y);
+      if (width < 2 || height < 2) {
+        fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), BUG_COLOR);
+        continue;
+      }
+      // The modules remain individually readable, while this soft, organic
+      // perimeter makes the design read as a creature rather than a ship.
+      ctx.drawImage(shipSprite(bug.design), x, y, width, height);
+      ctx.save();
+      ctx.strokeStyle = BUG_COLOR;
+      ctx.lineWidth = Math.max(1, Math.min(width, height) * 0.045);
+      ctx.beginPath();
+      ctx.ellipse(x + width / 2, y + height / 2, width * 0.62, height * 0.78, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     // Every station in the sector draws whole, so a founding one shows its
     // ghosts, its build and its site marker exactly the way Home does.
     for (const station of state.stations) {

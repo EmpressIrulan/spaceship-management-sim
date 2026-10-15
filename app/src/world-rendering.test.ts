@@ -66,6 +66,7 @@ function bug(sector: number, position: Vec, targetShipId: number | null = null):
     hiveId: 1,
     sectorId: sector,
     position,
+    design: { width: 2, height: 1, slots: ["Gun", "Engine"] },
     hp: 6,
     maxHp: 6,
     state: targetShipId === null ? "hovering" : "hunting",
@@ -86,6 +87,19 @@ function withBodies(state: SimState, bodies: { stations?: SimState["stations"]; 
 const AT = { x: 40, y: -20 };
 
 describe("the world draws the hive and its bugs", () => {
+  it("shows each bug's module design inside an organic shell", () => {
+    const ctx = mockCtx();
+    const drawing = createWorldDrawing(ui(), () => withBodies(createInitialState(7), {
+      bugs: [bug(0, AT)],
+      stations: [],
+    }), ctx, vi.fn(), vi.fn());
+
+    drawing.draw(0);
+
+    expect(ctx.drawImage).toHaveBeenCalled();
+    expect(ctx.ellipse).toHaveBeenCalled();
+  });
+
   it("draws the hive of the sector on its spot", () => {
     const uiState = ui();
     const ctx = mockCtx();
@@ -104,7 +118,7 @@ describe("the world draws the hive and its bugs", () => {
     const fillWorldRect = vi.fn();
     const drawing = createWorldDrawing(uiState, () => withBodies(createInitialState(7), {
       hives: [hive(0, AT, false)],
-      bugs: [bug(0, AT), bug(1, { x: 0, y: 0 })],
+      bugs: [{ ...bug(0, AT), design: undefined }, { ...bug(1, { x: 0, y: 0 }), design: undefined }],
     }), ctx, fillWorldRect, vi.fn());
     drawing.draw(0);
     expect(fillWorldRect).toHaveBeenCalledWith(AT, BUG_SIZE, "#c084fc");
@@ -118,7 +132,7 @@ describe("the world draws the hive and its bugs", () => {
     const gathering = { x: 90, y: 50 };
     const drawing = createWorldDrawing(uiState, () => withBodies(createInitialState(7), {
       hives: [hive(2, founded)],
-      bugs: [bug(2, gathering)],
+      bugs: [{ ...bug(2, gathering), design: undefined }],
     }), ctx, fillWorldRect, vi.fn());
 
     drawing.draw(0);
