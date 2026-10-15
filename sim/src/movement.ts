@@ -27,7 +27,7 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
   for (const radius of radii) cellSize = Math.max(cellSize, radius * 2);
   const cell = (mover: Mover) => ({ x: Math.floor(mover.position.x / cellSize), y: Math.floor(mover.position.y / cellSize) });
   // A grid costs more than a handful of direct checks for the usual small fleet.
-  const useGrid = movers.length > 32;
+  const useGrid = movers.length > 12;
   const indices = movers.map((_, index) => index);
   // Break exact stacks in one deterministic placement instead of iterating
   // many times over a crowded group on every simulation tick.
