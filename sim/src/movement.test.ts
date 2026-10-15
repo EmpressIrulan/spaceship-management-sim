@@ -70,7 +70,8 @@ describe("shared traffic separation", () => {
 
   it("steers moving traffic away from station module footprints", () => {
     const modules: StationModule[] = [{ type: "Storage", position: { x: 0, y: 0 }, size: { width: 20, height: 20 } }];
-    const result = separateTraffic([ship(1, 0, 0)], [], modules, []);
+    const crossing = { ...ship(1, 0, 0), leg: { from: { x: -50, y: 0 }, to: { x: 50, y: 0 } } };
+    const result = separateTraffic([crossing], [], modules, []);
     expect(Math.abs(result.ships[0]!.position.x) >= 10 || Math.abs(result.ships[0]!.position.y) >= 10).toBe(true);
   });
 
