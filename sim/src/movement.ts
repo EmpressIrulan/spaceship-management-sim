@@ -10,9 +10,14 @@ function moving(ship: Ship): boolean {
 }
 
 function moveApart(movers: Mover[], modules: { sectorId: number; module: StationModule }[]): void {
+  const radii = movers.map(({ size }) => Math.hypot(size.width, size.height) / 2);
+  const obstacles = modules.map(({ sectorId, module }) => ({ sectorId, bounds: moduleBounds(module.position, module.size) }));
   let cellSize = 1;
-  for (const mover of movers) cellSize = Math.max(cellSize, Math.hypot(mover.size.width, mover.size.height));
+  for (const radius of radii) cellSize = Math.max(cellSize, radius * 2);
   const cell = (mover: Mover) => ({ x: Math.floor(mover.position.x / cellSize), y: Math.floor(mover.position.y / cellSize) });
+  // A grid costs more than a handful of direct checks for the usual small fleet.
+  const useGrid = movers.length > 16;
+  const indices = movers.map((_, index) => index);
   // Break exact stacks in one deterministic placement instead of iterating
   // many times over a crowded group on every simulation tick.
   const stacks = new Map<string, number[]>();
@@ -25,7 +30,7 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
   });
   for (const indices of stacks.values()) {
     if (indices.length < 2) continue;
-    const largest = Math.max(...indices.map((index) => Math.hypot(movers[index]!.size.width, movers[index]!.size.height)));
+    const largest = Math.max(...indices.map((index) => radii[index]! * 2));
     const radius = largest / (2 * Math.sin(Math.PI / indices.length));
     const center = { ...movers[indices[0]!]!.position };
     const phase = (movers[indices[0]!]!.id % 360) * Math.PI / 180;
@@ -40,7 +45,7 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
   for (let pass = 0; pass < maxPasses; pass += 1) {
     let changed = false;
     const buckets = new Map<string, number[]>();
-    movers.forEach((mover, index) => {
+    if (useGrid) movers.forEach((mover, index) => {
       const at = cell(mover);
       const key = `${mover.sectorId}:${at.x}:${at.y}`;
       const bucket = buckets.get(key) ?? [];
@@ -49,21 +54,26 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
     });
     for (let i = 0; i < movers.length; i += 1) {
       const a = movers[i]!;
-      const at = cell(a);
-      const nearby: number[] = [];
-      for (let x = at.x - 2; x <= at.x + 2; x += 1) for (let y = at.y - 2; y <= at.y + 2; y += 1) {
-        nearby.push(...(buckets.get(`${a.sectorId}:${x}:${y}`) ?? []));
+      let nearby = indices;
+      if (useGrid) {
+        const at = cell(a);
+        nearby = [];
+        for (let x = at.x - 2; x <= at.x + 2; x += 1) for (let y = at.y - 2; y <= at.y + 2; y += 1) {
+          const bucket = buckets.get(`${a.sectorId}:${x}:${y}`);
+          if (bucket) nearby.push(...bucket);
+        }
+        nearby.sort((left, right) => left - right);
       }
-      nearby.sort((left, right) => left - right);
       for (const j of nearby) {
         if (j <= i) continue;
         const b = movers[j]!;
-        if (!a.active && !b.active) continue;
+        if (a.sectorId !== b.sectorId || (!a.active && !b.active)) continue;
         const dx = b.position.x - a.position.x;
         const dy = b.position.y - a.position.y;
-        const distance = Math.hypot(dx, dy);
-        const required = (Math.hypot(a.size.width, a.size.height) + Math.hypot(b.size.width, b.size.height)) / 2;
-        if (distance >= required - 1e-9) continue;
+        const required = radii[i]! + radii[j]!;
+        const squaredDistance = dx * dx + dy * dy;
+        if (squaredDistance >= (required - 1e-9) ** 2) continue;
+        const distance = Math.sqrt(squaredDistance);
         changed = true;
         const angle = distance > 1e-9 ? Math.atan2(dy, dx) : ((a.id * 31 + b.id * 17) % 360) * Math.PI / 180;
         const push = (required + 1e-6 - distance) / ((b.active ? 1 : 0) + (a.active ? 1 : 0));
@@ -71,9 +81,8 @@ function moveApart(movers: Mover[], modules: { sectorId: number; module: Station
         if (b.active) { b.position.x += Math.cos(angle) * push; b.position.y += Math.sin(angle) * push; }
       }
       if (!a.active) continue;
-      for (const { sectorId, module } of modules) {
+      for (const { sectorId, bounds } of obstacles) {
         if (sectorId !== a.sectorId) continue;
-        const bounds = moduleBounds(module.position, module.size);
         if (a.destination && a.destination.x >= bounds.left && a.destination.x <= bounds.right
           && a.destination.y >= bounds.top && a.destination.y <= bounds.bottom) continue;
         const hx = a.size.width / 2; const hy = a.size.height / 2;

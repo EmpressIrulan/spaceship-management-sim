@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { separateTraffic } from "./movement";
 import { shipSize } from "./ship";
 import type { Bug, Ship, StationModule } from "./model";
@@ -16,6 +16,17 @@ const bug = (id: number, x: number, y: number): Bug => ({
 });
 
 describe("shared traffic separation", () => {
+  it("does not recompute body sizes for every nearby pair", () => {
+    const ships = Array.from({ length: 64 }, (_, id) => ship(id, id * 4, 0));
+    const hypot = vi.spyOn(Math, "hypot");
+    try {
+      separateTraffic(ships, [], []);
+      expect(hypot.mock.calls.length).toBeLessThanOrEqual(ships.length * 2);
+    } finally {
+      hypot.mockRestore();
+    }
+  });
+
   it("separates moving ships from other ships and bugs", () => {
     const ships = [ship(1, 0, 0), ship(2, 0, 0)];
     const bugs = [bug(1, 0, 0)];
@@ -25,6 +36,14 @@ describe("shared traffic separation", () => {
     expect(distance(result.ships[0]!, result.ships[1]!)).toBeGreaterThan(1);
     expect(distance(result.ships[0]!, result.bugs[0]!)).toBeGreaterThan(1);
     expect(distance(result.ships[1]!, result.bugs[0]!)).toBeGreaterThan(1);
+  });
+
+  it.each([2, 20])("leaves distant traffic and other sectors alone with %i bodies", (count) => {
+    const ships = Array.from({ length: count }, (_, id) => ship(id, id * 100, 0));
+    ships[1] = { ...ship(1, 0, 0), sectorId: 1 };
+    const result = separateTraffic(ships, [], []);
+    expect(result.ships).toEqual(ships);
+    expect(result.ships.every((item, index) => item === ships[index])).toBe(true);
   });
 
   it("steers moving traffic away from station module footprints", () => {
