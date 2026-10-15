@@ -142,7 +142,8 @@ async function runScene(scene) {
 try {
   await page.goto(pathToFileURL(pagePath).href);
   await page.waitForFunction(() => !!window.issue146Demo && window.__repro.ui.viewport.width > 0);
-  for (let scene = 1; scene <= 6; scene++) await runScene(scene);
+  const only = process.env.SCENES ? process.env.SCENES.split(",").map(Number) : [1, 2, 3, 4, 5, 6];
+  for (const scene of only) await runScene(scene);
   await writeFile(resolve(out, "results.json"), JSON.stringify({ results, errors }, null, 2));
 } finally {
   await context.close();
