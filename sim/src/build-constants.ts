@@ -1,7 +1,6 @@
 import type { Material, ShipDesign, Size } from "./model";
-import { PIXEL_SIZE } from "./ship";
 import { DOCK_WIDTH, DOCK_HEIGHT } from "./dock-packing";
-import { SIZE_MULTIPLIER } from "./size-constants";
+import { PIXEL_SIZE, SIZE_MULTIPLIER } from "./size-constants";
 export { SIZE_MULTIPLIER, DISTANCE_MULTIPLIER } from "./size-constants";
 
 export const ASTEROID_MIN_SPACING = 40;

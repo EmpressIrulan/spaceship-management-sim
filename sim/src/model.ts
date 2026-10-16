@@ -89,6 +89,10 @@ export interface Ship {
   // The cargo aboard when this transfer began and the total units it will move.
   // This makes partial transfers deterministic and safe to interrupt.
   transfer: CargoTransfer | null;
+  // How far separation last moved this ship off its path while it moved, kept
+  // so the next frame eases on from there. Unset when nothing is nudging it.
+  nudgeX?: number;
+  nudgeY?: number;
   // Current and full hull. Enemy gun hits wear this down; at 0 the ship and
   // its cargo are gone. Missing on older fixtures: a fresh ship has SHIP_HP.
   hp?: number;
@@ -248,6 +252,10 @@ export interface Bug {
   leg: Leg | null;
   // Seconds left in the current leg or attack cadence.
   timer: number;
+  // How far separation last moved this bug off its path while it moved, kept
+  // so the next frame eases on from there. Unset when nothing is nudging it.
+  nudgeX?: number;
+  nudgeY?: number;
   // Seconds until the bug's next shot. Missing on older fixtures means loaded.
   gunTimer?: number;
   gunShot?: BugShot | null;

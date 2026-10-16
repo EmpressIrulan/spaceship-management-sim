@@ -1,6 +1,7 @@
 import { SHIP_CRUISE_SPEED } from "./motion";
 import { SHIELD_CAPACITY_PER_PIXEL, SHIELD_RECHARGE_PER_PIXEL } from "./build-constants";
-import { SIZE_MULTIPLIER } from "./size-constants";
+import { PIXEL_SIZE } from "./size-constants";
+export { PIXEL_SIZE } from "./size-constants";
 import { SHIP_MODULES } from "./model";
 import type { Material, Ship, ShipDesign, ShipModule, Size } from "./model";
 export { SHIP_MODULES };
@@ -16,9 +17,6 @@ export const UNLOADING_SECONDS = 6;
 // A ship is painted pixels, each one a module cell. The design is their
 // bounding box, stored row by row, and a null slot is an empty pixel inside
 // the box: it is not part of the ship, so it costs and weighs nothing.
-// World units per pixel. The size multiplier retunes ships, stations and
-// enemies together while leaving asteroid and gate sizes alone.
-export const PIXEL_SIZE = 2.25 * SIZE_MULTIPLIER;
 const PIXELS_PER_OLD_MODULE = 4;
 
 export const STARTING_SHIP: ShipDesign = {
