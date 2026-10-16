@@ -28,9 +28,11 @@ const slotKey = ({ x, y }: Vec): string => `${x},${y}`;
 
 // One enemy family: the hive and its bugs wear the same purple, the loot two
 // colours apart so a bug juice drop reads differently from a queen larvae.
+// Workers are the one green bug, so a miner never reads as a fighter.
 const HIVE_COLOR = "#7c3aed";
 const HIVE_OUTLINE_COLOR = "#4c1d95";
 const BUG_COLOR = "#c084fc";
+const WORKER_COLOR = "#34d399";
 const DROP_COLORS: Record<DropKind, string> = {
   bugJuice: "#84cc16",
   queenLarvae: "#fde68a",
@@ -110,8 +112,9 @@ export function createWorldDrawing(
     }
     const sectorBugs = (state.bugs ?? []).filter((bug) => bug.sectorId === ui.currentSector);
     for (const bug of sectorBugs) {
+      const color = bug.role === "worker" ? WORKER_COLOR : BUG_COLOR;
       if (!bug.design) {
-        fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), BUG_COLOR);
+        fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), color);
         continue;
       }
       const size = shipSize(bug.design);
@@ -128,14 +131,14 @@ export function createWorldDrawing(
       const width = Math.max(1, Math.round(bottomRight.x) - x);
       const height = Math.max(1, Math.round(bottomRight.y) - y);
       if (width < 2 || height < 2) {
-        fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), BUG_COLOR);
+        fillWorldRect(bug.position, dotSize(BUG_SIZE, ui.camera.zoom), color);
         continue;
       }
       // The modules remain individually readable, while this soft, organic
       // perimeter makes the design read as a creature rather than a ship.
       ctx.drawImage(shipSprite(bug.design), x, y, width, height);
       ctx.save();
-      ctx.strokeStyle = BUG_COLOR;
+      ctx.strokeStyle = color;
       ctx.lineWidth = Math.max(1, Math.min(width, height) * 0.045);
       ctx.beginPath();
       ctx.ellipse(x + width / 2, y + height / 2, width * 0.62, height * 0.78, 0, 0, Math.PI * 2);

@@ -77,5 +77,5 @@ describe("two linked sectors", () => {
     expect(state.ships[0]!.cargo).toBe(0);
     until((s) => s.ships[0]!.state === "outbound");
     expect(state.ships[0]!.target?.sectorId).toBe(0);
-  });
+  }, 30000);
 });

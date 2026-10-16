@@ -888,7 +888,6 @@ function simulate(state: SimState, dt: number): SimState {
     deliveriesCopied: false,
     rng: state.rng,
     enemyRng: state.enemyRng ?? ((state.rng ^ 0x1bd0e5f3) >>> 0),
-    bugDesignRng: state.bugDesignRng ?? ((state.rng ^ 0x9e3779b9) >>> 0),
     nextAsteroidId: state.nextAsteroidId,
     nextShipId: state.nextShipId,
     dock: home.dock.position,
@@ -945,7 +944,6 @@ function simulate(state: SimState, dt: number): SimState {
     time: draft.time,
     rng: draft.rng,
     enemyRng: draft.enemyRng,
-    bugDesignRng: draft.bugDesignRng,
     nextAsteroidId: draft.nextAsteroidId,
     nextShipId: draft.nextShipId,
     stations: state.stations.map((station) => station.id === primaryStationId ? {

@@ -1,8 +1,8 @@
 import {
   BUG_ATTACK_THRESHOLD,
-  BUG_DESIGNS, BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP, BUG_SPAWN_SECONDS, HIVE_DEFENSE_RADIUS,
+  BUG_COSTS, BUG_DESIGNS, BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP, HIVE_DEFENSE_RADIUS,
   BUG_SPEED_FACTOR, GUN_DAMAGE, GUN_RANGE, GUN_SECONDS, GUN_SHOT_SECONDS,
-  HIVE_GATE_FRACTION, HIVE_HP, MODULE_HP,
+  HIVE_GATE_FRACTION, HIVE_HP, MODULE_HP, WORKER_COST, WORKERS_PER_HIVE,
   TURRET_DAMAGE, TURRET_METAL_PER_SHOT, TURRET_RANGE, TURRET_SECONDS, TURRET_SHOT_SECONDS,
 } from "./build-constants";
 import { travelSeconds } from "./motion";
@@ -10,8 +10,10 @@ import { nextRandom } from "./prng";
 import { pixelCount, shipModuleCounts } from "./ship";
 import { damageShip, advanceShields, advanceShipRepairs, advanceModuleRepairs, nextShieldEvent } from "./shields";
 import { damageStationModule } from "./station-build-queue";
-import type { Beam, Bug, BugShot, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Station, StationModule, Vec } from "./model";
+import { MATERIALS } from "./model";
+import type { Beam, Bug, BugShot, DropKind, GunShot, Hive, Material, Ship, ShipDesign, SimState, Station, StationModule, Vec } from "./model";
 import type { Draft } from "./tick-mining";
+import { fleeHome, isWorker, makeWorker, settleWorkers } from "./worker-bugs";
 
 // Where a sector's hive sits: along the line from the sector's middle to its
 // gate, clear of the gate mouth. A placeholder spot until the sector art
@@ -27,24 +29,20 @@ export function makeHive(id: number, sectorId: number, position: Vec): Hive {
     position: { ...position },
     hp: HIVE_HP,
     maxHp: HIVE_HP,
-    // The first bug takes a full spawn interval to hatch.
-    spawnTimer: BUG_SPAWN_SECONDS,
     alive: true,
+    stock: { Metal: 0, Ice: 0 },
   };
 }
 
 // The hive's rng stream places the bug, so the same seed hatches the same
 // bugs in the same spots every run.
-export function spawnBug(draft: Draft, hive: Hive): Bug {
+export function spawnBug(draft: Draft, hive: Hive, design: ShipDesign): Bug {
   const angleRoll = nextRandom(draft.enemyRng);
   draft.enemyRng = angleRoll.state;
   const reachRoll = nextRandom(draft.enemyRng);
   draft.enemyRng = reachRoll.state;
-  const designRoll = nextRandom(draft.bugDesignRng);
-  draft.bugDesignRng = designRoll.state;
   const angle = angleRoll.value * Math.PI * 2;
   const radius = reachRoll.value * BUG_HOVER_RADIUS;
-  const design = BUG_DESIGNS[designRoll.value < 0.6 ? 0 : designRoll.value < 0.9 ? 1 : 2]!;
   const maxHp = pixelCount(design) * BUG_HP;
   return {
     id: draft.nextBugId,
@@ -162,7 +160,7 @@ function settleArrivals(draft: Draft): void {
   for (const group of arrivals.values()) {
     const sectorId = group[0]!.targetSectorId!;
     const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === sectorId);
-    const resident = draft.bugs.find((bug) => bug.sectorId === sectorId && !group.some((arrival) => arrival.id === bug.id));
+    const resident = draft.bugs.find((bug) => bug.sectorId === sectorId && !isWorker(bug) && !group.some((arrival) => arrival.id === bug.id));
     const ids = new Set(group.map((bug) => bug.id));
     if (group[0]!.state === "invading") {
       const route = gateRoute(draft, group[0]!.sectorId, sectorId);
@@ -186,9 +184,16 @@ function settleArrivals(draft: Draft): void {
     }
     // Gathering reserves the founding: later arrivals join, not cancel it.
     if (!hive) {
-      draft.hives = [...draft.hives, makeHive(draft.nextHiveId, sectorId, group[0]!.position)];
+      const hive = makeHive(draft.nextHiveId, sectorId, group[0]!.position);
+      draft.hives = [...draft.hives, hive];
       draft.nextHiveId += 1;
-      draft.bugs = draft.bugs.filter((bug) => !ids.has(bug.id));
+      // A new hive starts with its workers, as the first hive does, or it could never pay for a bug.
+      const starting = Array.from({ length: WORKERS_PER_HIVE }, () => {
+        const worker = makeWorker(draft.nextBugId, hive);
+        draft.nextBugId += 1;
+        return worker;
+      });
+      draft.bugs = [...draft.bugs.filter((bug) => !ids.has(bug.id)), ...starting];
       continue;
     }
     draft.bugs = draft.bugs.map((bug) => ids.has(bug.id) ? {
@@ -209,7 +214,7 @@ function settleInvasions(draft: Draft): void {
     const sectorId = hive.sectorId;
     // Joined bugs attack here permanently; only this hive's offspring leave.
     if (shipInsideHiveDefenseRadius(draft, hive)) continue;
-    const group = draft.bugs.filter((bug) => bug.sectorId === sectorId && bug.hiveId === hive.id
+    const group = draft.bugs.filter((bug) => bug.sectorId === sectorId && bug.hiveId === hive.id && !isWorker(bug)
       && bug.state !== "invading" && bug.state !== "gathering").slice(0, 10);
     const routes = invasionRoutes(draft, sectorId);
     if (group.length < 10 || routes.length === 0) continue;
@@ -227,7 +232,7 @@ function settleInvasions(draft: Draft): void {
       targetShipId: null,
       targetModule: null,
       targetSectorId: destination.sectorId,
-      leg: { from: { ...bug.position }, to: { ...destination.route.from } },
+      leg: { from: { ...bug.position }, to: { ...destination.route.from } }, nudgeX: 0, nudgeY: 0,
       timer: seconds,
     } : bug);
   }
@@ -363,11 +368,6 @@ function activeStation(draft: Draft): Station {
 }
 
 export function advanceEnemies(draft: Draft, seconds: number): void {
-  draft.hives = draft.hives.map((hive) => {
-    if (!hive.alive) return hive;
-    const left = hive.spawnTimer - seconds;
-    return { ...hive, spawnTimer: Math.abs(left) < 1e-9 ? 0 : left };
-  });
   draft.bugs = draft.bugs.map((bug) => {
     const next = progressBug(bug, seconds);
     if (bug.gunTimer === undefined && !bug.gunShot) return next;
@@ -393,17 +393,55 @@ function burnOut<T extends { timer: number }>(shot: T, seconds: number): T {
   return { ...shot, timer: Math.max(0, shot.timer - seconds) };
 }
 
-// Fires every enemy timer that has reached zero: hives hatch, hovering bugs
-// pick the next spot to hang about at, and hunting bugs shoot their quarry or
-// chase it. Bugs that hunt re-pick the nearest ship in their sector each time
-// a leg runs out, so a moved or destroyed target hands them on.
-export function settleEnemies(draft: Draft): void {
+function canPay(stock: Record<Material, number>, cost: Record<Material, number>): boolean {
+  return MATERIALS.every((material) => stock[material] >= cost[material]);
+}
+
+function pay(stock: Record<Material, number>, cost: Record<Material, number>): Record<Material, number> {
+  return { Metal: stock.Metal - cost.Metal, Ice: stock.Ice - cost.Ice };
+}
+
+// The index of the biggest bug the stock pays for, or -1 when it cannot pay for the smallest.
+function biggestAffordable(stock: Record<Material, number>): number {
+  for (let tier = BUG_COSTS.length - 1; tier >= 0; tier -= 1) {
+    if (canPay(stock, BUG_COSTS[tier]!)) return tier;
+  }
+  return -1;
+}
+
+function workerCount(draft: Draft, hive: Hive): number {
+  return draft.bugs.filter((bug) => isWorker(bug) && bug.hiveId === hive.id).length;
+}
+
+// Hatching runs on the hive's stock, not a timer. A hive short of workers pays
+// for a replacement first, so a lost worker is back before the stock goes to
+// fighters. Then it hatches the biggest bug the stock pays for, until the stock
+// cannot pay for the smallest. A hive with no stock hatches nothing.
+function hatchBugs(draft: Draft): void {
   draft.hives = draft.hives.map((hive) => {
-    if (!hive.alive || hive.spawnTimer > 0) return hive;
-    draft.bugs = [...draft.bugs, spawnBug(draft, hive)];
-    draft.nextBugId += 1;
-    return { ...hive, spawnTimer: hive.spawnTimer + BUG_SPAWN_SECONDS };
+    if (!hive.alive) return hive;
+    let stock = { Metal: 0, Ice: 0, ...hive.stock };
+    while (workerCount(draft, hive) < WORKERS_PER_HIVE && canPay(stock, WORKER_COST)) {
+      stock = pay(stock, WORKER_COST);
+      draft.bugs = [...draft.bugs, makeWorker(draft.nextBugId, hive)];
+      draft.nextBugId += 1;
+    }
+    for (let tier = biggestAffordable(stock); tier >= 0; tier = biggestAffordable(stock)) {
+      stock = pay(stock, BUG_COSTS[tier]!);
+      draft.bugs = [...draft.bugs, spawnBug(draft, hive, BUG_DESIGNS[tier]!)];
+      draft.nextBugId += 1;
+    }
+    return { ...hive, stock };
   });
+}
+
+// Fires every enemy timer that has reached zero: hovering bugs pick the next
+// spot to hang about at, and hunting bugs shoot their quarry or chase it. Bugs
+// that hunt re-pick the nearest ship in their sector each time a leg runs out,
+// so a moved or destroyed target hands them on.
+export function settleEnemies(draft: Draft): void {
+  settleWorkers(draft);
+  hatchBugs(draft);
   settleArrivals(draft);
   settleInvasions(draft);
   let expiredBugShot = false;
@@ -415,7 +453,7 @@ export function settleEnemies(draft: Draft): void {
   // Fewer alive bugs than the threshold loiter by the hive. At the threshold
   // they attack the nearest quarry in their own sector with their Guns.
   draft.bugs = draft.bugs.map((bug) => {
-    if (bug.state === "invading" || bug.state === "gathering") return bug;
+    if (isWorker(bug) || bug.state === "invading" || bug.state === "gathering") return bug;
     const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === bug.sectorId);
     const wasDefending = bug.defendingHiveId != null;
     const defenseShip = hive && (bug.state === "hovering" || wasDefending)
@@ -425,12 +463,12 @@ export function settleEnemies(draft: Draft): void {
       const loiter = centre ? loiterPoint(centre, bug) : null;
       return { ...bug, defendingHiveId: null, state: "hovering", targetShipId: null, targetModule: null,
         loiterRng: loiter?.rng ?? bug.loiterRng,
-        leg: loiter ? { from: { ...bug.position }, to: loiter.to } : null, timer: loiter?.seconds ?? 1 };
+        leg: loiter ? { from: { ...bug.position }, to: loiter.to } : null, nudgeX: 0, nudgeY: 0, timer: loiter?.seconds ?? 1 };
     }
     const startingDefense = defenseShip !== null && !wasDefending;
     // A change of target interrupts a defense chase; unchanged legs finish normally.
     if (bug.timer > 0 && !startingDefense && !(wasDefending && defenseShip?.id !== bug.targetShipId)) return bug;
-    const hunting = draft.bugs.filter((candidate) => candidate.sectorId === bug.sectorId
+    const hunting = draft.bugs.filter((candidate) => candidate.sectorId === bug.sectorId && !isWorker(candidate)
       && candidate.state !== "invading" && candidate.state !== "gathering").length >= BUG_ATTACK_THRESHOLD;
     if (startingDefense) bug = { ...bug, defendingHiveId: hive!.id };
     const quarry = defenseShip ? { kind: "ship" as const, ship: defenseShip }
@@ -449,18 +487,18 @@ export function settleEnemies(draft: Draft): void {
         state: "hunting",
         targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
         targetModule: quarry.kind === "module" ? { stationId: quarry.stationId, position: { ...quarry.module.position } } : null,
-        leg: { from: { ...bug.position }, to: { ...target.position } },
+        leg: { from: { ...bug.position }, to: { ...target.position } }, nudgeX: 0, nudgeY: 0,
         timer: huntSeconds(length, { ...bug, state: "hunting" }),
       };
     }
     // Nothing to hunt: loiter, whether the bug was hovering or had lost its
     // quarry to a sibling's shot.
     // Hive-less joiners spread around the resident population, not their natal hive.
-    const centre = hive ?? draft.bugs.find((candidate) => candidate.sectorId === bug.sectorId);
+    const centre = hive ?? draft.bugs.find((candidate) => candidate.sectorId === bug.sectorId && !isWorker(candidate));
     if (!centre) return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: null, timer: 1 };
     const loiter = loiterPoint(centre, bug);
     return { ...bug, loiterRng: loiter.rng, state: "hovering", targetShipId: null, targetModule: null,
-      leg: { from: { ...bug.position }, to: loiter.to }, timer: loiter.seconds };
+      leg: { from: { ...bug.position }, to: loiter.to }, nudgeX: 0, nudgeY: 0, timer: loiter.seconds };
   });
   // After the bugs' shots land, every gun ship that is loaded
   // shoots the nearest bug in range, or the hive when no bug is close enough.
@@ -514,7 +552,7 @@ function hitTarget(draft: Draft, target: GunShot["target"], damage = GUN_DAMAGE)
     const bug = draft.bugs.find((candidate) => candidate.id === target.id);
     if (!bug) return;
     const hp = bug.hp - damage;
-    if (hp > 0) draft.bugs = draft.bugs.map((candidate) => candidate.id === bug.id ? { ...candidate, hp } : candidate);
+    if (hp > 0) draft.bugs = draft.bugs.map((candidate) => candidate.id === bug.id ? fleeHome(draft, { ...candidate, hp }) : candidate);
     else {
       draft.bugs = draft.bugs.filter((candidate) => candidate.id !== bug.id);
       addDrop(draft, bug.sectorId, "bugJuice", bug.position);
@@ -629,18 +667,16 @@ export function gunBeams(state: Pick<SimState, "ships">): Beam[] {
   ];
 }
 
-// Seconds until the next ENEMY timer that drives the event loop runs out: the
-// hive's spawn clock and, once the swarm hunts, every hunting bug's flight,
-// chase and gun clock. Loitering bugs hang off the same loop, but their legs
+// Seconds until the next ENEMY timer that drives the event loop runs out: once
+// the swarm hunts, every hunting bug's flight, chase and gun clock. Hatching
+// has no clock of its own: it follows the stock, which only changes when a
+// worker deposits, and a deposit is already an event. Loitering bugs hang off the same loop, but their legs
 // are cosmetic, so they advance with whatever steps land anyway instead of
 // splitting every second into a step of their own (with thirty bugs busy about
 // the hive that would be a step every fraction of a second, and every timer in
 // the sim walked that many times more).
 export function nextEnemyEvent(draft: Draft): number {
   let soonest = Infinity;
-  for (const hive of draft.hives) {
-    if (hive.alive) soonest = Math.min(soonest, hive.spawnTimer);
-  }
   for (const bug of draft.bugs) {
     // Loiter completions also draw RNG and set the next departure's position.
     soonest = Math.min(soonest, bug.timer);

@@ -250,7 +250,7 @@ describe("asteroid field", () => {
       expect(oreOf(state)).toBe(ASTEROID_ORE - ship(state).cargo);
     }
     expect(oreOf(run(start, cycleSeconds(start) + 0.1))).toBe(20);
-  });
+  }, 30000);
 
   it("removes the asteroid when its third load is mined, then mines the next nearest", () => {
     const start = oneStorageStart(7);

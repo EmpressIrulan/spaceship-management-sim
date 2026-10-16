@@ -41,6 +41,7 @@ function mockCtx() {
     ellipse: vi.fn(),
     fill: vi.fn(),
     fillText: vi.fn(),
+    strokeText: vi.fn(),
     translate: vi.fn(),
     setLineDash: vi.fn(),
     createRadialGradient: vi.fn(() => gradient),
@@ -57,7 +58,7 @@ function ui(sector = 0) {
 }
 
 function hive(sector: number, position: Vec, alive = true): Hive {
-  return { id: 1, sectorId: sector, position, hp: 200, maxHp: 200, spawnTimer: 5, alive };
+  return { id: 1, sectorId: sector, position, hp: 200, maxHp: 200, alive };
 }
 
 function bug(sector: number, position: Vec, targetShipId: number | null = null): Bug {
@@ -132,6 +133,37 @@ describe("the world draws the hive and its bugs", () => {
     }), ctx, fillWorldRect, strokeWorldRect);
     drawing.draw(0);
     expect(fillWorldRect).toHaveBeenCalledWith(AT, HIVE_SIZE, "#7c3aed");
+  });
+
+  it("draws a stocked hive, its workers and its bugs without printing any number", () => {
+    const ctx = mockCtx();
+    const state = withBodies(createInitialState(7), {
+      stations: [],
+      ships: [],
+      hives: [{ ...hive(0, AT), stock: { Metal: 137, Ice: 61 } }],
+      bugs: [bug(0, { x: 60, y: 0 }), { ...bug(0, { x: -60, y: 0 }), role: "worker" }],
+    });
+    const uiState = ui();
+    uiState.camera = { ...uiState.camera, zoom: 30 };
+    createWorldDrawing(uiState, () => state, ctx, vi.fn(), vi.fn()).draw(0);
+    expect(ctx.fillText).not.toHaveBeenCalled();
+    expect(ctx.strokeText).not.toHaveBeenCalled();
+  });
+
+  it("draws a worker in its own colour, apart from a fighter bug", () => {
+    const fillWorldRect = vi.fn();
+    const uiState = ui();
+    uiState.camera = { center: { x: 0, y: 0 }, zoom: 0.01 };
+    const worker = { ...bug(0, { x: 10, y: 0 }), role: "worker" as const };
+    const fighter = bug(0, { x: -10, y: 0 });
+    createWorldDrawing(uiState, () => withBodies(createInitialState(7), {
+      stations: [],
+      ships: [],
+      hives: [],
+      bugs: [worker, fighter],
+    }), mockCtx(), fillWorldRect, vi.fn()).draw(0);
+    expect(fillWorldRect).toHaveBeenCalledWith(worker.position, expect.anything(), "#34d399");
+    expect(fillWorldRect).toHaveBeenCalledWith(fighter.position, expect.anything(), "#c084fc");
   });
 
   it("draws every bug, but not a bug of another sector or a dead hive", () => {

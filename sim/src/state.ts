@@ -1,6 +1,6 @@
 import {
   ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR,
-  MODULE_COST, MODULE_HP, MODULE_SPACING, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR,
+  MODULE_COST, MODULE_HP, MODULE_SPACING, BUILDER_SIZE, STORAGE_SIZE, HIVE_SECTOR, WORKERS_PER_HIVE,
 } from "./build-constants";
 import { MATERIALS, MODULE_TYPES } from "./model";
 import { freeBerth, berthPoint, DOCK_AREA, DOCK_HEIGHT, DOCK_WIDTH } from "./dock-packing";
@@ -19,7 +19,7 @@ export { ASTEROID_MIN_SPACING, BUILD_SECONDS, DOCK_SIZE, HOME_SECTOR, MODULE_COS
 export {
   BUG_ATTACK_THRESHOLD, BUG_BITE_DAMAGE, BUG_BITE_RANGE, BUG_BITE_SECONDS, BUG_DESIGNS,
   BUG_HOVER_MIN_REACH, BUG_HOVER_RADIUS, BUG_HP,
-  BUG_SPAWN_SECONDS, BUG_SIZE, BUG_SPEED_FACTOR, DROP_SIZE, GUN_DAMAGE, GUN_RANGE,
+  BUG_SIZE, BUG_SPEED_FACTOR, DROP_SIZE, GUN_DAMAGE, GUN_RANGE,
   GUN_SECONDS, GUN_SHOT_SECONDS, HIVE_GATE_FRACTION, HIVE_HP,
   HIVE_SECTOR, HIVE_SIZE, TURRET_DAMAGE, TURRET_METAL_PER_SHOT, TURRET_RANGE, TURRET_SECONDS,
   TURRET_SHOT_SECONDS, TURRET_SIZE,
@@ -56,6 +56,7 @@ export { placeInField } from "./fields";
 import { travelSeconds } from "./motion";
 import { nextRandom } from "./prng";
 import { hivePosition, makeHive } from "./enemies";
+import { makeWorker } from "./worker-bugs";
 import {
   MINING_GAP,
   STARTING_SHIP,
@@ -363,6 +364,7 @@ export function createInitialState(seed: number): SimState {
 
   // The hive sits in the sector next to home, ready to breed bugs.
   const hive = makeHive(0, HIVE_SECTOR, hivePosition(sectors[HIVE_SECTOR]!.gate.position));
+  const workers = Array.from({ length: WORKERS_PER_HIVE }, (_, id) => makeWorker(id, hive));
   const idle: Ship = {
     id: 0,
     design: STARTING_SHIP,
@@ -388,7 +390,6 @@ export function createInitialState(seed: number): SimState {
     time: 0,
     rng,
     enemyRng: (seed ^ 0x5bf03635) >>> 0,
-    bugDesignRng: (seed ^ 0x9e3779b9) >>> 0,
     nextAsteroidId: asteroids.length,
     sectors,
     fields,
@@ -421,8 +422,8 @@ export function createInitialState(seed: number): SimState {
     respawns: [],
     ships: [depart(idle, dockPosition, asteroids)],
     hives: [hive],
-    bugs: [],
-    nextBugId: 0,
+    bugs: workers,
+    nextBugId: WORKERS_PER_HIVE,
     nextHiveId: 1,
     drops: [],
     nextDropId: 0,

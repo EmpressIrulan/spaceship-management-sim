@@ -213,6 +213,12 @@ describe("hover box", () => {
     expect(infoBox(createInitialState(7), { kind: "hive", id: 0 })).toEqual({ title: "Hive", line: "HP 200/200" });
   });
 
+  it("never shows the hive's stock, even when it holds plenty", () => {
+    const state = createInitialState(7);
+    const stocked = { ...state, hives: state.hives!.map((hive) => ({ ...hive, stock: { Metal: 137, Ice: 61 } })) };
+    expect(infoBox(stocked, { kind: "hive", id: 0 })).toEqual({ title: "Hive", line: "HP 200/200" });
+  });
+
   it("shows a bug's hull as HP now / full, and closes once the bug has gone", () => {
     const bug: Bug = { id: 9, hiveId: 0, sectorId: 1, position: { x: 20, y: 0 }, hp: 3, maxHp: 6, state: "hunting", targetShipId: null, leg: null, timer: 1 };
     const state = { ...createInitialState(7), bugs: [bug] };

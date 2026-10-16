@@ -31,8 +31,7 @@ export const HIVE_SIZE: Size = { width: 30 * SIZE_MULTIPLIER, height: 30 * SIZE_
 export const HIVE_DEFENSE_RADIUS = 120;
 // How far along the line from the sector's middle to its gate the hive sits.
 export const HIVE_GATE_FRACTION = 0.75;
-// A bug hatches every BUG_SPAWN_SECONDS. Each occupied design pixel contributes BUG_HP.
-export const BUG_SPAWN_SECONDS = 10;
+// Each occupied design pixel contributes BUG_HP.
 export const BUG_HP = 6;
 // Bug hull scales with its number of occupied pixels.
 export const BUG_DESIGNS: readonly ShipDesign[] = [
@@ -40,7 +39,28 @@ export const BUG_DESIGNS: readonly ShipDesign[] = [
   { width: 2, height: 1, slots: ["Gun", "Gun"] },
   { width: 4, height: 1, slots: ["Gun", "Gun", "Gun", "Gun"] },
 ];
+// What hatching one bug costs the hive's stock, in the same order as BUG_DESIGNS.
+// A hive hatches the biggest bug its stock pays for. Placeholders until there is
+// something to play with.
+export const BUG_COSTS: readonly Record<Material, number>[] = [
+  { Metal: 2, Ice: 2 },
+  { Metal: 4, Ice: 4 },
+  { Metal: 8, Ice: 8 },
+];
 export const BUG_SIZE: Size = { width: 10 * SIZE_MULTIPLIER, height: 8 * SIZE_MULTIPLIER };
+// Workers carry no gun: one Hull pixel, so they have BUG_HP like the smallest
+// fighter. They mine rock in their hive's sector and fly the ore back to the
+// hive's stock. Hold, mining time and the wait when no rock is left are
+// placeholders, like the hive numbers, until there is something to play with.
+export const WORKER_DESIGN: ShipDesign = { width: 1, height: 1, slots: ["Hull"] };
+export const WORKERS_PER_HIVE = 3;
+// What hatching a replacement worker costs the hive's stock.
+export const WORKER_COST: Record<Material, number> = { Metal: 2, Ice: 2 };
+// How far from the hive's centre the starting workers stand, spread evenly around it.
+export const WORKER_SPAWN_RADIUS = 20;
+export const WORKER_HOLD = 4;
+export const WORKER_MINE_SECONDS = 6;
+export const WORKER_RETRY_SECONDS = 5;
 // The sim's clock runs at up to 4x speed while the app's explosion burst
 // lasts EXPLOSION_SECONDS = 0.9 real seconds (app/src/world-rendering.ts), so
 // a blast can fill 0.9 * 4 = 3.6 game seconds of sim time. Entries older than
