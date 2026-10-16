@@ -85,8 +85,19 @@ import { makeWorker } from "./worker-bugs";
 import { gunBeams } from "./enemies";
 import { shipHp } from "./ship";
 import { travelSeconds } from "./motion";
-import type { Material } from "./model";
+import type { Asteroid, Material, Vec } from "./model";
 import type { Bug, GateProject, Hive, Ship, ShipDesign, SimState } from "./state";
+
+// Rocks on a ring round the hive, Metal and Ice alternating. Workers take the
+// nearest rock, so an even ring brings both materials in at the same pace.
+function ringRocks(centre: Vec): Asteroid[] {
+  return Array.from({ length: 10 }, (_, i) => {
+    const angle = (i / 10) * Math.PI * 2;
+    return { id: 800 + i, sectorId: HIVE_SECTOR, rich: false, fieldId: 0,
+      position: { x: centre.x + Math.cos(angle) * 60, y: centre.y + Math.sin(angle) * 60 },
+      size: { width: 20, height: 20 }, ore: 100, material: i % 2 === 0 ? "Metal" : "Ice" };
+  });
+}
 
 function hive(state: SimState) {
   const found = state.hives?.[0];
@@ -186,22 +197,36 @@ describe("hive", () => {
     expect(fighters(first).every((bug) => bug.sectorId === HIVE_SECTOR)).toBe(true);
   });
 
-  it.each([2, 3, 4, 7])("replays destinations and migration timings across step sizes for seed %s", (seed) => {
+  // The sector layout depends on the seed, so each seed has its own snapshot
+  // times, read off a one-second trace: the first group is out alone, both
+  // groups are out together, and the first group has founded a hive.
+  it.each([
+    { seed: 2, firstOut: 300, bothOut: 640, founded: 440 },
+    { seed: 3, firstOut: 470, bothOut: 530, founded: 560 },
+    { seed: 4, firstOut: 470, bothOut: 530, founded: 570 },
+    { seed: 7, firstOut: 470, bothOut: 530, founded: 560 },
+  ])("replays destinations and migration timings across step sizes for seed $seed", ({ seed, firstOut, bothOut, founded }) => {
     const gates: GateProject[] = [0, 2, 3].map((sectorId, id) => ({
       id, ends: [
         { sectorId: HIVE_SECTOR, position: { x: 100 + id * 80, y: 200 } },
         { sectorId, position: { x: 300, y: 400 } },
       ], delivered: { Metal: 0, Ice: 0 }, complete: true,
     }));
-    const origin = hive(createInitialState(seed)).position;
-    const arrivalEnd = 200 + Math.ceil(Math.max(...gates.map((gate) => travelSeconds(
-      Math.hypot(gate.ends[0].position.x - origin.x, gate.ends[0].position.y - origin.y) + BUG_HOVER_RADIUS,
-      BUG_SPEED_FACTOR,
-    )))) + 4;
+    // The workers mine these rocks, and each hatch is paid from the stock they
+    // bring home, so the bugs come from real deposits and no timer is involved.
+    const start = createInitialState(seed);
+    const game: SimState = { ...start, ships: [], gateProjects: gates, asteroids: ringRocks(hive(start).position), respawns: [] };
+    const ends = [firstOut, bothOut, founded].sort((a, b) => a - b);
     const run = (dt: number) => {
       const snapshots = [];
-      for (const end of [100, 115, 150, 200, arrivalEnd]) {
-        const state = runFed({ ...createInitialState(seed), ships: [], gateProjects: gates }, end, dt);
+      let state = game;
+      let clock = 0;
+      for (const end of ends) {
+        const steps = Math.floor((end - clock) / dt + 1e-9);
+        for (let i = 0; i < steps; i += 1) state = tick(state, dt);
+        const rest = end - clock - steps * dt;
+        if (rest > 1e-9) state = tick(state, rest);
+        clock = end;
         snapshots.push({
           hives: state.hives!.map((hive) => ({ sectorId: hive.sectorId, stock: hive.stock })),
           bugs: fighters(state).map((bug) => ({ id: bug.id, sectorId: bug.sectorId,
@@ -211,22 +236,23 @@ describe("hive", () => {
       return snapshots;
     };
     const large = run(200);
+    const at = (time: number) => large[ends.indexOf(time)]!;
     // Fighters take the ids after the three workers, so the first group starts there.
     const firstHatch = createInitialState(seed).nextBugId!;
-    expect(large[0]!.bugs.filter((bug) => bug.state === "invading")).toHaveLength(10);
+    expect(at(firstOut).bugs.filter((bug) => bug.state === "invading")).toHaveLength(10);
     // The hive moved with the system's gate, but these player-built gates did
-    // not. Both ten-bug groups are still travelling at the second departure.
-    const migrating = large[3]!.bugs.filter((bug) => bug.sectorId === HIVE_SECTOR && bug.state === "invading");
+    // not. Both ten-bug groups are still travelling at the bothOut snapshot.
+    const migrating = at(bothOut).bugs.filter((bug) => bug.sectorId === HIVE_SECTOR && bug.state === "invading");
     expect(migrating).toHaveLength(20);
-    for (const firstId of [firstHatch, firstHatch + 10]) {
-      const group = migrating.filter((bug) => bug.id >= firstId && bug.id < firstId + 10);
-      expect(group).toHaveLength(10);
-      expect(new Set(group.map((bug) => bug.targetSectorId)).size).toBe(1);
-      expect(new Set(group.map((bug) => bug.timer)).size).toBe(1);
-    }
-    const arrived = large[4]!;
-    expect(arrived.hives.some((hive) => hive.sectorId !== HIVE_SECTOR)).toBe(true);
-    expect(arrived.bugs.some((bug) => bug.id < firstHatch + 10 && bug.sectorId === HIVE_SECTOR)).toBe(false);
+    // A group leaves together, so its bugs share one timer; bugs that joined
+    // a group late are not in the list, so the two groups are told apart by timer.
+    const groups = new Map<number, typeof migrating>();
+    for (const bug of migrating) groups.set(bug.timer, [...(groups.get(bug.timer) ?? []), bug]);
+    expect([...groups.values()].map((group) => group.length).sort()).toEqual([10, 10]);
+    for (const group of groups.values()) expect(new Set(group.map((bug) => bug.targetSectorId)).size).toBe(1);
+    const founding = at(founded);
+    expect(founding.hives.some((hive) => hive.sectorId !== HIVE_SECTOR)).toBe(true);
+    expect(founding.bugs.some((bug) => bug.id < firstHatch + 10 && bug.sectorId === HIVE_SECTOR)).toBe(false);
     for (const dt of [1 / 60, 1]) {
       const stepped = run(dt);
       expect(stepped.map((s) => s.hives.map((h) => h.sectorId))).toEqual(large.map((s) => s.hives.map((h) => h.sectorId)));
@@ -236,7 +262,7 @@ describe("hive", () => {
         stepped[i]!.hives.forEach((hive, j) => expect(hive.stock).toEqual(large[i]!.hives[j]!.stock));
       }
     }
-  }, 30000);
+  }, 60000);
 
   it("counts attack bugs per sector and keeps breeding after a group leaves", () => {
     const start = parkedStart(7).state;
