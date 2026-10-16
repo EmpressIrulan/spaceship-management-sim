@@ -12,6 +12,7 @@ import { damageShip, advanceShields, advanceShipRepairs, advanceModuleRepairs, n
 import { damageStationModule } from "./station-build-queue";
 import type { Beam, Bug, BugShot, DropKind, GunShot, Hive, Ship, ShipDesign, SimState, Station, StationModule, Vec } from "./model";
 import type { Draft } from "./tick-mining";
+import { fleeHome, isWorker, settleWorkers } from "./worker-bugs";
 
 // Where a sector's hive sits: along the line from the sector's middle to its
 // gate, clear of the gate mouth. A placeholder spot until the sector art
@@ -162,7 +163,7 @@ function settleArrivals(draft: Draft): void {
   for (const group of arrivals.values()) {
     const sectorId = group[0]!.targetSectorId!;
     const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === sectorId);
-    const resident = draft.bugs.find((bug) => bug.sectorId === sectorId && !group.some((arrival) => arrival.id === bug.id));
+    const resident = draft.bugs.find((bug) => bug.sectorId === sectorId && !isWorker(bug) && !group.some((arrival) => arrival.id === bug.id));
     const ids = new Set(group.map((bug) => bug.id));
     if (group[0]!.state === "invading") {
       const route = gateRoute(draft, group[0]!.sectorId, sectorId);
@@ -209,7 +210,7 @@ function settleInvasions(draft: Draft): void {
     const sectorId = hive.sectorId;
     // Joined bugs attack here permanently; only this hive's offspring leave.
     if (shipInsideHiveDefenseRadius(draft, hive)) continue;
-    const group = draft.bugs.filter((bug) => bug.sectorId === sectorId && bug.hiveId === hive.id
+    const group = draft.bugs.filter((bug) => bug.sectorId === sectorId && bug.hiveId === hive.id && !isWorker(bug)
       && bug.state !== "invading" && bug.state !== "gathering").slice(0, 10);
     const routes = invasionRoutes(draft, sectorId);
     if (group.length < 10 || routes.length === 0) continue;
@@ -227,7 +228,7 @@ function settleInvasions(draft: Draft): void {
       targetShipId: null,
       targetModule: null,
       targetSectorId: destination.sectorId,
-      leg: { from: { ...bug.position }, to: { ...destination.route.from } },
+      leg: { from: { ...bug.position }, to: { ...destination.route.from } }, nudgeX: 0, nudgeY: 0,
       timer: seconds,
     } : bug);
   }
@@ -398,6 +399,7 @@ function burnOut<T extends { timer: number }>(shot: T, seconds: number): T {
 // chase it. Bugs that hunt re-pick the nearest ship in their sector each time
 // a leg runs out, so a moved or destroyed target hands them on.
 export function settleEnemies(draft: Draft): void {
+  settleWorkers(draft);
   draft.hives = draft.hives.map((hive) => {
     if (!hive.alive || hive.spawnTimer > 0) return hive;
     draft.bugs = [...draft.bugs, spawnBug(draft, hive)];
@@ -415,7 +417,7 @@ export function settleEnemies(draft: Draft): void {
   // Fewer alive bugs than the threshold loiter by the hive. At the threshold
   // they attack the nearest quarry in their own sector with their Guns.
   draft.bugs = draft.bugs.map((bug) => {
-    if (bug.state === "invading" || bug.state === "gathering") return bug;
+    if (isWorker(bug) || bug.state === "invading" || bug.state === "gathering") return bug;
     const hive = draft.hives.find((candidate) => candidate.alive && candidate.sectorId === bug.sectorId);
     const wasDefending = bug.defendingHiveId != null;
     const defenseShip = hive && (bug.state === "hovering" || wasDefending)
@@ -425,12 +427,12 @@ export function settleEnemies(draft: Draft): void {
       const loiter = centre ? loiterPoint(centre, bug) : null;
       return { ...bug, defendingHiveId: null, state: "hovering", targetShipId: null, targetModule: null,
         loiterRng: loiter?.rng ?? bug.loiterRng,
-        leg: loiter ? { from: { ...bug.position }, to: loiter.to } : null, timer: loiter?.seconds ?? 1 };
+        leg: loiter ? { from: { ...bug.position }, to: loiter.to } : null, nudgeX: 0, nudgeY: 0, timer: loiter?.seconds ?? 1 };
     }
     const startingDefense = defenseShip !== null && !wasDefending;
     // A change of target interrupts a defense chase; unchanged legs finish normally.
     if (bug.timer > 0 && !startingDefense && !(wasDefending && defenseShip?.id !== bug.targetShipId)) return bug;
-    const hunting = draft.bugs.filter((candidate) => candidate.sectorId === bug.sectorId
+    const hunting = draft.bugs.filter((candidate) => candidate.sectorId === bug.sectorId && !isWorker(candidate)
       && candidate.state !== "invading" && candidate.state !== "gathering").length >= BUG_ATTACK_THRESHOLD;
     if (startingDefense) bug = { ...bug, defendingHiveId: hive!.id };
     const quarry = defenseShip ? { kind: "ship" as const, ship: defenseShip }
@@ -449,18 +451,18 @@ export function settleEnemies(draft: Draft): void {
         state: "hunting",
         targetShipId: quarry.kind === "ship" ? quarry.ship.id : null,
         targetModule: quarry.kind === "module" ? { stationId: quarry.stationId, position: { ...quarry.module.position } } : null,
-        leg: { from: { ...bug.position }, to: { ...target.position } },
+        leg: { from: { ...bug.position }, to: { ...target.position } }, nudgeX: 0, nudgeY: 0,
         timer: huntSeconds(length, { ...bug, state: "hunting" }),
       };
     }
     // Nothing to hunt: loiter, whether the bug was hovering or had lost its
     // quarry to a sibling's shot.
     // Hive-less joiners spread around the resident population, not their natal hive.
-    const centre = hive ?? draft.bugs.find((candidate) => candidate.sectorId === bug.sectorId);
+    const centre = hive ?? draft.bugs.find((candidate) => candidate.sectorId === bug.sectorId && !isWorker(candidate));
     if (!centre) return { ...bug, state: "hovering", targetShipId: null, targetModule: null, leg: null, timer: 1 };
     const loiter = loiterPoint(centre, bug);
     return { ...bug, loiterRng: loiter.rng, state: "hovering", targetShipId: null, targetModule: null,
-      leg: { from: { ...bug.position }, to: loiter.to }, timer: loiter.seconds };
+      leg: { from: { ...bug.position }, to: loiter.to }, nudgeX: 0, nudgeY: 0, timer: loiter.seconds };
   });
   // After the bugs' shots land, every gun ship that is loaded
   // shoots the nearest bug in range, or the hive when no bug is close enough.
@@ -514,7 +516,7 @@ function hitTarget(draft: Draft, target: GunShot["target"], damage = GUN_DAMAGE)
     const bug = draft.bugs.find((candidate) => candidate.id === target.id);
     if (!bug) return;
     const hp = bug.hp - damage;
-    if (hp > 0) draft.bugs = draft.bugs.map((candidate) => candidate.id === bug.id ? { ...candidate, hp } : candidate);
+    if (hp > 0) draft.bugs = draft.bugs.map((candidate) => candidate.id === bug.id ? fleeHome(draft, { ...candidate, hp }) : candidate);
     else {
       draft.bugs = draft.bugs.filter((candidate) => candidate.id !== bug.id);
       addDrop(draft, bug.sectorId, "bugJuice", bug.position);

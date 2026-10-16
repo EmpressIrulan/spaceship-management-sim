@@ -68,11 +68,16 @@ export interface Draft {
 }
 
 // Takes up to `units` of ore from the asteroid a ship is mining and returns
-// how many it got, removing the asteroid and queueing its replacement once it
-// is empty. A ship whose asteroid is already gone gets nothing.
+// how many it got. A ship whose asteroid is already gone gets nothing.
 export function mine(draft: Draft, ship: Ship, units: number): number {
   if (units <= 0 || !ship.target) return 0;
-  const id = ship.target.asteroidId;
+  return mineAsteroid(draft, ship.target.asteroidId, units);
+}
+
+// Takes up to `units` of ore from one asteroid, removing it and queueing its
+// replacement once it is empty. Ships and workers both mine through here.
+export function mineAsteroid(draft: Draft, id: number, units: number): number {
+  if (units <= 0) return 0;
   const asteroid = draft.asteroids.find((a) => a.id === id);
   if (!asteroid) return 0;
   const taken = Math.min(units, asteroid.ore);

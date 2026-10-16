@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { tick } from "./tick";
-import { createInitialState, homeStation } from "./state";
+import { createInitialState as createGame, homeStation } from "./state";
 import { miningStart } from "./test-ships";
+
+// These tests cover fighters. A new game also starts with workers, which have
+// their own tests in worker-bugs.test.ts, so here every game starts with the
+// hive's bugs alone, as it did before workers existed.
+function createInitialState(seed: number) {
+  return { ...createGame(seed), bugs: [], nextBugId: 0 };
+}
 import {
   BUG_ATTACK_THRESHOLD,
   BUG_BITE_RANGE,

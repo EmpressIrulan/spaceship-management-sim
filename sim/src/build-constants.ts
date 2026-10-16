@@ -41,6 +41,17 @@ export const BUG_DESIGNS: readonly ShipDesign[] = [
   { width: 4, height: 1, slots: ["Gun", "Gun", "Gun", "Gun"] },
 ];
 export const BUG_SIZE: Size = { width: 10 * SIZE_MULTIPLIER, height: 8 * SIZE_MULTIPLIER };
+// Workers carry no gun: one Hull pixel, so they have BUG_HP like the smallest
+// fighter. They mine rock in their hive's sector and fly the ore back to the
+// hive's stock. Hold, mining time and the wait when no rock is left are
+// placeholders, like the hive numbers, until there is something to play with.
+export const WORKER_DESIGN: ShipDesign = { width: 1, height: 1, slots: ["Hull"] };
+export const WORKERS_PER_HIVE = 3;
+// How far from the hive's centre the starting workers stand, spread evenly around it.
+export const WORKER_SPAWN_RADIUS = 20;
+export const WORKER_HOLD = 4;
+export const WORKER_MINE_SECONDS = 6;
+export const WORKER_RETRY_SECONDS = 5;
 // The sim's clock runs at up to 4x speed while the app's explosion burst
 // lasts EXPLOSION_SECONDS = 0.9 real seconds (app/src/world-rendering.ts), so
 // a blast can fill 0.9 * 4 = 3.6 game seconds of sim time. Entries older than

@@ -225,11 +225,18 @@ export interface Hive {
   spawnTimer: number;
   // False once killed: a dead hive stops releasing bugs.
   alive: boolean;
+  // Ore the workers have brought home, by material. Missing on older fixtures means none.
+  stock?: Record<Material, number>;
 }
 // Hovering bugs hang about the hive; hunting ones engage nearby ships or modules.
-export type BugState = "hovering" | "hunting" | "invading" | "gathering";
+// Workers use hovering (idle at the hive), seeking (flying to a rock), mining,
+// returning (flying home loaded) and fleeing (flying home after a shot).
+export type BugState = "hovering" | "hunting" | "invading" | "gathering" | "seeking" | "mining" | "returning" | "fleeing";
+// Missing on older fixtures means a fighter, which fights and hatches from the hive's timer.
+export type BugRole = "fighter" | "worker";
 export interface Bug {
   id: number;
+  role?: BugRole;
   // Birth hive. Arrivals keep this identity and never depart with a local brood.
   hiveId: number;
   sectorId: number;
@@ -259,6 +266,10 @@ export interface Bug {
   // Seconds until the bug's next shot. Missing on older fixtures means loaded.
   gunTimer?: number;
   gunShot?: BugShot | null;
+  // Workers only: the ore aboard, its material, and the rock being worked.
+  cargo?: number;
+  cargoMaterial?: Material | null;
+  asteroidId?: number | null;
 }
 
 export interface BugShot {
