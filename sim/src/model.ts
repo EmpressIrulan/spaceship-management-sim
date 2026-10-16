@@ -221,8 +221,6 @@ export interface Hive {
   position: Vec;
   hp: number;
   maxHp: number;
-  // Seconds until the next bug hatches.
-  spawnTimer: number;
   // False once killed: a dead hive stops releasing bugs.
   alive: boolean;
   // Ore the workers have brought home, by material. Missing on older fixtures means none.
@@ -300,9 +298,6 @@ export interface SimState {
   // the tick loitering never perturbs where the main stream puts a rock.
   // Missing on older fixtures: falls out of the main stream's seed.
   enemyRng?: number;
-  // Bug sizes use a separate deterministic stream, so visual variety does not
-  // consume randomness used for enemy movement and migration.
-  bugDesignRng?: number;
   nextAsteroidId: number;
   nextShipId: number;
   sectors: Sector[];

@@ -16,7 +16,7 @@ export function installIssue135Demo(ui: UiState, getState: () => SimState, setSt
     state.sectors[1]!.gate = { ...state.sectors[1]!.gate, to: 2, position: { x: 200, y: 0 } };
     state.sectors[2]!.gate = { ...state.sectors[2]!.gate, to: 1, position: { x: -200, y: 0 } };
     state.sectors[0]!.gate.to = 0;
-    state.hives = [{ id: 0, sectorId: 1, position: { x: 150, y: 0 }, hp: 200, maxHp: 200, alive: true, spawnTimer: 1 }];
+    state.hives = [{ id: 0, sectorId: 1, position: { x: 150, y: 0 }, hp: 200, maxHp: 200, alive: true }];
     state.bugs = Array.from({ length: 9 }, (_, id) => ({ id, hiveId: 0, sectorId: 1, position: { x: 150 + Math.cos(id * Math.PI * 2 / 9) * 25, y: Math.sin(id * Math.PI * 2 / 9) * 25 }, hp: 6, maxHp: 6, state: "hovering", targetShipId: null, targetModule: null, leg: null, timer: 10000 }));
     state.nextBugId = 9;
     state.nextHiveId = 1;

@@ -57,7 +57,7 @@ function ui(sector = 0) {
 }
 
 function hive(sector: number, position: Vec, alive = true): Hive {
-  return { id: 1, sectorId: sector, position, hp: 200, maxHp: 200, spawnTimer: 5, alive };
+  return { id: 1, sectorId: sector, position, hp: 200, maxHp: 200, alive };
 }
 
 function bug(sector: number, position: Vec, targetShipId: number | null = null): Bug {

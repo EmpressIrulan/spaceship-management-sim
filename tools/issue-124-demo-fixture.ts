@@ -22,7 +22,7 @@ export function createIssue124DemoState(scene: number, design = STARTING_SHIP): 
   if (scene === 2) {
     state.asteroids = [{ ...state.asteroids[0]!, position: { x: 140, y: 0 } }];
     ship.position = { x: 80, y: 0 }; ship.berth = null;
-    state.hives = [{ id: 0, sectorId: 0, position: { x: 100, y: 55 }, hp: 200, maxHp: 200, alive: true, spawnTimer: 10 }];
+    state.hives = [{ id: 0, sectorId: 0, position: { x: 100, y: 55 }, hp: 200, maxHp: 200, alive: true }];
     state.bugs = [{ id: 0, hiveId: 0, sectorId: 0, position: { x: 140, y: 55 }, hp: 6, maxHp: 6,
       state: "hovering", targetShipId: null, targetModule: null, leg: null, timer: 10 }];
   } else if (scene === 3) {
