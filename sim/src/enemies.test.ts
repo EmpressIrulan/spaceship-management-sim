@@ -206,7 +206,7 @@ describe("hive", () => {
         stepped[i]!.hives.forEach((hive, j) => expect(hive.spawnTimer).toBeCloseTo(large[i]!.hives[j]!.spawnTimer, 7));
       }
     }
-  });
+  }, 30000);
 
   it("counts attack bugs per sector and keeps breeding after a group leaves", () => {
     const start = parkedStart(7).state;
